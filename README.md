@@ -37,6 +37,7 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
+| `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |
 | `CLOUDINARY_FOLDER` | Optional base folder for uploads; defaults to `aso-computacion`. Each feature uploads into its own subfolder (e.g. `aso-computacion/events`) |
 
 ## Image uploads
@@ -78,6 +79,29 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 ## Site settings
 
 `/admin/settings` ("Sitio") edits the landing's site texts: a tagline (1–120 characters), a description (1–300) and the "about" text (1–600). They are a singleton: one row whose id is always `site` (enforced by a `CHECK` in the migration), created on the first save and replaced on every later one. Until the first save there is no row and the form starts empty: the read returns `null`, not invented defaults, because the landing keeps its own copy of these texts as the fallback. The hero, manifesto and join copy stay in the landing code for now.
+
+## Public read API
+
+`GET /api/public/content` is what the landing fetches at build time: one JSON snapshot of the **published** content in display order. It needs no session (it is outside the middleware matcher on purpose; `route-protection.test.ts` fails if any other route is reachable without a session) and it only reads.
+
+```jsonc
+{
+  "version": 1,                       // shape version of this document
+  "generatedAt": "2026-10-22T16:00:00.000Z",
+  "events":   [{ "slug", "title", "description", "date", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
+  "faqs":     [{ "question", "answer" }],
+  "pillars":  [{ "word", "title", "text", "image": { "url", "width", "height", "alt" } | null }],
+  "socials":  [{ "platform", "label", "handle", "url", "note", "blurb" }],
+  "board":    [{ "name", "role", "photo": { "url", "width", "height", "alt" } }],
+  "settings": { "tagline", "description", "about" } | null   // null until first saved: the landing keeps its fallback
+}
+```
+
+- Events come newest date first (undated last) with only their active photos in gallery order; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
+- Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
+- `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.
+- CORS: `PUBLIC_CORS_ORIGINS` is an allowlist of exact origins (`https://host[:port]`; plain `http` only for `localhost`/`127.0.0.1`). The request's origin is echoed only when listed, never `*`, always with `Vary: Origin`; an entry with a path, wildcard or trailing slash is ignored and logged once. `OPTIONS` answers the preflight. No credentials are ever allowed.
+- Rate limit: 60 requests per minute per client (in memory, per instance), 429 beyond that.
 
 ## Login throttle
 

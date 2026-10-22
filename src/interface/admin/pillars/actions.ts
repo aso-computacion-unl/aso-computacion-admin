@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
 
 import { requireAdminSession } from "../../auth/require-admin-session";
@@ -30,6 +31,7 @@ export async function createPillar(_prevState: ActionResult | null, formData: Fo
     return mapActionError(error);
   }
 
+  requestSiteRebuild();
   revalidatePath(LIST_PATH);
   // The image needs an existing pillar, so creating continues on its edit page.
   redirect(editPath(id));
@@ -39,6 +41,7 @@ export async function updatePillar(id: string, _prevState: ActionResult | null, 
   try {
     await requireAdminSession();
     await getPillarUseCases().update.execute({ id, ...parsePillarFormData(formData) });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -51,6 +54,7 @@ export async function setPillarPublished(id: string, isPublished: boolean): Prom
   try {
     await requireAdminSession();
     await getPillarUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -63,6 +67,7 @@ export async function deletePillar(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getPillarUseCases().delete.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -79,6 +84,7 @@ export async function movePillar(id: string, direction: "up" | "down"): Promise<
     }
 
     await getPillarUseCases().move.execute({ id, direction });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -97,6 +103,7 @@ export async function uploadPillarImage(id: string, _prevState: ActionResult | n
     await assertValidImageSignature(file);
 
     await getPillarUseCases().setImage.execute({ id, file, alt: String(formData.get("imageAlt") ?? "") });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -109,6 +116,7 @@ export async function removePillarImage(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getPillarUseCases().removeImage.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

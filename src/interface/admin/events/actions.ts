@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
 
 import { requireAdminSession } from "../../auth/require-admin-session";
@@ -26,6 +27,7 @@ export async function createEvent(_prevState: ActionResult | null, formData: For
     return mapActionError(error);
   }
 
+  requestSiteRebuild();
   revalidatePath(LIST_PATH);
   // Photos need an existing event, so creating continues on its edit page.
   redirect(editPath(id));
@@ -39,6 +41,7 @@ export async function updateEvent(
   try {
     await requireAdminSession();
     await getEventUseCases().update.execute({ id, ...parseEventFormData(formData) });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -51,6 +54,7 @@ export async function setEventPublished(id: string, isPublished: boolean): Promi
   try {
     await requireAdminSession();
     await getEventUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -63,6 +67,7 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getEventUseCases().delete.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -85,6 +90,7 @@ export async function uploadEventPhoto(
     await assertValidImageSignature(file);
 
     await getEventUseCases().attachPhoto.execute({ eventId, file, alt: String(formData.get("alt") ?? "") });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(eventId));
     return { success: true };
@@ -102,6 +108,7 @@ export async function updateEventPhotoAlt(
   try {
     await requireAdminSession();
     await getEventUseCases().updatePhotoAlt.execute({ eventId, photoId, alt: String(formData.get("alt") ?? "") });
+    requestSiteRebuild();
     revalidatePath(editPath(eventId));
     return { success: true };
   } catch (error) {
@@ -122,6 +129,7 @@ export async function moveEventPhoto(
     }
 
     await getEventUseCases().reorderPhotos.execute({ eventId, photoId, direction });
+    requestSiteRebuild();
     revalidatePath(editPath(eventId));
     return { success: true };
   } catch (error) {
@@ -133,6 +141,7 @@ export async function deactivateEventPhoto(eventId: string, photoId: string): Pr
   try {
     await requireAdminSession();
     await getEventUseCases().deactivatePhoto.execute({ eventId, photoId });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(eventId));
     return { success: true };

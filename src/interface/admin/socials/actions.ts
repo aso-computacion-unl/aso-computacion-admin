@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
+
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { parseSocialLinkFormData } from "./social-form-data";
@@ -21,6 +23,7 @@ export async function createSocialLink(_prevState: ActionResult | null, formData
     return mapActionError(error);
   }
 
+  requestSiteRebuild();
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
@@ -29,6 +32,7 @@ export async function updateSocialLink(id: string, _prevState: ActionResult | nu
   try {
     await requireAdminSession();
     await getSocialLinkUseCases().update.execute({ id, ...parseSocialLinkFormData(formData) });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -40,6 +44,7 @@ export async function setSocialLinkPublished(id: string, isPublished: boolean): 
   try {
     await requireAdminSession();
     await getSocialLinkUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -51,6 +56,7 @@ export async function deleteSocialLink(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getSocialLinkUseCases().delete.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -67,6 +73,7 @@ export async function moveSocialLink(id: string, direction: "up" | "down"): Prom
     }
 
     await getSocialLinkUseCases().move.execute({ id, direction });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {

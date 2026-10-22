@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
+
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { parseFaqFormData } from "./faq-form-data";
@@ -21,6 +23,7 @@ export async function createFaq(_prevState: ActionResult | null, formData: FormD
     return mapActionError(error);
   }
 
+  requestSiteRebuild();
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
@@ -29,6 +32,7 @@ export async function updateFaq(id: string, _prevState: ActionResult | null, for
   try {
     await requireAdminSession();
     await getFaqUseCases().update.execute({ id, ...parseFaqFormData(formData) });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -40,6 +44,7 @@ export async function setFaqPublished(id: string, isPublished: boolean): Promise
   try {
     await requireAdminSession();
     await getFaqUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -51,6 +56,7 @@ export async function deleteFaq(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getFaqUseCases().delete.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -67,6 +73,7 @@ export async function moveFaq(id: string, direction: "up" | "down"): Promise<Act
     }
 
     await getFaqUseCases().move.execute({ id, direction });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {

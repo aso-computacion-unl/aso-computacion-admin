@@ -18,6 +18,7 @@ export function toDomain(record: PrismaEvent): Event {
     title: record.title,
     description: record.description,
     date: toDateString(record.date),
+    datePrecision: record.datePrecision === "month" ? "month" : "day",
     type: record.type,
     commitMessage: record.commitMessage,
     hora: record.hora,

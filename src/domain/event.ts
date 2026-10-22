@@ -6,6 +6,10 @@ import { httpsUrl, optionalText, requiredText } from "./text";
 export const EVENT_TYPES = ["taller", "charla", "evento", "comunidad"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
+/** `month` is a date known only to the month: stored as the first of that month. */
+export const EVENT_DATE_PRECISIONS = ["day", "month"] as const;
+export type EventDatePrecision = (typeof EVENT_DATE_PRECISIONS)[number];
+
 export const EVENT_TITLE_MAX_LENGTH = 120;
 export const EVENT_DESCRIPTION_MAX_LENGTH = 600;
 export const EVENT_SHORT_TEXT_MAX_LENGTH = 80;
@@ -20,6 +24,8 @@ export interface EventProps {
   readonly description: string | null;
   /** Calendar date (YYYY-MM-DD). A future date is an upcoming event, a past one is history. */
   readonly date: string | null;
+  /** `month`: the day is unknown and `date` is the first of the month. Always `day` without a date. */
+  readonly datePrecision: EventDatePrecision;
   readonly type: EventType | null;
   /** Playful conventional-commit line shown under the title, e.g. `feat: hackatón 24h`. */
   readonly commitMessage: string | null;
@@ -42,6 +48,7 @@ export interface EventFields {
   slug: string;
   description: string | null;
   date: string | null;
+  datePrecision: string;
   type: string | null;
   commitMessage: string | null;
   hora: string | null;
@@ -77,6 +84,27 @@ function validateDate(value: string | null | undefined): string | null {
   }
 
   return trimmed;
+}
+
+function validateDatePrecision(value: string | undefined): EventDatePrecision {
+  if (value === undefined) {
+    return "day";
+  }
+
+  if (!(EVENT_DATE_PRECISIONS as readonly string[]).includes(value)) {
+    throw new ValidationError("datePrecision", `datePrecision must be one of: ${EVENT_DATE_PRECISIONS.join(", ")}`);
+  }
+
+  return value as EventDatePrecision;
+}
+
+/** A month-only date is the first of its month; without a date there is nothing to be imprecise about. */
+function normaliseDate(date: string | null, precision: EventDatePrecision) {
+  if (date === null) {
+    return { date, datePrecision: "day" as const };
+  }
+
+  return { date: precision === "month" ? `${date.slice(0, 7)}-01` : date, datePrecision: precision };
 }
 
 function validateType(value: string | null | undefined): EventType | null {
@@ -124,7 +152,7 @@ function build(
     slug,
     title,
     description: optionalText("description", fields.description, EVENT_DESCRIPTION_MAX_LENGTH),
-    date: validateDate(fields.date),
+    ...normaliseDate(validateDate(fields.date), validateDatePrecision(fields.datePrecision)),
     type: validateType(fields.type),
     commitMessage: optionalText("commitMessage", fields.commitMessage, EVENT_SHORT_TEXT_MAX_LENGTH),
     hora: optionalText("hora", fields.hora, EVENT_SHORT_TEXT_MAX_LENGTH),

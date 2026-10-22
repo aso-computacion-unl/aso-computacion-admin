@@ -1,4 +1,4 @@
-import type { EventType } from "@/domain/event";
+import type { EventDatePrecision, EventType } from "@/domain/event";
 
 /** Plain shape returned by event use cases; mirrors `EventProps` without exposing the entity. */
 export interface EventResult {
@@ -8,6 +8,8 @@ export interface EventResult {
   description: string | null;
   /** YYYY-MM-DD */
   date: string | null;
+  /** `month`: `date` is the first of the month and the day is unknown. */
+  datePrecision: EventDatePrecision;
   type: EventType | null;
   commitMessage: string | null;
   hora: string | null;

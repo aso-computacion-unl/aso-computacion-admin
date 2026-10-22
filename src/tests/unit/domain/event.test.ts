@@ -80,6 +80,47 @@ describe("Event.create", () => {
     });
   });
 
+  describe("datePrecision", () => {
+    it("defaults to day and leaves the date untouched", () => {
+      expect(build({ date: "2026-12-11" }).props).toMatchObject({ date: "2026-12-11", datePrecision: "day" });
+      expect(build({ date: "2026-12-11", datePrecision: "day" }).props.date).toBe("2026-12-11");
+    });
+
+    it("normalises a month-only date to the first of its month", () => {
+      expect(build({ date: "2026-02-17", datePrecision: "month" }).props).toMatchObject({
+        date: "2026-02-01",
+        datePrecision: "month",
+      });
+      expect(build({ date: "2026-02-28", datePrecision: "month" }).props.date).toBe("2026-02-01");
+    });
+
+    it("falls back to day when there is no date", () => {
+      expect(build({ datePrecision: "month" }).props).toMatchObject({ date: null, datePrecision: "day" });
+      expect(build({ date: "  ", datePrecision: "month" }).props.datePrecision).toBe("day");
+    });
+
+    it.each(["week", "MONTH", "", "year"])("rejects the precision %j", (datePrecision) => {
+      expect(() => build({ date: "2026-02-17", datePrecision: datePrecision as never })).toThrow(
+        expect.objectContaining({ name: "ValidationError", field: "datePrecision" }),
+      );
+    });
+
+    it("still rejects an invalid date when the precision is month", () => {
+      expect(() => build({ date: "2026-02-30", datePrecision: "month" })).toThrow(expect.objectContaining({ field: "date" }));
+      expect(() => build({ date: "2026-02", datePrecision: "month" })).toThrow(expect.objectContaining({ field: "date" }));
+    });
+
+    it("re-normalises on update: switching to month snaps the date, clearing the date resets to day", () => {
+      const exact = build({ date: "2026-02-17" });
+      const month = exact.update({ datePrecision: "month" });
+
+      expect(month.props).toMatchObject({ date: "2026-02-01", datePrecision: "month" });
+      expect(month.update({ date: "2026-05-20" }).props).toMatchObject({ date: "2026-05-01", datePrecision: "month" });
+      expect(month.update({ datePrecision: "day" }).props).toMatchObject({ date: "2026-02-01", datePrecision: "day" });
+      expect(month.update({ date: null }).props).toMatchObject({ date: null, datePrecision: "day" });
+    });
+  });
+
   describe("type", () => {
     it.each(["taller", "charla", "evento", "comunidad"])("accepts %s", (type) => {
       expect(build({ type }).props.type).toBe(type);

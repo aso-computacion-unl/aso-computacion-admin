@@ -21,6 +21,8 @@ model Event {
   description   String?
   // Calendar date without time zone; a future date reads as upcoming on the landing.
   date          DateTime?    @db.Date
+  // "day" or "month" (CHECK in the migration). With "month" the date is the first of the month.
+  datePrecision String       @default("day")
   type          EventType?
   commitMessage String?
   hora          String?

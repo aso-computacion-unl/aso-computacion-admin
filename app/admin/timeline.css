@@ -1,0 +1,171 @@
+/*
+ * The repository-history graph of the admin (prototype B), geometry only. One lane variable
+ * drives the trunk, the draft branch, the nodes and the links so they stay aligned at every
+ * breakpoint. Colours come from the brand tokens in globals.css; everything else is Tailwind.
+ *
+ *   <ol class="tl">                       one lane (ordered modules) ...
+ *   <div class="tl"> drafts, bend, trunk  ... or two (events: drafts branch off main)
+ */
+@layer components {
+	.tl {
+		--lane: 40px;
+		--dx: calc(var(--lane) * 0.25);
+		--tx: calc(var(--lane) * 0.75);
+		--line: 2px;
+		--node: 14px;
+		--node-y: 1.625rem;
+		position: relative;
+		isolation: isolate;
+	}
+
+	@media (min-width: 48rem) {
+		.tl {
+			--lane: 64px;
+			--node: 18px;
+		}
+	}
+
+	/* The main line. It fades out below the last commit, like the landing's graph. */
+	.tl-trunk {
+		position: relative;
+	}
+
+	.tl-trunk::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		top: 0;
+		bottom: 0;
+		left: calc(var(--tx) - var(--line) / 2);
+		width: var(--line);
+		background: var(--color-sky);
+		mask-image: linear-gradient(to bottom, #000 calc(100% - 4rem), transparent);
+	}
+
+	/* The draft branch is dashed and one lane to the left. */
+	.tl-drafts {
+		position: relative;
+	}
+
+	.tl-drafts .tl-list::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		top: calc(var(--node-y) + 0.4375rem);
+		bottom: 0;
+		left: calc(var(--dx) - var(--line) / 2);
+		border-left: var(--line) dashed var(--color-sky);
+	}
+
+	.tl-list {
+		position: relative;
+	}
+
+	.tl-group-title {
+		display: grid;
+		gap: 0.125rem;
+		margin-left: var(--lane);
+		padding: 1.25rem 0 0.5rem;
+	}
+
+	.tl-bend {
+		height: 2.5rem;
+		margin-bottom: -1px;
+	}
+
+	.tl-bend svg {
+		display: block;
+		width: var(--lane);
+		height: 100%;
+		fill: none;
+		stroke: var(--color-sky);
+		stroke-width: var(--line);
+		stroke-dasharray: 5 4;
+	}
+
+	.tl-item {
+		position: relative;
+		display: grid;
+		grid-template-columns: var(--lane) minmax(0, 1fr);
+		padding-block: 0.4375rem;
+	}
+
+	.tl-node {
+		position: absolute;
+		z-index: 2;
+		left: calc(var(--x, var(--tx)) - var(--node) / 2);
+		top: calc(var(--node-y) + 0.4375rem - var(--node) / 2);
+		width: var(--node);
+		height: var(--node);
+		border: 3px solid var(--color-navy);
+		border-radius: 50%;
+		background: var(--color-sky);
+	}
+
+	.tl-link {
+		position: absolute;
+		z-index: 0;
+		left: var(--x, var(--tx));
+		top: calc(var(--node-y) + 0.4375rem - var(--line) / 2);
+		width: calc(var(--lane) - var(--x, var(--tx)));
+		height: var(--line);
+		background: var(--color-sky);
+	}
+
+	/* Next: published, not yet happened. Signal is a fill, never text on navy. */
+	.tl-item[data-when="next"] .tl-node {
+		background: var(--color-signal);
+	}
+
+	/* Draft: hollow node on the dashed branch. */
+	.tl-item[data-state="draft"]:not([data-lane="trunk"]) {
+		--x: var(--dx);
+	}
+
+	.tl-item[data-state="draft"] .tl-node {
+		background: var(--color-navy);
+		border: 2px dashed var(--color-sky);
+	}
+
+	.tl-item[data-state="draft"] .tl-link {
+		height: 0;
+		background: none;
+		border-top: var(--line) dashed var(--color-sky);
+	}
+
+	.tl-card {
+		grid-column: 2;
+		position: relative;
+		z-index: 1;
+		border-radius: 4px;
+		background: var(--color-navy-lift);
+	}
+
+	/* HEAD: today, between what comes and what has passed. */
+	.tl-head {
+		--node: 20px;
+		position: relative;
+		display: grid;
+		grid-template-columns: var(--lane) minmax(0, 1fr);
+		align-items: center;
+		min-height: 3.25rem;
+		margin-top: 0.5rem;
+	}
+
+	@media (min-width: 48rem) {
+		.tl-head {
+			--node: 24px;
+		}
+	}
+
+	.tl-head .tl-node {
+		top: 50%;
+		translate: 0 -50%;
+		background: #fff;
+		box-shadow: 0 0 0 2px var(--color-sky);
+	}
+
+	.tl-head .tl-link {
+		top: 50%;
+	}
+}

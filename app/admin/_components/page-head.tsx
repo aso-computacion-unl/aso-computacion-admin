@@ -43,3 +43,22 @@ export function Panel({ className, children, ...props }: ComponentProps<"section
     </section>
   );
 }
+
+interface FormPageProps {
+  backHref: string;
+  backLabel: string;
+  title: string;
+  meta?: ReactNode;
+  children: ReactNode;
+}
+
+/** The frame of every create/edit page: back link, title and a narrow column of panels. */
+export function FormPage({ backHref, backLabel, title, meta, children }: FormPageProps) {
+  return (
+    <div className="max-w-2xl">
+      <BackLink href={backHref}>{backLabel}</BackLink>
+      <PageHead title={title} meta={meta} />
+      <div className="mt-6 grid gap-6">{children}</div>
+    </div>
+  );
+}

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
-import "../content-module.css";
-
-export default function SettingsLayout({ children }: { children: ReactNode }) {
-  return <div className="content-module">{children}</div>;
+// Styling lives in the Tailwind classes of each page and in `../timeline.css`; this only passes through.
+export default function ModuleLayout({ children }: { children: ReactNode }) {
+  return children;
 }

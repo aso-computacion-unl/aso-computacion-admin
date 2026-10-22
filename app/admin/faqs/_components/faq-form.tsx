@@ -1,8 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SwitchField } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
 
-import { Field, FormFeedback } from "../../_components/form-parts";
+import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 export interface FaqFormValues {
@@ -23,25 +27,23 @@ export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VA
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
+    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
       <Field label="Pregunta" error={errors.question}>
-        {(control) => <input {...control} {...bind("question")} required maxLength={200} />}
+        {(control) => <Input {...control} {...bind("question")} required maxLength={200} />}
       </Field>
       <Field label="Respuesta" hint="Hasta 1000 caracteres." error={errors.answer}>
-        {(control) => <textarea {...control} {...bind("answer")} rows={6} required maxLength={1000} />}
+        {(control) => <Textarea {...control} {...bind("answer")} rows={6} required maxLength={1000} />}
       </Field>
-      <p className="field">
-        <label>
-          <input type="checkbox" {...toggle("isPublished")} /> Publicada
-        </label>
-        <small className="field-hint">
-          Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización.
-        </small>
-      </p>
-      <FormFeedback state={state} />
-      <button type="submit" aria-disabled={isPending || undefined}>
-        {isPending ? "Guardando..." : submitLabel}
-      </button>
+      <SwitchField
+        label="Publicada"
+        description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
+        {...toggle("isPublished")}
+      />
+      <ActionBar status={<FormFeedback state={state} />}>
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+          {isPending ? "Guardando…" : submitLabel}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

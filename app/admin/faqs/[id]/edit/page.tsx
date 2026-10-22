@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { updateFaq } from "@/interface/admin/faqs/actions";
 import { getAdminFaq } from "@/interface/admin/faqs/faqs-admin-read";
 
+import { FormPage, Panel } from "../../../_components/page-head";
 import { FaqForm } from "../../_components/faq-form";
 
 export const dynamic = "force-dynamic";
@@ -19,16 +19,14 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
   if (!faq) notFound();
 
   return (
-    <section>
-      <p>
-        <Link href="/admin/faqs">← Volver a preguntas</Link>
-      </p>
-      <h1>Editar pregunta</h1>
-      <FaqForm
-        action={updateFaq.bind(null, id)}
-        submitLabel="Guardar cambios"
-        initialValues={{ question: faq.question, answer: faq.answer, isPublished: faq.isPublished }}
-      />
-    </section>
+    <FormPage backHref="/admin/faqs" backLabel="Volver a preguntas" title="Editar pregunta">
+      <Panel>
+        <FaqForm
+          action={updateFaq.bind(null, id)}
+          submitLabel="Guardar cambios"
+          initialValues={{ question: faq.question, answer: faq.answer, isPublished: faq.isPublished }}
+        />
+      </Panel>
+    </FormPage>
   );
 }

@@ -13,12 +13,13 @@ import {
 import { toBoardMemberResult } from "@/application/mappers/board-member-result.mapper";
 import { BoardMemberPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
+import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
 
 const NOT_FOUND = "Board member not found";
 
 function createBoardMemberUseCases() {
   const members = new BoardMemberPrismaRepository();
-  const storage = new CloudinaryMediaStorage();
+  const storage = new LazyMediaStorage(() => new CloudinaryMediaStorage());
 
   return {
     list: new ListOrderedContentUseCase(members, toBoardMemberResult),

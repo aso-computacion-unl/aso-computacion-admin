@@ -26,3 +26,5 @@ export type { CreateEventInput, EventProps, EventType, UpdateEventInput } from "
 export { EventPhoto, MAX_ACTIVE_EVENT_PHOTOS } from "./event-photo";
 export type { CreateEventPhotoInput, EventPhotoProps } from "./event-photo";
 export { assertSlug, slugify } from "./slug";
+export { Faq } from "./faq";
+export type { CreateFaqInput, FaqProps, UpdateFaqInput } from "./faq";

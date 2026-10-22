@@ -137,3 +137,17 @@ The login is throttled per client, in Postgres (table `LoginAttempt`), so the li
 ## Server actions are guarded individually
 
 The middleware matcher only covers `/` and `/admin/*`, but a server action can be POSTed to any page that bundles it. Every admin server action must therefore call `requireAdminSession()` (`src/interface/auth/require-admin-session.ts`) as its first statement and must have a test proving it rejects without a session and writes nothing (see `src/tests/unit/interface/admin/events/actions-auth.test.ts`). Any new admin API route must also be added to the middleware matcher.
+
+## Cómo colaborar
+
+Este panel es parte de un proyecto de la comunidad de ASO Computación y la directiva lo mantiene junto con quien quiera aportar.
+
+- **Contenido** (eventos, fotos, FAQ, directiva, pilares, redes): se edita en el panel desplegado, sin tocar código.
+- **Código**: Pull Request contra `main`. `main` está protegida, así que todo cambio entra por PR con una aprobación y no hay CI: se corren lint, typecheck, tests y build localmente antes de pedir revisión.
+- **Errores e ideas**: abrí un issue con las plantillas del repositorio.
+
+La guía completa, con el flujo de ramas, las reglas de seguridad y privacidad que todo PR respeta y las buenas prácticas para la directiva, está en [CONTRIBUTING.md](CONTRIBUTING.md). Las vulnerabilidades se reportan en privado según [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE)

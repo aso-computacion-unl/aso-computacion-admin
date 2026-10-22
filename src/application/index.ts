@@ -49,3 +49,6 @@ export {
 } from "./use-cases/ordered-content.use-cases";
 export { CreateFaqUseCase } from "./use-cases/create-faq.use-case";
 export { UpdateFaqUseCase } from "./use-cases/update-faq.use-case";
+export type { SocialLinkResult } from "./dto/social-link-result.dto";
+export { CreateSocialLinkUseCase } from "./use-cases/create-social-link.use-case";
+export { UpdateSocialLinkUseCase } from "./use-cases/update-social-link.use-case";

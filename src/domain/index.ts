@@ -28,3 +28,5 @@ export type { CreateEventPhotoInput, EventPhotoProps } from "./event-photo";
 export { assertSlug, slugify } from "./slug";
 export { Faq } from "./faq";
 export type { CreateFaqInput, FaqProps, UpdateFaqInput } from "./faq";
+export { SOCIAL_PLATFORMS, SocialLink } from "./social-link";
+export type { CreateSocialLinkInput, SocialLinkProps, SocialPlatform, UpdateSocialLinkInput } from "./social-link";

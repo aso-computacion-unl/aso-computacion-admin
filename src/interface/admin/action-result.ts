@@ -40,6 +40,12 @@ const FIELD_MESSAGES: Record<string, string> = {
   highlights: "Hasta 8 líneas de 80 caracteres como máximo.",
   question: "La pregunta es obligatoria y admite hasta 200 caracteres.",
   answer: "La respuesta es obligatoria y admite hasta 1000 caracteres.",
+  platform: "Elija una red de la lista.",
+  label: "El nombre es obligatorio y admite hasta 40 caracteres.",
+  handle: "El usuario es obligatorio y admite hasta 60 caracteres.",
+  url: "Use un enlace que empiece con https://.",
+  note: "La nota admite hasta 40 caracteres.",
+  blurb: "La descripción corta admite hasta 80 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
@@ -48,6 +54,7 @@ const FIELD_MESSAGES: Record<string, string> = {
 // NotFoundError texts by entity; anything else keeps the generic event/photo wording.
 const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Faq not found": "No se encontró la pregunta frecuente.",
+  "Social link not found": "No se encontró la red social.",
 };
 
 const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";

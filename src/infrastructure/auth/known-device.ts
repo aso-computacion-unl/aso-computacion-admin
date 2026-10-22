@@ -1,5 +1,8 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { SignJWT, jwtVerify } from "jose";
 
+import { getAdminPassword } from "./password";
 import { SESSION_ALGORITHM, getSessionSecret } from "./session-jwt";
 
 /**
@@ -14,6 +17,13 @@ import { SESSION_ALGORITHM, getSessionSecret } from "./session-jwt";
  * its own cookie name, no `sub: "admin"` claim (session verification requires
  * it) and a `purpose` claim that session tokens lack (device verification
  * requires it).
+ *
+ * It is also bound to the current ADMIN_PASSWORD through the `pv` claim, a
+ * truncated HMAC(ADMIN_SECRET, ADMIN_PASSWORD): rotating the password (done when
+ * the board changes) makes every device cookie stop matching, so a former
+ * member's browser falls back to the IP bucket instead of keeping a private
+ * throttle bucket for the cookie's 180 days. The claim is a keyed hash, so it
+ * reveals nothing about the password.
  */
 export const KNOWN_DEVICE_COOKIE_NAME = "admin_device";
 export const KNOWN_DEVICE_DURATION_SECONDS = 180 * 86400;
@@ -31,11 +41,33 @@ export function deviceThrottleKey(deviceId: string): string {
   return `device:${deviceId}`;
 }
 
+/** 128 bits of the HMAC: plenty for a binding that is only compared, short enough for a cookie. */
+const PASSWORD_VERSION_HEX_LENGTH = 32;
+
+/** Throws when ADMIN_SECRET or ADMIN_PASSWORD is unusable. */
+function currentPasswordVersion(): string {
+  return createHmac("sha256", getSessionSecret())
+    .update(getAdminPassword(), "utf8")
+    .digest("hex")
+    .slice(0, PASSWORD_VERSION_HEX_LENGTH);
+}
+
+function matchesPasswordVersion(claim: unknown): boolean {
+  if (typeof claim !== "string") {
+    return false;
+  }
+
+  const expected = Buffer.from(currentPasswordVersion());
+  const received = Buffer.from(claim);
+
+  return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
 export async function signKnownDevice(
   deviceId: string,
   issuedAtSeconds: number = Math.floor(Date.now() / 1000),
 ): Promise<string> {
-  return new SignJWT({ purpose: KNOWN_DEVICE_PURPOSE, did: deviceId })
+  return new SignJWT({ purpose: KNOWN_DEVICE_PURPOSE, did: deviceId, pv: currentPasswordVersion() })
     .setProtectedHeader({ alg: SESSION_ALGORITHM })
     .setIssuedAt(issuedAtSeconds)
     .setExpirationTime(issuedAtSeconds + KNOWN_DEVICE_DURATION_SECONDS)
@@ -58,9 +90,13 @@ export async function verifyKnownDevice(token: string): Promise<KnownDeviceResul
       return { valid: false };
     }
 
+    if (!matchesPasswordVersion(payload.pv)) {
+      return { valid: false };
+    }
+
     return { valid: true, deviceId: payload.did };
   } catch {
-    // Forged, expired, malformed, or an unusable ADMIN_SECRET (the session path reports that one): no known device.
+    // Forged, expired, malformed, or an unusable ADMIN_SECRET / ADMIN_PASSWORD (the login path reports those): no known device.
     return { valid: false };
   }
 }

@@ -39,9 +39,27 @@ function splitTopLevel(text: string): string[] {
 
 const IDENTIFIER = '"?(\\w+)"?';
 
+/** What can follow `ADD` instead of a column name (an unquoted column cannot be named like these). */
+const ADD_CONSTRAINT_KEYWORDS = new Set(["CONSTRAINT", "PRIMARY", "UNIQUE", "CHECK", "FOREIGN", "EXCLUDE"]);
+
+/** The column an `ADD [COLUMN] [IF NOT EXISTS] name ...` action creates, if it creates one. */
+function addedColumn(action: string): string | undefined {
+  const match = /^ADD\s+(COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?("?)(\w+)\2/i.exec(action);
+
+  if (!match) return undefined;
+
+  const [, column, quote, name] = match;
+
+  if (!column && !quote && ADD_CONSTRAINT_KEYWORDS.has(name!.toUpperCase())) return undefined;
+
+  return name;
+}
+
 /**
  * The final column names of `table` after replaying `migrationSql` in order:
- * `CREATE TABLE` columns, then `ADD COLUMN`, `RENAME COLUMN ... TO` and
+ * `CREATE TABLE` columns, then `ADD [COLUMN]` (the keyword is optional in
+ * Postgres; `ADD CONSTRAINT/PRIMARY/UNIQUE/CHECK/FOREIGN` add none),
+ * `RENAME COLUMN ... TO` and
  * `DROP COLUMN` from later `ALTER TABLE` statements. Sorted. Meant for tests
  * that must see the whole history of a table, not only the migration that
  * created it.
@@ -71,11 +89,11 @@ export function tableColumns(table: string, migrationSql: readonly string[]): st
       const altered = alter.exec(statement);
 
       for (const action of splitTopLevel(altered?.[1] ?? "")) {
-        const added = new RegExp(`^ADD COLUMN (?:IF NOT EXISTS )?${IDENTIFIER}`, "i").exec(action);
+        const added = addedColumn(action);
         const renamed = new RegExp(`^RENAME COLUMN ${IDENTIFIER} TO ${IDENTIFIER}`, "i").exec(action);
         const dropped = new RegExp(`^DROP COLUMN (?:IF EXISTS )?${IDENTIFIER}`, "i").exec(action);
 
-        if (added) columns.add(added[1]!);
+        if (added) columns.add(added);
         if (renamed) {
           columns.delete(renamed[1]!);
           columns.add(renamed[2]!);

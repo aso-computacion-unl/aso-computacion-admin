@@ -30,15 +30,28 @@ export function getAdminPassword(): string {
   return password;
 }
 
+let hasReportedAdminPasswordMisconfiguration = false;
+
 /**
- * Said on every login attempt while ADMIN_PASSWORD is unusable (unset, empty,
- * still the `.env.example` placeholder, or shorter than the minimum), so the
- * operator finds it in the logs instead of seeing only "wrong password" reports.
+ * Said once per process while ADMIN_PASSWORD is unusable (unset, empty, still
+ * the `.env.example` placeholder, or shorter than the minimum), so the operator
+ * finds it in the logs instead of seeing only "wrong password" reports, without
+ * one line per login attempt filling them.
  */
 export function reportAdminPasswordMisconfiguration(): void {
+  if (hasReportedAdminPasswordMisconfiguration) {
+    return;
+  }
+
+  hasReportedAdminPasswordMisconfiguration = true;
   console.error(
     `ADMIN_PASSWORD is not set, is still a placeholder or is shorter than ${ADMIN_PASSWORD_MIN_LENGTH} characters: admin login is disabled until it is configured.`,
   );
+}
+
+/** Test-only helper: resets the process-level "reported once" latch. Not intended for production use. */
+export function resetAdminPasswordMisconfigurationReport(): void {
+  hasReportedAdminPasswordMisconfiguration = false;
 }
 
 export function comparePassword(input: string, expected: string): boolean {

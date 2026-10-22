@@ -107,13 +107,35 @@ describe("getAdminPassword minimum length", () => {
   });
 
   it("explains the length rule in the misconfiguration log", async () => {
-    const { reportAdminPasswordMisconfiguration } = await import("@/infrastructure/auth/password");
+    const { reportAdminPasswordMisconfiguration, resetAdminPasswordMisconfigurationReport } = await import(
+      "@/infrastructure/auth/password"
+    );
+    resetAdminPasswordMisconfigurationReport();
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     reportAdminPasswordMisconfiguration();
 
     expect(log.mock.calls[0]?.[0]).toMatch(/ADMIN_PASSWORD/);
     expect(log.mock.calls[0]?.[0]).toMatch(/16/);
+    log.mockRestore();
+  });
+});
+
+describe("reportAdminPasswordMisconfiguration", () => {
+  it("logs once per process, however many login attempts report it", async () => {
+    const { reportAdminPasswordMisconfiguration, resetAdminPasswordMisconfigurationReport } = await import(
+      "@/infrastructure/auth/password"
+    );
+    resetAdminPasswordMisconfigurationReport();
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) reportAdminPasswordMisconfiguration();
+
+    expect(log).toHaveBeenCalledTimes(1);
+
+    resetAdminPasswordMisconfigurationReport();
+    reportAdminPasswordMisconfiguration();
+    expect(log).toHaveBeenCalledTimes(2);
     log.mockRestore();
   });
 });

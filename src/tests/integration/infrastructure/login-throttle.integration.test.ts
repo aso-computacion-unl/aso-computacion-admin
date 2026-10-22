@@ -24,6 +24,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { KNOWN_DEVICE_COOKIE_NAME, deviceThrottleKey, signKnownDevice, verifyKnownDevice } from "@/infrastructure/auth/known-device";
+import { resetAdminPasswordMisconfigurationReport } from "@/infrastructure/auth/password";
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { prisma } from "@/infrastructure/prisma/client";
 import { login } from "@/interface/auth/actions";
@@ -46,6 +47,7 @@ describe("login action with the Postgres throttle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cookieJar.clear();
+    resetAdminPasswordMisconfigurationReport();
     vi.stubEnv("ADMIN_PASSWORD", PASSWORD);
     vi.stubEnv("ADMIN_SECRET", "z".repeat(32));
   });
@@ -103,6 +105,18 @@ describe("login action with the Postgres throttle", () => {
 
     expect(errorLog).toHaveBeenCalledWith(expect.stringMatching(/ADMIN_PASSWORD.*(not set|missing|configure)/i));
     expect(cookieSetMock).not.toHaveBeenCalled();
+  });
+
+  it("the ADMIN_PASSWORD misconfiguration is logged once per process, not once per attempt", async () => {
+    vi.stubEnv("ADMIN_PASSWORD", "");
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    fromIp("203.0.113.7");
+
+    for (let i = 0; i < 4; i += 1) {
+      await expect(login(null, form("anything"))).resolves.toEqual({ error: "Authentication service is temporarily unavailable." });
+    }
+
+    expect(errorLog.mock.calls.filter(([message]) => /ADMIN_PASSWORD/.test(String(message)))).toHaveLength(1);
   });
 
   it("a too-short ADMIN_PASSWORD fails closed like a missing one, logging why and spending no attempt", async () => {
@@ -187,6 +201,30 @@ describe("login action with the Postgres throttle", () => {
       cookieJar.clear();
       await expect(login(null, form(PASSWORD))).resolves.toEqual(THROTTLED);
       expect((await prisma.loginAttempt.findUnique({ where: { key: NAT } }))?.attempts).toBeGreaterThanOrEqual(5);
+    });
+
+    it("rotating ADMIN_PASSWORD makes the old device cookie fall back to the IP bucket", async () => {
+      const device = await adminLogsInOnce();
+      const { deviceId } = (await verifyKnownDevice(device)) as { valid: true; deviceId: string };
+      const NEW_PASSWORD = "a rotated admin password";
+      vi.stubEnv("ADMIN_PASSWORD", NEW_PASSWORD);
+      await attackerReachesTheCap();
+
+      // The cookie minted under the old password is ignored: same IP bucket as the attacker.
+      cookieJar.clear();
+      cookieJar.set(KNOWN_DEVICE_COOKIE_NAME, device);
+      await expect(login(null, form(NEW_PASSWORD))).resolves.toEqual(THROTTLED);
+      expect(await prisma.loginAttempt.findUnique({ where: { key: deviceThrottleKey(deviceId) } })).toBeNull();
+
+      // A cookie issued under the new password gets its own bucket again (the issuing login came from another IP).
+      fromIp("198.51.100.20");
+      cookieJar.clear();
+      await expect(login(null, form(NEW_PASSWORD))).rejects.toThrow("REDIRECT:/admin");
+      const renewed = cookieJar.get(KNOWN_DEVICE_COOKIE_NAME)!;
+      fromIp(NAT);
+      cookieJar.clear();
+      cookieJar.set(KNOWN_DEVICE_COOKIE_NAME, renewed);
+      await expect(login(null, form(NEW_PASSWORD))).rejects.toThrow("REDIRECT:/admin");
     });
 
     it("keeps the same device id across logins, so the device bucket is stable", async () => {

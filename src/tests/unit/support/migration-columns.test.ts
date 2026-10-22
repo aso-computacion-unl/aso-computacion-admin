@@ -47,6 +47,33 @@ describe("tableColumns", () => {
     expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["createdAt", "id", "name"]);
   });
 
+  it("counts ADD without the optional COLUMN keyword (Postgres accepts both)", () => {
+    const later = `ALTER TABLE "BoardMember" ADD "telefono" TEXT;\nALTER TABLE "BoardMember"\n  ADD IF NOT EXISTS "email" TEXT,\n  ADD age INTEGER NOT NULL DEFAULT 0;`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["age", "createdAt", "email", "id", "name", "telefono"]);
+  });
+
+  it("still counts a column whose quoted name is a constraint keyword", () => {
+    const later = `ALTER TABLE "BoardMember" ADD "check" TEXT, ADD COLUMN unique_code TEXT;`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["check", "createdAt", "id", "name", "unique_code"]);
+  });
+
+  it.each([
+    ["ADD CONSTRAINT", `ADD CONSTRAINT "BoardMember_check" CHECK ("id" <> '')`],
+    ["ADD CONSTRAINT UNIQUE", `ADD CONSTRAINT "BoardMember_name_key" UNIQUE ("name")`],
+    ["ADD CONSTRAINT FOREIGN KEY", `ADD CONSTRAINT "BoardMember_fk" FOREIGN KEY ("id") REFERENCES "Other"("id")`],
+    ["ADD PRIMARY KEY", `ADD PRIMARY KEY ("id")`],
+    ["ADD UNIQUE", `ADD UNIQUE ("name")`],
+    ["ADD CHECK", `ADD CHECK ("id" <> '')`],
+    ["ADD FOREIGN KEY", `ADD FOREIGN KEY ("id") REFERENCES "Other"("id")`],
+    ["ADD EXCLUDE", `ADD EXCLUDE USING gist ("id" WITH =)`],
+  ])("does not mistake %s for a column", (_label, action) => {
+    const later = `ALTER TABLE "BoardMember" ${action};\nALTER TABLE ONLY "BoardMember"\n  ${action};`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["createdAt", "id", "name"]);
+  });
+
   it("is empty for a table no migration creates", () => {
     expect(tableColumns("Missing", [CREATE])).toEqual([]);
   });

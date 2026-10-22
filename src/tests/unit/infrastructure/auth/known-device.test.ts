@@ -1,5 +1,9 @@
-import { SignJWT } from "jose";
+import { createHmac } from "node:crypto";
+
+import { SignJWT, decodeJwt } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import {
   KNOWN_DEVICE_COOKIE_NAME,
@@ -12,11 +16,18 @@ import {
 import { AUTH_COOKIE_NAME, signSession, verifySession } from "@/infrastructure/auth/session-jwt";
 
 const SECRET = "z".repeat(32);
+const PASSWORD_A = "correct horse battery staple";
+const PASSWORD_B = "another long admin password";
 const encode = (secret: string) => new TextEncoder().encode(secret);
+
+async function currentPasswordVersion(): Promise<string> {
+  return decodeJwt(await signKnownDevice("probe")).pv as string;
+}
 
 describe("known-device token", () => {
   beforeEach(() => {
     vi.stubEnv("ADMIN_SECRET", SECRET);
+    vi.stubEnv("ADMIN_PASSWORD", PASSWORD_A);
   });
 
   afterEach(() => {
@@ -79,13 +90,78 @@ describe("known-device token", () => {
   });
 
   it("rejects a token without the known-device purpose or without a device id", async () => {
+    const pv = await currentPasswordVersion();
     const sign = (claims: Record<string, unknown>) =>
       new SignJWT(claims).setProtectedHeader({ alg: "HS256" }).setExpirationTime("1h").sign(encode(SECRET));
 
-    expect(await verifyKnownDevice(await sign({ did: "d1" }))).toEqual({ valid: false });
-    expect(await verifyKnownDevice(await sign({ purpose: "known-device" }))).toEqual({ valid: false });
-    expect(await verifyKnownDevice(await sign({ purpose: "known-device", did: "" }))).toEqual({ valid: false });
-    expect(await verifyKnownDevice(await sign({ purpose: "session", did: "d1" }))).toEqual({ valid: false });
+    expect(await verifyKnownDevice(await sign({ did: "d1", pv }))).toEqual({ valid: false });
+    expect(await verifyKnownDevice(await sign({ purpose: "known-device", pv }))).toEqual({ valid: false });
+    expect(await verifyKnownDevice(await sign({ purpose: "known-device", did: "", pv }))).toEqual({ valid: false });
+    expect(await verifyKnownDevice(await sign({ purpose: "session", did: "d1", pv }))).toEqual({ valid: false });
+    // Sanity: the same claims with the purpose and a device id are accepted, so the rejections above are about the missing parts.
+    expect(await verifyKnownDevice(await sign({ purpose: "known-device", did: "d1", pv }))).toEqual({
+      valid: true,
+      deviceId: "d1",
+    });
+  });
+
+  describe("password binding (pv claim)", () => {
+    it("carries a truncated HMAC of the password keyed with ADMIN_SECRET, never the password itself", async () => {
+      const claims = decodeJwt(await signKnownDevice("d1"));
+
+      expect(claims.pv).toBe(createHmac("sha256", SECRET).update(PASSWORD_A).digest("hex").slice(0, 32));
+      expect(JSON.stringify(claims)).not.toContain(PASSWORD_A);
+    });
+
+    it("ignores a cookie minted under password A once the password is rotated to B", async () => {
+      const token = await signKnownDevice("d1");
+
+      vi.stubEnv("ADMIN_PASSWORD", PASSWORD_B);
+
+      expect(await verifyKnownDevice(token)).toEqual({ valid: false });
+    });
+
+    it("a cookie minted under B works under B, and the old one stays dead; rotating back revives the original", async () => {
+      const underA = await signKnownDevice("d1");
+      vi.stubEnv("ADMIN_PASSWORD", PASSWORD_B);
+      const underB = await signKnownDevice("d1");
+
+      expect(await verifyKnownDevice(underB)).toEqual({ valid: true, deviceId: "d1" });
+      expect(await verifyKnownDevice(underA)).toEqual({ valid: false });
+
+      vi.stubEnv("ADMIN_PASSWORD", PASSWORD_A);
+      expect(await verifyKnownDevice(underA)).toEqual({ valid: true, deviceId: "d1" });
+    });
+
+    it("rejects a validly signed token with no pv or a wrong pv", async () => {
+      const sign = (claims: Record<string, unknown>) =>
+        new SignJWT({ purpose: "known-device", did: "d1", ...claims })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("1h")
+          .sign(encode(SECRET));
+
+      expect(await verifyKnownDevice(await sign({}))).toEqual({ valid: false });
+      expect(await verifyKnownDevice(await sign({ pv: "0".repeat(32) }))).toEqual({ valid: false });
+      expect(await verifyKnownDevice(await sign({ pv: 42 }))).toEqual({ valid: false });
+      expect(await verifyKnownDevice(await sign({ pv: (await currentPasswordVersion()).slice(0, 16) }))).toEqual({
+        valid: false,
+      });
+    });
+
+    it("treats an unusable ADMIN_PASSWORD as no device instead of throwing", async () => {
+      const token = await signKnownDevice("d1");
+
+      for (const password of ["", "__REPLACE_ADMIN_PASSWORD__", "short"]) {
+        vi.stubEnv("ADMIN_PASSWORD", password);
+        expect(await verifyKnownDevice(token)).toEqual({ valid: false });
+      }
+    });
+
+    it("refuses to mint a device token while the password is unusable", async () => {
+      vi.stubEnv("ADMIN_PASSWORD", "");
+
+      await expect(signKnownDevice("d1")).rejects.toThrow();
+    });
   });
 
   it("a session token is not a device token", async () => {

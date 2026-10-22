@@ -15,3 +15,17 @@ export type {
 } from "./ports/media-storage.port";
 export { UploadImageUseCase } from "./use-cases/upload-image.use-case";
 export type { UploadImageInput } from "./use-cases/upload-image.use-case";
+export type {
+  EventDetailResult,
+  EventListItemResult,
+  EventPhotoResult,
+  EventResult,
+} from "./dto/event-result.dto";
+export type { EventPhotoRepository } from "./ports/event-photo-repository.port";
+export type { EventRepository } from "./ports/event-repository.port";
+export { CreateEventUseCase } from "./use-cases/create-event.use-case";
+export { DeleteEventUseCase } from "./use-cases/delete-event.use-case";
+export { GetEventUseCase } from "./use-cases/get-event.use-case";
+export { ListEventsUseCase } from "./use-cases/list-events.use-case";
+export { SetEventPublishedUseCase } from "./use-cases/set-event-published.use-case";
+export { UpdateEventUseCase } from "./use-cases/update-event.use-case";

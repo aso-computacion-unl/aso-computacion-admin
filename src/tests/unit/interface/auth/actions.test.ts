@@ -14,6 +14,11 @@ const {
   recordSuccessfulLoginMock,
   reportUnknownLoginClientMock,
   reportAdminPasswordMisconfigurationMock,
+  readKnownDeviceTokenMock,
+  setKnownDeviceCookieMock,
+  verifyKnownDeviceMock,
+  signKnownDeviceMock,
+  newDeviceIdMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn(() => {
     throw new Error("REDIRECT");
@@ -30,6 +35,11 @@ const {
   recordSuccessfulLoginMock: vi.fn(),
   reportUnknownLoginClientMock: vi.fn(),
   reportAdminPasswordMisconfigurationMock: vi.fn(),
+  readKnownDeviceTokenMock: vi.fn(),
+  setKnownDeviceCookieMock: vi.fn(),
+  verifyKnownDeviceMock: vi.fn(),
+  signKnownDeviceMock: vi.fn(),
+  newDeviceIdMock: vi.fn(),
 }));
 
 // actions.ts imports the real client IP resolver from client-ip.ts, which is
@@ -62,6 +72,18 @@ vi.mock("@/infrastructure/auth/session-jwt", () => ({
   reportSessionSecretMisconfiguration: reportSessionSecretMisconfigurationMock,
 }));
 
+vi.mock("@/infrastructure/auth/known-device", () => ({
+  verifyKnownDevice: verifyKnownDeviceMock,
+  signKnownDevice: signKnownDeviceMock,
+  newDeviceId: newDeviceIdMock,
+  deviceThrottleKey: (id: string) => `device:${id}`,
+}));
+
+vi.mock("@/infrastructure/auth/known-device-cookies", () => ({
+  readKnownDeviceToken: readKnownDeviceTokenMock,
+  setKnownDeviceCookie: setKnownDeviceCookieMock,
+}));
+
 vi.mock("@/infrastructure/auth/session-cookies", () => ({
   setSessionCookie: setSessionCookieMock,
   clearSessionCookie: clearSessionCookieMock,
@@ -87,6 +109,10 @@ describe("auth actions", () => {
     getAdminPasswordMock.mockReturnValue("correct-password");
     headersGetMock.mockImplementation((name: string) => (name === "x-real-ip" ? "203.0.113.5" : null));
     consumeLoginAttemptMock.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+    readKnownDeviceTokenMock.mockResolvedValue(undefined);
+    verifyKnownDeviceMock.mockResolvedValue({ valid: false });
+    signKnownDeviceMock.mockResolvedValue("device-token");
+    newDeviceIdMock.mockReturnValue("fresh-device-id");
   });
 
   it("ACTION-001: login correcto firma sesión, setea cookie y redirige al dashboard /admin", async () => {
@@ -257,5 +283,127 @@ describe("auth actions", () => {
 
     expect(setSessionCookieMock).toHaveBeenCalledWith("token");
     errorLog.mockRestore();
+  });
+  describe("known-device throttle bucket", () => {
+    beforeEach(() => {
+      readKnownDeviceTokenMock.mockResolvedValue("device-cookie");
+      verifyKnownDeviceMock.mockResolvedValue({ valid: true, deviceId: "dev-1" });
+    });
+
+    it("DEVICE-001: a valid device cookie is throttled by the device id, not by the IP", async () => {
+      comparePasswordMock.mockReturnValue(false);
+
+      await login(null, formDataWith("wrong-password"));
+
+      expect(verifyKnownDeviceMock).toHaveBeenCalledWith("device-cookie");
+      expect(consumeLoginAttemptMock).toHaveBeenCalledTimes(1);
+      expect(consumeLoginAttemptMock).toHaveBeenCalledWith("device:dev-1");
+    });
+
+    it("DEVICE-002: a valid device cookie does not need a client IP, so nothing is reported as unknown", async () => {
+      setHeaders({});
+      comparePasswordMock.mockReturnValue(false);
+
+      await login(null, formDataWith("wrong-password"));
+
+      expect(consumeLoginAttemptMock).toHaveBeenCalledWith("device:dev-1");
+      expect(reportUnknownLoginClientMock).not.toHaveBeenCalled();
+    });
+
+    it("DEVICE-003: a forged or expired device cookie falls back to the IP bucket", async () => {
+      verifyKnownDeviceMock.mockResolvedValue({ valid: false });
+      comparePasswordMock.mockReturnValue(false);
+
+      await login(null, formDataWith("wrong-password"));
+
+      expect(consumeLoginAttemptMock).toHaveBeenCalledWith("203.0.113.5");
+    });
+
+    it("DEVICE-004: no device cookie means the IP bucket and no verification", async () => {
+      readKnownDeviceTokenMock.mockResolvedValue(undefined);
+      comparePasswordMock.mockReturnValue(false);
+
+      await login(null, formDataWith("wrong-password"));
+
+      expect(verifyKnownDeviceMock).not.toHaveBeenCalled();
+      expect(consumeLoginAttemptMock).toHaveBeenCalledWith("203.0.113.5");
+    });
+
+    it("DEVICE-005: the device bucket has its own backoff: a throttled device is refused even with the right password", async () => {
+      consumeLoginAttemptMock.mockResolvedValue({ allowed: false, retryAfterSeconds: 30 });
+
+      const result = await login(null, formDataWith("correct-password"));
+
+      expect(result).toEqual({ error: "Demasiados intentos. Intente de nuevo más tarde." });
+      expect(comparePasswordMock).not.toHaveBeenCalled();
+      expect(setKnownDeviceCookieMock).not.toHaveBeenCalled();
+    });
+
+    it("DEVICE-006: a good login clears the bucket it spent (the device one) and renews the cookie with the same device id", async () => {
+      comparePasswordMock.mockReturnValue(true);
+      signSessionMock.mockResolvedValue("token");
+
+      await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+
+      expect(recordSuccessfulLoginMock).toHaveBeenCalledTimes(1);
+      expect(recordSuccessfulLoginMock).toHaveBeenCalledWith("device:dev-1");
+      expect(signKnownDeviceMock).toHaveBeenCalledWith("dev-1");
+      expect(setKnownDeviceCookieMock).toHaveBeenCalledWith("device-token");
+      expect(newDeviceIdMock).not.toHaveBeenCalled();
+    });
+
+    it("DEVICE-007: a good login without a device cookie mints a fresh device id and clears the IP bucket", async () => {
+      readKnownDeviceTokenMock.mockResolvedValue(undefined);
+      comparePasswordMock.mockReturnValue(true);
+      signSessionMock.mockResolvedValue("token");
+
+      await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+
+      expect(recordSuccessfulLoginMock).toHaveBeenCalledWith("203.0.113.5");
+      expect(signKnownDeviceMock).toHaveBeenCalledWith("fresh-device-id");
+      expect(setKnownDeviceCookieMock).toHaveBeenCalledWith("device-token");
+    });
+
+    it("DEVICE-008: no device cookie is issued on a wrong password", async () => {
+      comparePasswordMock.mockReturnValue(false);
+
+      await login(null, formDataWith("wrong-password"));
+
+      expect(signKnownDeviceMock).not.toHaveBeenCalled();
+      expect(setKnownDeviceCookieMock).not.toHaveBeenCalled();
+    });
+
+    it("DEVICE-009: no device cookie is issued when the session cannot be signed", async () => {
+      comparePasswordMock.mockReturnValue(true);
+      signSessionMock.mockRejectedValue(new SessionSecretErrorMock("invalid secret"));
+
+      await login(null, formDataWith("correct-password"));
+
+      expect(setKnownDeviceCookieMock).not.toHaveBeenCalled();
+    });
+
+    it("DEVICE-010: failing to set the device cookie never blocks a correct login", async () => {
+      comparePasswordMock.mockReturnValue(true);
+      signSessionMock.mockResolvedValue("token");
+      signKnownDeviceMock.mockRejectedValue(new Error("boom"));
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+
+      expect(setSessionCookieMock).toHaveBeenCalledWith("token");
+      expect(redirectMock).toHaveBeenCalledWith("/admin");
+      errorLog.mockRestore();
+    });
+
+    it("DEVICE-011: a throttle store failure still fails closed on the device bucket", async () => {
+      consumeLoginAttemptMock.mockRejectedValue(new Error("connection refused"));
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const result = await login(null, formDataWith("correct-password"));
+
+      expect(result).toEqual({ error: "Authentication service is temporarily unavailable." });
+      expect(comparePasswordMock).not.toHaveBeenCalled();
+      errorLog.mockRestore();
+    });
   });
 });

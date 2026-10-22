@@ -32,6 +32,8 @@ describe("loginDelayMs (exponential backoff with a cap, never a hard lockout)", 
     expect(LOGIN_BACKOFF_CAP_MS).toBe(5 * 60_000);
     expect(loginDelayMs(9)).toBe(LOGIN_BACKOFF_CAP_MS);
     expect(loginDelayMs(10_000)).toBe(LOGIN_BACKOFF_CAP_MS);
+    expect(loginDelayMs(1_000_000)).toBe(LOGIN_BACKOFF_CAP_MS);
+    expect(loginDelayMs(Number.MAX_SAFE_INTEGER)).toBe(LOGIN_BACKOFF_CAP_MS);
   });
 });
 

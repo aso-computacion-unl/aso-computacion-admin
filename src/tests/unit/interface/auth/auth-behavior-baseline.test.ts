@@ -5,6 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // unchanged, after it: valid login, wrong password, empty password, logout and
 // the middleware redirects. The throttle is stubbed permissive so only the
 // unchanged paths are compared; its new behaviour has its own tests.
+//
+// T2c adds exactly two things to the harness, nothing to the expectations: the
+// stubbed cookie store can now be read (`get`, the login looks for the
+// known-device cookie), and a successful login sets a second cookie (the
+// known-device one), so the session cookie is picked out by name.
 
 const { redirectMock, cookieSetMock, headersGetMock } = vi.hoisted(() => ({
   redirectMock: vi.fn((url: string) => {
@@ -18,7 +23,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: headersGetMock })),
-  cookies: vi.fn(async () => ({ set: cookieSetMock })),
+  cookies: vi.fn(async () => ({ set: cookieSetMock, get: () => undefined })),
 }));
 // Permissive stand-in that serves both the old (sync) and the new (async) throttle API.
 vi.mock("@/infrastructure/auth/login-rate-limiter", () => ({
@@ -55,8 +60,9 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
   it("valid password: signs a session, sets the httpOnly cookie and redirects to /admin", async () => {
     await expect(login(null, passwordForm("correct horse battery staple"))).rejects.toThrow("REDIRECT:/admin");
 
-    expect(cookieSetMock).toHaveBeenCalledTimes(1);
-    const [name, token, options] = cookieSetMock.mock.calls[0] as [string, string, Record<string, unknown>];
+    const sessionCalls = cookieSetMock.mock.calls.filter(([cookieName]) => cookieName === AUTH_COOKIE_NAME);
+    expect(sessionCalls).toHaveLength(1);
+    const [name, token, options] = sessionCalls[0] as [string, string, Record<string, unknown>];
     expect(name).toBe(AUTH_COOKIE_NAME);
     expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 86400 });
     expect(await verifySession(token)).toMatchObject({ valid: true, payload: { sub: "admin" } });

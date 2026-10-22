@@ -41,11 +41,11 @@ describe("password", () => {
     });
 
     it("returns the ADMIN_PASSWORD env value when set", async () => {
-      vi.stubEnv("ADMIN_PASSWORD", "super-secret");
+      vi.stubEnv("ADMIN_PASSWORD", "super-secret-long-enough");
 
       const { getAdminPassword } = await import("@/infrastructure/auth/password");
 
-      expect(getAdminPassword()).toBe("super-secret");
+      expect(getAdminPassword()).toBe("super-secret-long-enough");
     });
 
     it("throws AdminPasswordError when ADMIN_PASSWORD is missing or empty", async () => {
@@ -71,5 +71,49 @@ describe("password", () => {
 
       expect(() => getAdminPassword()).toThrow(AdminPasswordError);
     });
+  });
+});
+
+describe("getAdminPassword minimum length", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a password shorter than 16 characters like a missing one", async () => {
+    vi.stubEnv("ADMIN_PASSWORD", "fifteen-chars!!");
+
+    const { getAdminPassword, AdminPasswordError } = await import("@/infrastructure/auth/password");
+
+    expect("fifteen-chars!!").toHaveLength(15);
+    expect(() => getAdminPassword()).toThrow(AdminPasswordError);
+  });
+
+  it("accepts exactly 16 characters", async () => {
+    vi.stubEnv("ADMIN_PASSWORD", "sixteen-chars!!!");
+
+    const { getAdminPassword } = await import("@/infrastructure/auth/password");
+
+    expect(getAdminPassword()).toBe("sixteen-chars!!!");
+  });
+
+  it("counts characters, not bytes: 16 accented characters pass, 15 do not", async () => {
+    const { getAdminPassword } = await import("@/infrastructure/auth/password");
+
+    vi.stubEnv("ADMIN_PASSWORD", "ñ".repeat(16));
+    expect(getAdminPassword()).toBe("ñ".repeat(16));
+
+    vi.stubEnv("ADMIN_PASSWORD", "ñ".repeat(15));
+    expect(() => getAdminPassword()).toThrow();
+  });
+
+  it("explains the length rule in the misconfiguration log", async () => {
+    const { reportAdminPasswordMisconfiguration } = await import("@/infrastructure/auth/password");
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    reportAdminPasswordMisconfiguration();
+
+    expect(log.mock.calls[0]?.[0]).toMatch(/ADMIN_PASSWORD/);
+    expect(log.mock.calls[0]?.[0]).toMatch(/16/);
+    log.mockRestore();
   });
 });

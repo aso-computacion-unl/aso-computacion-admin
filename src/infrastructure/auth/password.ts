@@ -3,29 +3,41 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { requireRuntimeValue } from "@/infrastructure/config/runtime-env";
 
+/** The throttle only slows guessing; the password's strength is what stops a distributed attack. */
+export const ADMIN_PASSWORD_MIN_LENGTH = 16;
+
 export class AdminPasswordError extends Error {
-  constructor(message = "ADMIN_PASSWORD must be defined and non-empty.") {
+  constructor(message = `ADMIN_PASSWORD must be defined, non-placeholder and at least ${ADMIN_PASSWORD_MIN_LENGTH} characters long.`) {
     super(message);
     this.name = "AdminPasswordError";
   }
 }
 
 export function getAdminPassword(): string {
+  let password: string;
+
   try {
-    return requireRuntimeValue("ADMIN_PASSWORD", process.env.ADMIN_PASSWORD);
+    password = requireRuntimeValue("ADMIN_PASSWORD", process.env.ADMIN_PASSWORD);
   } catch {
     throw new AdminPasswordError();
   }
+
+  // Counted in characters (code points), not UTF-16 units or bytes.
+  if ([...password].length < ADMIN_PASSWORD_MIN_LENGTH) {
+    throw new AdminPasswordError();
+  }
+
+  return password;
 }
 
 /**
- * Said on every login attempt while ADMIN_PASSWORD is unusable (unset, empty or
- * still the `.env.example` placeholder), so the operator finds it in the logs
- * instead of seeing only "wrong password" reports.
+ * Said on every login attempt while ADMIN_PASSWORD is unusable (unset, empty,
+ * still the `.env.example` placeholder, or shorter than the minimum), so the
+ * operator finds it in the logs instead of seeing only "wrong password" reports.
  */
 export function reportAdminPasswordMisconfiguration(): void {
   console.error(
-    "ADMIN_PASSWORD is not set or is still a placeholder: admin login is disabled until it is configured.",
+    `ADMIN_PASSWORD is not set, is still a placeholder or is shorter than ${ADMIN_PASSWORD_MIN_LENGTH} characters: admin login is disabled until it is configured.`,
   );
 }
 

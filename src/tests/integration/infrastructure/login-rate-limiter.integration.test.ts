@@ -48,6 +48,18 @@ describe("login rate limiter (Postgres)", () => {
     expect(await consumeLoginAttempt(A, now)).toEqual({ allowed: false, retryAfterSeconds: LOGIN_BACKOFF_CAP_MS / 1000 });
   });
 
+  it("survives an absurd attempt count: the exponent is capped, the wait stays at the cap and the key recovers", async () => {
+    // power(2, 99_995) overflows float8 in Postgres; reachable by an attacker who keeps hitting the cap for days.
+    await prisma.loginAttempt.create({ data: { key: A, attempts: 100_000, lastAttemptAt: BigInt(T0) } });
+
+    expect(await consumeLoginAttempt(A, T0)).toEqual({ allowed: false, retryAfterSeconds: LOGIN_BACKOFF_CAP_MS / 1000 });
+    expect((await consumeLoginAttempt(A, T0 + LOGIN_BACKOFF_CAP_MS)).allowed).toBe(true);
+    expect(await consumeLoginAttempt(A, T0 + LOGIN_BACKOFF_CAP_MS)).toEqual({
+      allowed: false,
+      retryAfterSeconds: LOGIN_BACKOFF_CAP_MS / 1000,
+    });
+  });
+
   it("does not extend the wait for attempts made while waiting", async () => {
     await spend(A, LOGIN_FREE_ATTEMPTS, T0);
 

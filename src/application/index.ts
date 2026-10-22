@@ -66,3 +66,13 @@ export type { SiteSettingsResult } from "./dto/site-settings-result.dto";
 export type { SiteSettingsRepository } from "./ports/site-settings-repository.port";
 export { GetSiteSettingsUseCase } from "./use-cases/get-site-settings.use-case";
 export { UpdateSiteSettingsUseCase } from "./use-cases/update-site-settings.use-case";
+export type { BoardMemberPhotoResult, BoardMemberResult } from "./dto/board-member-result.dto";
+export { CreateBoardMemberUseCase } from "./use-cases/create-board-member.use-case";
+export { DeleteBoardMemberUseCase } from "./use-cases/delete-board-member.use-case";
+export { RemoveBoardMemberPhotoUseCase } from "./use-cases/remove-board-member-photo.use-case";
+export {
+  BOARD_PHOTO_FOLDER,
+  BOARD_PHOTO_MIN_WIDTH,
+  SetBoardMemberPhotoUseCase,
+} from "./use-cases/set-board-member-photo.use-case";
+export { UpdateBoardMemberUseCase } from "./use-cases/update-board-member.use-case";

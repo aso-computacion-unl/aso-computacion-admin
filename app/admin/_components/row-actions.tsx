@@ -7,9 +7,12 @@ import type { ActionResult } from "@/interface/admin/action-result";
 import { resultMessage, useRunAction } from "./use-run-action";
 
 function RowError({ result }: { result: ActionResult | null }) {
-  return result?.error ? (
+  // A rule such as "publishing needs a photo" arrives as a field error; the row has no field, so it shows the same way.
+  const message = resultMessage(result);
+
+  return message ? (
     <small role="alert" className="field-error">
-      {resultMessage(result)}
+      {message}
     </small>
   ) : null;
 }

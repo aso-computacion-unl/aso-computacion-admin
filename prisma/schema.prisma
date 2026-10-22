@@ -111,3 +111,22 @@ model SiteSettings {
   about       String
   updatedAt   DateTime
 }
+
+// S4: name, role and photo only. No contact column may be added here.
+model BoardMember {
+  id            String   @id
+  name          String
+  role          String
+  // The five photo columns are all set or all null; a published member needs a photo (CHECKs in the migration).
+  photoUrl      String?
+  photoPublicId String?  @unique
+  photoWidth    Int?
+  photoHeight   Int?
+  photoAlt      String?
+  sortOrder     Int
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+
+  @@index([sortOrder, createdAt])
+}

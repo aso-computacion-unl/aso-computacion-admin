@@ -34,3 +34,5 @@ export { Pillar } from "./pillar";
 export type { CreatePillarInput, PillarImage, PillarProps, UpdatePillarInput } from "./pillar";
 export { SITE_SETTINGS_ID, SiteSettings } from "./site-settings";
 export type { SiteSettingsInput, SiteSettingsProps } from "./site-settings";
+export { BoardMember } from "./board-member";
+export type { BoardMemberPhoto, BoardMemberProps, CreateBoardMemberInput, UpdateBoardMemberInput } from "./board-member";

@@ -49,6 +49,10 @@ const FIELD_MESSAGES: Record<string, string> = {
   word: "La palabra es obligatoria y admite hasta 20 caracteres.",
   text: "El texto es obligatorio y admite hasta 300 caracteres.",
   imageAlt: "Describa la imagen en 1 a 200 caracteres.",
+  name: "El nombre es obligatorio y admite hasta 60 caracteres.",
+  role: "El cargo es obligatorio y admite hasta 60 caracteres.",
+  photo: "Suba una foto antes de publicar al integrante.",
+  photoAlt: "Describa la foto en 1 a 200 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
@@ -59,6 +63,7 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Faq not found": "No se encontró la pregunta frecuente.",
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
+  "Board member not found": "No se encontró al integrante de la directiva.",
 };
 
 const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";

@@ -1,4 +1,5 @@
 import type { EventResult } from "@/application";
+import type { EventDatePrecision } from "@/domain/event";
 
 /**
  * Editable text state of the event form. The form keeps these values in
@@ -10,7 +11,9 @@ export interface EventFormValues {
   title: string;
   slug: string;
   description: string;
+  /** YYYY-MM-DD; with `datePrecision` "month" it is the first of the month. */
   date: string;
+  datePrecision: EventDatePrecision;
   type: string;
   commitMessage: string;
   hora: string;
@@ -29,6 +32,7 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   slug: "",
   description: "",
   date: "",
+  datePrecision: "day",
   type: "",
   commitMessage: "",
   hora: "",
@@ -47,6 +51,7 @@ export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | 
     slug: event.slug,
     description: event.description ?? "",
     date: event.date ?? "",
+    datePrecision: event.datePrecision,
     type: event.type ?? "",
     commitMessage: event.commitMessage ?? "",
     hora: event.hora ?? "",

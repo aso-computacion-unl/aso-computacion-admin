@@ -50,6 +50,7 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 `/admin/events` manages events and their photo gallery (list, create, edit, publish toggle, delete).
 
 - An event has a slug (derived from the title, editable), an optional date (future = upcoming on the landing, past = history), an optional type (`taller`, `charla`, `evento`, `comunidad`), optional `hora` / `lugar` / `para`, an https-only link, up to 8 highlights and a `featured` flag. New events are drafts.
+- **Month-only dates.** When the day is not confirmed yet, pick "Solo mes" in the form (a month picker instead of the date picker). The event keeps `datePrecision: "month"` and its date is stored as the **first of that month**; with no date the precision is always `day`. The timeline shows it as `feb 2026` and orders it as the 1st of that month, so the current month already counts as past (the landing uses the same rule, with "today" in America/Guayaquil). The column is an add-only migration (`datePrecision` text, default `day`, `CHECK` for `day`/`month`), so existing events stay exact dates.
 - Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Deleting an event (an explicit, confirmed action) removes its photo rows and then destroys their stored files, active or not; when a destroy fails the delete still succeeds and the leftover `publicId`s are logged.
 - If the database write fails after an upload, the uploaded asset is destroyed (best effort, logged when that fails) and the original error is reported.
 
@@ -89,7 +90,7 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 {
   "version": 1,                       // shape version of this document
   "generatedAt": "2026-10-22T16:00:00.000Z",
-  "events":   [{ "slug", "title", "description", "date", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
+  "events":   [{ "slug", "title", "description", "date", "datePrecision", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
   "faqs":     [{ "question", "answer" }],
   "pillars":  [{ "word", "title", "text", "image": { "url", "width", "height", "alt" } | null }],
   "socials":  [{ "platform", "label", "handle", "url", "note", "blurb" }],
@@ -98,6 +99,8 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 }
 ```
 
+- `datePrecision` is `"day"` or `"month"`. `date` is always a full `YYYY-MM-DD`; a month-only event emits the first of its month (`2026-02-01`) with `"month"`. `YYYY-MM` is never emitted (the landing rejects it). Additive to `version` 1.
+- Image URLs are the Cloudinary `secure_url` as stored (`https://res.cloudinary.com/<cloud>/image/upload/v<n>/aso-computacion/events/<id>.<ext>`), which is the shape the landing accepts; `cloudinary-media-storage.test.ts` pins that contract.
 - Events come newest date first (undated last) with only their active photos in gallery order; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
 - Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
 - `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.

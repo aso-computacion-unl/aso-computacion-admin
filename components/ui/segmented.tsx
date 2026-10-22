@@ -13,16 +13,18 @@ interface SegmentedProps {
   options: readonly SegmentedOption[];
   onChange: (value: string) => void;
   className?: string;
+  /** Column classes of the cell grid; the default fits up to five options. */
+  columnsClassName?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: true;
 }
 
 /** Radio group drawn as one row of cells: one tap to choose, arrow keys to move, like any radio group. */
-export function Segmented({ legend, name, value, options, onChange, className, ...aria }: SegmentedProps) {
+export function Segmented({ legend, name, value, options, onChange, className, columnsClassName = "grid-cols-3 sm:grid-cols-5", ...aria }: SegmentedProps) {
   return (
     <fieldset className={cn("min-w-0 border-0 p-0", className)} {...aria}>
       <legend className="mb-1.5 p-0 text-sm leading-[1.3] font-[650] text-white">{legend}</legend>
-      <div className="grid grid-cols-3 overflow-hidden rounded border border-input bg-muted sm:grid-cols-5">
+      <div className={cn("grid overflow-hidden rounded border border-input bg-muted", columnsClassName)}>
         {options.map((option) => (
           <label key={option.value} className="relative grid min-h-11 cursor-pointer place-items-center">
             <input

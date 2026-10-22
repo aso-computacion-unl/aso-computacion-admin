@@ -1,6 +1,8 @@
 interface TimelineEvent {
   /** YYYY-MM-DD */
   date: string | null;
+  /** Month-only dates order, and count as past or upcoming, as the first of their month (the landing's rule). */
+  datePrecision?: "day" | "month";
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -22,13 +24,19 @@ export function todayInLoja(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: LOJA_TIME_ZONE }).format(now);
 }
 
+function effectiveDate(event: TimelineEvent): string | null {
+  return event.date !== null && event.datePrecision === "month" ? `${event.date.slice(0, 7)}-01` : event.date;
+}
+
 /** Newest date first; an undated event goes after every dated one. Array#sort is stable, so ties keep their order. */
 function byDateDescending(a: TimelineEvent, b: TimelineEvent): number {
-  if (a.date === b.date) return 0;
-  if (a.date === null) return 1;
-  if (b.date === null) return -1;
+  const [dateA, dateB] = [effectiveDate(a), effectiveDate(b)];
 
-  return a.date < b.date ? 1 : -1;
+  if (dateA === dateB) return 0;
+  if (dateA === null) return 1;
+  if (dateB === null) return -1;
+
+  return dateA < dateB ? 1 : -1;
 }
 
 export function groupEvents<E extends TimelineEvent>(events: readonly E[], today: string): EventGroups<E> {
@@ -37,19 +45,29 @@ export function groupEvents<E extends TimelineEvent>(events: readonly E[], today
 
   return {
     drafts,
-    upcoming: published.filter((event) => event.date !== null && event.date >= today),
-    past: published.filter((event) => event.date === null || event.date < today),
+    upcoming: published.filter((event) => {
+      const date = effectiveDate(event);
+
+      return date !== null && date >= today;
+    }),
+    past: published.filter((event) => {
+      const date = effectiveDate(event);
+
+      return date === null || date < today;
+    }),
   };
 }
 
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"] as const;
 
-/** "22 oct 2026". Built by hand (no ICU) so it reads the same in every runtime. */
-export function formatEventDate(date: string | null): string {
+/** "22 oct 2026", or "oct 2026" for a month-only date. Built by hand (no ICU) so it reads the same in every runtime. */
+export function formatEventDate(date: string | null, precision: "day" | "month" = "day"): string {
   if (date === null) return "Sin fecha";
 
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   const month = match ? MONTHS[Number(match[2]) - 1] : undefined;
 
-  return match && month ? `${Number(match[3])} ${month} ${match[1]}` : date;
+  if (!match || !month) return date;
+
+  return precision === "month" ? `${month} ${match[1]}` : `${Number(match[3])} ${month} ${match[1]}`;
 }

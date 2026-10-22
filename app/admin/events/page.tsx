@@ -39,7 +39,7 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
     <TimelineItem published={event.isPublished} when={when}>
       <div className="grid gap-2.5 p-4 md:px-5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <Stamp solid={when === "next"}>{formatEventDate(event.date)}</Stamp>
+          <Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>
           {event.type ? (
             <span className="inline-flex h-6 items-center rounded-xs bg-muted px-2 font-mono text-xs leading-none">{TYPE_LABELS[event.type]}</span>
           ) : null}

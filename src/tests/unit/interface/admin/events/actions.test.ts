@@ -95,6 +95,25 @@ describe("events server actions", () => {
       expect(redirectMock).toHaveBeenCalledWith("/admin/events/new-id/edit");
     });
 
+    it("passes a month-only date through to the use case", async () => {
+      useCases.create.execute.mockResolvedValue({ id: "new-id" });
+
+      await expect(
+        actions.createEvent(null, form({ title: "Semana", date: "2026-02-01", datePrecision: "month" })),
+      ).rejects.toThrow("REDIRECT");
+
+      expect(useCases.create.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ date: "2026-02-01", datePrecision: "month" }),
+      );
+    });
+
+    it("rejects an unknown precision with a field error before reaching the use case", async () => {
+      const result = await actions.createEvent(null, form({ title: "Semana", date: "2026-02-01", datePrecision: "week" }));
+
+      expect(result).toMatchObject({ fieldErrors: { datePrecision: expect.any(String) } });
+      expect(useCases.create.execute).not.toHaveBeenCalled();
+    });
+
     it("returns field errors in Spanish for a domain validation failure and does not redirect", async () => {
       useCases.create.execute.mockRejectedValue(new ValidationError("linkUrl", "linkUrl must be a valid https URL"));
 

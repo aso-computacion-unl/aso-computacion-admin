@@ -34,6 +34,14 @@ const TYPE_OPTIONS = [
   { value: "", label: "Sin tipo" },
 ] as const;
 
+const PRECISION_OPTIONS = [
+  { value: "day", label: "Fecha exacta" },
+  { value: "month", label: "Solo mes" },
+] as const;
+
+/** A month-only date travels as the first of its month (YYYY-MM-01); the month input shows YYYY-MM. */
+const MONTH_INPUT_PATTERN = /^\d{4}-\d{2}$/;
+
 /** The commit message reads like a shell line: a fixed `$ ` in front of the text. */
 function CommitInput({ className, ...props }: ComponentProps<"input">) {
   return (
@@ -75,6 +83,15 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
     };
   }
 
+  function setDatePrecision(datePrecision: string) {
+    setValues((previous) => {
+      const precision = datePrecision === "month" ? "month" : "day";
+      const snapped = precision === "month" && previous.date.length === 10 ? `${previous.date.slice(0, 7)}-01` : previous.date;
+
+      return { ...previous, datePrecision: precision, date: snapped };
+    });
+  }
+
   function toggle(key: "featured" | "isPublished") {
     return {
       name: key,
@@ -106,12 +123,46 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         >
           {(control) => <CommitInput {...control} {...bind("commitMessage")} maxLength={80} />}
         </Field>
+        <div className="grid min-w-0 content-start gap-1.5">
+          <Segmented
+            legend="Tipo de fecha"
+            name="datePrecision"
+            value={values.datePrecision}
+            options={PRECISION_OPTIONS}
+            columnsClassName="grid-cols-2"
+            onChange={setDatePrecision}
+            aria-describedby={errors.datePrecision ? "datePrecision-error" : undefined}
+            aria-invalid={errors.datePrecision ? true : undefined}
+          />
+          {errors.datePrecision ? <FieldError id="datePrecision-error">{errors.datePrecision}</FieldError> : null}
+        </div>
         <Field
-          label="Fecha"
-          hint="Una fecha futura se muestra como próximo evento; una pasada, como historial."
+          label={values.datePrecision === "month" ? "Mes" : "Fecha"}
+          hint={
+            values.datePrecision === "month"
+              ? "Para cuando aún no hay día confirmado: el sitio muestra solo el mes, por ejemplo feb 2026."
+              : "Una fecha futura se muestra como próximo evento; una pasada, como historial."
+          }
           error={errors.date}
         >
-          {(control) => <Input {...control} {...bind("date")} type="date" />}
+          {(control) =>
+            values.datePrecision === "month" ? (
+              <Input
+                {...control}
+                name="date"
+                type="month"
+                value={values.date.length === 10 ? values.date.slice(0, 7) : values.date}
+                onChange={(event) =>
+                  setValues((previous) => ({
+                    ...previous,
+                    date: MONTH_INPUT_PATTERN.test(event.target.value) ? `${event.target.value}-01` : event.target.value,
+                  }))
+                }
+              />
+            ) : (
+              <Input {...control} {...bind("date")} type="date" />
+            )
+          }
         </Field>
         <Field
           label="Identificador (slug)"

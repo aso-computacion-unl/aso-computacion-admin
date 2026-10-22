@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  EVENT_DATE_PRECISIONS,
   EVENT_DESCRIPTION_MAX_LENGTH,
   EVENT_SHORT_TEXT_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
@@ -26,6 +27,12 @@ const eventFormSchema = z.object({
     .trim()
     .max(EVENT_DESCRIPTION_MAX_LENGTH, `La descripción admite hasta ${EVENT_DESCRIPTION_MAX_LENGTH} caracteres.`),
   date: z.string().trim(),
+  // An absent field means an exact date; anything but the two known values is rejected.
+  datePrecision: z
+    .string()
+    .trim()
+    .transform((value) => value || "day")
+    .pipe(z.enum(EVENT_DATE_PRECISIONS)),
   type: z.string().trim(),
   commitMessage: shortText(HINT_80),
   hora: shortText(HINT_80),

@@ -13,7 +13,8 @@
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "node scripts/run-prisma-integration-tests.mjs"
+    "test:integration": "node scripts/run-prisma-integration-tests.mjs",
+    "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",
@@ -45,6 +46,7 @@
     "jsdom": "^29.1.1",
     "prisma": "6.19.3",
     "typescript": "5.7.3",
+    "vite-node": "^3.2.4",
     "vitest": "3.2.6"
   },
   "overrides": {

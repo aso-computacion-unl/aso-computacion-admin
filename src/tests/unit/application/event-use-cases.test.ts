@@ -19,8 +19,8 @@ describe("event use cases", () => {
   let photos: InMemoryEventPhotoRepository;
 
   beforeEach(() => {
-    events = new InMemoryEventRepository();
     photos = new InMemoryEventPhotoRepository();
+    events = new InMemoryEventRepository(photos);
   });
 
   describe("CreateEventUseCase", () => {
@@ -141,7 +141,7 @@ describe("event use cases", () => {
     it("deletes an existing event", async () => {
       const created = await eventWithPhotos();
 
-      await new DeleteEventUseCase(events, photos, storage).execute({ id: created.id });
+      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
 
       expect(await events.getById(created.id)).toBeNull();
       expect(storage.destroyedPublicIds).toEqual([]);
@@ -152,9 +152,35 @@ describe("event use cases", () => {
       const hidden = (await photos.listActiveByEventId(created.id))[1]!;
       await photos.update(hidden.deactivate());
 
-      await new DeleteEventUseCase(events, photos, storage).execute({ id: created.id });
+      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
 
       expect([...storage.destroyedPublicIds].sort()).toEqual(["events/a", "events/b"]);
+    });
+
+    it("destroys a photo attached after the event was first read, because the ids come from the delete itself", async () => {
+      const created = await eventWithPhotos("events/a");
+      const realDelete = events.delete.bind(events);
+      // The gap the old read-then-delete left open: an upload lands just before the row is removed.
+      events.delete = async (id) => {
+        await photos.add(
+          EventPhoto.create({
+            eventId: id,
+            url: "https://img.test/late.jpg",
+            publicId: "events/late",
+            width: 1600,
+            height: 900,
+            alt: "late",
+            sortOrder: 0,
+          }),
+          12,
+        );
+
+        return realDelete(id);
+      };
+
+      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
+
+      expect([...storage.destroyedPublicIds].sort()).toEqual(["events/a", "events/late"]);
     });
 
     it("does not destroy anything when the delete itself fails", async () => {
@@ -163,7 +189,7 @@ describe("event use cases", () => {
         throw new Error("db down");
       };
 
-      await expect(new DeleteEventUseCase(events, photos, storage).execute({ id: created.id })).rejects.toThrow(
+      await expect(new DeleteEventUseCase(events, storage).execute({ id: created.id })).rejects.toThrow(
         "db down",
       );
       expect(storage.destroyedPublicIds).toEqual([]);
@@ -175,7 +201,7 @@ describe("event use cases", () => {
       const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(
-        new DeleteEventUseCase(events, photos, storage).execute({ id: created.id }),
+        new DeleteEventUseCase(events, storage).execute({ id: created.id }),
       ).resolves.toBeUndefined();
 
       expect(await events.getById(created.id)).toBeNull();
@@ -187,7 +213,7 @@ describe("event use cases", () => {
 
     it("throws NotFoundError for an unknown event and destroys nothing", async () => {
       await expect(
-        new DeleteEventUseCase(events, photos, storage).execute({ id: MISSING_ID }),
+        new DeleteEventUseCase(events, storage).execute({ id: MISSING_ID }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(storage.destroyedPublicIds).toEqual([]);
     });

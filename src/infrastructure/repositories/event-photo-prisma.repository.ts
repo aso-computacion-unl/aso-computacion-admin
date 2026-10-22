@@ -38,12 +38,6 @@ export class EventPhotoPrismaRepository implements EventPhotoRepository {
     return new Map(groups.map((group) => [group.eventId, group._count._all]));
   }
 
-  async listPublicIdsByEventId(eventId: string): Promise<string[]> {
-    const records = await prisma.eventPhoto.findMany({ where: { eventId }, select: { publicId: true } });
-
-    return records.map((record) => record.publicId);
-  }
-
   async add(photo: EventPhoto, maxActive: number): Promise<EventPhoto> {
     return prisma.$transaction(async (tx) => {
       // Locking the event row serialises concurrent adds to the same event, so

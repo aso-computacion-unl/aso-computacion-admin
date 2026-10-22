@@ -67,11 +67,24 @@ export class EventPrismaRepository implements EventRepository {
     }
   }
 
-  async delete(id: string): Promise<void> {
-    const { count } = await prisma.event.deleteMany({ where: { id } });
+  async delete(id: string): Promise<string[]> {
+    return prisma.$transaction(async (tx) => {
+      // The same lock `EventPhotoPrismaRepository.add` takes: an attach either
+      // committed its photo before this point (so it is read below) or waits
+      // for this transaction and then finds no event.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE
+      `;
 
-    if (count === 0) {
-      throw new NotFoundError("Event not found");
-    }
+      if (locked.length === 0) {
+        throw new NotFoundError("Event not found");
+      }
+
+      const photos = await tx.eventPhoto.findMany({ where: { eventId: id }, select: { publicId: true } });
+
+      await tx.event.delete({ where: { id } });
+
+      return photos.map((photo) => photo.publicId);
+    });
   }
 }

@@ -1,7 +1,5 @@
-import type { EventPhotoRepository } from "../ports/event-photo-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { MediaStoragePort } from "../ports/media-storage.port";
-import { NotFoundError } from "./use-case-error";
 
 export interface DeleteEventCommand {
   id: string;
@@ -12,25 +10,23 @@ export interface DeleteEventCommand {
  * stored image those rows pointed to, active or not. Deleting is explicit and
  * confirmed, unlike deactivating a photo, so nothing is kept for later.
  *
- * Storage cleanup runs only after the delete succeeded and is best effort:
+ * The ids to destroy come from the delete itself, read in its transaction
+ * under a lock on the event, so a photo attached while the delete is running
+ * cannot be missed (reading them first, then deleting, left that gap).
+ *
+ * Storage cleanup runs only after the delete committed and is best effort:
  * the delete is never reported as failed because of it, and every `publicId`
  * that could not be destroyed is logged so it can be removed by hand.
  */
 export class DeleteEventUseCase {
   constructor(
     private readonly events: EventRepository,
-    private readonly photos: EventPhotoRepository,
     private readonly storage: MediaStoragePort,
   ) {}
 
   async execute({ id }: DeleteEventCommand): Promise<void> {
-    if (!(await this.events.getById(id))) {
-      throw new NotFoundError("Event not found");
-    }
+    const publicIds = await this.events.delete(id);
 
-    const publicIds = await this.photos.listPublicIdsByEventId(id);
-
-    await this.events.delete(id);
     await this.destroyAll(id, publicIds);
   }
 

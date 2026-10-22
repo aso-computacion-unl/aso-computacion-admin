@@ -9,5 +9,12 @@ export interface EventRepository {
   /** Every event, drafts included: date descending (undated last), then newest first. */
   list(): Promise<Event[]>;
   update(event: Event): Promise<Event>;
-  delete(id: string): Promise<void>;
+  /**
+   * Deletes the event and, by cascade, its photo rows, and returns the storage
+   * ids of every photo row removed with it, active or not. The ids are read in
+   * the same transaction as the delete, under a lock on the event row, so a
+   * photo attached concurrently is either reported here or never stored (its
+   * attach fails with `NotFoundError`). Throws `NotFoundError` for an unknown event.
+   */
+  delete(id: string): Promise<string[]>;
 }

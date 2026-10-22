@@ -31,10 +31,15 @@ export class InMemoryEventPhotoRepository implements EventPhotoRepository {
     return counts;
   }
 
-  async listPublicIdsByEventId(eventId: string): Promise<string[]> {
-    return [...this.photos.values()]
-      .filter((photo) => photo.props.eventId === eventId)
-      .map((photo) => photo.props.publicId);
+  /** Mirrors the cascade of deleting an event: removes every photo row of it and returns their storage ids. */
+  removeAllOfEvent(eventId: string): string[] {
+    const removed = [...this.photos.values()].filter((photo) => photo.props.eventId === eventId);
+
+    for (const photo of removed) {
+      this.photos.delete(photo.props.id);
+    }
+
+    return removed.map((photo) => photo.props.publicId);
   }
 
   async add(photo: EventPhoto, maxActive: number): Promise<EventPhoto> {

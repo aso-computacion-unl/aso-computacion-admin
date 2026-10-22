@@ -2,9 +2,14 @@ import type { EventRepository } from "@/application/ports/event-repository.port"
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { Event } from "@/domain/event";
 
+import type { InMemoryEventPhotoRepository } from "./in-memory-event-photo.repository";
+
 /** Deterministic in-memory `EventRepository`; `list()` mirrors the Prisma ordering (date desc, nulls last, then newest). */
 export class InMemoryEventRepository implements EventRepository {
   private readonly events = new Map<string, Event>();
+
+  /** Pass the photo fake to mirror the cascade: deleting an event removes its photos and returns their storage ids. */
+  constructor(private readonly photos?: InMemoryEventPhotoRepository) {}
 
   async create(event: Event): Promise<Event> {
     this.events.set(event.props.id, event);
@@ -39,9 +44,11 @@ export class InMemoryEventRepository implements EventRepository {
     return event;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<string[]> {
     if (!this.events.delete(id)) {
       throw new NotFoundError("Event not found");
     }
+
+    return this.photos?.removeAllOfEvent(id) ?? [];
   }
 }

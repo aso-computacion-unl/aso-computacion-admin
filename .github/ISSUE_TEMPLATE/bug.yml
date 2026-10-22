@@ -1,0 +1,30 @@
+name: Reportar un error
+description: Algo del panel de administración no funciona o se ve mal.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: ¿Qué pasó?
+      description: Qué viste y qué esperabas ver.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: ¿Cómo se reproduce?
+      placeholder: |
+        1. Entré a…
+        2. Toqué…
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Dispositivo y navegador
+      placeholder: "Ej.: Android, Chrome"
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Capturas
+      description: Arrastrá imágenes acá. No incluyas datos personales.

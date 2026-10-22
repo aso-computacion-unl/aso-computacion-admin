@@ -1,0 +1,23 @@
+name: Proponer una idea
+description: Una mejora o un cambio en el panel de administración.
+labels: ["idea"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Para quién es y por qué importa.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: ¿Qué proponés?
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: ¿Querés trabajar en esto?
+      options:
+        - label: Sí, puedo abrir el Pull Request

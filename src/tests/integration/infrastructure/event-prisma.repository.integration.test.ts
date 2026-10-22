@@ -195,14 +195,18 @@ describe("EventPrismaRepository (integration)", () => {
   });
 });
 
-/** Waits until `count` backends are blocked on a row lock (the barrier above). */
-async function waitForLockWaiters(count: number): Promise<void> {
-  const deadline = Date.now() + 10_000;
+/**
+ * Waits until `count` backends are blocked on a `FOR UPDATE` row lock (the
+ * barrier above). Only those: a backend waiting on any other lock, say a
+ * table lock or an autovacuum, must not release the barrier early.
+ */
+async function waitForLockWaiters(count: number, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const [row] = await prisma.$queryRaw<{ waiting: bigint }[]>`
       SELECT count(*) AS waiting FROM pg_stat_activity
-      WHERE datname = current_database() AND wait_event_type = 'Lock'
+      WHERE datname = current_database() AND wait_event_type = 'Lock' AND query ILIKE '%FOR UPDATE%'
     `;
 
     if (Number(row?.waiting ?? 0) >= count) {
@@ -214,6 +218,51 @@ async function waitForLockWaiters(count: number): Promise<void> {
 
   throw new Error(`Timed out waiting for ${count} lock waiters`);
 }
+
+describe("waitForLockWaiters (the concurrency barrier)", () => {
+  it("does not count a backend blocked on something other than a FOR UPDATE row lock", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`LOCK TABLE "LoginAttempt" IN ACCESS EXCLUSIVE MODE`;
+        locked();
+        await gate;
+      },
+      { timeout: 15_000 },
+    );
+    await lockTaken;
+
+    try {
+      // A plain read of the locked table waits on a Lock too, but its query has no FOR UPDATE.
+      // `.then` starts it: Prisma queries are lazy until awaited.
+      const blocked = prisma.loginAttempt.count().then((total) => total);
+      const deadline = Date.now() + 5_000;
+      let anyWaiter = 0;
+
+      while (anyWaiter === 0 && Date.now() < deadline) {
+        const [row] = await prisma.$queryRaw<{ waiting: bigint }[]>`
+          SELECT count(*) AS waiting FROM pg_stat_activity
+          WHERE datname = current_database() AND wait_event_type = 'Lock'
+        `;
+        anyWaiter = Number(row?.waiting ?? 0);
+        if (anyWaiter === 0) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      expect(anyWaiter).toBeGreaterThan(0);
+      await expect(waitForLockWaiters(1, 300)).rejects.toThrow("Timed out waiting for 1 lock waiters");
+
+      release();
+      await holder;
+      await blocked;
+    } finally {
+      release();
+      await holder.catch(() => undefined);
+    }
+  });
+});
 
 function photoFor(eventId: string, publicId: string, sortOrder: number): EventPhoto {
   return EventPhoto.create({

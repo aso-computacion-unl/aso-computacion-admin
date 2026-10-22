@@ -1,11 +1,9 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import { toBoardMemberResult } from "@/application/mappers/board-member-result.mapper";
 import { BoardMember } from "@/domain/board-member";
+import { readMigrationSql, tableColumns } from "@/tests/support/migration-columns";
 
 // S4: the board shows only name, role and photo. These tests pin the allowed
 // set so a contact field cannot be added to the model, the entity, the result
@@ -50,13 +48,16 @@ describe("board member privacy (S4)", () => {
     ]);
   });
 
-  it("no column in the model or in its migration looks like contact data", () => {
+  it("no column the migrations ever add to BoardMember, nor any in the model, looks like contact data", () => {
     const model = Prisma.dmmf.datamodel.models.find(({ name }) => name === "BoardMember");
-    const migration = readFileSync(join(__dirname, "..", "..", "..", "..", "prisma", "migrations", "20261022170000_add_board_member", "migration.sql"), "utf8");
-    const columns = [...migration.matchAll(/^\s+"(\w+)"\s+(?:TEXT|INTEGER|BOOLEAN|TIMESTAMP)/gm)].map((found) => found[1]!);
+    const modelColumns = (model?.fields ?? []).map(({ name }) => name).sort();
+    // Every migration, not just the one that creates the table: a later ALTER TABLE ... ADD COLUMN counts.
+    const columns = tableColumns("BoardMember", readMigrationSql());
 
     expect(columns.length).toBeGreaterThan(0);
-    expect(model?.fields.map(({ name }) => name).filter((name) => FORBIDDEN.test(name))).toEqual([]);
+    expect(modelColumns.filter((name) => FORBIDDEN.test(name))).toEqual([]);
     expect(columns.filter((name) => FORBIDDEN.test(name))).toEqual([]);
+    // The scan must see the whole table: if it misses a column the model has, it could miss a forbidden one too.
+    expect(columns).toEqual(modelColumns);
   });
 });

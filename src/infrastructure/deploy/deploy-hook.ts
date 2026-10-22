@@ -1,0 +1,145 @@
+// No `server-only` guard on purpose: it is only imported by server actions, the env var is not
+// public, and the guard would force every action test to mock it.
+import { after } from "next/server";
+
+export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
+
+/**
+ * Quiet time after the LAST mutation before the landing is rebuilt. Longer than
+ * the 5 s edge cache of `/api/public/content` (so the build never reads a stale
+ * snapshot), and short enough to fit a serverless invocation (see below).
+ */
+export const DEPLOY_HOOK_DEBOUNCE_MS = 8_000;
+/** The hook only has to accept the request; Cloudflare builds asynchronously. */
+export const DEPLOY_HOOK_TIMEOUT_MS = 5_000;
+
+interface PendingRebuild {
+  timer: ReturnType<typeof setTimeout>;
+  /** Resolves once the build has been requested (or given up on). */
+  settled: Promise<void>;
+  settle: () => void;
+}
+
+let pending: PendingRebuild | undefined;
+let hasReportedMissingUrl = false;
+let hasReportedInvalidUrl = false;
+
+/** Test-only helper: cancels a pending rebuild and clears the "reported once" latches. */
+export function resetDeployHookState(): void {
+  if (pending) {
+    clearTimeout(pending.timer);
+    pending.settle();
+    pending = undefined;
+  }
+
+  hasReportedMissingUrl = false;
+  hasReportedInvalidUrl = false;
+}
+
+/**
+ * The URL is a secret (the token is part of the path): it is never logged, and
+ * only `https` is accepted so it is never sent in clear text. Returns
+ * `undefined` (after a single log line) when it is unset or unusable.
+ */
+function resolveHookUrl(): string | undefined {
+  const raw = process.env[DEPLOY_HOOK_URL_ENV_VAR]?.trim();
+
+  if (!raw) {
+    if (!hasReportedMissingUrl) {
+      hasReportedMissingUrl = true;
+      console.info(`${DEPLOY_HOOK_URL_ENV_VAR} is not set: admin edits will not trigger a landing rebuild.`);
+    }
+
+    return undefined;
+  }
+
+  let isHttps = false;
+
+  try {
+    isHttps = new URL(raw).protocol === "https:";
+  } catch {
+    isHttps = false;
+  }
+
+  if (!isHttps) {
+    if (!hasReportedInvalidUrl) {
+      hasReportedInvalidUrl = true;
+      console.error(`${DEPLOY_HOOK_URL_ENV_VAR} must be an https URL: the landing rebuild hook is disabled.`);
+    }
+
+    return undefined;
+  }
+
+  return raw;
+}
+
+function describeFailure(error: unknown): string {
+  // Name and message only: an undici error can carry the request URL, which holds the hook token.
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : "unknown error";
+
+  return message.replace(/https?:\/\/\S+/g, "[url]");
+}
+
+async function postHook(url: string): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEPLOY_HOOK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { method: "POST", signal: controller.signal });
+
+    if (!response.ok) {
+      console.warn(`Landing deploy hook answered ${response.status}; the daily rebuild will pick the change up.`);
+    }
+  } catch (error) {
+    console.warn(`Landing deploy hook failed (${describeFailure(error)}); the daily rebuild will pick the change up.`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Keeps a serverless invocation alive past its response while the debounce is waiting; a no-op where `after` is unavailable. */
+function keepInvocationAlive(settled: Promise<void>): void {
+  try {
+    after(settled);
+  } catch {
+    // Outside a request scope (a script or a test): the plain timer still fires.
+  }
+}
+
+/**
+ * Asks for a landing rebuild after a SUCCESSFUL admin mutation. Best effort and
+ * synchronous for the caller: it only schedules, never awaits the network and
+ * never throws, so it cannot fail or slow the mutation's result.
+ *
+ * Bursts coalesce (trailing debounce): every call restarts the quiet window, so
+ * reordering photos or editing several fields triggers one build, requested
+ * `DEPLOY_HOOK_DEBOUNCE_MS` after the last edit. The state is per process. On
+ * Vercel each request may land on another instance and an idle instance can be
+ * frozen, so two things keep this honest: `after()` holds the invocation open
+ * until the window has elapsed and the hook was called (hence the admin
+ * `maxDuration`), and a rebuild that is still lost (instance recycled mid-window)
+ * is covered by the daily rebuild cron, the safety net of the architecture.
+ */
+export function requestSiteRebuild(): void {
+  const url = resolveHookUrl();
+
+  if (!url) {
+    return;
+  }
+
+  if (pending) {
+    clearTimeout(pending.timer);
+  } else {
+    let settle!: () => void;
+    const settled = new Promise<void>((resolve) => (settle = resolve));
+    pending = { timer: undefined as unknown as ReturnType<typeof setTimeout>, settled, settle };
+  }
+
+  const current = pending;
+  current.timer = setTimeout(() => {
+    pending = undefined;
+    void postHook(url).finally(current.settle);
+  }, DEPLOY_HOOK_DEBOUNCE_MS);
+
+  keepInvocationAlive(current.settled);
+}

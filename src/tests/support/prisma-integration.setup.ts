@@ -24,7 +24,7 @@ for (const suite of INTEGRATION_SUITES) {
 beforeEach(async () => {
   await createPrismaIntegrationCleanup(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL, () =>
     // Photos cascade from their event, but delete them explicitly so cleanup never depends on the FK.
-    prisma.$transaction([prisma.eventPhoto.deleteMany(), prisma.event.deleteMany(), prisma.faq.deleteMany(), prisma.socialLink.deleteMany()]),
+    prisma.$transaction([prisma.eventPhoto.deleteMany(), prisma.event.deleteMany(), prisma.faq.deleteMany(), prisma.socialLink.deleteMany(), prisma.pillar.deleteMany()]),
   );
 });
 

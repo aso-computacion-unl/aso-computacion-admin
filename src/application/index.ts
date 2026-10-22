@@ -52,3 +52,13 @@ export { UpdateFaqUseCase } from "./use-cases/update-faq.use-case";
 export type { SocialLinkResult } from "./dto/social-link-result.dto";
 export { CreateSocialLinkUseCase } from "./use-cases/create-social-link.use-case";
 export { UpdateSocialLinkUseCase } from "./use-cases/update-social-link.use-case";
+export type { PillarImageResult, PillarResult } from "./dto/pillar-result.dto";
+export { CreatePillarUseCase } from "./use-cases/create-pillar.use-case";
+export { DeletePillarUseCase } from "./use-cases/delete-pillar.use-case";
+export { RemovePillarImageUseCase } from "./use-cases/remove-pillar-image.use-case";
+export {
+  PILLAR_IMAGE_FOLDER,
+  PILLAR_IMAGE_MIN_WIDTH,
+  SetPillarImageUseCase,
+} from "./use-cases/set-pillar-image.use-case";
+export { UpdatePillarUseCase } from "./use-cases/update-pillar.use-case";

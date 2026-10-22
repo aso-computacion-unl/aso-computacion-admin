@@ -83,3 +83,22 @@ model SocialLink {
 
   @@index([sortOrder, createdAt])
 }
+
+model Pillar {
+  id            String   @id
+  word          String
+  title         String
+  text          String
+  // The five image columns are all set or all null (CHECK in the migration).
+  imageUrl      String?
+  imagePublicId String?  @unique
+  imageWidth    Int?
+  imageHeight   Int?
+  imageAlt      String?
+  sortOrder     Int
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+
+  @@index([sortOrder, createdAt])
+}

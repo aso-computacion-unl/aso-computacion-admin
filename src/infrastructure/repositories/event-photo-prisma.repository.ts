@@ -24,6 +24,25 @@ export class EventPhotoPrismaRepository implements EventPhotoRepository {
     return records.map(toDomain);
   }
 
+  async listActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, EventPhoto[]>> {
+    const grouped = new Map<string, EventPhoto[]>();
+
+    if (eventIds.length === 0) {
+      return grouped;
+    }
+
+    const records = await prisma.eventPhoto.findMany({
+      where: { eventId: { in: [...eventIds] }, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+
+    for (const record of records) {
+      grouped.set(record.eventId, [...(grouped.get(record.eventId) ?? []), toDomain(record)]);
+    }
+
+    return grouped;
+  }
+
   async countActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>> {
     if (eventIds.length === 0) {
       return new Map();

@@ -76,3 +76,5 @@ export {
   SetBoardMemberPhotoUseCase,
 } from "./use-cases/set-board-member-photo.use-case";
 export { UpdateBoardMemberUseCase } from "./use-cases/update-board-member.use-case";
+export type { PublicContentSnapshot } from "./dto/public-content.dto";
+export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";

@@ -4,6 +4,11 @@ export interface EventPhotoRepository {
   getById(id: string): Promise<EventPhoto | null>;
   /** Active photos of one event in gallery order (sortOrder, then oldest first). */
   listActiveByEventId(eventId: string): Promise<EventPhoto[]>;
+  /**
+   * Active photos of several events in one query, each list in gallery order.
+   * Events without active photos are absent from the map.
+   */
+  listActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, EventPhoto[]>>;
   countActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>>;
   /**
    * Persists a photo at the end of the event's active gallery, only while the

@@ -1,62 +1,114 @@
 import "server-only";
 
+import { prisma } from "../prisma/client";
+
 /**
- * Process-local login throttle for the single admin credential. Guards the
- * login action against online brute force: after too many failures for a
- * given client key, the key is locked out for a cooldown window.
+ * Login throttle for the single admin credential, kept in Postgres so every
+ * serverless instance sees the same counters (an in-memory map is per
+ * instance on Vercel, so N instances multiplied the guesses by N).
  *
- * State is per-process and in-memory. It is a first line of defence, not a
- * distributed limiter — behind multiple instances each replica throttles
- * independently, and a restart clears the counters.
+ * Exponential backoff per client key, never a hard lockout. The first
+ * `LOGIN_FREE_ATTEMPTS` tries are free; after that the next try must wait
+ * 30 s, then 60 s, 120 s... up to `LOGIN_BACKOFF_CAP_MS`. A lockout (the old
+ * "5 failures, 15 minutes") lets anyone who shares the admin's IP, like a
+ * campus NAT, keep the admin out for as long as they like; here the worst
+ * case is a wait of at most the cap, and a different network is unaffected.
+ *
+ * There is deliberately no global ceiling across keys: it would let any
+ * attacker lock the admin out everywhere. A botnet rotating IPs is held back
+ * by the password's strength (long and random), not by this throttle.
+ *
+ * An attempt is spent BEFORE the password is compared (a "failure" is not
+ * recorded afterwards), in one atomic statement, so parallel guesses cannot
+ * all slip past a check-then-record gap. A successful login deletes the row.
  */
-export const LOGIN_MAX_FAILED_ATTEMPTS = 5;
-export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
-
-interface AttemptRecord {
-  failures: number;
-  lockedUntil: number;
-}
-
-const attempts = new Map<string, AttemptRecord>();
+export const LOGIN_FREE_ATTEMPTS = 5;
+export const LOGIN_BACKOFF_BASE_MS = 30 * 1000;
+export const LOGIN_BACKOFF_CAP_MS = 5 * 60 * 1000;
+/** Attempts older than this are forgotten: the counter restarts and the row is purged. */
+export const LOGIN_ATTEMPT_WINDOW_MS = 60 * 60 * 1000;
 
 export interface LoginRateStatus {
   allowed: boolean;
   retryAfterSeconds: number;
 }
 
-export function checkLoginRate(key: string, now: number = Date.now()): LoginRateStatus {
-  const record = attempts.get(key);
-
-  if (record && record.lockedUntil > now) {
-    return { allowed: false, retryAfterSeconds: Math.ceil((record.lockedUntil - now) / 1000) };
+/** How long a key must wait after having made `attempts` attempts in the window. */
+export function loginDelayMs(attempts: number): number {
+  if (attempts < LOGIN_FREE_ATTEMPTS) {
+    return 0;
   }
 
-  return { allowed: true, retryAfterSeconds: 0 };
+  return Math.min(LOGIN_BACKOFF_CAP_MS, LOGIN_BACKOFF_BASE_MS * 2 ** (attempts - LOGIN_FREE_ATTEMPTS));
 }
 
-export function recordFailedLogin(key: string, now: number = Date.now()): void {
-  const record = attempts.get(key) ?? { failures: 0, lockedUntil: 0 };
+/**
+ * Spends one login attempt for `key`, atomically. Returns `allowed: false`
+ * (and changes nothing, so hammering never extends the wait) while the key is
+ * waiting. The SQL repeats `loginDelayMs`; the integration tests pin both.
+ */
+export async function consumeLoginAttempt(key: string, now: number = Date.now()): Promise<LoginRateStatus> {
+  const staleBefore = now - LOGIN_ATTEMPT_WINDOW_MS;
 
-  // Attempts made while already locked out must not extend the window.
-  if (record.lockedUntil > now) {
+  await prisma.$executeRaw`DELETE FROM "LoginAttempt" WHERE "lastAttemptAt" <= ${staleBefore}::bigint`;
+
+  const spent = await prisma.$queryRaw<{ attempts: number }[]>`
+    INSERT INTO "LoginAttempt" ("key", "attempts", "lastAttemptAt")
+    VALUES (${key}, 1, ${now}::bigint)
+    ON CONFLICT ("key") DO UPDATE SET
+      "attempts" = CASE
+        WHEN "LoginAttempt"."lastAttemptAt" <= ${staleBefore}::bigint THEN 1
+        ELSE "LoginAttempt"."attempts" + 1
+      END,
+      "lastAttemptAt" = ${now}::bigint
+    WHERE "LoginAttempt"."lastAttemptAt" <= ${staleBefore}::bigint
+      OR "LoginAttempt"."attempts" < ${LOGIN_FREE_ATTEMPTS}::int
+      OR "LoginAttempt"."lastAttemptAt"
+         + LEAST(${LOGIN_BACKOFF_CAP_MS}::float8, ${LOGIN_BACKOFF_BASE_MS}::float8 * power(2, "LoginAttempt"."attempts" - ${LOGIN_FREE_ATTEMPTS}::int))
+         <= ${now}::bigint
+    RETURNING "attempts"
+  `;
+
+  if (spent.length > 0) {
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  const waiting = await prisma.loginAttempt.findUnique({ where: { key } });
+
+  if (!waiting) {
+    // The row vanished between the two statements (a successful login cleared it): nothing to wait for.
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  const retryAt = Number(waiting.lastAttemptAt) + loginDelayMs(waiting.attempts);
+
+  return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((retryAt - now) / 1000)) };
+}
+
+export async function recordSuccessfulLogin(key: string): Promise<void> {
+  await prisma.loginAttempt.deleteMany({ where: { key } });
+}
+
+let hasReportedUnknownLoginClient = false;
+
+/**
+ * No client IP header means we are not behind Vercel (local development, a bare
+ * `next start`) or a proxy is not forwarding it. Every such request shares the
+ * one "unknown" bucket: safe, because it is throttled like any other key, but
+ * it means everyone behind it slows each other down. Said once per process.
+ */
+export function reportUnknownLoginClient(): void {
+  if (hasReportedUnknownLoginClient) {
     return;
   }
 
-  record.failures += 1;
-
-  if (record.failures >= LOGIN_MAX_FAILED_ATTEMPTS) {
-    record.lockedUntil = now + LOGIN_LOCKOUT_MS;
-    record.failures = 0;
-  }
-
-  attempts.set(key, record);
+  hasReportedUnknownLoginClient = true;
+  console.warn(
+    'No client IP header on a login request (not running behind Vercel?): every such request shares one "unknown" throttle bucket.',
+  );
 }
 
-export function recordSuccessfulLogin(key: string): void {
-  attempts.delete(key);
-}
-
-/** Test-only helper to clear all throttle state between suites. */
-export function resetLoginRateLimiter(): void {
-  attempts.clear();
+/** Test-only helper to re-arm the report-once latch. */
+export function resetUnknownLoginClientReport(): void {
+  hasReportedUnknownLoginClient = false;
 }

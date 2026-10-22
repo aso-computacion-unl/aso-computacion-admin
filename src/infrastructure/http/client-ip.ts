@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 /**
  * Sentinel client key used when no client IP header is available.
  */
-const UNKNOWN_CLIENT_KEY = "unknown";
+export const UNKNOWN_CLIENT_KEY = "unknown";
 
 function nonEmpty(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();

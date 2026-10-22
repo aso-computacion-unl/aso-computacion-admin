@@ -130,3 +130,14 @@ model BoardMember {
 
   @@index([sortOrder, createdAt])
 }
+
+// Login throttle shared by every instance (Vercel runs many). One row per client key:
+// `attempts` login tries in the current window and when the last one happened, as
+// epoch milliseconds (BIGINT) so the atomic upsert needs no time zone handling.
+model LoginAttempt {
+  key           String @id
+  attempts      Int
+  lastAttemptAt BigInt
+
+  @@index([lastAttemptAt])
+}

@@ -1,90 +1,52 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import {
-  LOGIN_LOCKOUT_MS,
-  LOGIN_MAX_FAILED_ATTEMPTS,
-  checkLoginRate,
-  recordFailedLogin,
-  recordSuccessfulLogin,
-  resetLoginRateLimiter,
+  LOGIN_BACKOFF_BASE_MS,
+  LOGIN_BACKOFF_CAP_MS,
+  LOGIN_FREE_ATTEMPTS,
+  loginDelayMs,
+  reportUnknownLoginClient,
+  resetUnknownLoginClientReport,
 } from "@/infrastructure/auth/login-rate-limiter";
 
-afterEach(() => {
-  resetLoginRateLimiter();
+// The stateful rules (atomic increment, window expiry, per-IP independence) run
+// against a real Postgres in
+// src/tests/integration/infrastructure/login-rate-limiter.integration.test.ts.
+
+describe("loginDelayMs (exponential backoff with a cap, never a hard lockout)", () => {
+  it("is zero for the free attempts", () => {
+    for (let attempts = 0; attempts < LOGIN_FREE_ATTEMPTS; attempts += 1) {
+      expect(loginDelayMs(attempts)).toBe(0);
+    }
+  });
+
+  it("starts at the base delay and doubles with every further attempt", () => {
+    expect(LOGIN_FREE_ATTEMPTS).toBe(5);
+    expect(LOGIN_BACKOFF_BASE_MS).toBe(30_000);
+    expect([5, 6, 7, 8].map(loginDelayMs)).toEqual([30_000, 60_000, 120_000, 240_000]);
+  });
+
+  it("never exceeds the cap, however many attempts, so a hostile neighbour can delay the admin by minutes, not forever", () => {
+    expect(LOGIN_BACKOFF_CAP_MS).toBe(5 * 60_000);
+    expect(loginDelayMs(9)).toBe(LOGIN_BACKOFF_CAP_MS);
+    expect(loginDelayMs(10_000)).toBe(LOGIN_BACKOFF_CAP_MS);
+  });
 });
 
-const KEY = "203.0.113.7";
-const T0 = 1_000_000;
+describe("reportUnknownLoginClient", () => {
+  beforeEach(() => resetUnknownLoginClientReport());
+  afterEach(() => vi.restoreAllMocks());
 
-describe("login rate limiter", () => {
-  it("allows an untracked key", () => {
-    expect(checkLoginRate(KEY, T0)).toEqual({ allowed: true, retryAfterSeconds: 0 });
-  });
+  it("explains the shared bucket once per process, not once per login", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-  it("keeps allowing while below the failure threshold", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS - 1; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
+    reportUnknownLoginClient();
+    reportUnknownLoginClient();
 
-    expect(checkLoginRate(KEY, T0).allowed).toBe(true);
-  });
-
-  it("locks the key after the threshold is reached", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-
-    const status = checkLoginRate(KEY, T0);
-    expect(status.allowed).toBe(false);
-    expect(status.retryAfterSeconds).toBe(LOGIN_LOCKOUT_MS / 1000);
-  });
-
-  it("reports a shrinking retry-after as time passes", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-
-    const halfway = T0 + LOGIN_LOCKOUT_MS / 2;
-    expect(checkLoginRate(KEY, halfway).retryAfterSeconds).toBe(LOGIN_LOCKOUT_MS / 2 / 1000);
-  });
-
-  it("allows again once the lockout window elapses", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-
-    expect(checkLoginRate(KEY, T0 + LOGIN_LOCKOUT_MS + 1).allowed).toBe(true);
-  });
-
-  it("does not extend the lockout for attempts made while already locked", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-
-    // Hammering during the lockout must not push the unlock time further out.
-    recordFailedLogin(KEY, T0 + 1000);
-
-    expect(checkLoginRate(KEY, T0 + LOGIN_LOCKOUT_MS + 1).allowed).toBe(true);
-  });
-
-  it("resets the counter on a successful login", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS - 1; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-    recordSuccessfulLogin(KEY);
-
-    // After a success, one more failure must not trip the (previously near) threshold.
-    recordFailedLogin(KEY, T0);
-    expect(checkLoginRate(KEY, T0).allowed).toBe(true);
-  });
-
-  it("tracks keys independently", () => {
-    for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) {
-      recordFailedLogin(KEY, T0);
-    }
-
-    expect(checkLoginRate("198.51.100.9", T0).allowed).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/no client ip/i);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/share/i);
   });
 });

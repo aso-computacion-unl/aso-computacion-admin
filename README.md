@@ -32,7 +32,7 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 |----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string for development and production |
 | `TEST_DATABASE_URL` | Disposable test database used only by `npm run test:integration`; see `.env.example` for the exact required target |
-| `ADMIN_PASSWORD` | Shared administrator password |
+| `ADMIN_PASSWORD` | Shared administrator password. Use a long random value (16+ characters): it is the real defence against guessing, see "Login throttle". If it is missing or still a placeholder, every login attempt logs an error and fails closed |
 | `ADMIN_SECRET` | Secret that signs session cookies (at least 32 characters) |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
@@ -78,6 +78,17 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 ## Site settings
 
 `/admin/settings` ("Sitio") edits the landing's site texts: a tagline (1–120 characters), a description (1–300) and the "about" text (1–600). They are a singleton: one row whose id is always `site` (enforced by a `CHECK` in the migration), created on the first save and replaced on every later one. Until the first save there is no row and the form starts empty: the read returns `null`, not invented defaults, because the landing keeps its own copy of these texts as the fallback. The hero, manifesto and join copy stay in the landing code for now.
+
+## Login throttle
+
+The login is throttled per client IP, in Postgres (table `LoginAttempt`), so the limit holds across Vercel instances; an in-memory map is per instance and N instances multiplied the allowed guesses by N.
+
+- **Exponential backoff, not a lockout.** The first 5 attempts from an IP are free; after that the next attempt must wait 30 s, then 60 s, 120 s, 240 s, and 5 min at most. Attempts made while waiting are refused without counting, so hammering never extends the wait. After 1 hour without attempts the counter restarts, and the stale rows are purged.
+- **Why not the old "5 failures, 15 minutes locked".** On a shared network (a campus NAT puts everyone behind one IP), anyone could lock the administrator out for as long as they liked. With a capped backoff the worst case is a wait of 5 minutes, and a different network (mobile data) is never affected. The correct password is *not* a way around the wait: a throttled IP is refused even with the right password, otherwise the throttle would answer guesses for free.
+- **Trade-off, no global ceiling.** A cap across all IPs would let any attacker lock the administrator out from everywhere, a worse failure than a neighbour on the same NAT. A botnet that rotates IPs is held back by the strength of `ADMIN_PASSWORD`, not by this throttle.
+- **Atomic.** Each attempt is spent *before* the password is compared, in a single `INSERT ... ON CONFLICT DO UPDATE ... WHERE` statement, so 30 parallel guesses spend at most the 5 free attempts. A successful login deletes that IP's row.
+- **Fails closed.** If the throttle store cannot be reached, login is refused ("temporarily unavailable") instead of running unprotected; the error is logged. If `ADMIN_PASSWORD` is unusable, login is refused the same way and `ADMIN_PASSWORD is not set or is still a placeholder` is logged on every attempt.
+- **The client IP** is `x-real-ip`, then the first `x-forwarded-for` entry (Vercel overwrites both). Without either header (local development, a bare `next start`) every request shares one `unknown` bucket: it is throttled like any other key, so it is safe, but everyone behind it slows each other down. A warning says so once per process.
 
 ## Server actions are guarded individually
 

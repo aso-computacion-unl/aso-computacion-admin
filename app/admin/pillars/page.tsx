@@ -1,9 +1,15 @@
 import Link from "next/link";
 
+import { Icon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { deletePillar, movePillar, setPillarPublished } from "@/interface/admin/pillars/actions";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
+import { publicationSummary } from "@/interface/admin/publication-summary";
 
+import { OrderedRow } from "../_components/ordered-row";
+import { PageHead } from "../_components/page-head";
 import { DeleteButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
+import { EmptyState, OrderedList } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -12,61 +18,74 @@ export default async function AdminPillarsPage() {
   const pillars = await getAdminPillars();
 
   return (
-    <section>
-      <h1>Pilares</h1>
-      <p>
-        <Link href="/admin/pillars/new">Crear pilar</Link>
-      </p>
+    <div className="max-w-3xl">
+      <PageHead
+        title="Pilares"
+        meta={`main · ${publicationSummary(pillars)}`}
+        action={
+          <Button asChild className="min-h-12 flex-none">
+            <Link href="/admin/pillars/new">
+              <Icon name="plus" />
+              Nuevo pilar
+            </Link>
+          </Button>
+        }
+      />
       {pillars.length === 0 ? (
-        <p role="status">Todavía no hay pilares. Cree el primero con «Crear pilar».</p>
+        <EmptyState
+          action={
+            <Button asChild>
+              <Link href="/admin/pillars/new">
+                <Icon name="plus" />
+                Crear el primer pilar
+              </Link>
+            </Button>
+          }
+        >
+          Todavía no hay pilares. Cada pilar es una palabra, un título y un texto corto, con imagen opcional.
+        </EmptyState>
       ) : (
-        <table>
-          <caption className="visually-hidden">Pilares, en el orden en que se muestran</caption>
-          <thead>
-            <tr>
-              <th scope="col">Pilar</th>
-              <th scope="col">Imagen</th>
-              <th scope="col">Estado</th>
-              <th scope="col">Orden</th>
-              <th scope="col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pillars.map((pillar, index) => (
-              <tr key={pillar.id}>
-                <th scope="row">
-                  <Link href={`/admin/pillars/${pillar.id}/edit`}>
-                    {pillar.word} · {pillar.title}
-                  </Link>
-                </th>
-                <td>{pillar.image ? "Con imagen" : "Sin imagen"}</td>
-                <td>
-                  <PublishedToggle
-                    label={pillar.title}
-                    isPublished={pillar.isPublished}
-                    action={setPillarPublished.bind(null, pillar.id)}
-                  />
-                </td>
-                <td>
-                  <MoveButtons
-                    label={pillar.title}
-                    isFirst={index === 0}
-                    isLast={index === pillars.length - 1}
-                    action={movePillar.bind(null, pillar.id)}
-                  />
-                </td>
-                <td>
-                  <DeleteButton
-                    label={pillar.title}
-                    warning="¿Eliminar este pilar y su imagen?"
-                    action={deletePillar.bind(null, pillar.id)}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <OrderedList label="Pilares, en el orden en que se muestran">
+          {pillars.map((pillar, index) => (
+            <OrderedRow
+              key={pillar.id}
+              published={pillar.isPublished}
+              position={index + 1}
+              label={pillar.title}
+              editHref={`/admin/pillars/${pillar.id}/edit`}
+              media={
+                pillar.image ? (
+                  // Remote Cloudinary asset shown as-is in the admin; no image optimisation needed.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={pillar.image.url} alt="" width={96} height={72} className="aspect-4/3 w-20 shrink-0 rounded-xs object-cover sm:w-24" />
+                ) : null
+              }
+              toggle={<PublishedToggle label={pillar.title} isPublished={pillar.isPublished} action={setPillarPublished.bind(null, pillar.id)} />}
+              move={
+                <MoveButtons
+                  label={pillar.title}
+                  isFirst={index === 0}
+                  isLast={index === pillars.length - 1}
+                  position={index + 1}
+                  total={pillars.length}
+                  action={movePillar.bind(null, pillar.id)}
+                />
+              }
+              remove={
+                <DeleteButton label={pillar.title} warning="¿Eliminar este pilar y su imagen?" action={deletePillar.bind(null, pillar.id)} />
+              }
+            >
+              <p className="font-mono text-xs font-semibold tracking-[0.04em] text-sky uppercase">{pillar.word}</p>
+              <h2 className="font-display text-lg leading-tight wrap-anywhere">
+                <Link href={`/admin/pillars/${pillar.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
+                  {pillar.title}
+                </Link>
+              </h2>
+              <p className="line-clamp-2 text-sm text-mist">{pillar.image ? pillar.text : `${pillar.text} · Sin imagen`}</p>
+            </OrderedRow>
+          ))}
+        </OrderedList>
       )}
-    </section>
+    </div>
   );
 }

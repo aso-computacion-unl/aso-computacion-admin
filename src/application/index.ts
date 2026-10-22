@@ -23,9 +23,17 @@ export type {
 } from "./dto/event-result.dto";
 export type { EventPhotoRepository } from "./ports/event-photo-repository.port";
 export type { EventRepository } from "./ports/event-repository.port";
+export {
+  AttachEventPhotoUseCase,
+  EVENT_PHOTO_FOLDER,
+  EVENT_PHOTO_MIN_WIDTH,
+} from "./use-cases/attach-event-photo.use-case";
 export { CreateEventUseCase } from "./use-cases/create-event.use-case";
+export { DeactivateEventPhotoUseCase } from "./use-cases/deactivate-event-photo.use-case";
 export { DeleteEventUseCase } from "./use-cases/delete-event.use-case";
 export { GetEventUseCase } from "./use-cases/get-event.use-case";
 export { ListEventsUseCase } from "./use-cases/list-events.use-case";
+export { ReorderEventPhotosUseCase } from "./use-cases/reorder-event-photos.use-case";
 export { SetEventPublishedUseCase } from "./use-cases/set-event-published.use-case";
+export { UpdateEventPhotoAltUseCase } from "./use-cases/update-event-photo-alt.use-case";
 export { UpdateEventUseCase } from "./use-cases/update-event.use-case";

@@ -2,6 +2,8 @@
 
 Content admin for the ASO Computación student association. It manages the content (events and photos, FAQ, board, pillars, socials) that the static landing consumes at build time.
 
+**Deploying:** see [docs/DEPLOY.md](docs/DEPLOY.md) (Vercel, Neon, Cloudinary, environment variables, seeding, first-deploy checklist).
+
 ## Stack
 
 - Next.js 15 (App Router) + React 19, TypeScript

@@ -6,10 +6,12 @@ vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typ
 
 import {
   DEPLOY_HOOK_DEBOUNCE_MS,
+  DEPLOY_HOOK_MAX_WAIT_MS,
   DEPLOY_HOOK_TIMEOUT_MS,
-  requestSiteRebuild,
-  resetDeployHookState,
 } from "@/infrastructure/deploy/deploy-hook";
+
+// A fresh module per test: the pending rebuild and the "reported once" latches live in the module.
+let requestSiteRebuild: typeof import("@/infrastructure/deploy/deploy-hook").requestSiteRebuild;
 
 const HOOK_URL = "https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/0123456789abcdef-secret-token";
 
@@ -20,9 +22,10 @@ let error: ReturnType<typeof vi.spyOn>;
 
 const logged = () => [...info.mock.calls, ...warn.mock.calls, ...error.mock.calls].flat().map(String).join("\n");
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers();
-  resetDeployHookState();
+  vi.resetModules();
+  ({ requestSiteRebuild } = await import("@/infrastructure/deploy/deploy-hook"));
   afterMock.mockReset();
   fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
@@ -54,7 +57,8 @@ describe("requestSiteRebuild", () => {
   });
 
   it("coalesces a burst of mutations into one build, fired after the last one goes quiet", async () => {
-    for (let click = 0; click < 6; click += 1) {
+    // Three edits 4 s apart: the burst (8 s) ends before the max wait, so it is one build.
+    for (let click = 0; click < 3; click += 1) {
       requestSiteRebuild();
       await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS / 2);
     }
@@ -176,5 +180,83 @@ describe("requestSiteRebuild", () => {
     await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe("max wait", () => {
+    it("is longer than the quiet window but leaves room for the hook call inside the 30 s admin function", () => {
+      expect(DEPLOY_HOOK_MAX_WAIT_MS).toBeGreaterThan(DEPLOY_HOOK_DEBOUNCE_MS);
+      expect(DEPLOY_HOOK_MAX_WAIT_MS).toBeLessThanOrEqual(15_000);
+      expect(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS).toBeLessThan(30_000);
+    });
+
+    it("fires at the latest MAX_WAIT after the first edit of a burst that never goes quiet", async () => {
+      const start = Date.now();
+      const calledAt: number[] = [];
+      fetchMock.mockImplementation(async () => {
+        calledAt.push(Date.now() - start);
+        return new Response(null, { status: 200 });
+      });
+
+      // An edit every 4 s keeps resetting the 8 s quiet window for a whole minute.
+      for (let elapsed = 0; elapsed < 60_000; elapsed += 4_000) {
+        requestSiteRebuild();
+        await vi.advanceTimersByTimeAsync(4_000);
+      }
+
+      expect(calledAt[0]).toBe(DEPLOY_HOOK_MAX_WAIT_MS);
+      // A new burst starts after each build, so the hook keeps being called during the long session.
+      expect(calledAt.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("never holds an after() promise open longer than MAX_WAIT plus the hook call", async () => {
+      const start = Date.now();
+      const heldFor: number[] = [];
+
+      for (let call = 0; call < 20; call += 1) {
+        const registeredAt = Date.now() - start;
+        requestSiteRebuild();
+        const [held] = afterMock.mock.calls.at(-1) as [Promise<void>];
+        void held.then(() => heldFor.push(Date.now() - start - registeredAt));
+        await vi.advanceTimersByTimeAsync(4_000);
+      }
+      await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS);
+
+      expect(heldFor).toHaveLength(20);
+      expect(Math.max(...heldFor)).toBeLessThanOrEqual(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS);
+      expect(Math.max(...heldFor)).toBeLessThanOrEqual(DEPLOY_HOOK_MAX_WAIT_MS);
+    });
+
+    it("also bounds a slow hook: a build that never answers is given up on within MAX_WAIT plus the timeout", async () => {
+      fetchMock.mockImplementation(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))),
+      );
+      const start = Date.now();
+      let heldFor = -1;
+
+      requestSiteRebuild();
+      const [first] = afterMock.mock.calls[0] as [Promise<void>];
+      void first.then(() => (heldFor = Date.now() - start));
+
+      // The burst keeps going every 5 s, so only the max wait can end it.
+      for (let call = 0; call < 6; call += 1) {
+        await vi.advanceTimersByTimeAsync(5_000);
+        requestSiteRebuild();
+      }
+      await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_TIMEOUT_MS);
+
+      expect(heldFor).toBe(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS);
+      expect(heldFor).toBeLessThan(30_000);
+    });
+
+    it("keeps the full quiet window for an isolated edit", async () => {
+      requestSiteRebuild();
+      await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS - 1);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

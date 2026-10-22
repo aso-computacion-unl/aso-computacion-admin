@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { checkPublicRateLimit } from "@/infrastructure/http/rate-limiter";
-import { mapErrorToResponse } from "@/interface/errors/map-error-to-response";
 import { getPublicContentUseCase } from "@/interface/public/public-content-container";
 import { toPublicContentResponse } from "@/interface/public/public-content.mapper";
 
@@ -36,7 +35,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return withCors(request, response);
   } catch (error) {
-    const failure = mapErrorToResponse(error);
+    // Anything that fails here is the server's fault, never the caller's: the admin error mapper
+    // would turn a validation/not-found/conflict error into a 4xx that echoes internal wording.
+    console.error("Public content failed", error);
+
+    const failure = NextResponse.json({ error: "Service unavailable" }, { status: 503 });
     failure.headers.set("Cache-Control", "no-store");
 
     return withCors(request, failure);

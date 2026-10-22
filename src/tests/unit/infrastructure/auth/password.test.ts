@@ -107,10 +107,8 @@ describe("getAdminPassword minimum length", () => {
   });
 
   it("explains the length rule in the misconfiguration log", async () => {
-    const { reportAdminPasswordMisconfiguration, resetAdminPasswordMisconfigurationReport } = await import(
-      "@/infrastructure/auth/password"
-    );
-    resetAdminPasswordMisconfigurationReport();
+    vi.resetModules();
+    const { reportAdminPasswordMisconfiguration } = await import("@/infrastructure/auth/password");
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     reportAdminPasswordMisconfiguration();
@@ -123,18 +121,18 @@ describe("getAdminPassword minimum length", () => {
 
 describe("reportAdminPasswordMisconfiguration", () => {
   it("logs once per process, however many login attempts report it", async () => {
-    const { reportAdminPasswordMisconfiguration, resetAdminPasswordMisconfigurationReport } = await import(
-      "@/infrastructure/auth/password"
-    );
-    resetAdminPasswordMisconfigurationReport();
+    vi.resetModules();
+    const { reportAdminPasswordMisconfiguration } = await import("@/infrastructure/auth/password");
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     for (let attempt = 0; attempt < 5; attempt += 1) reportAdminPasswordMisconfiguration();
 
     expect(log).toHaveBeenCalledTimes(1);
 
-    resetAdminPasswordMisconfigurationReport();
-    reportAdminPasswordMisconfiguration();
+    // A new process (a fresh module) says it again.
+    vi.resetModules();
+    const fresh = await import("@/infrastructure/auth/password");
+    fresh.reportAdminPasswordMisconfiguration();
     expect(log).toHaveBeenCalledTimes(2);
     log.mockRestore();
   });

@@ -10,10 +10,19 @@ export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
  * snapshot), and short enough to fit a serverless invocation (see below).
  */
 export const DEPLOY_HOOK_DEBOUNCE_MS = 8_000;
+/**
+ * Longest a burst may keep postponing the build, counted from its first edit.
+ * Without it, edits spaced under the quiet window would hold `after()` open
+ * past the function's `maxDuration` (30 s) and the invocation would be killed.
+ * Max wait + hook timeout stays well under it.
+ */
+export const DEPLOY_HOOK_MAX_WAIT_MS = 15_000;
 /** The hook only has to accept the request; Cloudflare builds asynchronously. */
 export const DEPLOY_HOOK_TIMEOUT_MS = 5_000;
 
 interface PendingRebuild {
+  /** When the first edit of this burst arrived. */
+  burstStartedAt: number;
   timer: ReturnType<typeof setTimeout>;
   /** Resolves once the build has been requested (or given up on). */
   settled: Promise<void>;
@@ -23,18 +32,6 @@ interface PendingRebuild {
 let pending: PendingRebuild | undefined;
 let hasReportedMissingUrl = false;
 let hasReportedInvalidUrl = false;
-
-/** Test-only helper: cancels a pending rebuild and clears the "reported once" latches. */
-export function resetDeployHookState(): void {
-  if (pending) {
-    clearTimeout(pending.timer);
-    pending.settle();
-    pending = undefined;
-  }
-
-  hasReportedMissingUrl = false;
-  hasReportedInvalidUrl = false;
-}
 
 /**
  * The URL is a secret (the token is part of the path): it is never logged, and
@@ -113,7 +110,8 @@ function keepInvocationAlive(settled: Promise<void>): void {
  *
  * Bursts coalesce (trailing debounce): every call restarts the quiet window, so
  * reordering photos or editing several fields triggers one build, requested
- * `DEPLOY_HOOK_DEBOUNCE_MS` after the last edit. The state is per process. On
+ * `DEPLOY_HOOK_DEBOUNCE_MS` after the last edit, but never later than
+ * `DEPLOY_HOOK_MAX_WAIT_MS` after the first one. The state is per process. On
  * Vercel each request may land on another instance and an idle instance can be
  * frozen, so two things keep this honest: `after()` holds the invocation open
  * until the window has elapsed and the hook was called (hence the admin
@@ -132,14 +130,15 @@ export function requestSiteRebuild(): void {
   } else {
     let settle!: () => void;
     const settled = new Promise<void>((resolve) => (settle = resolve));
-    pending = { timer: undefined as unknown as ReturnType<typeof setTimeout>, settled, settle };
+    pending = { burstStartedAt: Date.now(), timer: undefined as unknown as ReturnType<typeof setTimeout>, settled, settle };
   }
 
   const current = pending;
+  const untilMaxWait = Math.max(0, DEPLOY_HOOK_MAX_WAIT_MS - (Date.now() - current.burstStartedAt));
   current.timer = setTimeout(() => {
     pending = undefined;
     void postHook(url).finally(current.settle);
-  }, DEPLOY_HOOK_DEBOUNCE_MS);
+  }, Math.min(DEPLOY_HOOK_DEBOUNCE_MS, untilMaxWait));
 
   keepInvocationAlive(current.settled);
 }

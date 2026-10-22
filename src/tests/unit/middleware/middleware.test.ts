@@ -1,13 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resetSessionSecretMisconfigurationReport } from "@/infrastructure/auth/session-jwt";
-import { config, middleware } from "../../../../middleware";
+import { config } from "../../../../middleware";
 import { TEST_SECRET, buildRequest } from "./support";
+
+// A fresh middleware module per test: the session secret "reported once" latch lives in the module graph.
+let middleware: typeof import("../../../../middleware").middleware;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ middleware } = await import("../../../../middleware"));
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
-  resetSessionSecretMisconfigurationReport();
 });
 
 describe("middleware auth boundary", () => {

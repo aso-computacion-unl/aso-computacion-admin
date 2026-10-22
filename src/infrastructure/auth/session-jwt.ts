@@ -25,14 +25,6 @@ export function reportSessionSecretMisconfiguration(): void {
   console.error("ADMIN_SECRET is invalid; authentication is unavailable.");
 }
 
-/**
- * Test-only helper. Resets the process-level "reported once" latch so suites can
- * assert the report-once behavior in isolation. Not intended for production use.
- */
-export function resetSessionSecretMisconfigurationReport(): void {
-  hasReportedSessionSecretMisconfiguration = false;
-}
-
 export interface SessionPayload {
   sub: "admin";
   iat: number;

@@ -59,6 +59,51 @@ describe("tableColumns", () => {
     expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["check", "createdAt", "id", "name", "unique_code"]);
   });
 
+  it("follows RENAME without the optional COLUMN keyword", () => {
+    const later = `ALTER TABLE "BoardMember" RENAME "name" TO "telefono";\nALTER TABLE "BoardMember" RENAME COLUMN "id" TO "pk";`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["createdAt", "pk", "telefono"]);
+  });
+
+  it("ignores table and constraint renames", () => {
+    const later = `ALTER TABLE "BoardMember" RENAME CONSTRAINT "BoardMember_pkey" TO "pk";\nALTER TABLE "BoardMember" RENAME TO "Directiva";`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["createdAt", "id", "name"]);
+  });
+
+  it("reads quoted names that are not plain words (spaces, dashes, commas, escaped quotes)", () => {
+    const later = [
+      `ALTER TABLE "BoardMember" ADD COLUMN "phone number" TEXT, ADD COLUMN "tel-efono" TEXT;`,
+      `ALTER TABLE "BoardMember" ADD COLUMN "a,b" TEXT, ADD COLUMN "it's" TEXT, ADD COLUMN "say ""hi""" TEXT;`,
+      `ALTER TABLE "BoardMember" RENAME COLUMN "tel-efono" TO "móvil";`,
+      `ALTER TABLE "BoardMember" DROP COLUMN "a,b";`,
+    ].join("\n");
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(
+      ['createdAt', 'id', "it's", "móvil", "name", "phone number", 'say "hi"'].sort(),
+    );
+  });
+
+  it("reads unquoted CREATE TABLE columns, folded to lower case like Postgres does", () => {
+    const created = `CREATE TABLE "BoardMember" (id TEXT NOT NULL, Phone TEXT, "Name" TEXT, PRIMARY KEY (id), UNIQUE (phone), CHECK (id <> ''), CONSTRAINT x CHECK (id <> ''));`;
+    const later = `ALTER TABLE "BoardMember" ADD COLUMN Email TEXT;`;
+
+    expect(tableColumns("BoardMember", [created, later])).toEqual(["Name", "email", "id", "phone"].sort());
+  });
+
+  it("follows DROP without the optional COLUMN keyword, but not DROP CONSTRAINT", () => {
+    const later = `ALTER TABLE "BoardMember" DROP "createdAt", DROP IF EXISTS "name", DROP CONSTRAINT "BoardMember_pkey";`;
+
+    expect(tableColumns("BoardMember", [CREATE, later])).toEqual(["id"]);
+  });
+
+  it("finds the table when it is schema-qualified or written unquoted", () => {
+    const later = `ALTER TABLE ONLY public."BoardMember" ADD COLUMN "telefono" TEXT;\nALTER TABLE IF EXISTS public.boardmember ADD COLUMN age INTEGER;`;
+    const created = `CREATE TABLE public."BoardMember" ("id" TEXT NOT NULL);`;
+
+    expect(tableColumns("BoardMember", [created, later])).toEqual(["age", "id", "telefono"]);
+  });
+
   it.each([
     ["ADD CONSTRAINT", `ADD CONSTRAINT "BoardMember_check" CHECK ("id" <> '')`],
     ["ADD CONSTRAINT UNIQUE", `ADD CONSTRAINT "BoardMember_name_key" UNIQUE ("name")`],

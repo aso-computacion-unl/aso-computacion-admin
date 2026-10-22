@@ -9,8 +9,14 @@ vi.mock("@/interface/public/public-content-container", () => ({
   getPublicContentUseCase: () => ({ execute: executeMock }),
 }));
 
-import { resetPublicRateLimiter, PUBLIC_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/rate-limiter";
-import * as route from "../../../../../app/api/public/content/route";
+import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { ValidationError } from "@/domain";
+import { PUBLIC_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/rate-limiter";
+
+import { HttpError } from "@/interface/errors/http-error";
+
+// A fresh route module per test: the rate limiter keeps its state in the module.
+let route: typeof import("../../../../../app/api/public/content/route");
 
 const LANDING = "https://aso-computacion.pages.dev";
 const emptySnapshot = { events: [], faqs: [], pillars: [], socials: [], board: [], settings: null };
@@ -19,11 +25,12 @@ function get(headers: Record<string, string> = {}): NextRequest {
   return new NextRequest("https://admin.test/api/public/content", { headers });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   executeMock.mockReset();
   executeMock.mockResolvedValue(emptySnapshot);
-  resetPublicRateLimiter();
   vi.stubEnv("PUBLIC_CORS_ORIGINS", LANDING);
+  vi.resetModules();
+  route = await import("../../../../../app/api/public/content/route");
 });
 
 afterEach(() => {
@@ -77,17 +84,39 @@ describe("GET /api/public/content", () => {
     for (const response of [allowed, other, none]) expect(response.headers.get("Vary")).toBe("Origin");
   });
 
-  it("answers a failure with a generic 500 that is not cached, keeps CORS, and leaks no internals", async () => {
+  it("answers every failure with the same generic 503 that is not cached, keeps CORS, and leaks no internals", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const failures = [
+      new Error("connect ECONNREFUSED postgres://user:secret@db/aso"),
+      Object.assign(new Error("Unique constraint failed on the fields: (`slug`)"), { code: "P2002" }),
+      new ValidationError("title", "title is required"),
+      new NotFoundError("Event 1234 not found"),
+      new HttpError(409, "conflict secret"),
+    ];
+
+    for (const failure of failures) {
+      executeMock.mockRejectedValueOnce(failure);
+
+      const response = await route.GET(get({ origin: LANDING }));
+      const text = await response.text();
+
+      expect(response.status).toBe(503);
+      expect(JSON.parse(text)).toEqual({ error: "Service unavailable" });
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe(LANDING);
+    }
+
+    expect(errors).toHaveBeenCalledTimes(failures.length);
+  });
+
+  it("answers a failure while building the response (not only the read) with the generic 503 too", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    executeMock.mockRejectedValue(new Error("connect ECONNREFUSED postgres://user:secret@db/aso"));
+    executeMock.mockResolvedValue({ ...emptySnapshot, events: [null] });
 
-    const response = await route.GET(get({ origin: LANDING }));
-    const text = await response.text();
+    const response = await route.GET(get());
 
-    expect(response.status).toBe(500);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(LANDING);
-    expect(text).not.toMatch(/postgres|secret|ECONNREFUSED/);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Service unavailable" });
   });
 
   it("rate limits one client with a 429 that is not cached", async () => {

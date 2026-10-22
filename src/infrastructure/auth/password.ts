@@ -49,11 +49,6 @@ export function reportAdminPasswordMisconfiguration(): void {
   );
 }
 
-/** Test-only helper: resets the process-level "reported once" latch. Not intended for production use. */
-export function resetAdminPasswordMisconfigurationReport(): void {
-  hasReportedAdminPasswordMisconfiguration = false;
-}
-
 export function comparePassword(input: string, expected: string): boolean {
   const inputHash = createHash("sha256").update(input, "utf8").digest();
   const expectedHash = createHash("sha256").update(expected, "utf8").digest();

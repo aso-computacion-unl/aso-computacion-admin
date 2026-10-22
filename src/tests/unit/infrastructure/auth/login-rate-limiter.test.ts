@@ -7,9 +7,10 @@ import {
   LOGIN_BACKOFF_CAP_MS,
   LOGIN_FREE_ATTEMPTS,
   loginDelayMs,
-  reportUnknownLoginClient,
-  resetUnknownLoginClientReport,
 } from "@/infrastructure/auth/login-rate-limiter";
+
+// A fresh module per test: the "reported once" latch lives in the module.
+let reportUnknownLoginClient: typeof import("@/infrastructure/auth/login-rate-limiter").reportUnknownLoginClient;
 
 // The stateful rules (atomic increment, window expiry, per-IP independence) run
 // against a real Postgres in
@@ -38,7 +39,10 @@ describe("loginDelayMs (exponential backoff with a cap, never a hard lockout)", 
 });
 
 describe("reportUnknownLoginClient", () => {
-  beforeEach(() => resetUnknownLoginClientReport());
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ reportUnknownLoginClient } = await import("@/infrastructure/auth/login-rate-limiter"));
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it("explains the shared bucket once per process, not once per login", () => {

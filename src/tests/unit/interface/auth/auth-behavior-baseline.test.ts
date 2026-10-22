@@ -33,10 +33,15 @@ vi.mock("@/infrastructure/auth/login-rate-limiter", () => ({
   recordSuccessfulLogin: async () => undefined,
 }));
 
-import { AUTH_COOKIE_NAME, resetSessionSecretMisconfigurationReport, verifySession } from "@/infrastructure/auth/session-jwt";
-import { login, logout } from "@/interface/auth/actions";
-import { config, middleware } from "../../../../../middleware";
+import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { config } from "../../../../../middleware";
 import { TEST_SECRET, buildRequest, signTestToken } from "../../middleware/support";
+
+// Fresh modules per test: the session secret "reported once" latch lives in the module graph.
+let verifySession: typeof import("@/infrastructure/auth/session-jwt").verifySession;
+let login: typeof import("@/interface/auth/actions").login;
+let logout: typeof import("@/interface/auth/actions").logout;
+let middleware: typeof import("../../../../../middleware").middleware;
 
 function passwordForm(password: string | null): FormData {
   const formData = new FormData();
@@ -45,7 +50,11 @@ function passwordForm(password: string | null): FormData {
 }
 
 describe("auth behaviour baseline (unchanged by T2b)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ verifySession } = await import("@/infrastructure/auth/session-jwt"));
+    ({ login, logout } = await import("@/interface/auth/actions"));
+    ({ middleware } = await import("../../../../../middleware"));
     vi.stubEnv("ADMIN_PASSWORD", "correct horse battery staple");
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
     headersGetMock.mockImplementation((name: string) => (name === "x-real-ip" ? "203.0.113.5" : null));
@@ -54,7 +63,6 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.clearAllMocks();
-    resetSessionSecretMisconfigurationReport();
   });
 
   it("valid password: signs a session, sets the httpOnly cookie and redirects to /admin", async () => {

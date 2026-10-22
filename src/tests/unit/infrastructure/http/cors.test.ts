@@ -1,18 +1,25 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { NextResponse } from "next/server";
 
-import { handlePreflight, parseAllowedOrigins, resetCorsConfigurationReport, withCors } from "@/infrastructure/http/cors";
+// A fresh module per test: the "reported once" latch for invalid origins lives in the module.
+let handlePreflight: typeof import("@/infrastructure/http/cors").handlePreflight;
+let parseAllowedOrigins: typeof import("@/infrastructure/http/cors").parseAllowedOrigins;
+let withCors: typeof import("@/infrastructure/http/cors").withCors;
 
 const LANDING = "https://aso-computacion.pages.dev";
 const request = (origin?: string) => new Request("https://admin.test/api/public/content", { headers: origin ? { origin } : {} });
 
+beforeEach(async () => {
+  vi.resetModules();
+  ({ handlePreflight, parseAllowedOrigins, withCors } = await import("@/infrastructure/http/cors"));
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
-  resetCorsConfigurationReport();
 });
 
 describe("parseAllowedOrigins", () => {

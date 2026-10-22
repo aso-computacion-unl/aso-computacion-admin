@@ -8,11 +8,6 @@ const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 let hasReportedInvalidOrigins = false;
 
-/** Test-only helper: resets the "reported once" latch for invalid allowlist entries. */
-export function resetCorsConfigurationReport(): void {
-  hasReportedInvalidOrigins = false;
-}
-
 /**
  * An entry is usable only as an exact origin, exactly as a browser sends it:
  * `https://host[:port]` (plain `http` only for loopback, for local development),

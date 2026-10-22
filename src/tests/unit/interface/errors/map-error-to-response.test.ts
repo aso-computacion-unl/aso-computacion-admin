@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { NotFoundError } from "@/application/use-cases/use-case-error";
-import { ValidationError } from "@/domain";
+import {
+  ImageTooLargeError,
+  ImageTooSmallError,
+  InvalidImageFormatError,
+  ValidationError,
+} from "@/domain";
 import { HttpError } from "@/interface/errors/http-error";
 import { mapErrorToResponse } from "@/interface/errors/map-error-to-response";
 
@@ -39,6 +44,36 @@ describe("mapErrorToResponse", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "title is required" });
+  });
+
+  it("maps an unsupported image format to a stable 400 code", async () => {
+    const response = mapErrorToResponse(new InvalidImageFormatError("internal detail"));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "INVALID_IMAGE_FORMAT",
+      message: "Image must be a JPEG, PNG or WebP file.",
+    });
+  });
+
+  it("maps an oversized image to a stable 400 code", async () => {
+    const response = mapErrorToResponse(new ImageTooLargeError("internal detail"));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "IMAGE_TOO_LARGE",
+      message: "Image size must not exceed 5 MB.",
+    });
+  });
+
+  it("maps a too-small image to a stable 400 code that states the required width", async () => {
+    const response = mapErrorToResponse(new ImageTooSmallError(1200, 576));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "IMAGE_TOO_SMALL",
+      message: "Image must be at least 1200 px wide.",
+    });
   });
 
   it("maps an HttpError to its own status code", async () => {

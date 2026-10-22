@@ -6,4 +6,18 @@
  * Cloudinary SDK, or `jose` are allowed here. See
  * `src/tests/unit/architecture-boundaries.test.ts`.
  */
-export { DomainError, ValidationError } from "./domain-error";
+export {
+  DomainError,
+  ImageTooLargeError,
+  ImageTooSmallError,
+  InvalidImageFormatError,
+  ValidationError,
+} from "./domain-error";
+export {
+  IMAGE_MAX_SIZE_BYTES,
+  IMAGE_MIME_TYPES,
+  assertImageMimeType,
+  assertImageMinWidth,
+  assertImageSize,
+} from "./image";
+export type { ImageMimeType } from "./image";

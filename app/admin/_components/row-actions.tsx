@@ -66,8 +66,8 @@ interface MoveButtonsProps {
   isFirst: boolean;
   isLast: boolean;
   /** 1-based place in the list, announced after a move. */
-  position?: number;
-  total?: number;
+  position: number;
+  total: number;
   action: (direction: "up" | "down") => Promise<ActionResult>;
 }
 
@@ -88,7 +88,7 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
     const target = preferred.current && !preferred.current.disabled ? preferred.current : other.current;
 
     target?.focus();
-    setAnnouncement(position && total ? `${label}: posición ${position} de ${total}.` : "");
+    setAnnouncement(`${label}: posición ${position} de ${total}.`);
     setMoved(null);
   }, [moved, pending, label, position, total]);
 

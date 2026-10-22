@@ -32,3 +32,5 @@ export { SOCIAL_PLATFORMS, SocialLink } from "./social-link";
 export type { CreateSocialLinkInput, SocialLinkProps, SocialPlatform, UpdateSocialLinkInput } from "./social-link";
 export { Pillar } from "./pillar";
 export type { CreatePillarInput, PillarImage, PillarProps, UpdatePillarInput } from "./pillar";
+export { SITE_SETTINGS_ID, SiteSettings } from "./site-settings";
+export type { SiteSettingsInput, SiteSettingsProps } from "./site-settings";

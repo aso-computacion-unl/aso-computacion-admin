@@ -102,3 +102,12 @@ model Pillar {
 
   @@index([sortOrder, createdAt])
 }
+
+// Singleton: the only row has id "site" (CHECK in the migration).
+model SiteSettings {
+  id          String   @id
+  tagline     String
+  description String
+  about       String
+  updatedAt   DateTime
+}

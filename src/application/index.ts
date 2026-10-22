@@ -62,3 +62,7 @@ export {
   SetPillarImageUseCase,
 } from "./use-cases/set-pillar-image.use-case";
 export { UpdatePillarUseCase } from "./use-cases/update-pillar.use-case";
+export type { SiteSettingsResult } from "./dto/site-settings-result.dto";
+export type { SiteSettingsRepository } from "./ports/site-settings-repository.port";
+export { GetSiteSettingsUseCase } from "./use-cases/get-site-settings.use-case";
+export { UpdateSiteSettingsUseCase } from "./use-cases/update-site-settings.use-case";

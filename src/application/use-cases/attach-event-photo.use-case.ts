@@ -56,8 +56,8 @@ export class AttachEventPhotoUseCase {
     });
 
     try {
-      const sortOrder = active.reduce((next, photo) => Math.max(next, photo.props.sortOrder + 1), 0);
-      const photo = EventPhoto.create({ eventId, ...asset, alt: validAlt, sortOrder });
+      // The repository places the photo at the end of the gallery atomically.
+      const photo = EventPhoto.create({ eventId, ...asset, alt: validAlt, sortOrder: 0 });
 
       return toEventPhotoResult(await this.photos.add(photo, MAX_ACTIVE_EVENT_PHOTOS));
     } catch (error) {

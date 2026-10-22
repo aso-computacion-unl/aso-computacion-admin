@@ -31,6 +31,7 @@ vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: 
 
 import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
 import * as actions from "@/interface/admin/events/actions";
+import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
 const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
 
@@ -114,14 +115,7 @@ describe("events server actions require an admin session (L9)", () => {
     expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "event-1" });
   });
 
-  it("the guard is the first statement of every action", async () => {
-    const { readFileSync } = await import("node:fs");
-    const source = readFileSync("src/interface/admin/events/actions.ts", "utf8");
-    const bodies = source.split(/export async function /).slice(1);
-
-    expect(bodies).toHaveLength(Object.keys(ACTION_CALLS).length);
-    for (const body of bodies) {
-      expect(body.slice(body.indexOf("await "), body.indexOf("await ") + 30)).toContain("await requireAdminSession()");
-    }
+  it("the guard is the first statement of every action", () => {
+    expect(expectGuardFirstInEveryAction("src/interface/admin/events/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
   });
 });

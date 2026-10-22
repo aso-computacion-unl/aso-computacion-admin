@@ -28,6 +28,7 @@ vi.mock("@/interface/admin/faqs/faqs-container", () => ({ getFaqUseCases: getFaq
 
 import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
 import * as actions from "@/interface/admin/faqs/actions";
+import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
 const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
 
@@ -88,13 +89,7 @@ describe("faq server actions require an admin session (L9)", () => {
     expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "faq-1" });
   });
 
-  it("the guard is the first statement of every action", async () => {
-    const { readFileSync } = await import("node:fs");
-    const bodies = readFileSync("src/interface/admin/faqs/actions.ts", "utf8").split(/export async function /).slice(1);
-
-    expect(bodies).toHaveLength(Object.keys(ACTION_CALLS).length);
-    for (const body of bodies) {
-      expect(body.slice(body.indexOf("await "), body.indexOf("await ") + 30)).toContain("await requireAdminSession()");
-    }
+  it("the guard is the first statement of every action", () => {
+    expect(expectGuardFirstInEveryAction("src/interface/admin/faqs/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
   });
 });

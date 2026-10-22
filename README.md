@@ -48,7 +48,7 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 `/admin/events` manages events and their photo gallery (list, create, edit, publish toggle, delete).
 
 - An event has a slug (derived from the title, editable), an optional date (future = upcoming on the landing, past = history), an optional type (`taller`, `charla`, `evento`, `comunidad`), optional `hora` / `lugar` / `para`, an https-only link, up to 8 highlights and a `featured` flag. New events are drafts.
-- Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Deleting an event removes its photo rows but not the stored files.
+- Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Deleting an event (an explicit, confirmed action) removes its photo rows and then destroys their stored files, active or not; when a destroy fails the delete still succeeds and the leftover `publicId`s are logged.
 - If the database write fails after an upload, the uploaded asset is destroyed (best effort, logged when that fails) and the original error is reported.
 
 ## FAQ

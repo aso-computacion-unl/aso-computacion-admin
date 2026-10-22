@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupEvents, todayInLoja } from "@/interface/admin/events/event-timeline";
+import { formatEventDate, groupEvents, todayInLoja } from "@/interface/admin/events/event-timeline";
 
 interface Item {
   id: string;
@@ -76,5 +76,18 @@ describe("groupEvents", () => {
 
     expect(ids(groupEvents(input, today).past)).toEqual(["a", "b"]);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("formatEventDate", () => {
+  it("writes a calendar date as day, short Spanish month and year", () => {
+    expect(formatEventDate("2026-10-22")).toBe("22 oct 2026");
+    expect(formatEventDate("2026-01-05")).toBe("5 ene 2026");
+    expect(formatEventDate("2025-12-31")).toBe("31 dic 2025");
+  });
+
+  it("says so when the event has no date, and does not choke on a malformed one", () => {
+    expect(formatEventDate(null)).toBe("Sin fecha");
+    expect(formatEventDate("pronto")).toBe("pronto");
   });
 });

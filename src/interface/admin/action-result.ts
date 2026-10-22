@@ -38,10 +38,19 @@ const FIELD_MESSAGES: Record<string, string> = {
   linkUrl: "Use un enlace que empiece con https://.",
   linkLabel: "El texto del enlace admite hasta 80 caracteres y requiere un enlace.",
   highlights: "Hasta 8 líneas de 80 caracteres como máximo.",
+  question: "La pregunta es obligatoria y admite hasta 200 caracteres.",
+  answer: "La respuesta es obligatoria y admite hasta 1000 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
 };
+
+// NotFoundError texts by entity; anything else keeps the generic event/photo wording.
+const NOT_FOUND_MESSAGES: Record<string, string> = {
+  "Faq not found": "No se encontró la pregunta frecuente.",
+};
+
+const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";
 
 function fieldError(field: string, message?: string): ActionResult {
   return { fieldErrors: { [field]: message ?? FIELD_MESSAGES[field] ?? "El valor no es válido." } };
@@ -58,6 +67,11 @@ export function mapActionError(error: unknown): ActionResult {
 
   if (error instanceof ZodError) {
     const issue = error.issues[0];
+
+    if (issue?.code === "unrecognized_keys") {
+      return fieldError("form", UNKNOWN_FIELDS_MESSAGE);
+    }
+
     return fieldError(String(issue?.path[0] ?? "form"), issue?.path[0] === "file" ? undefined : issue?.message);
   }
 
@@ -81,7 +95,7 @@ export function mapActionError(error: unknown): ActionResult {
   }
 
   if (error instanceof NotFoundError) {
-    return { error: "No se encontró el evento o la foto." };
+    return { error: NOT_FOUND_MESSAGES[error.message] ?? "No se encontró el evento o la foto." };
   }
 
   console.error(error);

@@ -6,7 +6,7 @@ import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { deactivateEventPhoto, moveEventPhoto, updateEventPhotoAlt } from "@/interface/admin/events/actions";
 
 import { PhotoUploadForm } from "./photo-upload-form";
-import { resultMessage, useRunAction } from "./use-run-action";
+import { resultMessage, useRunAction } from "../../_components/use-run-action";
 
 export interface GalleryPhoto {
   id: string;

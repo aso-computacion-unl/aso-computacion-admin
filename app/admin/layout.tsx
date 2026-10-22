@@ -13,7 +13,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <header className="admin-header">
         <strong>ASO Computación</strong>
         <nav aria-label="Administración">
-          <Link href="/admin">Inicio</Link> <Link href="/admin/events">Eventos</Link>
+          <Link href="/admin">Inicio</Link> <Link href="/admin/events">Eventos</Link>{" "}
+          <Link href="/admin/faqs">Preguntas frecuentes</Link>
         </nav>
         <form action={logout}>
           <button type="submit">Cerrar sesión</button>

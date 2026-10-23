@@ -5,11 +5,13 @@ import { BoardMember } from "@/domain/board-member";
 import { Event } from "@/domain/event";
 import { EventPhoto } from "@/domain/event-photo";
 import { Faq } from "@/domain/faq";
+import { NewsItem } from "@/domain/news-item";
 import { Pillar } from "@/domain/pillar";
 import { SiteSettings } from "@/domain/site-settings";
 import { SocialLink } from "@/domain/social-link";
 import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
+import { InMemoryNewsRepository } from "@/tests/fakes/in-memory-news.repository";
 import { InMemoryOrderedRepository } from "@/tests/fakes/in-memory-ordered-repository";
 import { InMemorySiteSettingsRepository } from "@/tests/fakes/in-memory-site-settings.repository";
 
@@ -23,6 +25,7 @@ describe("GetPublicContentUseCase", () => {
   let socials: InMemoryOrderedRepository<SocialLink>;
   let board: InMemoryOrderedRepository<BoardMember>;
   let settings: InMemorySiteSettingsRepository;
+  let news: InMemoryNewsRepository;
   let useCase: GetPublicContentUseCase;
 
   beforeEach(() => {
@@ -33,11 +36,12 @@ describe("GetPublicContentUseCase", () => {
     socials = new InMemoryOrderedRepository();
     board = new InMemoryOrderedRepository();
     settings = new InMemorySiteSettingsRepository();
-    useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings);
+    news = new InMemoryNewsRepository();
+    useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings, news);
   });
 
   it("is empty, with settings null, when nothing was ever saved", async () => {
-    expect(await useCase.execute()).toEqual({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null });
+    expect(await useCase.execute()).toEqual({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [] });
   });
 
   it("returns only published events, newest date first, each with only its active photos in gallery order", async () => {
@@ -91,5 +95,18 @@ describe("GetPublicContentUseCase", () => {
     await settings.save(SiteSettings.create({ tagline: "Tagline", description: "Description", about: "About" }));
 
     expect((await useCase.execute()).settings).toMatchObject({ tagline: "Tagline", description: "Description", about: "About" });
+  });
+
+  it("returns only published news, newest publication date first, with the cover when it has one", async () => {
+    const text = { summary: "Resumen", body: "Cuerpo" };
+    await news.create(NewsItem.create({ ...text, title: "Vieja", publishedAt: "2026-01-10", isPublished: true }));
+    await news.create(NewsItem.create({ ...text, title: "Borrador", publishedAt: "2026-06-01" }));
+    await news.create(NewsItem.create({ ...text, title: "Reciente", publishedAt: "2026-05-01", isPublished: true, cover: image("cover") }));
+
+    const result = await useCase.execute();
+
+    expect(result.news.map((item) => item.title)).toEqual(["Reciente", "Vieja"]);
+    expect(result.news[0]?.cover).toEqual({ url: image("cover").url, width: 1200, height: 800, alt: "cover" });
+    expect(result.news[1]?.cover).toBeNull();
   });
 });

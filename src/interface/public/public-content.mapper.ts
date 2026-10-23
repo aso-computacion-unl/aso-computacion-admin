@@ -54,5 +54,13 @@ export function toPublicContentResponse(snapshot: PublicContentSnapshot, generat
       description: snapshot.settings.description,
       about: snapshot.settings.about,
     },
+    news: snapshot.news.map((item) => ({
+      slug: item.slug,
+      title: item.title,
+      summary: item.summary,
+      body: item.body,
+      publishedAt: item.publishedAt,
+      cover: item.cover && toPublicImage(item.cover),
+    })),
   };
 }

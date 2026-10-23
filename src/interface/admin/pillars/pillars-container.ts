@@ -13,12 +13,13 @@ import {
 import { toPillarResult } from "@/application/mappers/pillar-result.mapper";
 import { PillarPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
+import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
 
 const NOT_FOUND = "Pillar not found";
 
 function createPillarUseCases() {
   const pillars = new PillarPrismaRepository();
-  const storage = new CloudinaryMediaStorage();
+  const storage = new LazyMediaStorage(() => new CloudinaryMediaStorage());
 
   return {
     list: new ListOrderedContentUseCase(pillars, toPillarResult),

@@ -13,11 +13,12 @@ import {
 } from "@/application";
 import { EventPhotoPrismaRepository, EventPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
+import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
 
 function createEventUseCases() {
   const events = new EventPrismaRepository();
   const photos = new EventPhotoPrismaRepository();
-  const storage = new CloudinaryMediaStorage();
+  const storage = new LazyMediaStorage(() => new CloudinaryMediaStorage());
 
   return {
     list: new ListEventsUseCase(events, photos),

@@ -1,6 +1,6 @@
 # ASO Computación — Admin
 
-Content admin for the ASO Computación student association. It manages the content (events and photos, FAQ, board, pillars, socials) that the static landing consumes at build time.
+Content admin for the ASO Computación student association. It manages the content (events and photos, news, FAQ, board, pillars, socials) that the static landing consumes at build time.
 
 **Deploying:** see [docs/DEPLOY.md](docs/DEPLOY.md) (Vercel, Neon, Cloudinary, environment variables, seeding, first-deploy checklist).
 
@@ -57,6 +57,17 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 - Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Deleting an event (an explicit, confirmed action) removes its photo rows and then destroys their stored files, active or not; when a destroy fails the delete still succeeds and the leftover `publicId`s are logged.
 - If the database write fails after an upload, the uploaded asset is destroyed (best effort, logged when that fails) and the original error is reported.
 
+## News
+
+`/admin/news` ("Novedades") manages the landing's news: a list (newest publication date first, drafts included), create, edit, publish toggle and delete.
+
+- A news item has a slug (derived from the title, editable, same rules as events; it is the landing's `/novedades/<slug>` URL and a repeated title gets `-2`, `-3`, ...), a title (1–120 characters), a summary (1–280), a body (1–10000), a publication date and an optional cover. New items are drafts.
+- **Body.** A Markdown subset (paragraphs, `**bold**`, `*italic*`, `[links](https://...)` and `- lists`), stored exactly as written; the admin never converts it. The landing renders it without raw HTML and only follows `https:` links. A line break in the form is stored as `\n`.
+- **Publication date.** A calendar day (`YYYY-MM-DD`), today in Ecuador (UTC-5) when left blank on create and unchanged when left blank on edit. Items are ordered by it, newest first, then by creation time.
+- **Cover.** Uploaded through the shared upload flow (folder `news`, JPEG/PNG/WebP up to 5 MB, at least 1200 px wide) and needs alt text (1–200 characters). The five cover columns are set or all null (a `CHECK` in the migration). Creating continues on the edit page, where the cover is added, replaced or removed.
+- Replacing or removing the cover, and deleting the item, destroy the previous stored image after the database write succeeded (best effort; the leftover `publicId` is logged and the operation still succeeds). If the database write fails after an upload, the new asset is destroyed and the original error is reported.
+- The table is an add-only migration (`NewsItem`), so existing data is untouched.
+
 ## FAQ
 
 `/admin/faqs` manages the frequently asked questions: a question (1–200 characters) and an answer (1–1000), shown in list order. The list has move up/down, a publish toggle, create, edit and delete. New questions are drafts and go to the end of the list; moving renumbers the list 0..n-1.
@@ -98,23 +109,25 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
   "pillars":  [{ "word", "title", "text", "image": { "url", "width", "height", "alt" } | null }],
   "socials":  [{ "platform", "label", "handle", "url", "note", "blurb" }],
   "board":    [{ "name", "role", "photo": { "url", "width", "height", "alt" } }],
-  "settings": { "tagline", "description", "about" } | null   // null until first saved: the landing keeps its fallback
+  "settings": { "tagline", "description", "about" } | null,  // null until first saved: the landing keeps its fallback
+  "news":     [{ "slug", "title", "summary", "body", "publishedAt", "cover": { "url", "width", "height", "alt" } | null }]
 }
 ```
 
 - `datePrecision` is `"day"` or `"month"`. `date` is always a full `YYYY-MM-DD`; a month-only event emits the first of its month (`2026-02-01`) with `"month"`. `YYYY-MM` is never emitted (the landing rejects it). Additive to `version` 1.
+- `news` is additive to `version` 1 (a landing built against an admin without it treats it as `[]`): only published items, newest `publishedAt` first. `publishedAt` is a `YYYY-MM-DD` calendar date, `body` is the Markdown subset described in "News" (the landing must never render raw HTML from it), and `cover` is `null` when the item has none.
 - Image URLs are the Cloudinary `secure_url` as stored (`https://res.cloudinary.com/<cloud>/image/upload/v<n>/aso-computacion/events/<id>.<ext>`), which is the shape the landing accepts; `cloudinary-media-storage.test.ts` pins that contract.
-- Events come newest date first (undated last) with only their active photos in gallery order; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
-- Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
+- Events come newest date first (undated last) with only their active photos in gallery order; news comes newest `publishedAt` first; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
+- Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). News exposes only its slug, texts, date and cover. The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
 - `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.
 - CORS: `PUBLIC_CORS_ORIGINS` is an allowlist of exact origins (`https://host[:port]`; plain `http` only for `localhost`/`127.0.0.1`). The request's origin is echoed only when listed, never `*`, always with `Vary: Origin`; an entry with a path, wildcard or trailing slash is ignored and logged once. `OPTIONS` answers the preflight. No credentials are ever allowed.
 - Rate limit: 60 requests per minute per client (in memory, per instance), 429 beyond that. The map of clients is bounded (swept once per window, at most 10 000 tracked, oldest evicted first).
 - Errors: any failure answers a generic `503 {"error":"Service unavailable"}` with `Cache-Control: no-store`; the cause is only logged on the server.
-- Image URLs (`photos[].url`, `pillars[].image.url`, `board[].photo`) are Cloudinary delivery URLs, so they contain the cloud name and the asset's `publicId` in the path. Both are public by design (they are needed to display the image) and neither lets anyone upload, change or delete anything; it is the API key and secret that must stay private. Do not treat these URLs as unguessable: an unpublished image whose URL leaked stays reachable until its asset is destroyed.
+- Image URLs (`photos[].url`, `pillars[].image.url`, `board[].photo`, `news[].cover.url`) are Cloudinary delivery URLs, so they contain the cloud name and the asset's `publicId` in the path. Both are public by design (they are needed to display the image) and neither lets anyone upload, change or delete anything; it is the API key and secret that must stay private. Do not treat these URLs as unguessable: an unpublished image whose URL leaked stays reachable until its asset is destroyed.
 
 ## Landing rebuilds
 
-Every successful admin mutation (events and their photos, FAQ, pillars, socials, board, settings) calls `requestSiteRebuild()` after the write, which POSTs `CLOUDFLARE_DEPLOY_HOOK_URL`. It is best effort: it only schedules, never awaits the network and never throws, so it cannot fail or slow the mutation. A failed mutation never fires it (`deploy-hook-actions.test.ts` checks all 33 actions: fired once after the write, not fired on failure or without a session).
+Every successful admin mutation (events and their photos, news, FAQ, pillars, socials, board, settings) calls `requestSiteRebuild()` after the write, which POSTs `CLOUDFLARE_DEPLOY_HOOK_URL`. It is best effort: it only schedules, never awaits the network and never throws, so it cannot fail or slow the mutation. A failed mutation never fires it (`deploy-hook-actions.test.ts` checks all 39 actions: fired once after the write, not fired on failure or without a session).
 
 - **Coalescing.** A trailing debounce: each call restarts an 8 s quiet window and the hook is POSTed once, 8 s after the last edit, but never later than 15 s after the first edit of the burst (max wait), so a long editing session cannot keep the invocation open past `maxDuration`. Reordering photos or editing several fields is one build, not one per click. The window is longer than the 5 s edge cache of the public route, so the build reads fresh data. The POST has a 5 s timeout; failures and non-2xx answers are logged as warnings (without the URL).
 - **Why in process, and the Vercel caveat.** No extra table or queue for a handful of editors. But state is per instance, and a serverless instance may be frozen between requests. So the action registers the wait with `after()` (Next 15), which keeps the invocation alive until the window has elapsed and the hook was called; `app/admin/layout.tsx` sets `maxDuration = 30` so an upload plus the longest wait (15 s) and the hook call (5 s timeout) fits. If an instance is still recycled mid-window, or two instances each debounce their own edit (two builds), the cost is a lost or duplicated rebuild, never a wrong page: the daily rebuild cron is the safety net. On a long-lived server (Render, `next start`) the timer simply runs.

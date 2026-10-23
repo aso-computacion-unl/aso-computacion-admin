@@ -5,7 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { uploadEventPhoto } from "@/interface/admin/events/actions";
 
-import { useRunAction } from "./use-run-action";
+import { useRunAction } from "../../_components/use-run-action";
 
 interface PhotoUploadFormProps {
   eventId: string;

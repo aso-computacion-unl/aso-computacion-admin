@@ -37,3 +37,15 @@ export { ReorderEventPhotosUseCase } from "./use-cases/reorder-event-photos.use-
 export { SetEventPublishedUseCase } from "./use-cases/set-event-published.use-case";
 export { UpdateEventPhotoAltUseCase } from "./use-cases/update-event-photo-alt.use-case";
 export { UpdateEventUseCase } from "./use-cases/update-event.use-case";
+export type { FaqResult } from "./dto/faq-result.dto";
+export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
+export {
+  DeleteOrderedContentUseCase,
+  GetOrderedContentUseCase,
+  ListOrderedContentUseCase,
+  MoveOrderedContentUseCase,
+  SetOrderedContentPublishedUseCase,
+  nextSortOrder,
+} from "./use-cases/ordered-content.use-cases";
+export { CreateFaqUseCase } from "./use-cases/create-faq.use-case";
+export { UpdateFaqUseCase } from "./use-cases/update-faq.use-case";

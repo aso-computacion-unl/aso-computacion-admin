@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { deleteEvent } from "@/interface/admin/events/actions";
 
-import { resultMessage, useRunAction } from "./use-run-action";
+import { resultMessage, useRunAction } from "../../_components/use-run-action";
 
 interface EventDeleteButtonProps {
   eventId: string;

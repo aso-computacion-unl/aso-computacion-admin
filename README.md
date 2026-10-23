@@ -51,6 +51,10 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 - Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Deleting an event removes its photo rows but not the stored files.
 - If the database write fails after an upload, the uploaded asset is destroyed (best effort, logged when that fails) and the original error is reported.
 
+## FAQ
+
+`/admin/faqs` manages the frequently asked questions: a question (1–200 characters) and an answer (1–1000), shown in list order. The list has move up/down, a publish toggle, create, edit and delete. New questions are drafts and go to the end of the list; moving renumbers the list 0..n-1.
+
 ## Server actions are guarded individually
 
 The middleware matcher only covers `/` and `/admin/*`, but a server action can be POSTed to any page that bundles it. Every admin server action must therefore call `requireAdminSession()` (`src/interface/auth/require-admin-session.ts`) as its first statement and must have a test proving it rejects without a session and writes nothing (see `src/tests/unit/interface/admin/events/actions-auth.test.ts`). Any new admin API route must also be added to the middleware matcher.

@@ -9,3 +9,8 @@ export { HttpError } from "./errors/http-error";
 export { formatZodIssue, mapErrorToResponse } from "./errors/map-error-to-response";
 export { parseFormData } from "./validation/parse-form-data";
 export type { ParseFormDataOptions } from "./validation/parse-form-data";
+export {
+  MAX_IMAGE_UPLOAD_REQUEST_BYTES,
+  assertValidImageSignature,
+  imageUploadSchema,
+} from "./validation/image-upload.schema";

@@ -91,6 +91,40 @@ describe("auth architecture boundaries", () => {
   });
 });
 
+describe("storage architecture boundaries", () => {
+  const STORAGE_DIR = join(BOUNDARY_ROOT, "src/infrastructure/storage");
+  const TESTS_DIR = join(BOUNDARY_ROOT, "src/tests");
+
+  it("Arch-005: the Cloudinary SDK is only imported under src/infrastructure/storage", () => {
+    const cloudinaryPattern = forbiddenModulePattern("cloudinary");
+    const files = [
+      ...collectSourceFiles(join(BOUNDARY_ROOT, "src")),
+      ...collectSourceFiles(join(BOUNDARY_ROOT, "app")),
+      join(BOUNDARY_ROOT, "middleware.ts"),
+    ].filter((file) => !file.startsWith(STORAGE_DIR) && !file.startsWith(TESTS_DIR));
+
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const content = readFileSync(file, "utf-8");
+
+      expect(cloudinaryPattern.test(content), `${file} must not import cloudinary`).toBe(false);
+    }
+  });
+
+  it("Arch-006: every storage adapter module starts with the server-only guard", () => {
+    const files = collectSourceFiles(STORAGE_DIR);
+
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const content = readFileSync(file, "utf-8");
+
+      expect(content.startsWith('import "server-only";'), `${file} must start with server-only`).toBe(true);
+    }
+  });
+});
+
 describe("forbidden import pattern detection", () => {
   const cases: Array<{ label: string; source: string }> = [
     { label: "named import", source: 'import { NextResponse } from "next/server";' },

@@ -79,6 +79,16 @@ describe("auth architecture boundaries", () => {
     }
   });
 
+
+  it("Arch-004: middleware.ts does not import next/headers or next/navigation", () => {
+    const middlewarePath = join(BOUNDARY_ROOT, "middleware.ts");
+    const content = readFileSync(middlewarePath, "utf-8");
+    const nextHeadersPattern = forbiddenModulePattern("next/headers");
+    const nextNavigationPattern = forbiddenModulePattern("next/navigation");
+
+    expect(nextHeadersPattern.test(content), "middleware.ts must not import next/headers").toBe(false);
+    expect(nextNavigationPattern.test(content), "middleware.ts must not import next/navigation").toBe(false);
+  });
 });
 
 describe("forbidden import pattern detection", () => {

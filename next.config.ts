@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { SECURITY_HEADERS } from "@/infrastructure/http/security-headers";
+
 const nextConfig: NextConfig = {
   // Drop the `X-Powered-By: Next.js` header: it discloses the framework to
   // no benefit.
@@ -11,6 +13,16 @@ const nextConfig: NextConfig = {
       // own size/signature checks ever run.
       bodySizeLimit: "6mb",
     },
+  },
+  // Apply the shared security-header policy to every route. Kept in the
+  // infrastructure layer so it is unit-tested (security-headers.test.ts).
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: SECURITY_HEADERS.map((header) => ({ ...header })),
+      },
+    ];
   },
 };
 

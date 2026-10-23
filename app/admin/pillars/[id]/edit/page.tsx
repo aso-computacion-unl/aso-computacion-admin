@@ -20,7 +20,12 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
   if (!pillar) notFound();
 
   return (
-    <FormPage backHref="/admin/pillars" backLabel="Volver a pilares" title="Editar pilar">
+    <FormPage
+      backHref="/admin/pillars"
+      backLabel="Volver a pilares"
+      title="Editar pilar"
+      aside={<PillarImagePanel key={pillar.image?.url ?? "no-image"} pillarId={id} image={pillar.image} />}
+    >
       {/* Keyed by the image so the alt field and the panel start fresh after a replace or remove. */}
       <Panel>
         <PillarForm
@@ -37,7 +42,6 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
           }}
         />
       </Panel>
-      <PillarImagePanel key={pillar.image?.url ?? "no-image"} pillarId={id} image={pillar.image} />
     </FormPage>
   );
 }

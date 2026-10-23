@@ -18,7 +18,7 @@ export default async function AdminFaqsPage() {
   const faqs = await getAdminFaqs();
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHead
         title="Preguntas frecuentes"
         meta={`main · ${publicationSummary(faqs)}`}

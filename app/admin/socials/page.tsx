@@ -19,7 +19,7 @@ export default async function AdminSocialLinksPage() {
   const links = await getAdminSocialLinks();
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHead
         title="Redes sociales"
         meta={`main · ${publicationSummary(links)}`}

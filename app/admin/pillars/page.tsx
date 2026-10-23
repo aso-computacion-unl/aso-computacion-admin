@@ -18,7 +18,7 @@ export default async function AdminPillarsPage() {
   const pillars = await getAdminPillars();
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHead
         title="Pilares"
         meta={`main · ${publicationSummary(pillars)}`}

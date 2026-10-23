@@ -131,7 +131,7 @@ export function PhotoGallery({ eventId, photos, minWidth }: PhotoGalleryProps) {
       ) : (
         <>
           <p className="text-sm text-mist">El orden de esta lista es el orden en que se muestran en el sitio.</p>
-          <ol aria-label="Fotos del evento" className="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))] sm:gap-4">
+          <ol aria-label="Fotos del evento" className="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] sm:gap-4">
             {photos.map((photo, index) => (
               <PhotoItem key={photo.id} eventId={eventId} photo={photo} position={index + 1} total={photos.length} />
             ))}

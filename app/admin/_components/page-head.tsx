@@ -35,10 +35,14 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
   );
 }
 
-/** A flat, raised surface for a form or a block of controls. Never nested. */
+/**
+ * A flat, raised surface for a form or a block of controls. Never nested. It is a size container:
+ * the fields inside choose their columns from the panel's width (`@xl:`), not the screen's, because
+ * on a wide screen the panel shares the row with a side column.
+ */
 export function Panel({ className, children, ...props }: ComponentProps<"section">) {
   return (
-    <section className={cn("rounded bg-card p-4 md:p-5", className)} {...props}>
+    <section className={cn("@container rounded bg-card p-4 md:p-5", className)} {...props}>
       {children}
     </section>
   );
@@ -49,16 +53,40 @@ interface FormPageProps {
   backLabel: string;
   title: string;
   meta?: ReactNode;
+  /** The right column on lg+: photos, the image panel, a preview. Below lg it stacks under the form. */
+  aside?: ReactNode;
   children: ReactNode;
 }
 
-/** The frame of every create/edit page: back link, title and a narrow column of panels. */
-export function FormPage({ backHref, backLabel, title, meta, children }: FormPageProps) {
+/**
+ * The frame of every create/edit page: back link, title, the form on the left and, when there is
+ * one, the side column on the right (a sticky save bar inside the form keeps working in both).
+ * Without a side column the form keeps a readable width instead of stretching across the screen.
+ */
+export function FormPage({ backHref, backLabel, title, meta, aside, children }: FormPageProps) {
   return (
-    <div className="max-w-2xl">
+    <div>
       <BackLink href={backHref}>{backLabel}</BackLink>
       <PageHead title={title} meta={meta} />
-      <div className="mt-6 grid gap-6">{children}</div>
+      <div
+        className={cn(
+          "mt-6 grid items-start gap-6",
+          aside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_26rem]" : "max-w-4xl",
+        )}
+      >
+        <div className="grid min-w-0 gap-6">{children}</div>
+        {aside ? <div className="grid min-w-0 gap-6">{aside}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/** A quiet note for a side column that has nothing to show yet (a create page, before the first save). */
+export function AsideNote({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-1.5 border-l-2 border-dashed border-sky pl-4">
+      <h2 className="text-lg font-bold font-stretch-[112%]">{title}</h2>
+      <p className="text-sm text-mist">{children}</p>
     </div>
   );
 }

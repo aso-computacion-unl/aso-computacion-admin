@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </form>
       </header>
 
-      <main id="main" className="w-full max-w-328 px-4 pt-5 pb-[calc(4.25rem+5rem)] lg:px-10 lg:pt-8 lg:pb-24">
+      <main id="main" className="mx-auto w-full max-w-360 px-4 pt-5 pb-[calc(4.25rem+5rem)] lg:px-10 lg:pt-8 lg:pb-24 xl:px-12">
         {children}
       </main>
 

@@ -17,13 +17,21 @@ export const dynamic = "force-dynamic";
 
 type Summary = (typeof MODULE_NAV)[number]["href"];
 
-/** One line per module; a module whose read fails shows a dash instead of taking the whole home down. */
-async function summaries(): Promise<Record<Summary, string>> {
-  const describe = async (read: () => Promise<readonly { isPublished: boolean }[]>) => {
+interface ModuleSummary {
+  /** How many records the module holds; `null` when it has no list or its read failed. */
+  count: number | null;
+  line: string;
+}
+
+/** One summary per module; a module whose read fails shows a dash instead of taking the whole home down. */
+async function summaries(): Promise<Record<Summary, ModuleSummary>> {
+  const describe = async (read: () => Promise<readonly { isPublished: boolean }[]>): Promise<ModuleSummary> => {
     try {
-      return publicationSummary(await read());
+      const items = await read();
+
+      return { count: items.length, line: publicationSummary(items) };
     } catch {
-      return "—";
+      return { count: null, line: "—" };
     }
   };
 
@@ -41,7 +49,7 @@ async function summaries(): Promise<Record<Summary, string>> {
     "/admin/board": board,
     "/admin/pillars": pillars,
     "/admin/socials": socials,
-    "/admin/settings": "Lema, descripción y «Acerca de»",
+    "/admin/settings": { count: null, line: "Lema, descripción y «Acerca de»" },
   };
 }
 
@@ -49,7 +57,7 @@ export default async function AdminHomePage() {
   const lines = await summaries();
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHead
         title="Inicio"
         meta="main · el sitio se vuelve a publicar con cada cambio"
@@ -63,23 +71,43 @@ export default async function AdminHomePage() {
         }
       />
 
+      {/* A list on a phone; from sm up one card per module: its count, its state and its main action. */}
       <nav aria-label="Contenido del sitio" className="mt-8">
-        <ul className="divide-y divide-border border-y border-border">
-          {MODULE_NAV.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 py-3 pr-2 transition-colors duration-150 ease-out hover:bg-white/4"
-              >
-                <Icon name={item.icon} className="ml-2 text-sky" />
-                <span className="grid">
-                  <span className="font-bold font-stretch-[112%]">{item.label}</span>
-                  <span className="font-mono text-[0.8125rem] text-mist">{lines[item.href]}</span>
-                </span>
-                <Icon name="right" className="text-mist transition-transform duration-200 ease-(--ease-reveal) group-hover:translate-x-0.5 group-hover:text-white" />
-              </Link>
-            </li>
-          ))}
+        <ul className="divide-y divide-border border-y border-border sm:grid sm:grid-cols-2 sm:gap-4 sm:divide-y-0 sm:border-y-0 xl:grid-cols-3">
+          {MODULE_NAV.map((item) => {
+            const { count, line } = lines[item.href] ?? { count: null, line: "—" };
+
+            return (
+              <li key={item.href} className="group relative sm:flex sm:flex-col sm:rounded sm:bg-card">
+                <Link
+                  href={item.href}
+                  className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 py-3 pr-2 transition-colors duration-150 ease-out after:absolute after:inset-0 after:content-[''] hover:bg-white/4 sm:flex-1 sm:items-start sm:rounded sm:p-5 sm:pb-4"
+                >
+                  <Icon name={item.icon} className="ml-2 text-sky sm:mt-1 sm:ml-0" />
+                  <span className="grid">
+                    <span className="font-bold font-stretch-[112%] sm:text-lg">{item.label}</span>
+                    <span className="font-mono text-[0.8125rem] text-mist">{line}</span>
+                  </span>
+                  {count === null ? null : (
+                    <span aria-hidden="true" className="hidden font-display text-4xl leading-none text-sky tabular-nums sm:block">
+                      {count}
+                    </span>
+                  )}
+                  <Icon name="right" className="text-mist transition-transform duration-200 ease-(--ease-reveal) group-hover:translate-x-0.5 group-hover:text-white sm:hidden" />
+                </Link>
+                {item.action ? (
+                  <div className="relative z-1 hidden px-5 pb-5 sm:block">
+                    <Button asChild variant="line" size="sm">
+                      <Link href={item.action.href}>
+                        {item.action.href === item.href ? <Icon name="edit" className="size-4" /> : <Icon name="plus" className="size-4" />}
+                        {item.action.label}
+                      </Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </div>

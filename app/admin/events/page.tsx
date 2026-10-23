@@ -37,24 +37,27 @@ function GroupTitle({ id, title, hint }: { id: string; title: string; hint: stri
 function EventCommit({ event, when }: { event: EventListItemResult; when?: "next" }) {
   return (
     <TimelineItem published={event.isPublished} when={when}>
-      <div className="grid gap-2.5 p-4 md:px-5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>
-          {event.type ? (
-            <span className="inline-flex h-6 items-center rounded-xs bg-muted px-2 font-mono text-xs leading-none">{TYPE_LABELS[event.type]}</span>
-          ) : null}
-          <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[0.8125rem] text-mist">
-            <Icon name="image" className="size-4" />
-            {pluralize(event.photoCount, "foto", "fotos")}
-          </span>
+      <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)_auto] lg:items-center lg:gap-x-8 lg:py-4">
+        <div className="grid min-w-0 gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>
+            {event.type ? (
+              <span className="inline-flex h-6 items-center rounded-xs bg-muted px-2 font-mono text-xs leading-none">{TYPE_LABELS[event.type]}</span>
+            ) : null}
+            <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[0.8125rem] text-mist lg:ml-3">
+              <Icon name="image" className="size-4" />
+              {pluralize(event.photoCount, "foto", "fotos")}
+            </span>
+          </div>
+          <h3 className="font-display text-lg leading-tight wrap-anywhere lg:text-xl">
+            <Link href={`/admin/events/${event.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
+              {event.title}
+            </Link>
+          </h3>
+          {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
         </div>
-        <h3 className="font-display text-lg leading-tight wrap-anywhere lg:text-xl">
-          <Link href={`/admin/events/${event.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
-            {event.title}
-          </Link>
-        </h3>
-        {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2">
+        {event.description ? <p className="hidden line-clamp-3 text-sm text-mist lg:block">{event.description}</p> : <span className="hidden lg:block" />}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:mt-0 lg:flex-nowrap lg:w-92 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
           <EventPublishedToggle eventId={event.id} title={event.title} isPublished={event.isPublished} />
           <Button asChild variant="line" size="sm" className="ml-auto">
             <Link href={`/admin/events/${event.id}/edit`} aria-label={`Editar: ${event.title}`}>

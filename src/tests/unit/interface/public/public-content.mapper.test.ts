@@ -17,6 +17,7 @@ const snapshot = {
       title: "Hackatón",
       description: "Un día de código",
       date: "2026-11-28",
+      datePrecision: "day",
       type: "evento",
       commitMessage: "feat: hackatón",
       hora: "09:00",
@@ -78,9 +79,22 @@ describe("toPublicContentResponse", () => {
 
   it("exposes exact event keys: the slug stands in for the id, photos carry url, width, height and alt only", () => {
     expect(keys(body.events[0]!)).toEqual([
-      "commitMessage", "date", "description", "featured", "highlights", "hora", "linkLabel", "linkUrl", "lugar", "para", "photos", "slug", "title", "type",
+      "commitMessage", "date", "datePrecision", "description", "featured", "highlights", "hora", "linkLabel", "linkUrl", "lugar", "para", "photos", "slug", "title", "type",
     ]);
     expect(keys(body.events[0]!.photos[0]!)).toEqual(["alt", "height", "url", "width"]);
+  });
+
+  it("emits the precision, and a month-only date as YYYY-MM-01 whatever day is stored", () => {
+    const event = snapshot.events[0]!;
+    const month = toPublicContentResponse(
+      { ...snapshot, events: [{ ...event, date: "2026-02-17", datePrecision: "month" }, { ...event, date: null, datePrecision: "day" }] } as PublicContentSnapshot,
+      AT,
+    );
+
+    expect(body.events[0]).toMatchObject({ date: "2026-11-28", datePrecision: "day" });
+    expect(month.events[0]).toMatchObject({ date: "2026-02-01", datePrecision: "month" });
+    expect(month.events[1]).toMatchObject({ date: null, datePrecision: "day" });
+    expect(month.version).toBe(1);
   });
 
   it("exposes exact faq, pillar, social and settings keys", () => {

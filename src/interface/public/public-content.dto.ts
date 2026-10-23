@@ -20,6 +20,8 @@ export interface PublicEvent {
   description: string | null;
   /** YYYY-MM-DD; a future date is an upcoming event. */
   date: string | null;
+  /** `month`: the day is unknown and `date` is `YYYY-MM-01`. */
+  datePrecision: "day" | "month";
   type: "taller" | "charla" | "evento" | "comunidad" | null;
   commitMessage: string | null;
   hora: string | null;

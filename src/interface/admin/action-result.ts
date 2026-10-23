@@ -30,6 +30,7 @@ const FIELD_MESSAGES: Record<string, string> = {
   slug: "El identificador solo admite minúsculas, números y guiones, y no puede repetirse.",
   description: "La descripción admite hasta 600 caracteres.",
   date: "Indique una fecha válida.",
+  datePrecision: "Elija fecha exacta o solo mes.",
   type: "Elija un tipo de la lista.",
   commitMessage: "El mensaje admite hasta 80 caracteres.",
   hora: "Admite hasta 80 caracteres.",

@@ -335,3 +335,44 @@ describe("Cloudinary configuration", () => {
     expect(() => getCloudinaryConfig()).not.toThrow(secret);
   });
 });
+
+// The landing (`src/lib/admin-content/validate.ts`) only accepts event images that look like this.
+// Pinned here as a contract: if the adapter ever stored another URL shape, the landing would drop
+// the whole payload and fall back to `fallback.json`.
+const CLOUDINARY_IMAGE = /^https:\/\/res\.cloudinary\.com\/[^/\s]+\/image\/upload\/(?:v\d+\/)?[^/\s,?#]+(?:\/[^/\s,?#]+)*$/;
+const PATH_ESCAPE = /\.\.|%2e/i;
+const acceptedByLanding = (url: string) => CLOUDINARY_IMAGE.test(url) && !PATH_ESCAPE.test(url);
+
+describe("CloudinaryMediaStorage image URL contract with the landing", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.clearAllMocks();
+  });
+
+  it("stores a secure_url the landing accepts", async () => {
+    stubCloudinaryEnvironment();
+    const secureUrl = "https://res.cloudinary.com/aso-cloud/image/upload/v1729612345/aso-computacion/events/abc123.jpg";
+    cloudinaryMocks.uploadStream.mockImplementation((_options, callback: UploadCallback) =>
+      createSimulatedUploadStream(
+        vi.fn(() => callback(undefined, { ...SUCCESS_RESULT, secure_url: secureUrl, public_id: "aso-computacion/events/abc123" })),
+      ),
+    );
+
+    const { url } = await new CloudinaryMediaStorage().upload(createImageFile(), EVENTS);
+
+    expect(url).toBe(secureUrl);
+    expect(acceptedByLanding(url)).toBe(true);
+  });
+
+  it.each([
+    "http://res.cloudinary.com/c/image/upload/v1/a.jpg",
+    "https://res.cloudinary.com/c/video/upload/v1/a.mp4",
+    "https://res.cloudinary.com/c/image/upload/v1/../a.jpg",
+    "https://res.cloudinary.com/c/image/upload/v1/%2e%2e/a.jpg",
+    "https://res.cloudinary.com/c/image/upload/v1/a.jpg?x=1",
+    "https://res.cloudinary.com/c/image/upload/v1/a.jpg#x",
+    "https://res.cloudinary.com/c/image/upload/c_fill,w_100/a.jpg",
+  ])("the pattern used by this test rejects %s (guards the guard)", (url) => {
+    expect(acceptedByLanding(url)).toBe(false);
+  });
+});

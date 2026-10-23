@@ -5,6 +5,7 @@ import { formatEventDate, groupEvents, todayInLoja } from "@/interface/admin/eve
 interface Item {
   id: string;
   date: string | null;
+  datePrecision?: "day" | "month";
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -79,7 +80,40 @@ describe("groupEvents", () => {
   });
 });
 
+describe("month-only dates", () => {
+  const today = "2026-10-22";
+  const monthItem = (id: string, date: string): Item => ({ ...item(id, date, true), datePrecision: "month" });
+
+  it("order as the first of their month, the same rule as the landing", () => {
+    const grouped = groupEvents(
+      [item("oct-05", "2026-10-05", true), monthItem("oct", "2026-10-28"), item("sep-30", "2026-09-30", true)],
+      today,
+    );
+
+    // A month event stored mid-month still sorts as 2026-10-01: after the 5th, before September.
+    expect(ids(grouped.past)).toEqual(["oct-05", "oct", "sep-30"]);
+  });
+
+  it("count the current month as past and a later month as upcoming", () => {
+    const grouped = groupEvents([monthItem("this-month", "2026-10-01"), monthItem("next-month", "2026-11-01")], today);
+
+    expect(ids(grouped.past)).toEqual(["this-month"]);
+    expect(ids(grouped.upcoming)).toEqual(["next-month"]);
+  });
+
+  it("treat a month event after the 1st as past even if the stored day is in the future", () => {
+    expect(ids(groupEvents([monthItem("late", "2026-10-30")], today).past)).toEqual(["late"]);
+  });
+});
+
 describe("formatEventDate", () => {
+  it("writes a month-only date as short month and year", () => {
+    expect(formatEventDate("2026-02-01", "month")).toBe("feb 2026");
+    expect(formatEventDate("2026-12-01", "month")).toBe("dic 2026");
+    expect(formatEventDate("2026-02-01", "day")).toBe("1 feb 2026");
+    expect(formatEventDate(null, "month")).toBe("Sin fecha");
+  });
+
   it("writes a calendar date as day, short Spanish month and year", () => {
     expect(formatEventDate("2026-10-22")).toBe("22 oct 2026");
     expect(formatEventDate("2026-01-05")).toBe("5 ene 2026");

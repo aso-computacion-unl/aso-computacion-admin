@@ -45,6 +45,23 @@ describe("EventPrismaRepository (integration)", () => {
     expect(row?.date).toBe("2026-03-01");
   });
 
+  it("round-trips a month-only date as the first of the month and defaults existing rows to day", async () => {
+    const month = await repository.create(Event.create({ title: "Semana", date: "2026-02-17", datePrecision: "month" }));
+    const exact = await repository.create(Event.create({ title: "Charla", date: "2026-03-05" }));
+
+    expect((await repository.getById(month.props.id))?.props).toMatchObject({ date: "2026-02-01", datePrecision: "month" });
+    expect((await repository.getById(exact.props.id))?.props).toMatchObject({ date: "2026-03-05", datePrecision: "day" });
+
+    const rows = await prisma.$queryRaw<{ datePrecision: string; date: string }[]>`SELECT "datePrecision", "date"::text AS date FROM "Event" WHERE "slug" = 'semana'`;
+    expect(rows).toEqual([{ datePrecision: "month", date: "2026-02-01" }]);
+  });
+
+  it("rejects an unknown datePrecision at the database", async () => {
+    await repository.create(Event.create({ title: "Semana", date: "2026-02-01" }));
+
+    await expect(prisma.$executeRaw`UPDATE "Event" SET "datePrecision" = 'week'`).rejects.toThrow(/Event_datePrecision_check|check constraint/i);
+  });
+
   it("returns null for an unknown id", async () => {
     expect(await repository.getById(MISSING_ID)).toBeNull();
   });

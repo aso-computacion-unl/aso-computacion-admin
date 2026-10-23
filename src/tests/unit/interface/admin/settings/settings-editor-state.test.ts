@@ -74,6 +74,25 @@ describe("settingsEditorReducer", () => {
     expect(hasUnsavedChanges(saved)).toBe(false);
   });
 
+  it("shows the texts as stored after a successful save, trimmed like the server does", () => {
+    let state = edited();
+    state = settingsEditorReducer(state, { type: "change", field: "tagline", value: "  Nuevo lema " });
+    state = settingsEditorReducer(state, { type: "change", field: "about", value: "Quiénes somos.\n\n" });
+    const saved = settingsEditorReducer(state, { type: "result", result: { success: true } });
+
+    const stored = { ...SAVED, tagline: "Nuevo lema", about: "Quiénes somos." };
+    expect(saved).toMatchObject({ mode: "read", saved: stored, draft: stored });
+    expect(hasUnsavedChanges(settingsEditorReducer(saved, { type: "edit" }))).toBe(false);
+  });
+
+  it("keeps the typed spacing in the draft when the save fails", () => {
+    const typed = settingsEditorReducer(edited(), { type: "change", field: "tagline", value: "  Lema " });
+    const failed = settingsEditorReducer(typed, { type: "result", result: { error: "No se pudo guardar." } });
+
+    expect(failed.draft.tagline).toBe("  Lema ");
+    expect(failed.saved).toEqual(SAVED);
+  });
+
   it("clears the previous outcome when editing starts again", () => {
     const saved = settingsEditorReducer(edited(), { type: "result", result: { success: true } });
 

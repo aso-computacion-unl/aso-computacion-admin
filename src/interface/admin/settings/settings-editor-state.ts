@@ -30,6 +30,11 @@ export function hasUnsavedChanges({ mode, saved, draft }: SettingsEditorState): 
   return mode === "edit" && (saved.tagline !== draft.tagline || saved.description !== draft.description || saved.about !== draft.about);
 }
 
+// The server trims every field before storing it (`formText`), so a successful save shows the trimmed texts.
+function asStored({ tagline, description, about }: SettingsValues): SettingsValues {
+  return { tagline: tagline.trim(), description: description.trim(), about: about.trim() };
+}
+
 export function settingsEditorReducer(state: SettingsEditorState, action: SettingsEditorAction): SettingsEditorState {
   switch (action.type) {
     case "edit":
@@ -40,8 +45,8 @@ export function settingsEditorReducer(state: SettingsEditorState, action: Settin
       return createSettingsEditorState(state.saved);
     case "result":
       // A failed save keeps the fields open with what was typed; a successful one makes the draft the saved text.
-      return action.result.success
-        ? { mode: "read", saved: state.draft, draft: state.draft, result: action.result }
-        : { ...state, result: action.result };
+      if (!action.result.success) return { ...state, result: action.result };
+      const stored = asStored(state.draft);
+      return { mode: "read", saved: stored, draft: stored, result: action.result };
   }
 }

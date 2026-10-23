@@ -36,3 +36,6 @@ export { SITE_SETTINGS_ID, SiteSettings } from "./site-settings";
 export type { SiteSettingsInput, SiteSettingsProps } from "./site-settings";
 export { BoardMember } from "./board-member";
 export type { BoardMemberPhoto, BoardMemberProps, CreateBoardMemberInput, UpdateBoardMemberInput } from "./board-member";
+export { todayInEcuador } from "./calendar-date";
+export { NewsItem } from "./news-item";
+export type { CreateNewsItemInput, NewsCover, NewsItemProps, UpdateNewsItemInput } from "./news-item";

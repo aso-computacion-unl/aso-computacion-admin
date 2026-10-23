@@ -4,6 +4,7 @@ import {
   EventPhotoPrismaRepository,
   EventPrismaRepository,
   FaqPrismaRepository,
+  NewsPrismaRepository,
   PillarPrismaRepository,
   SiteSettingsPrismaRepository,
   SocialLinkPrismaRepository,
@@ -21,6 +22,7 @@ export function getPublicContentUseCase(): GetPublicContentUseCase {
     new SocialLinkPrismaRepository(),
     new BoardMemberPrismaRepository(),
     new SiteSettingsPrismaRepository(),
+    new NewsPrismaRepository(),
   );
 
   return useCase;

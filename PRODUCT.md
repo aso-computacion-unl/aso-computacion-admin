@@ -12,7 +12,7 @@ The whole ASO Computación board (7 student members of the Computer Science prog
 
 ## Product Purpose
 
-Content admin for the ASO Computación landing page. The board creates and publishes events with photo galleries, FAQ, board members (name, role, photo), pillars, and social links. Every change rebuilds the static landing. Success means a board member can publish a real event with its photos in minutes without asking a developer.
+Content admin for the ASO Computación landing page. The board creates and publishes events with photo galleries, news (title, summary, text, optional cover, publication date), FAQ, board members (name, role, photo), pillars, and social links. Every change rebuilds the static landing. Success means a board member can publish a real event with its photos in minutes without asking a developer.
 
 ## Operating Context
 

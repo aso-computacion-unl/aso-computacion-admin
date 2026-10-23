@@ -20,7 +20,7 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm run typecheck` | `next typegen` + `tsc --noEmit` (genera los tipos de imágenes y rutas de Next, que no se versionan) |
 | `npm test` | Unit tests |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
@@ -143,7 +143,7 @@ The middleware matcher only covers `/` and `/admin/*`, but a server action can b
 Este panel es parte de un proyecto de la comunidad de ASO Computación y la directiva lo mantiene junto con quien quiera aportar.
 
 - **Contenido** (eventos, fotos, FAQ, directiva, pilares, redes): se edita en el panel desplegado, sin tocar código.
-- **Código**: Pull Request contra `main`. `main` está protegida, así que todo cambio entra por PR con una aprobación y no hay CI: se corren lint, typecheck, tests y build localmente antes de pedir revisión.
+- **Código**: Pull Request contra `main`. `main` está protegida, así que todo cambio entra por PR con una aprobación y la CI tiene que pasar en verde (lint, typecheck, tests, integración y build). Conviene correr lo mismo localmente antes de pedir revisión.
 - **Errores e ideas**: abrí un issue con las plantillas del repositorio.
 
 La guía completa, con el flujo de ramas, las reglas de seguridad y privacidad que todo PR respeta y las buenas prácticas para la directiva, está en [CONTRIBUTING.md](CONTRIBUTING.md). Las vulnerabilidades se reportan en privado según [SECURITY.md](SECURITY.md).

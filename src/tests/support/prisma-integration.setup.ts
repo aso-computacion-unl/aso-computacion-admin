@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 vi.mock("server-only", () => ({}));
 
+// Installs the explicit-pool client; must stay above the client import below.
+import "./prisma-integration-client";
 import { prisma } from "@/infrastructure/prisma/client";
 
 import { INTEGRATION_SUITES } from "./integration-suites";

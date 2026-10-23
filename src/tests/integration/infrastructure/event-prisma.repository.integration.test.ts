@@ -7,6 +7,7 @@ import { EventPhoto } from "@/domain/event-photo";
 import { prisma } from "@/infrastructure/prisma/client";
 import { EventPhotoPrismaRepository } from "@/infrastructure/repositories/event-photo-prisma.repository";
 import { EventPrismaRepository } from "@/infrastructure/repositories/event-prisma.repository";
+import { INTEGRATION_POOL_SIZE } from "../../support/prisma-integration-pool";
 
 const MISSING_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -388,6 +389,10 @@ describe("EventPhotoPrismaRepository (integration)", () => {
   it("holds the cap and gives distinct positions under concurrent adds", async () => {
     const eventId = await newEvent();
     const contenders = 5;
+
+    // The holder, every contender and the lock-waiter observer each need their
+    // own connection at the same time; a smaller pool deadlocks instead of racing.
+    expect(contenders + 2).toBeLessThanOrEqual(INTEGRATION_POOL_SIZE);
 
     // Barrier: a holder transaction takes the event row lock first, every add
     // is launched and observed blocked on that lock, and only then is the

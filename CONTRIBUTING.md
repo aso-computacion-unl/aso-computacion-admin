@@ -20,7 +20,7 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
 - Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
 - Cada PR necesita **1 aprobación** de otra persona.
 - No se permite `force push` ni borrar `main`.
-- No hay CI: las comprobaciones se corren a mano antes de pedir revisión (ver abajo).
+- La CI (GitHub Actions) tiene que pasar en verde para mergear: corre lint, typecheck, tests unitarios, tests de integración con Postgres y build en cada PR. No usa secretos.
 
 ## Flujo de trabajo
 
@@ -32,7 +32,7 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
    ```
 3. **Commits pequeños** con [Conventional Commits](https://www.conventionalcommits.org/es/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`. El mensaje describe el cambio en inglés, en imperativo: `fix: keep the photo order after a failed upload`.
 4. **Entorno local** (Node 22 y Docker): copiá `.env.example` a `.env` y completalo según el [README](README.md#environment-variables). Usá una base de Postgres propia, nunca la de producción.
-5. **Comprobá localmente** antes de pedir revisión:
+5. **Comprobá localmente** antes de pedir revisión; la CI corre lo mismo en el PR:
    ```sh
    npm ci
    npm run lint

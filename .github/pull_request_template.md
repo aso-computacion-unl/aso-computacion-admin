@@ -4,7 +4,7 @@
 
 ## Cómo lo probé
 
-<!-- No hay CI: marcá lo que corriste localmente. -->
+<!-- La CI corre estas comprobaciones en cada PR y tiene que pasar para mergear. Correlas también localmente para no esperar. -->
 
 - [ ] `npm run lint`
 - [ ] `npm run typecheck`

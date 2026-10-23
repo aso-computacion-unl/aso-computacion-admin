@@ -57,6 +57,20 @@ const snapshot = {
     },
   ],
   settings: { tagline: "Tagline", description: "Description", about: "About", updatedAt: AT },
+  news: [
+    {
+      id: "n1",
+      slug: "taller-de-git-2026",
+      title: "Taller de Git 2026",
+      summary: "Aprende Git",
+      body: "Un **taller**.\n\n- uno\n- dos",
+      publishedAt: "2026-03-14",
+      cover: { ...image, publicId: "aso/news-n1" },
+      isPublished: true,
+      ...timestamps,
+    },
+    { id: "n2", slug: "sin-portada", title: "Sin portada", summary: "S", body: "B", publishedAt: "2026-02-01", cover: null, isPublished: true, ...timestamps },
+  ],
 } as unknown as PublicContentSnapshot;
 
 const keys = (value: object) => Object.keys(value).sort();
@@ -65,7 +79,7 @@ describe("toPublicContentResponse", () => {
   const body = toPublicContentResponse(snapshot, AT);
 
   it("pins the top-level keys, the format version and the generation time", () => {
-    expect(keys(body)).toEqual(["board", "events", "faqs", "generatedAt", "pillars", "settings", "socials", "version"]);
+    expect(keys(body)).toEqual(["board", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
     expect(body.version).toBe(PUBLIC_CONTENT_VERSION);
     expect(body.generatedAt).toBe("2026-10-22T16:00:00.000Z");
   });
@@ -106,10 +120,30 @@ describe("toPublicContentResponse", () => {
     expect(keys(body.settings!)).toEqual(["about", "description", "tagline"]);
   });
 
-  it("leaks no id, publicId, timestamp or publish flag anywhere in the serialised body", () => {
-    const text = JSON.stringify(body.events) + JSON.stringify(body.faqs) + JSON.stringify(body.pillars) + JSON.stringify(body.socials) + JSON.stringify(body.board) + JSON.stringify(body.settings);
+  it("S6: a news item exposes exactly slug, title, summary, body, publishedAt and cover {url,width,height,alt}, or null", () => {
+    expect(keys(body.news[0]!)).toEqual(["body", "cover", "publishedAt", "slug", "summary", "title"]);
+    expect(keys(body.news[0]!.cover!)).toEqual(["alt", "height", "url", "width"]);
+    expect(body.news[0]).toEqual({
+      slug: "taller-de-git-2026",
+      title: "Taller de Git 2026",
+      summary: "Aprende Git",
+      body: "Un **taller**.\n\n- uno\n- dos",
+      publishedAt: "2026-03-14",
+      cover: image,
+    });
+    expect(body.news[1]!.cover).toBeNull();
+  });
 
-    expect(text).not.toMatch(/publicId|aso\/p|createdAt|updatedAt|isPublished|isActive|sortOrder|"id"|eventId/);
+  it("keeps the news in the order the use case gave (newest first) and an empty list when there is none", () => {
+    expect(body.news.map((item) => item.slug)).toEqual(["taller-de-git-2026", "sin-portada"]);
+    expect(toPublicContentResponse({ ...snapshot, news: [] }, AT).news).toEqual([]);
+    expect(body.version).toBe(1);
+  });
+
+  it("leaks no id, publicId, timestamp or publish flag anywhere in the serialised body", () => {
+    const text = JSON.stringify(body.events) + JSON.stringify(body.faqs) + JSON.stringify(body.pillars) + JSON.stringify(body.socials) + JSON.stringify(body.board) + JSON.stringify(body.settings) + JSON.stringify(body.news);
+
+    expect(text).not.toMatch(/publicId|aso\/p|aso\/news|createdAt|updatedAt|isPublished|isActive|sortOrder|"id"|eventId/);
   });
 
   it("settings is null when never saved, so the landing keeps its fallback", () => {

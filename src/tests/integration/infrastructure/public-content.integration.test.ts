@@ -7,6 +7,7 @@ import { BoardMember } from "@/domain/board-member";
 import { Event } from "@/domain/event";
 import { EventPhoto } from "@/domain/event-photo";
 import { Faq } from "@/domain/faq";
+import { NewsItem } from "@/domain/news-item";
 import { Pillar } from "@/domain/pillar";
 import { SiteSettings } from "@/domain/site-settings";
 import { SocialLink } from "@/domain/social-link";
@@ -14,6 +15,7 @@ import { BoardMemberPrismaRepository } from "@/infrastructure/repositories/board
 import { EventPhotoPrismaRepository } from "@/infrastructure/repositories/event-photo-prisma.repository";
 import { EventPrismaRepository } from "@/infrastructure/repositories/event-prisma.repository";
 import { FaqPrismaRepository } from "@/infrastructure/repositories/faq-prisma.repository";
+import { NewsPrismaRepository } from "@/infrastructure/repositories/news-prisma.repository";
 import { PillarPrismaRepository } from "@/infrastructure/repositories/pillar-prisma.repository";
 import { SiteSettingsPrismaRepository } from "@/infrastructure/repositories/site-settings-prisma.repository";
 import { SocialLinkPrismaRepository } from "@/infrastructure/repositories/social-link-prisma.repository";
@@ -26,7 +28,8 @@ const pillars = new PillarPrismaRepository();
 const socials = new SocialLinkPrismaRepository();
 const board = new BoardMemberPrismaRepository();
 const settings = new SiteSettingsPrismaRepository();
-const useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings);
+const news = new NewsPrismaRepository();
+const useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings, news);
 
 const image = (name: string) => ({ url: `https://res.cloudinary.test/${name}.jpg`, publicId: `aso/${name}`, width: 1200, height: 800, alt: name });
 
@@ -35,7 +38,7 @@ describe("public content (integration)", () => {
   it("is empty with null settings on a fresh database", async () => {
     const body = toPublicContentResponse(await useCase.execute(), new Date());
 
-    expect(body).toMatchObject({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null });
+    expect(body).toMatchObject({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [] });
   });
 
   it("serves only published content in display order, with active photos and no internal fields", async () => {
@@ -52,6 +55,10 @@ describe("public content (integration)", () => {
     await board.create(BoardMember.create({ name: "Oculta", role: "Tesorera", sortOrder: 0, photo: image("oculta") }));
     await board.create(BoardMember.create({ name: "Ana Pérez", role: "Presidenta", sortOrder: 1, photo: image("ana"), isPublished: true }));
     await settings.save(SiteSettings.create({ tagline: "Tagline", description: "Description", about: "About" }));
+    const text = { summary: "Resumen", body: "Cuerpo **uno**" };
+    await news.create(NewsItem.create({ ...text, title: "Vieja", publishedAt: "2026-01-10", isPublished: true }));
+    await news.create(NewsItem.create({ ...text, title: "Borrador", publishedAt: "2026-09-01" }));
+    await news.create(NewsItem.create({ ...text, title: "Reciente", publishedAt: "2026-05-01", isPublished: true, cover: image("news") }));
 
     const body = toPublicContentResponse(await useCase.execute(), new Date());
 
@@ -61,6 +68,10 @@ describe("public content (integration)", () => {
     expect(body.socials).toEqual([]);
     expect(body.board).toEqual([{ name: "Ana Pérez", role: "Presidenta", photo: { url: image("ana").url, width: 1200, height: 800, alt: "ana" } }]);
     expect(body.settings).toEqual({ tagline: "Tagline", description: "Description", about: "About" });
+    expect(body.news).toEqual([
+      { slug: "reciente", title: "Reciente", summary: "Resumen", body: "Cuerpo **uno**", publishedAt: "2026-05-01", cover: { url: image("news").url, width: 1200, height: 800, alt: "news" } },
+      { slug: "vieja", title: "Vieja", summary: "Resumen", body: "Cuerpo **uno**", publishedAt: "2026-01-10", cover: null },
+    ]);
     expect(JSON.stringify(body)).not.toMatch(/publicId|aso\/|createdAt|updatedAt|isPublished/);
   });
 });

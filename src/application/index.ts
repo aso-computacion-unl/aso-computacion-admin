@@ -82,3 +82,13 @@ export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-co
 export type { LandingSeedContent } from "./seed/landing-seed-content";
 export { SeedLandingContentUseCase, SeedPlanInvalidError, emptyExistingKeys } from "./seed/seed-landing-content.use-case";
 export type { SeedDependencies, SeedPlan, SeedResult } from "./seed/seed-landing-content.use-case";
+export type { NewsCoverResult, NewsItemResult } from "./dto/news-item-result.dto";
+export type { NewsRepository } from "./ports/news-repository.port";
+export { CreateNewsItemUseCase } from "./use-cases/create-news-item.use-case";
+export { DeleteNewsItemUseCase } from "./use-cases/delete-news-item.use-case";
+export { GetNewsItemUseCase } from "./use-cases/get-news-item.use-case";
+export { ListNewsItemsUseCase } from "./use-cases/list-news-items.use-case";
+export { RemoveNewsCoverUseCase } from "./use-cases/remove-news-cover.use-case";
+export { NEWS_COVER_FOLDER, NEWS_COVER_MIN_WIDTH, SetNewsCoverUseCase } from "./use-cases/set-news-cover.use-case";
+export { SetNewsItemPublishedUseCase } from "./use-cases/set-news-item-published.use-case";
+export { UpdateNewsItemUseCase } from "./use-cases/update-news-item.use-case";

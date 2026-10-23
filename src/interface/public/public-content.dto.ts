@@ -69,6 +69,17 @@ export interface PublicSiteSettings {
   about: string;
 }
 
+/** S6: a published news item. `body` is a Markdown subset the landing renders safely, never as raw HTML. */
+export interface PublicNewsItem {
+  slug: string;
+  title: string;
+  summary: string;
+  body: string;
+  /** YYYY-MM-DD */
+  publishedAt: string;
+  cover: PublicImage | null;
+}
+
 export interface PublicContentResponse {
   /** Shape version of this document; bumped on a breaking change so the landing can refuse what it does not understand. */
   version: number;
@@ -81,4 +92,6 @@ export interface PublicContentResponse {
   board: PublicBoardMember[];
   /** `null` when never saved: the landing keeps its fallback copy. */
   settings: PublicSiteSettings | null;
+  /** Published news, newest `publishedAt` first. Additive: a landing built against an admin without it treats it as `[]`. */
+  news: PublicNewsItem[];
 }

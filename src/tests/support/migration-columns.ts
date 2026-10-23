@@ -146,5 +146,6 @@ export function tableColumns(table: string, migrationSql: readonly string[]): st
     }
   }
 
-  return [...columns].sort();
+  // Code-unit order, the same as the default sort; an explicit comparator keeps it stable across locales.
+  return [...columns].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }

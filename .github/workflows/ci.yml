@@ -26,7 +26,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -46,5 +47,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx prisma generate
       - run: npm run test:integration

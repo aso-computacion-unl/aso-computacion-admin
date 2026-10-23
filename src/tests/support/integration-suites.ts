@@ -6,4 +6,5 @@
 export const INTEGRATION_SUITES: readonly string[] = [
   "src/tests/integration/infrastructure/event-prisma.repository.integration.test.ts",
   "src/tests/integration/infrastructure/faq-prisma.repository.integration.test.ts",
+  "src/tests/integration/infrastructure/social-link-prisma.repository.integration.test.ts",
 ];

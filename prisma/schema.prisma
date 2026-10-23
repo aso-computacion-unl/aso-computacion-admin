@@ -105,6 +105,28 @@ model Pillar {
   @@index([sortOrder, createdAt])
 }
 
+model NewsItem {
+  id            String   @id
+  slug          String   @unique
+  title         String
+  summary       String
+  // Markdown subset, stored as written; the landing renders it safely.
+  body          String
+  // Calendar date without time zone, shown on the landing; newest first.
+  publishedAt   DateTime @db.Date
+  // The five cover columns are all set or all null (CHECK in the migration).
+  coverUrl      String?
+  coverPublicId String?  @unique
+  coverWidth    Int?
+  coverHeight   Int?
+  coverAlt      String?
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+
+  @@index([publishedAt(sort: Desc), createdAt(sort: Desc)])
+}
+
 // Singleton: the only row has id "site" (CHECK in the migration).
 model SiteSettings {
   id          String   @id

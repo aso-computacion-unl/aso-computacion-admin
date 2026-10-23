@@ -1,105 +1,142 @@
-:root {
-  --color-bg: #f7f7f5;
-  --color-surface: #ffffff;
-  --color-ink: #1c1c1e;
-  --color-muted: #5c5c63;
-  --color-primary: #1f4fd8;
-  --color-line: #d9d9de;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+@import "tailwindcss";
+@import "@fontsource/audiowide";
+@import "@fontsource-variable/mona-sans/wdth.css";
+@import "@fontsource-variable/geist-mono";
+
+/* Prototypes and review screenshots are not sources. */
+@source not "../design";
+@source not "../.impeccable";
+
+/*
+ * ASO Computación brand tokens: the same values as the landing's `src/styles/global.css`.
+ * - navy:   page background and text on light fills.
+ * - sky:    the line of the history graph, links, primary actions and focus.
+ * - mist:   metadata and secondary text.
+ * - signal: accent for dates and "what comes next". Only as a fill with white text:
+ *           on navy it is ~2:1 (use `error` for red text).
+ * - navy-deep / navy-lift: darker and lighter steps of the same navy, flat layers.
+ * The semantic names below (background, card, primary...) are what the shadcn/ui primitives read.
+ */
+@theme {
+	--color-navy: #053066;
+	--color-navy-deep: #03224a;
+	--color-navy-lift: #083572;
+	--color-sky: #2bb2e4;
+	--color-sky-bright: #5cc6ee;
+	--color-sky-press: #1f9ccb;
+	--color-mist: #d9d9d9;
+	--color-signal: #b7353e;
+	--color-signal-press: #9d2c34;
+	/* Red text on navy: signal itself is ~2:1 there; this tint is 5.9:1 or more on every navy step. */
+	--color-error: #ff9ba2;
+
+	--color-background: var(--color-navy);
+	--color-foreground: #fff;
+	--color-card: var(--color-navy-lift);
+	--color-muted: var(--color-navy-deep);
+	--color-muted-foreground: var(--color-mist);
+	--color-primary: var(--color-sky);
+	--color-primary-foreground: var(--color-navy-deep);
+	--color-destructive: var(--color-signal);
+	--color-destructive-foreground: #fff;
+	--color-border: color-mix(in srgb, var(--color-sky) 28%, transparent);
+	/* Field outlines need 3:1 against the field (WCAG 1.4.11). */
+	--color-input: color-mix(in srgb, var(--color-mist) 50%, transparent);
+	--color-ring: var(--color-sky);
+
+	/* Display: titles and headers only. Body: text. Mono: dates, branch names, short hashes. */
+	--font-display: "Audiowide", ui-sans-serif, system-ui, sans-serif;
+	--font-sans: "Mona Sans Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+	--ease-reveal: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@layer base {
+	html {
+		font-variant-ligatures: none;
+		color-scheme: dark;
+		background: var(--color-navy);
+		scrollbar-color: var(--color-sky) var(--color-navy-deep);
+		-webkit-text-size-adjust: 100%;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		html {
+			scroll-behavior: smooth;
+		}
+	}
+
+	body {
+		min-height: 100vh;
+		background: var(--color-navy);
+		color: #fff;
+		font-family: var(--font-sans);
+		font-weight: 420;
+		font-stretch: 100%;
+		line-height: 1.5;
+		letter-spacing: -0.005em;
+		caret-color: var(--color-sky);
+	}
+
+	::selection {
+		background: var(--color-sky);
+		color: var(--color-navy);
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--color-sky);
+		outline-offset: 3px;
+	}
+
+	h1,
+	h2,
+	h3 {
+		text-wrap: balance;
+	}
+
+	p {
+		text-wrap: pretty;
+	}
+
+	button,
+	[role="button"],
+	summary {
+		cursor: pointer;
+	}
+
+	button:disabled {
+		cursor: not-allowed;
+	}
+
+	input[type="date"]::-webkit-calendar-picker-indicator,
+	input[type="time"]::-webkit-calendar-picker-indicator {
+		filter: invert(1);
+		opacity: 0.8;
+		cursor: pointer;
+	}
+
+	input[type="file"]::file-selector-button {
+		margin-right: 0.75rem;
+		padding: 0.5rem 0.875rem;
+		border: 1px solid var(--color-sky);
+		border-radius: 4px;
+		background: transparent;
+		color: #fff;
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+	}
 }
 
-body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-body);
-  line-height: 1.5;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--color-primary);
-  border-radius: 6px;
-  background: var(--color-primary);
-  color: #ffffff;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.login-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 1.5rem;
-}
-
-.login-card {
-  width: min(100%, 24rem);
-  padding: 2rem;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  background: var(--color-surface);
-}
-
-.login-card h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-}
-
-.login-card p {
-  margin: 0 0 1rem;
-  color: var(--color-muted);
-}
-
-.login-form {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.login-form label {
-  font-weight: 600;
-}
-
-.login-form input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  font: inherit;
-}
-
-.login-form [role="alert"] {
-  margin: 0;
-  color: #b00020;
-}
-
-.admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-surface);
-}
-
-.admin-main {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 1.5rem;
+/* One reduced-motion rule for the whole admin: state changes stay, movement goes. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
 }

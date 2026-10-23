@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 
+import logo from "@/components/brand/logo.svg";
 import { login } from "@/interface/auth/actions";
 
 import { LoginForm } from "./_components/login-form";
@@ -11,12 +13,23 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="login-page">
-      <section className="login-card" aria-labelledby="login-title">
-        <h1 id="login-title">Panel de administración</h1>
-        <p>Ingrese su contraseña para acceder al panel de ASO Computación.</p>
-        <LoginForm action={login} />
-      </section>
+    <main className="grid min-h-screen place-items-center px-6 py-10">
+      <div className="w-full max-w-sm">
+        <Image src={logo} alt="ASO Computación" width={168} priority className="mb-10 h-auto w-42" />
+
+        {/* The landing's branch line, with the page title as its first commit. */}
+        <section aria-labelledby="login-title" className="relative border-l-2 border-sky pb-2 pl-7">
+          <span
+            aria-hidden="true"
+            className="absolute top-[0.8125rem] -left-[calc(0.5625rem+1px)] size-[1.125rem] rounded-full border-[3px] border-navy bg-sky"
+          />
+          <h1 id="login-title" className="font-display text-[1.75rem] leading-[1.15]">
+            Panel de administración
+          </h1>
+          <p className="mt-2 mb-6 text-mist">Ingrese la contraseña de la directiva para editar el sitio de ASO Computación.</p>
+          <LoginForm action={login} />
+        </section>
+      </div>
     </main>
   );
 }

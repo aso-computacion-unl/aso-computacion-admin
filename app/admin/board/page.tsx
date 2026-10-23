@@ -18,7 +18,7 @@ export default async function AdminBoardPage() {
   const members = await getAdminBoardMembers();
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <PageHead
         title="Directiva"
         meta={`main · ${publicationSummary(members)}`}

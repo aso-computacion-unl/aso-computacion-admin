@@ -11,7 +11,7 @@ interface FieldProps {
   label: string;
   hint?: string;
   error?: string;
-  /** Grid span classes, e.g. `md:col-span-2`. */
+  /** Grid span classes, e.g. `@xl:col-span-2` (container query of the enclosing Panel). */
   className?: string;
   children: (control: { id: string; "aria-describedby"?: string; "aria-invalid"?: true }) => ReactNode;
 }
@@ -49,7 +49,7 @@ export function FormSection({ legend, children, className }: { legend: string; c
   return (
     <fieldset className="min-w-0 border-0 p-0 [&+&]:mt-8">
       <legend className="mb-4 w-full border-b border-border pb-2 text-lg font-bold font-stretch-[112%]">{legend}</legend>
-      <div className={cn("grid gap-x-4 gap-y-5 md:grid-cols-2", className)}>{children}</div>
+      <div className={cn("grid gap-x-4 gap-y-5 @xl:grid-cols-2", className)}>{children}</div>
     </fieldset>
   );
 }

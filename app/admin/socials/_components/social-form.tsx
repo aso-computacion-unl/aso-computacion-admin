@@ -53,7 +53,7 @@ export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_F
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Red" error={errors.platform}>
           {(control) => (
             <Select {...control} {...platform} onChange={choosePlatform} required>

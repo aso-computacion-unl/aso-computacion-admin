@@ -20,7 +20,12 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
   if (!member) notFound();
 
   return (
-    <FormPage backHref="/admin/board" backLabel="Volver a la directiva" title="Editar integrante">
+    <FormPage
+      backHref="/admin/board"
+      backLabel="Volver a la directiva"
+      title="Editar integrante"
+      aside={<BoardMemberPhotoPanel key={member.photo?.url ?? "no-photo"} memberId={id} photo={member.photo} />}
+    >
       {/* Keyed by the photo so the alt field and the panel start fresh after a replace or remove. */}
       <Panel>
         <BoardMemberForm
@@ -36,7 +41,6 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
           }}
         />
       </Panel>
-      <BoardMemberPhotoPanel key={member.photo?.url ?? "no-photo"} memberId={id} photo={member.photo} />
     </FormPage>
   );
 }

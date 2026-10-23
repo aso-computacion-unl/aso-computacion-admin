@@ -32,7 +32,7 @@ export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_F
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <Field label="Palabra" hint="La palabra grande de la tarjeta, por ejemplo «VOZ». Hasta 20 caracteres." error={errors.word}>
           {(control) => <Input {...control} {...bind("word")} required maxLength={20} />}
         </Field>

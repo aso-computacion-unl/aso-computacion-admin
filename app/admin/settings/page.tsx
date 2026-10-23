@@ -11,7 +11,7 @@ export default async function AdminSettingsPage() {
   const settings = await getAdminSiteSettings();
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <PageHead title="Sitio" meta="Textos generales del sitio público." />
       <div className="mt-6 grid gap-6">
         {settings ? null : (

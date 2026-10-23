@@ -31,7 +31,7 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Nombre" hint="El nombre que se muestra en el sitio público. Hasta 60 caracteres." error={errors.name}>
           {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
         </Field>

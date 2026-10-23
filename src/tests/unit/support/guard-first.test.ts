@@ -1,0 +1,76 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
+
+import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
+
+describe("expectGuardFirstInEveryAction", () => {
+  const dirs: string[] = [];
+
+  function sourceFile(contents: string): string {
+    const dir = mkdtempSync(join(tmpdir(), "guard-first-"));
+    dirs.push(dir);
+    const path = join(dir, "actions.ts");
+    writeFileSync(path, contents);
+    return path;
+  }
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("accepts the guard first, inside or outside a try block, and names every action", () => {
+    const path = sourceFile(`
+export async function a(id: string, data: FormData): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    return ok();
+  } catch (error) { return fail(error); }
+}
+export async function b(): Promise<void> {
+  await requireAdminSession();
+}
+export async function c(formData: FormData): Promise<ActionResult> {
+  let id: string;
+
+  try {
+    await requireAdminSession();
+    ({ id } = await create(formData));
+  } catch (error) { return fail(error); }
+  redirect(id);
+}
+`);
+
+    expect(expectGuardFirstInEveryAction(path)).toEqual(["a", "b", "c"]);
+  });
+
+  it("rejects a statement before the guard even when it is not awaited", () => {
+    const path = sourceFile(`
+export async function leaky(formData: FormData): Promise<ActionResult> {
+  try {
+    const input = parse(formData);
+    await requireAdminSession();
+    return save(input);
+  } catch (error) { return fail(error); }
+}
+`);
+
+    expect(() => expectGuardFirstInEveryAction(path)).toThrow(/leaky must start with/);
+  });
+
+  it("rejects an initialised declaration before the guard", () => {
+    const path = sourceFile(`
+export async function eager(formData: FormData): Promise<ActionResult> {
+  let input: Input = parse(formData);
+  try {
+    await requireAdminSession();
+    return save(input);
+  } catch (error) { return fail(error); }
+}
+`);
+
+    expect(() => expectGuardFirstInEveryAction(path)).toThrow(/eager must start with/);
+  });
+});

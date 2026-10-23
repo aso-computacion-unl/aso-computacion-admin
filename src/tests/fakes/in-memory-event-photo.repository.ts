@@ -31,6 +31,12 @@ export class InMemoryEventPhotoRepository implements EventPhotoRepository {
     return counts;
   }
 
+  async listPublicIdsByEventId(eventId: string): Promise<string[]> {
+    return [...this.photos.values()]
+      .filter((photo) => photo.props.eventId === eventId)
+      .map((photo) => photo.props.publicId);
+  }
+
   async add(photo: EventPhoto, maxActive: number): Promise<EventPhoto> {
     if (this.addError) {
       throw this.addError;
@@ -42,8 +48,10 @@ export class InMemoryEventPhotoRepository implements EventPhotoRepository {
       throw new ValidationError("photos", `An event can have at most ${maxActive} active photos`);
     }
 
-    this.photos.set(photo.props.id, photo);
-    return photo;
+    const sortOrder = active.reduce((next, current) => Math.max(next, current.props.sortOrder + 1), 0);
+    const placed = photo.withSortOrder(sortOrder);
+    this.photos.set(placed.props.id, placed);
+    return placed;
   }
 
   async update(photo: EventPhoto): Promise<EventPhoto> {

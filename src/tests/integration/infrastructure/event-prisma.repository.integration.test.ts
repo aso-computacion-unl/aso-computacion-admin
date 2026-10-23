@@ -102,6 +102,26 @@ describe("EventPrismaRepository (integration)", () => {
   });
 });
 
+/** Waits until `count` backends are blocked on a row lock (the barrier above). */
+async function waitForLockWaiters(count: number): Promise<void> {
+  const deadline = Date.now() + 10_000;
+
+  while (Date.now() < deadline) {
+    const [row] = await prisma.$queryRaw<{ waiting: bigint }[]>`
+      SELECT count(*) AS waiting FROM pg_stat_activity
+      WHERE datname = current_database() AND wait_event_type = 'Lock'
+    `;
+
+    if (Number(row?.waiting ?? 0) >= count) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  throw new Error(`Timed out waiting for ${count} lock waiters`);
+}
+
 function photoFor(eventId: string, publicId: string, sortOrder: number): EventPhoto {
   return EventPhoto.create({
     eventId,
@@ -134,17 +154,41 @@ describe("EventPhotoPrismaRepository (integration)", () => {
 
   it("lists only active photos in gallery order", async () => {
     const eventId = await newEvent();
-    const second = photoFor(eventId, "second", 1);
     const first = photoFor(eventId, "first", 0);
-    const hidden = photoFor(eventId, "hidden", 2);
-    await repository.add(second, 12);
+    const second = photoFor(eventId, "second", 0);
+    const hidden = photoFor(eventId, "hidden", 0);
     await repository.add(first, 12);
+    await repository.add(second, 12);
     await repository.add(hidden, 12);
-    await repository.update(hidden.deactivate());
+    await repository.update((await repository.getById(hidden.props.id))!.deactivate());
 
     const list = await repository.listActiveByEventId(eventId);
 
     expect(list.map((photo) => photo.props.publicId)).toEqual(["first", "second"]);
+  });
+
+  it("appends each photo after the last active one, ignoring the caller's sortOrder", async () => {
+    const eventId = await newEvent();
+
+    const a = await repository.add(photoFor(eventId, "a", 7), 12);
+    const b = await repository.add(photoFor(eventId, "b", 0), 12);
+    await repository.update(b.deactivate());
+    const c = await repository.add(photoFor(eventId, "c", 0), 12);
+
+    expect([a.props.sortOrder, b.props.sortOrder, c.props.sortOrder]).toEqual([0, 1, 1]);
+    expect((await repository.getById(c.props.id))?.props.sortOrder).toBe(1);
+  });
+
+  it("lists every stored publicId of an event, active or not", async () => {
+    const eventId = await newEvent();
+    const other = await newEvent();
+    const hidden = await repository.add(photoFor(eventId, "hidden", 0), 12);
+    await repository.update(hidden.deactivate());
+    await repository.add(photoFor(eventId, "shown", 0), 12);
+    await repository.add(photoFor(other, "foreign", 0), 12);
+
+    expect([...(await repository.listPublicIdsByEventId(eventId))].sort()).toEqual(["hidden", "shown"]);
+    expect(await repository.listPublicIdsByEventId(MISSING_ID)).toEqual([]);
   });
 
   it("counts active photos per event, leaving out events with none", async () => {
@@ -178,14 +222,41 @@ describe("EventPhotoPrismaRepository (integration)", () => {
     await expect(repository.add(photoFor(eventId, "p3", 3), 2)).resolves.toBeDefined();
   });
 
-  it("holds the cap under concurrent adds", async () => {
+  it("holds the cap and gives distinct positions under concurrent adds", async () => {
     const eventId = await newEvent();
+    const contenders = 5;
 
-    const results = await Promise.allSettled(
-      Array.from({ length: 5 }, (_, i) => repository.add(photoFor(eventId, `c${i}`, i), 3)),
+    // Barrier: a holder transaction takes the event row lock first, every add
+    // is launched and observed blocked on that lock, and only then is the
+    // holder released, so all adds really race for the same lock.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId} FOR UPDATE`;
+        locked();
+        await gate;
+      },
+      { timeout: 15_000 },
     );
+    await lockTaken;
 
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(3);
+    const adds = Array.from({ length: contenders }, (_, i) =>
+      repository.add(photoFor(eventId, `c${i}`, 0), 3).then(
+        (photo) => ({ ok: true as const, photo }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+    );
+    await waitForLockWaiters(contenders);
+    release();
+    await holder;
+    const results = await Promise.all(adds);
+
+    const added = results.flatMap((result) => (result.ok ? [result.photo] : []));
+    expect(added).toHaveLength(3);
+    expect(added.map((photo) => photo.props.sortOrder).sort()).toEqual([0, 1, 2]);
     expect(await prisma.eventPhoto.count({ where: { eventId, isActive: true } })).toBe(3);
   });
 

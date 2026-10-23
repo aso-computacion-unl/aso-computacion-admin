@@ -1,0 +1,77 @@
+import "server-only";
+import { Prisma } from "@prisma/client";
+
+import type { EventRepository } from "@/application/ports/event-repository.port";
+import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { ValidationError } from "@/domain/domain-error";
+import type { Event } from "@/domain/event";
+
+import { prisma } from "../prisma/client";
+import { toDomain, toPrismaCreate, toPrismaUpdate } from "./event.mapper";
+
+/** The slug check in the use case is advisory; the unique index is what actually decides a race. */
+function rethrowSlugCollision(error: unknown): never {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    throw new ValidationError("slug", "slug is already used by another event");
+  }
+
+  throw error;
+}
+
+export class EventPrismaRepository implements EventRepository {
+  async create(event: Event): Promise<Event> {
+    try {
+      return toDomain(await prisma.event.create({ data: toPrismaCreate(event) }));
+    } catch (error) {
+      return rethrowSlugCollision(error);
+    }
+  }
+
+  async getById(id: string): Promise<Event | null> {
+    const record = await prisma.event.findUnique({ where: { id } });
+
+    return record ? toDomain(record) : null;
+  }
+
+  async slugExists(slug: string, excludeId?: string): Promise<boolean> {
+    const record = await prisma.event.findFirst({
+      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      select: { id: true },
+    });
+
+    return record !== null;
+  }
+
+  async list(): Promise<Event[]> {
+    const records = await prisma.event.findMany({
+      orderBy: [{ date: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    });
+
+    return records.map(toDomain);
+  }
+
+  async update(event: Event): Promise<Event> {
+    try {
+      const [record] = await prisma.event.updateManyAndReturn({
+        where: { id: event.props.id },
+        data: toPrismaUpdate(event),
+      });
+
+      if (!record) {
+        throw new NotFoundError("Event not found");
+      }
+
+      return toDomain(record);
+    } catch (error) {
+      return error instanceof NotFoundError ? Promise.reject(error) : rethrowSlugCollision(error);
+    }
+  }
+
+  async delete(id: string): Promise<void> {
+    const { count } = await prisma.event.deleteMany({ where: { id } });
+
+    if (count === 0) {
+      throw new NotFoundError("Event not found");
+    }
+  }
+}

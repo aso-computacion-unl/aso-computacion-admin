@@ -1,0 +1,142 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
+
+import { requireAdminSession } from "../../auth/require-admin-session";
+import { mapActionError, type ActionResult } from "../action-result";
+import { parseEventFormData } from "./event-form-data";
+import { getEventUseCases } from "./events-container";
+
+// Every action starts with `await requireAdminSession()`, before it reads any
+// input or touches a use case (a server action can be POSTed to any page).
+
+const LIST_PATH = "/admin/events";
+const editPath = (eventId: string) => `${LIST_PATH}/${eventId}/edit`;
+
+export async function createEvent(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  let id: string;
+
+  try {
+    await requireAdminSession();
+    ({ id } = await getEventUseCases().create.execute(parseEventFormData(formData)));
+  } catch (error) {
+    return mapActionError(error);
+  }
+
+  revalidatePath(LIST_PATH);
+  // Photos need an existing event, so creating continues on its edit page.
+  redirect(editPath(id));
+}
+
+export async function updateEvent(
+  id: string,
+  _prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    await getEventUseCases().update.execute({ id, ...parseEventFormData(formData) });
+    revalidatePath(LIST_PATH);
+    revalidatePath(editPath(id));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function setEventPublished(id: string, isPublished: boolean): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    await getEventUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    revalidatePath(LIST_PATH);
+    revalidatePath(editPath(id));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function deleteEvent(id: string): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    await getEventUseCases().delete.execute({ id });
+    revalidatePath(LIST_PATH);
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function uploadEventPhoto(
+  eventId: string,
+  _prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+
+    // The schema is strict about its keys, so it only sees the file field.
+    const fileOnly = new FormData();
+    for (const file of formData.getAll("file")) fileOnly.append("file", file);
+    const { file } = imageUploadSchema.parse(fileOnly) as { file: File };
+    await assertValidImageSignature(file);
+
+    await getEventUseCases().attachPhoto.execute({ eventId, file, alt: String(formData.get("alt") ?? "") });
+    revalidatePath(LIST_PATH);
+    revalidatePath(editPath(eventId));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function updateEventPhotoAlt(
+  eventId: string,
+  photoId: string,
+  _prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    await getEventUseCases().updatePhotoAlt.execute({ eventId, photoId, alt: String(formData.get("alt") ?? "") });
+    revalidatePath(editPath(eventId));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function moveEventPhoto(
+  eventId: string,
+  photoId: string,
+  direction: "up" | "down",
+): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+
+    if (direction !== "up" && direction !== "down") {
+      return { error: "Dirección no válida." };
+    }
+
+    await getEventUseCases().reorderPhotos.execute({ eventId, photoId, direction });
+    revalidatePath(editPath(eventId));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+export async function deactivateEventPhoto(eventId: string, photoId: string): Promise<ActionResult> {
+  try {
+    await requireAdminSession();
+    await getEventUseCases().deactivatePhoto.execute({ eventId, photoId });
+    revalidatePath(LIST_PATH);
+    revalidatePath(editPath(eventId));
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}

@@ -6,3 +6,51 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum EventType {
+  taller
+  charla
+  evento
+  comunidad
+}
+
+model Event {
+  id            String       @id
+  slug          String       @unique
+  title         String
+  description   String?
+  // Calendar date without time zone; a future date reads as upcoming on the landing.
+  date          DateTime?    @db.Date
+  type          EventType?
+  commitMessage String?
+  hora          String?
+  lugar         String?
+  para          String?
+  featured      Boolean      @default(false)
+  linkUrl       String?
+  linkLabel     String?
+  highlights    String[]     @default([])
+  isPublished   Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime
+  photos        EventPhoto[]
+
+  @@index([isPublished, date])
+}
+
+model EventPhoto {
+  id        String   @id
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url       String
+  publicId  String   @unique
+  width     Int
+  height    Int
+  alt       String
+  sortOrder Int
+  // Photos are deactivated, never deleted: the stored asset is retained.
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([eventId, isActive, sortOrder])
+}

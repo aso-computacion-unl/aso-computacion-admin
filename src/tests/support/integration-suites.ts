@@ -3,4 +3,6 @@
  * default config excludes these files and the integration config includes
  * them, so a new suite is registered in exactly one place.
  */
-export const INTEGRATION_SUITES: readonly string[] = [];
+export const INTEGRATION_SUITES: readonly string[] = [
+  "src/tests/integration/infrastructure/event-prisma.repository.integration.test.ts",
+];

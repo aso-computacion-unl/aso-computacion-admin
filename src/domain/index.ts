@@ -21,3 +21,8 @@ export {
   assertImageSize,
 } from "./image";
 export type { ImageMimeType } from "./image";
+export { EVENT_TYPES, Event } from "./event";
+export type { CreateEventInput, EventProps, EventType, UpdateEventInput } from "./event";
+export { EventPhoto, MAX_ACTIVE_EVENT_PHOTOS } from "./event-photo";
+export type { CreateEventPhotoInput, EventPhotoProps } from "./event-photo";
+export { assertSlug, slugify } from "./slug";

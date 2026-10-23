@@ -6,4 +6,5 @@
  * reach a client component MUST start with `import "server-only";` as its
  * first statement.
  */
-export {};
+export { EventPhotoPrismaRepository } from "./repositories/event-photo-prisma.repository";
+export { EventPrismaRepository } from "./repositories/event-prisma.repository";

@@ -31,7 +31,7 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
    git switch -c tipo/descripcion-corta   # ej.: fix/subida-fotos, feat/filtro-eventos
    ```
 3. **Commits pequeños** con [Conventional Commits](https://www.conventionalcommits.org/es/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`. El mensaje describe el cambio en inglés, en imperativo: `fix: keep the photo order after a failed upload`.
-4. **Entorno local** (Node 22 y Docker): copiá `.env.example` a `.env` y completalo según el [README](README.md#environment-variables). Usá una base de Postgres propia, nunca la de producción.
+4. **Entorno local** (Node 22 y Docker): copiá `.env.example` a `.env` y completalo según el [referencia técnica](docs/REFERENCIA.md#environment-variables). Usá una base de Postgres propia, nunca la de producción.
 5. **Comprobá localmente** antes de pedir revisión; la CI corre lo mismo en el PR:
    ```sh
    npm ci
@@ -54,7 +54,7 @@ Un PR debería poder revisarse en menos de una hora: idealmente **menos de 400 l
 
 Protegen la seguridad del panel y la privacidad de la directiva. Un PR que las rompe no se mergea:
 
-- **Cada server action verifica la sesión** con `requireAdminSession()` como primera instrucción y tiene un test que prueba que sin sesión no escribe nada (ver el README, "Server actions are guarded individually").
+- **Cada server action verifica la sesión** con `requireAdminSession()` como primera instrucción y tiene un test que prueba que sin sesión no escribe nada (ver la [referencia técnica](docs/REFERENCIA.md#server-actions-are-guarded-individually)).
 - **La directiva solo tiene nombre, cargo y foto.** Nada de teléfono, correo, edad ni redes personales: hay tests que fallan si aparecen esos campos en el modelo o en una migración.
 - **Migraciones solo hacia adelante.** No edites una migración ya mergeada; agregá una nueva. Las migraciones de producción se aplican a mano (ver `docs/DEPLOY.md`).
 - **La API pública solo expone lo publicado.** Cualquier campo nuevo en `/api/public/content` es un cambio de contrato con la landing: coordiná el PR en los dos repositorios.

@@ -28,7 +28,7 @@ The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login th
 
 Everything lands under one base folder, `CLOUDINARY_FOLDER` (default `aso-computacion`), with one subfolder per feature: `events`, `pillars`, `board`. Use a different folder per environment if one account serves several (`aso-computacion-staging`).
 
-The image URLs the public API returns contain the cloud name and each asset's `publicId`; both are public by design (see "Public read API" in the README). The API **secret** is the only private value.
+The image URLs the public API returns contain the cloud name and each asset's `publicId`; both are public by design (see "Public read API" in [REFERENCIA.md](REFERENCIA.md#public-read-api)). The API **secret** is the only private value.
 
 ## 3. Vercel
 
@@ -74,7 +74,7 @@ openssl rand -base64 48   # ADMIN_SECRET, 64 characters
 openssl rand -base64 24   # ADMIN_PASSWORD, 32 characters
 ```
 
-Use a password manager to store the password and share it with the board. A long random password is the real protection against guessing: the login throttle only slows each client down (see "Login throttle" in the README), and a passphrase of four or five unrelated words also clears 16 characters if people must type it.
+Use a password manager to store the password and share it with the board. A long random password is the real protection against guessing: the login throttle only slows each client down (see "Login throttle" in [REFERENCIA.md](REFERENCIA.md#login-throttle)), and a passphrase of four or five unrelated words also clears 16 characters if people must type it.
 
 ### Rotating the password (when the board changes)
 

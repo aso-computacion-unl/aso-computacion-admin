@@ -46,6 +46,9 @@ const FIELD_MESSAGES: Record<string, string> = {
   url: "Use un enlace que empiece con https://.",
   note: "La nota admite hasta 40 caracteres.",
   blurb: "La descripción corta admite hasta 80 caracteres.",
+  word: "La palabra es obligatoria y admite hasta 20 caracteres.",
+  text: "El texto es obligatorio y admite hasta 300 caracteres.",
+  imageAlt: "Describa la imagen en 1 a 200 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
@@ -55,19 +58,22 @@ const FIELD_MESSAGES: Record<string, string> = {
 const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Faq not found": "No se encontró la pregunta frecuente.",
   "Social link not found": "No se encontró la red social.",
+  "Pillar not found": "No se encontró el pilar.",
 };
 
 const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";
 
-function fieldError(field: string, message?: string): ActionResult {
-  return { fieldErrors: { [field]: message ?? FIELD_MESSAGES[field] ?? "El valor no es válido." } };
+function fieldError(field: string, message?: string, overrides?: Record<string, string>): ActionResult {
+  return { fieldErrors: { [field]: message ?? overrides?.[field] ?? FIELD_MESSAGES[field] ?? "El valor no es válido." } };
 }
 
 /**
  * Maps whatever an action caught to a Spanish `ActionResult`. Unknown errors
  * are logged and reduced to a generic message: nothing internal leaks out.
+ * `fieldMessages` overrides the shared text of a field whose limits differ per
+ * entity (a pillar title admits 60 characters, an event title 120).
  */
-export function mapActionError(error: unknown): ActionResult {
+export function mapActionError(error: unknown, fieldMessages?: Record<string, string>): ActionResult {
   if (error instanceof UnauthorizedError) {
     return { error: SESSION_EXPIRED_MESSAGE };
   }
@@ -83,7 +89,7 @@ export function mapActionError(error: unknown): ActionResult {
   }
 
   if (error instanceof ValidationError) {
-    return fieldError(error.field);
+    return fieldError(error.field, undefined, fieldMessages);
   }
 
   if (error instanceof InvalidImageFormatError) {

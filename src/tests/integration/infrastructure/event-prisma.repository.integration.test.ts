@@ -100,16 +100,113 @@ describe("EventPrismaRepository (integration)", () => {
 
     expect(await prisma.eventPhoto.count()).toBe(0);
   });
+
+  it("delete returns the storage ids of every photo of the event, active or not, and none of another event's", async () => {
+    const photos = new EventPhotoPrismaRepository();
+    const event = await repository.create(Event.create({ title: "Charla" }));
+    const other = await repository.create(Event.create({ title: "Otra" }));
+    const hidden = await photos.add(photoFor(event.props.id, "hidden", 0), 12);
+    await photos.update(hidden.deactivate());
+    await photos.add(photoFor(event.props.id, "shown", 0), 12);
+    await photos.add(photoFor(other.props.id, "foreign", 0), 12);
+
+    const publicIds = await repository.delete(event.props.id);
+
+    expect([...publicIds].sort()).toEqual(["hidden", "shown"]);
+    expect(await prisma.eventPhoto.count({ where: { eventId: other.props.id } })).toBe(1);
+  });
+
+  it("delete returns an empty list for an event without photos", async () => {
+    const event = await repository.create(Event.create({ title: "Sin fotos" }));
+
+    expect(await repository.delete(event.props.id)).toEqual([]);
+  });
+
+  it("delete reports a photo attached by a transaction that already holds the event lock (the gap a read-then-delete left open)", async () => {
+    const event = await repository.create(Event.create({ title: "Charla" }));
+    const eventId = event.props.id;
+
+    // The attach holds the event row lock and has not inserted yet. The delete
+    // is launched and observed blocked on that lock; only then does the attach
+    // insert its photo and commit. The delete must see that photo.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    const attach = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId} FOR UPDATE`;
+        locked();
+        await gate;
+        await tx.eventPhoto.create({ data: { ...photoFor(eventId, "late", 0).props } });
+      },
+      { timeout: 15_000 },
+    );
+    await lockTaken;
+
+    const deleting = repository.delete(eventId);
+    await waitForLockWaiters(1);
+    release();
+    await attach;
+
+    expect(await deleting).toEqual(["late"]);
+    expect(await prisma.eventPhoto.count()).toBe(0);
+  });
+
+  it("racing an attach against a delete never leaves a stored photo unreported", async () => {
+    const event = await repository.create(Event.create({ title: "Carrera" }));
+    const eventId = event.props.id;
+    const photos = new EventPhotoPrismaRepository();
+
+    // Barrier: both contenders are observed blocked on the event lock before it is released.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId} FOR UPDATE`;
+        locked();
+        await gate;
+      },
+      { timeout: 15_000 },
+    );
+    await lockTaken;
+
+    const adding = photos.add(photoFor(eventId, "raced", 0), 12).then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    const deleting = repository.delete(eventId);
+    await waitForLockWaiters(2);
+    release();
+    await holder;
+    const [added, publicIds] = await Promise.all([adding, deleting]);
+
+    if (added.ok) {
+      // The attach won the lock: its photo existed when the delete read the ids.
+      expect(publicIds).toEqual(["raced"]);
+    } else {
+      // The delete won: the attach found no event, so no asset was stored for it.
+      expect(added.error).toMatchObject({ name: "NotFoundError" });
+      expect(publicIds).toEqual([]);
+    }
+    expect(await prisma.eventPhoto.count()).toBe(0);
+  });
 });
 
-/** Waits until `count` backends are blocked on a row lock (the barrier above). */
-async function waitForLockWaiters(count: number): Promise<void> {
-  const deadline = Date.now() + 10_000;
+/**
+ * Waits until `count` backends are blocked on a `FOR UPDATE` row lock (the
+ * barrier above). Only those: a backend waiting on any other lock, say a
+ * table lock or an autovacuum, must not release the barrier early.
+ */
+async function waitForLockWaiters(count: number, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const [row] = await prisma.$queryRaw<{ waiting: bigint }[]>`
       SELECT count(*) AS waiting FROM pg_stat_activity
-      WHERE datname = current_database() AND wait_event_type = 'Lock'
+      WHERE datname = current_database() AND wait_event_type = 'Lock' AND query ILIKE '%FOR UPDATE%'
     `;
 
     if (Number(row?.waiting ?? 0) >= count) {
@@ -121,6 +218,51 @@ async function waitForLockWaiters(count: number): Promise<void> {
 
   throw new Error(`Timed out waiting for ${count} lock waiters`);
 }
+
+describe("waitForLockWaiters (the concurrency barrier)", () => {
+  it("does not count a backend blocked on something other than a FOR UPDATE row lock", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`LOCK TABLE "LoginAttempt" IN ACCESS EXCLUSIVE MODE`;
+        locked();
+        await gate;
+      },
+      { timeout: 15_000 },
+    );
+    await lockTaken;
+
+    try {
+      // A plain read of the locked table waits on a Lock too, but its query has no FOR UPDATE.
+      // `.then` starts it: Prisma queries are lazy until awaited.
+      const blocked = prisma.loginAttempt.count().then((total) => total);
+      const deadline = Date.now() + 5_000;
+      let anyWaiter = 0;
+
+      while (anyWaiter === 0 && Date.now() < deadline) {
+        const [row] = await prisma.$queryRaw<{ waiting: bigint }[]>`
+          SELECT count(*) AS waiting FROM pg_stat_activity
+          WHERE datname = current_database() AND wait_event_type = 'Lock'
+        `;
+        anyWaiter = Number(row?.waiting ?? 0);
+        if (anyWaiter === 0) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      expect(anyWaiter).toBeGreaterThan(0);
+      await expect(waitForLockWaiters(1, 300)).rejects.toThrow("Timed out waiting for 1 lock waiters");
+
+      release();
+      await holder;
+      await blocked;
+    } finally {
+      release();
+      await holder.catch(() => undefined);
+    }
+  });
+});
 
 function photoFor(eventId: string, publicId: string, sortOrder: number): EventPhoto {
   return EventPhoto.create({
@@ -177,18 +319,6 @@ describe("EventPhotoPrismaRepository (integration)", () => {
 
     expect([a.props.sortOrder, b.props.sortOrder, c.props.sortOrder]).toEqual([0, 1, 1]);
     expect((await repository.getById(c.props.id))?.props.sortOrder).toBe(1);
-  });
-
-  it("lists every stored publicId of an event, active or not", async () => {
-    const eventId = await newEvent();
-    const other = await newEvent();
-    const hidden = await repository.add(photoFor(eventId, "hidden", 0), 12);
-    await repository.update(hidden.deactivate());
-    await repository.add(photoFor(eventId, "shown", 0), 12);
-    await repository.add(photoFor(other, "foreign", 0), 12);
-
-    expect([...(await repository.listPublicIdsByEventId(eventId))].sort()).toEqual(["hidden", "shown"]);
-    expect(await repository.listPublicIdsByEventId(MISSING_ID)).toEqual([]);
   });
 
   it("counts active photos per event, leaving out events with none", async () => {

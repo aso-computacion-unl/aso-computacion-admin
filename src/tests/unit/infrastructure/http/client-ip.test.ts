@@ -87,3 +87,64 @@ describe("clientKeyFromHeaders", () => {
     expect(clientKeyFromHeaders(new Headers())).toBe("unknown");
   });
 });
+
+// A residential or campus IPv6 customer owns a whole /64, so a /128 key would
+// let one client rotate through 2^64 addresses and never meet the login throttle.
+describe("clientKeyFromHeaders (IPv6 /64)", () => {
+  const key = (ip: string) => clientKeyFromHeaders(new Headers({ "x-real-ip": ip }));
+
+  it("keys an IPv6 client by its /64 prefix", () => {
+    expect(key("2001:db8:1:2:aaaa:bbbb:cccc:dddd")).toBe("2001:db8:1:2::/64");
+  });
+
+  it("gives every address of one /64 the same key", () => {
+    const keys = new Set(
+      ["2001:db8:1:2::1", "2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:0DB8:0001:0002:0:0:0:9", "2001:db8:1:2::"].map(key),
+    );
+
+    expect(keys).toEqual(new Set(["2001:db8:1:2::/64"]));
+  });
+
+  it("separates different /64 prefixes", () => {
+    expect(key("2001:db8:1:2::1")).not.toBe(key("2001:db8:1:3::1"));
+    expect(key("2001:db8:1:2::1")).not.toBe(key("2001:db8:2:2::1"));
+  });
+
+  it("expands :: before cutting the prefix, wherever it appears", () => {
+    expect(key("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(key("::1")).toBe("0:0:0:0::/64");
+    expect(key("::")).toBe("0:0:0:0::/64");
+    expect(key("fe80::1ff:fe23:4567:890a")).toBe("fe80:0:0:0::/64");
+    expect(key("1:2:3:4:5:6:7::")).toBe("1:2:3:4::/64");
+  });
+
+  it("ignores a zone id and surrounding brackets", () => {
+    expect(key("fe80::1%eth0")).toBe("fe80:0:0:0::/64");
+    expect(key("[2001:db8:1:2::1]")).toBe("2001:db8:1:2::/64");
+  });
+
+  it("applies to the x-forwarded-for fallback too", () => {
+    const headers = new Headers({ "x-forwarded-for": "2001:db8:1:2::77, 10.0.0.1" });
+
+    expect(clientKeyFromHeaders(headers)).toBe("2001:db8:1:2::/64");
+  });
+
+  it("leaves IPv4 untouched", () => {
+    expect(key("203.0.113.5")).toBe("203.0.113.5");
+  });
+
+  it.each(["::ffff:203.0.113.5", "::FFFF:203.0.113.5", "::ffff:cb00:7105", "0:0:0:0:0:ffff:203.0.113.5"])(
+    "leaves the IPv4-mapped address %s untouched (one /64 would put every mapped client in one bucket)",
+    (ip) => {
+      expect(key(ip)).toBe(ip);
+    },
+  );
+
+  it("keeps different IPv4-mapped clients apart", () => {
+    expect(key("::ffff:203.0.113.5")).not.toBe(key("::ffff:203.0.113.6"));
+  });
+
+  it("returns a value it cannot parse as it came", () => {
+    expect(key("not-an-ip:at:all")).toBe("not-an-ip:at:all");
+  });
+});

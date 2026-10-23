@@ -5,8 +5,6 @@ export interface EventPhotoRepository {
   /** Active photos of one event in gallery order (sortOrder, then oldest first). */
   listActiveByEventId(eventId: string): Promise<EventPhoto[]>;
   countActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>>;
-  /** Storage ids of every photo row of the event, active or not. */
-  listPublicIdsByEventId(eventId: string): Promise<string[]>;
   /**
    * Persists a photo at the end of the event's active gallery, only while the
    * event has fewer than `maxActive` active photos. The count and the position

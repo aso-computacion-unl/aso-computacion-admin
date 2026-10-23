@@ -25,7 +25,7 @@ function createEventUseCases() {
     create: new CreateEventUseCase(events),
     update: new UpdateEventUseCase(events),
     setPublished: new SetEventPublishedUseCase(events),
-    delete: new DeleteEventUseCase(events, photos, storage),
+    delete: new DeleteEventUseCase(events, storage),
     attachPhoto: new AttachEventPhotoUseCase(events, photos, new UploadImageUseCase(storage), storage),
     updatePhotoAlt: new UpdateEventPhotoAltUseCase(photos),
     reorderPhotos: new ReorderEventPhotosUseCase(photos),

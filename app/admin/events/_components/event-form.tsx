@@ -1,13 +1,22 @@
 "use client";
 
-import { startTransition, useActionState, useId, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useActionState, useState, type ComponentProps, type FormEvent } from "react";
 
+import { Button } from "@/components/ui/button";
+import { fieldClasses } from "@/components/ui/field-styles";
+import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
+import { SwitchField } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/interface/admin/action-result";
 import {
   EMPTY_EVENT_FORM_VALUES,
   formValuesToFormData,
   type EventFormValues,
 } from "@/interface/admin/events/event-form-values";
+
+import { ActionBar, Field, FieldError, FormFeedback, FormSection } from "../../_components/form-parts";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
@@ -17,32 +26,33 @@ interface EventFormProps {
   initialValues?: EventFormValues;
 }
 
-interface FieldProps {
-  label: string;
-  hint?: string;
-  error?: string;
-  children: (control: { id: string; "aria-describedby"?: string; "aria-invalid"?: true }) => ReactNode;
-}
+const TYPE_OPTIONS = [
+  { value: "taller", label: "Taller" },
+  { value: "charla", label: "Charla" },
+  { value: "evento", label: "Evento" },
+  { value: "comunidad", label: "Comunidad" },
+  { value: "", label: "Sin tipo" },
+] as const;
 
-function Field({ label, hint, error, children }: FieldProps) {
-  const id = useId();
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
-
+/** The commit message reads like a shell line: a fixed `$ ` in front of the text. */
+function CommitInput({ className, ...props }: ComponentProps<"input">) {
   return (
-    <p className="field">
-      <label htmlFor={id}>{label}</label>
-      {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
-      {hint ? (
-        <small id={`${id}-hint`} className="field-hint">
-          {hint}
-        </small>
-      ) : null}
-      {error ? (
-        <small id={`${id}-error`} className="field-error" role="alert">
-          {error}
-        </small>
-      ) : null}
-    </p>
+    <span
+      className={cn(
+        fieldClasses,
+        "flex items-center p-0 has-[input:focus-visible]:border-sky has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-1 has-[input:focus-visible]:outline-sky",
+        props["aria-invalid"] && "px-0 py-0",
+        className,
+      )}
+    >
+      <span aria-hidden="true" className="pl-3 font-mono text-sm text-sky select-none">
+        $
+      </span>
+      <input
+        className="min-h-[calc(2.75rem-2px)] w-full min-w-0 bg-transparent px-2 py-2 font-mono text-sm text-sky outline-none placeholder:text-mist/80"
+        {...props}
+      />
+    </span>
   );
 }
 
@@ -84,98 +94,89 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <fieldset>
-        <legend>Datos del evento</legend>
-        <Field label="Título" error={errors.title}>
-          {(control) => <input {...control} {...bind("title")} required maxLength={120} />}
+      <FormSection legend="Datos del evento">
+        <Field label="Título" error={errors.title} className="md:col-span-2">
+          {(control) => <Input {...control} {...bind("title")} required maxLength={120} />}
         </Field>
         <Field
-          label="Identificador (slug)"
-          hint={isEditing ? "Cambiarlo cambia el enlace público del evento." : "Déjelo vacío para generarlo desde el título."}
-          error={errors.slug}
+          label="Mensaje de commit"
+          hint="Línea corta en tono de broma, por ejemplo: feat: hackatón 24h"
+          error={errors.commitMessage}
+          className="md:col-span-2"
         >
-          {(control) => <input {...control} {...bind("slug")} maxLength={80} />}
-        </Field>
-        <Field label="Descripción" hint="Hasta 600 caracteres." error={errors.description}>
-          {(control) => <textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
+          {(control) => <CommitInput {...control} {...bind("commitMessage")} maxLength={80} />}
         </Field>
         <Field
           label="Fecha"
           hint="Una fecha futura se muestra como próximo evento; una pasada, como historial."
           error={errors.date}
         >
-          {(control) => <input {...control} {...bind("date")} type="date" />}
-        </Field>
-        <Field label="Tipo" error={errors.type}>
-          {(control) => (
-            <select {...control} {...bind("type")}>
-              <option value="">Sin tipo</option>
-              <option value="taller">Taller</option>
-              <option value="charla">Charla</option>
-              <option value="evento">Evento</option>
-              <option value="comunidad">Comunidad</option>
-            </select>
-          )}
+          {(control) => <Input {...control} {...bind("date")} type="date" />}
         </Field>
         <Field
-          label="Mensaje de commit"
-          hint="Línea corta en tono de broma, por ejemplo: feat: hackatón 24h"
-          error={errors.commitMessage}
+          label="Identificador (slug)"
+          hint={isEditing ? "Cambiarlo cambia el enlace público del evento." : "Déjelo vacío para generarlo desde el título."}
+          error={errors.slug}
         >
-          {(control) => <input {...control} {...bind("commitMessage")} maxLength={80} />}
+          {(control) => <Input {...control} {...bind("slug")} maxLength={80} />}
         </Field>
-      </fieldset>
+        <div className="grid min-w-0 content-start gap-1.5 md:col-span-2">
+          <Segmented
+            legend="Tipo"
+            name="type"
+            value={values.type}
+            options={TYPE_OPTIONS}
+            onChange={(type) => setValues((previous) => ({ ...previous, type }))}
+            aria-describedby={errors.type ? "type-error" : undefined}
+            aria-invalid={errors.type ? true : undefined}
+          />
+          {errors.type ? <FieldError id="type-error">{errors.type}</FieldError> : null}
+        </div>
+        <Field label="Descripción" hint="Hasta 600 caracteres." error={errors.description} className="md:col-span-2">
+          {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
+        </Field>
+      </FormSection>
 
-      <fieldset>
-        <legend>Detalles prácticos (opcionales)</legend>
+      <FormSection legend="Detalles prácticos (opcionales)" className="md:grid-cols-3">
         <Field label="Hora" error={errors.hora}>
-          {(control) => <input {...control} {...bind("hora")} maxLength={80} />}
+          {(control) => <Input {...control} {...bind("hora")} maxLength={80} />}
         </Field>
         <Field label="Lugar" error={errors.lugar}>
-          {(control) => <input {...control} {...bind("lugar")} maxLength={80} />}
+          {(control) => <Input {...control} {...bind("lugar")} maxLength={80} />}
         </Field>
         <Field label="Para quién" error={errors.para}>
-          {(control) => <input {...control} {...bind("para")} maxLength={80} />}
+          {(control) => <Input {...control} {...bind("para")} maxLength={80} />}
         </Field>
-        <Field label="Enlace" hint="Solo https://" error={errors.linkUrl}>
-          {(control) => <input {...control} {...bind("linkUrl")} type="url" inputMode="url" />}
+        <Field label="Enlace" hint="Solo https://" error={errors.linkUrl} className="md:col-span-2">
+          {(control) => <Input {...control} {...bind("linkUrl")} type="url" inputMode="url" />}
         </Field>
         <Field label="Texto del enlace" error={errors.linkLabel}>
-          {(control) => <input {...control} {...bind("linkLabel")} maxLength={80} />}
+          {(control) => <Input {...control} {...bind("linkLabel")} maxLength={80} />}
         </Field>
         <Field
           label="Puntos destacados"
           hint="Uno por línea, hasta 8 de 80 caracteres. Se muestran en el orden indicado."
           error={errors.highlights}
+          className="md:col-span-3"
         >
-          {(control) => <textarea {...control} {...bind("highlights")} rows={4} />}
+          {(control) => <Textarea {...control} {...bind("highlights")} rows={4} />}
         </Field>
-      </fieldset>
+      </FormSection>
 
-      <fieldset>
-        <legend>Publicación</legend>
-        <p className="field">
-          <label>
-            <input type="checkbox" {...toggle("featured")} /> Destacado (foto grande en el sitio)
-          </label>
-        </p>
-        <p className="field">
-          <label>
-            <input type="checkbox" {...toggle("isPublished")} /> Publicado
-          </label>
-          <small className="field-hint">
-            Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización.
-          </small>
-        </p>
-      </fieldset>
+      <FormSection legend="Publicación" className="gap-y-1 md:grid-cols-1">
+        <SwitchField label="Destacado" description="Foto grande en el sitio." {...toggle("featured")} />
+        <SwitchField
+          label="Publicado"
+          description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
+          {...toggle("isPublished")}
+        />
+      </FormSection>
 
-      <div aria-live="polite">
-        {state?.error ? <p role="alert" className="field-error">{state.error}</p> : null}
-        {state?.success ? <p role="status">Cambios guardados.</p> : null}
-      </div>
-      <button type="submit" aria-disabled={isPending || undefined}>
-        {isPending ? "Guardando..." : submitLabel}
-      </button>
+      <ActionBar status={<FormFeedback state={state} />}>
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+          {isPending ? "Guardando…" : submitLabel}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

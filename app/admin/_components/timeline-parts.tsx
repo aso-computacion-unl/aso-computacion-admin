@@ -1,20 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-
-export function StateBadge({ published }: { published: boolean }) {
-  return published ? (
-    <span className="inline-flex h-6 items-center gap-1.25 text-[0.8125rem] leading-none font-semibold text-sky">
-      <Icon name="check" className="size-3.75 stroke-[2.25]" />
-      Publicado
-    </span>
-  ) : (
-    <span className="inline-flex h-6 items-center border border-dashed border-mist/70 px-2 text-[0.8125rem] leading-none font-semibold text-mist">
-      Borrador
-    </span>
-  );
-}
 
 /** A mono tag: a date, a position or a type. `solid` is the signal fill, reserved for what is yet to come. */
 export function Stamp({ children, solid = false, className }: { children: ReactNode; solid?: boolean; className?: string }) {

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-
 import { setEventPublished } from "@/interface/admin/events/actions";
 
-import { resultMessage, useRunAction } from "../../_components/use-run-action";
+import { PublishedToggle } from "../../_components/row-actions";
 
 interface EventPublishedToggleProps {
   eventId: string;
@@ -13,22 +11,5 @@ interface EventPublishedToggleProps {
 }
 
 export function EventPublishedToggle({ eventId, title, isPublished }: EventPublishedToggleProps) {
-  const { pending, result, run } = useRunAction();
-  const [published, setPublished] = useState(isPublished);
-
-  function toggle() {
-    if (pending) return;
-
-    const next = !published;
-    run(() => setEventPublished(eventId, next), () => setPublished(next));
-  }
-
-  return (
-    <>
-      <button type="button" role="switch" aria-checked={published} aria-label={`Publicado: ${title}`} onClick={toggle}>
-        {pending ? "Guardando..." : published ? "Publicado" : "Borrador"}
-      </button>
-      {result?.error ? <small role="alert" className="field-error">{resultMessage(result)}</small> : null}
-    </>
-  );
+  return <PublishedToggle label={title} isPublished={isPublished} action={(next) => setEventPublished(eventId, next)} />;
 }

@@ -76,6 +76,8 @@
 		font-stretch: 100%;
 		line-height: 1.5;
 		letter-spacing: -0.005em;
+		/* Mona Sans sets its spaces tight; bold labels and buttons read as one word without this. */
+		word-spacing: 0.08em;
 		caret-color: var(--color-sky);
 	}
 

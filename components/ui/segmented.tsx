@@ -6,7 +6,7 @@ interface SegmentedOption {
 }
 
 interface SegmentedProps {
-  /** Names the group for assistive tech; the visible heading is the field's own label. */
+  /** The visible label of the group, which is also its accessible name. */
   legend: string;
   name: string;
   value: string;
@@ -21,7 +21,7 @@ interface SegmentedProps {
 export function Segmented({ legend, name, value, options, onChange, className, ...aria }: SegmentedProps) {
   return (
     <fieldset className={cn("min-w-0 border-0 p-0", className)} {...aria}>
-      <legend className="sr-only">{legend}</legend>
+      <legend className="mb-1.5 p-0 text-sm leading-[1.3] font-[650] text-white">{legend}</legend>
       <div className="grid grid-cols-3 overflow-hidden rounded border border-input bg-muted sm:grid-cols-5">
         {options.map((option) => (
           <label key={option.value} className="relative grid min-h-11 cursor-pointer place-items-center">

@@ -121,29 +121,40 @@ interface DeleteButtonProps {
   /** What is lost with the row, shown in the confirmation. */
   warning: string;
   action: () => Promise<ActionResult>;
+  /** Wording for a softer removal than a delete, e.g. "Quitar" for a photo that is kept in storage. */
+  triggerLabel?: string;
+  confirmLabel?: string;
+  note?: string;
 }
 
-export function DeleteButton({ label, warning, action }: DeleteButtonProps) {
+export function DeleteButton({
+  label,
+  warning,
+  action,
+  triggerLabel = "Eliminar",
+  confirmLabel = "Sí, eliminar",
+  note = "No se puede deshacer.",
+}: DeleteButtonProps) {
   const { pending, result, run } = useRunAction();
   const [confirming, setConfirming] = useState(false);
 
   if (!confirming) {
     return (
-      <Button variant="quiet" size="sm" aria-label={`Eliminar: ${label}`} onClick={() => setConfirming(true)}>
+      <Button variant="quiet" size="sm" aria-label={`${triggerLabel}: ${label}`} onClick={() => setConfirming(true)} className="max-sm:min-w-10 max-sm:px-0">
         <Icon name="trash" className="size-4" />
-        Eliminar
+        <span className="max-sm:sr-only">{triggerLabel}</span>
       </Button>
     );
   }
 
   return (
-    <div role="group" aria-label={`Confirmar eliminación de ${label}`} className="grid basis-full gap-3 rounded bg-muted p-3 text-sm">
+    <div role="group" aria-label={`Confirmar: ${triggerLabel.toLowerCase()} ${label}`} className="grid basis-full gap-3 rounded bg-muted p-3 text-sm">
       <p>
-        {warning} <span className="text-mist">No se puede deshacer.</span>
+        {warning} <span className="text-mist">{note}</span>
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action)}>
-          Sí, eliminar
+          {confirmLabel}
         </Button>
         <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>
           No, conservar

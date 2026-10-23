@@ -41,3 +41,15 @@ export function groupEvents<E extends TimelineEvent>(events: readonly E[], today
     past: published.filter((event) => event.date === null || event.date < today),
   };
 }
+
+const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"] as const;
+
+/** "22 oct 2026". Built by hand (no ICU) so it reads the same in every runtime. */
+export function formatEventDate(date: string | null): string {
+  if (date === null) return "Sin fecha";
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const month = match ? MONTHS[Number(match[2]) - 1] : undefined;
+
+  return match && month ? `${Number(match[3])} ${month} ${match[1]}` : date;
+}

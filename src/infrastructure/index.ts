@@ -12,3 +12,4 @@ export { FaqPrismaRepository } from "./repositories/faq-prisma.repository";
 export { SocialLinkPrismaRepository } from "./repositories/social-link-prisma.repository";
 export { PillarPrismaRepository } from "./repositories/pillar-prisma.repository";
 export { SiteSettingsPrismaRepository } from "./repositories/site-settings-prisma.repository";
+export { BoardMemberPrismaRepository } from "./repositories/board-member-prisma.repository";

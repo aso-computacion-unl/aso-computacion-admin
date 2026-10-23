@@ -309,6 +309,22 @@ describe("EventPhotoPrismaRepository (integration)", () => {
     expect(list.map((photo) => photo.props.publicId)).toEqual(["first", "second"]);
   });
 
+  it("lists the active photos of several events in one call, each in gallery order, leaving out events with none", async () => {
+    const [one, two, empty] = [await newEvent(), await newEvent(), await newEvent()];
+    await repository.add(photoFor(one, "one-a", 0), 12);
+    const hidden = await repository.add(photoFor(one, "one-hidden", 0), 12);
+    await repository.add(photoFor(one, "one-b", 0), 12);
+    await repository.update(hidden.deactivate());
+    await repository.add(photoFor(two, "two-a", 0), 12);
+
+    const grouped = await repository.listActiveByEventIds([one, two, empty]);
+
+    expect([...grouped.keys()].sort()).toEqual([one, two].sort());
+    expect(grouped.get(one)?.map((photo) => photo.props.publicId)).toEqual(["one-a", "one-b"]);
+    expect(grouped.get(two)?.map((photo) => photo.props.publicId)).toEqual(["two-a"]);
+    expect((await repository.listActiveByEventIds([])).size).toBe(0);
+  });
+
   it("appends each photo after the last active one, ignoring the caller's sortOrder", async () => {
     const eventId = await newEvent();
 

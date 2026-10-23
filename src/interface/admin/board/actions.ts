@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
 
 import { requireAdminSession } from "../../auth/require-admin-session";
@@ -26,6 +27,7 @@ export async function createBoardMember(_prevState: ActionResult | null, formDat
     return mapActionError(error);
   }
 
+  requestSiteRebuild();
   revalidatePath(LIST_PATH);
   // The photo needs an existing member, so creating continues on its edit page.
   redirect(editPath(id));
@@ -35,6 +37,7 @@ export async function updateBoardMember(id: string, _prevState: ActionResult | n
   try {
     await requireAdminSession();
     await getBoardMemberUseCases().update.execute({ id, ...parseBoardMemberFormData(formData) });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -47,6 +50,7 @@ export async function setBoardMemberPublished(id: string, isPublished: boolean):
   try {
     await requireAdminSession();
     await getBoardMemberUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -59,6 +63,7 @@ export async function deleteBoardMember(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
     await getBoardMemberUseCases().delete.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -75,6 +80,7 @@ export async function moveBoardMember(id: string, direction: "up" | "down"): Pro
     }
 
     await getBoardMemberUseCases().move.execute({ id, direction });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
@@ -93,6 +99,7 @@ export async function uploadBoardMemberPhoto(id: string, _prevState: ActionResul
     await assertValidImageSignature(file);
 
     await getBoardMemberUseCases().setPhoto.execute({ id, file, alt: String(formData.get("photoAlt") ?? "") });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };
@@ -105,6 +112,7 @@ export async function removeBoardMemberPhoto(id: string): Promise<ActionResult> 
   try {
     await requireAdminSession();
     await getBoardMemberUseCases().removePhoto.execute({ id });
+    requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

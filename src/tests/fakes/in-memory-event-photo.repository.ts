@@ -19,6 +19,18 @@ export class InMemoryEventPhotoRepository implements EventPhotoRepository {
       .sort((a, b) => a.props.sortOrder - b.props.sortOrder || a.props.createdAt.getTime() - b.props.createdAt.getTime());
   }
 
+  async listActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, EventPhoto[]>> {
+    const grouped = new Map<string, EventPhoto[]>();
+
+    for (const eventId of eventIds) {
+      const active = await this.listActiveByEventId(eventId);
+
+      if (active.length > 0) grouped.set(eventId, active);
+    }
+
+    return grouped;
+  }
+
   async countActiveByEventIds(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>> {
     const counts = new Map<string, number>();
 

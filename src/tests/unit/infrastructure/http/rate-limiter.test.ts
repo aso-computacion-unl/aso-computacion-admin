@@ -1,16 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import {
+  FixedWindowRateLimiter,
   PUBLIC_RATE_LIMIT_MAX_REQUESTS,
   PUBLIC_RATE_LIMIT_WINDOW_MS,
-  checkPublicRateLimit,
-  resetPublicRateLimiter,
 } from "@/infrastructure/http/rate-limiter";
 
-afterEach(() => {
-  resetPublicRateLimiter();
+// A fresh module per test: the shared limiter keeps its state in the module.
+let checkPublicRateLimit: typeof import("@/infrastructure/http/rate-limiter").checkPublicRateLimit;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ checkPublicRateLimit } = await import("@/infrastructure/http/rate-limiter"));
 });
 
 const KEY = "203.0.113.7";
@@ -61,5 +64,65 @@ describe("public rate limiter", () => {
     const later = checkPublicRateLimit(KEY, T0 + 2000).retryAfterSeconds;
 
     expect(later).toBeLessThanOrEqual(early);
+  });
+});
+
+describe("FixedWindowRateLimiter memory bound", () => {
+  const WINDOW = 1_000;
+  const limiter = (maxKeys: number) => new FixedWindowRateLimiter({ maxRequests: 2, windowMs: WINDOW, maxKeys });
+
+  it("drops the records of windows that have elapsed, so idle clients do not pile up", () => {
+    const rateLimiter = limiter(100);
+
+    for (let client = 0; client < 50; client += 1) rateLimiter.check(`client-${client}`, T0);
+    expect(rateLimiter.size).toBe(50);
+
+    rateLimiter.check("late-client", T0 + WINDOW + 1);
+
+    expect(rateLimiter.size).toBe(1);
+  });
+
+  it("keeps the records of windows still open when it sweeps", () => {
+    const rateLimiter = limiter(100);
+
+    rateLimiter.check("early", T0);
+    rateLimiter.check("recent", T0 + WINDOW - 1);
+    rateLimiter.check("late", T0 + WINDOW + 1);
+
+    expect(rateLimiter.size).toBe(2);
+    expect(rateLimiter.check("recent", T0 + WINDOW + 2).allowed).toBe(true);
+    expect(rateLimiter.check("recent", T0 + WINDOW + 3).allowed).toBe(false);
+  });
+
+  it("caps the number of tracked clients inside one window, evicting the oldest first", () => {
+    const rateLimiter = limiter(3);
+
+    for (let client = 0; client < 10; client += 1) rateLimiter.check(`client-${client}`, T0 + client);
+
+    expect(rateLimiter.size).toBe(3);
+    // The newest clients are still throttled; the evicted oldest one starts over.
+    rateLimiter.check("client-9", T0 + 20);
+    expect(rateLimiter.check("client-9", T0 + 21).allowed).toBe(false);
+    expect(rateLimiter.check("client-0", T0 + 22).allowed).toBe(true);
+  });
+
+  it("still throttles a client that keeps hitting the endpoint while others come and go", () => {
+    const rateLimiter = limiter(3);
+
+    rateLimiter.check("noisy", T0);
+    rateLimiter.check("noisy", T0 + 1);
+    for (let client = 0; client < 2; client += 1) rateLimiter.check(`other-${client}`, T0 + 2 + client);
+
+    expect(rateLimiter.check("noisy", T0 + 5).allowed).toBe(false);
+  });
+
+  it("has a default bound for the shared public limiter", async () => {
+    const { publicRateLimiter, PUBLIC_RATE_LIMIT_MAX_TRACKED_CLIENTS } = await import("@/infrastructure/http/rate-limiter");
+
+    for (let client = 0; client < PUBLIC_RATE_LIMIT_MAX_TRACKED_CLIENTS + 50; client += 1) {
+      publicRateLimiter.check(`client-${client}`, T0);
+    }
+
+    expect(publicRateLimiter.size).toBe(PUBLIC_RATE_LIMIT_MAX_TRACKED_CLIENTS);
   });
 });

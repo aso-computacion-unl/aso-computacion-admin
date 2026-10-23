@@ -118,8 +118,3 @@ export function reportUnknownLoginClient(): void {
     'No client IP header on a login request (not running behind Vercel?): every such request shares one "unknown" throttle bucket.',
   );
 }
-
-/** Test-only helper to re-arm the report-once latch. */
-export function resetUnknownLoginClientReport(): void {
-  hasReportedUnknownLoginClient = false;
-}

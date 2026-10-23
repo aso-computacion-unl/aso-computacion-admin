@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
+
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { parseSiteSettingsFormData } from "./settings-form-data";
@@ -23,6 +25,7 @@ export async function updateSiteSettings(_prevState: ActionResult | null, formDa
   try {
     await requireAdminSession();
     await getSiteSettingsUseCases().update.execute(parseSiteSettingsFormData(formData));
+    requestSiteRebuild();
     revalidatePath(PAGE_PATH);
     return { success: true };
   } catch (error) {

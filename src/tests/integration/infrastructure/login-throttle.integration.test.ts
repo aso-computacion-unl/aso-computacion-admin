@@ -24,10 +24,12 @@ vi.mock("next/headers", () => ({
 }));
 
 import { KNOWN_DEVICE_COOKIE_NAME, deviceThrottleKey, signKnownDevice, verifyKnownDevice } from "@/infrastructure/auth/known-device";
-import { resetAdminPasswordMisconfigurationReport } from "@/infrastructure/auth/password";
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { prisma } from "@/infrastructure/prisma/client";
-import { login } from "@/interface/auth/actions";
+
+// A fresh action module per test: the ADMIN_PASSWORD "reported once" latch lives in the module graph.
+// (The Prisma client is a process-wide singleton, so re-importing does not open new connections.)
+let login: typeof import("@/interface/auth/actions").login;
 
 const PASSWORD = "correct horse battery staple";
 const THROTTLED = { error: "Demasiados intentos. Intente de nuevo más tarde." };
@@ -44,10 +46,11 @@ function fromIp(ip: string | null) {
 
 // The real login action against the real Postgres throttle: only next/* is stubbed.
 describe("login action with the Postgres throttle", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ login } = await import("@/interface/auth/actions"));
     vi.clearAllMocks();
     cookieJar.clear();
-    resetAdminPasswordMisconfigurationReport();
     vi.stubEnv("ADMIN_PASSWORD", PASSWORD);
     vi.stubEnv("ADMIN_SECRET", "z".repeat(32));
   });

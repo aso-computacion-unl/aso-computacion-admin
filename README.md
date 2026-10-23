@@ -37,6 +37,8 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
+| `CLOUDFLARE_DEPLOY_HOOK_URL` | Optional. Cloudflare Pages deploy hook (`https` only; the token is part of the path, treat it as a secret and it is never logged). POSTed after every successful admin mutation so the landing rebuilds. Unset: one `info` line per process and no rebuilds (the daily cron is then the only trigger). See "Landing rebuilds" |
+| `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |
 | `CLOUDINARY_FOLDER` | Optional base folder for uploads; defaults to `aso-computacion`. Each feature uploads into its own subfolder (e.g. `aso-computacion/events`) |
 
 ## Image uploads
@@ -78,6 +80,39 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 ## Site settings
 
 `/admin/settings` ("Sitio") edits the landing's site texts: a tagline (1–120 characters), a description (1–300) and the "about" text (1–600). They are a singleton: one row whose id is always `site` (enforced by a `CHECK` in the migration), created on the first save and replaced on every later one. Until the first save there is no row and the form starts empty: the read returns `null`, not invented defaults, because the landing keeps its own copy of these texts as the fallback. The hero, manifesto and join copy stay in the landing code for now.
+
+## Public read API
+
+`GET /api/public/content` is what the landing fetches at build time: one JSON snapshot of the **published** content in display order. It needs no session (it is outside the middleware matcher on purpose; `route-protection.test.ts` fails if any other route is reachable without a session) and it only reads.
+
+```jsonc
+{
+  "version": 1,                       // shape version of this document
+  "generatedAt": "2026-10-22T16:00:00.000Z",
+  "events":   [{ "slug", "title", "description", "date", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
+  "faqs":     [{ "question", "answer" }],
+  "pillars":  [{ "word", "title", "text", "image": { "url", "width", "height", "alt" } | null }],
+  "socials":  [{ "platform", "label", "handle", "url", "note", "blurb" }],
+  "board":    [{ "name", "role", "photo": { "url", "width", "height", "alt" } }],
+  "settings": { "tagline", "description", "about" } | null   // null until first saved: the landing keeps its fallback
+}
+```
+
+- Events come newest date first (undated last) with only their active photos in gallery order; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
+- Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
+- `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.
+- CORS: `PUBLIC_CORS_ORIGINS` is an allowlist of exact origins (`https://host[:port]`; plain `http` only for `localhost`/`127.0.0.1`). The request's origin is echoed only when listed, never `*`, always with `Vary: Origin`; an entry with a path, wildcard or trailing slash is ignored and logged once. `OPTIONS` answers the preflight. No credentials are ever allowed.
+- Rate limit: 60 requests per minute per client (in memory, per instance), 429 beyond that. The map of clients is bounded (swept once per window, at most 10 000 tracked, oldest evicted first).
+- Errors: any failure answers a generic `503 {"error":"Service unavailable"}` with `Cache-Control: no-store`; the cause is only logged on the server.
+- Image URLs (`photos[].url`, `pillars[].image.url`, `board[].photo`) are Cloudinary delivery URLs, so they contain the cloud name and the asset's `publicId` in the path. Both are public by design (they are needed to display the image) and neither lets anyone upload, change or delete anything; it is the API key and secret that must stay private. Do not treat these URLs as unguessable: an unpublished image whose URL leaked stays reachable until its asset is destroyed.
+
+## Landing rebuilds
+
+Every successful admin mutation (events and their photos, FAQ, pillars, socials, board, settings) calls `requestSiteRebuild()` after the write, which POSTs `CLOUDFLARE_DEPLOY_HOOK_URL`. It is best effort: it only schedules, never awaits the network and never throws, so it cannot fail or slow the mutation. A failed mutation never fires it (`deploy-hook-actions.test.ts` checks all 33 actions: fired once after the write, not fired on failure or without a session).
+
+- **Coalescing.** A trailing debounce: each call restarts an 8 s quiet window and the hook is POSTed once, 8 s after the last edit, but never later than 15 s after the first edit of the burst (max wait), so a long editing session cannot keep the invocation open past `maxDuration`. Reordering photos or editing several fields is one build, not one per click. The window is longer than the 5 s edge cache of the public route, so the build reads fresh data. The POST has a 5 s timeout; failures and non-2xx answers are logged as warnings (without the URL).
+- **Why in process, and the Vercel caveat.** No extra table or queue for a handful of editors. But state is per instance, and a serverless instance may be frozen between requests. So the action registers the wait with `after()` (Next 15), which keeps the invocation alive until the window has elapsed and the hook was called; `app/admin/layout.tsx` sets `maxDuration = 30` so an upload plus the longest wait (15 s) and the hook call (5 s timeout) fits. If an instance is still recycled mid-window, or two instances each debounce their own edit (two builds), the cost is a lost or duplicated rebuild, never a wrong page: the daily rebuild cron is the safety net. On a long-lived server (Render, `next start`) the timer simply runs.
+- An edit of an unpublished draft also asks for a rebuild: the action cannot tell cheaply that nothing public changed, and the debounce makes it harmless.
 
 ## Login throttle
 

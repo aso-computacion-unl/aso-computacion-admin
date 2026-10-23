@@ -3,6 +3,10 @@ import type { ReactNode } from "react";
 
 import { logout } from "@/interface/auth/actions";
 
+// Server actions run in the page's function. After a mutation `after()` holds it open while the
+// landing rebuild debounces (deploy-hook.ts), so the default 10 s would cut it short.
+export const maxDuration = 30;
+
 interface AdminLayoutProps {
   children: ReactNode;
 }

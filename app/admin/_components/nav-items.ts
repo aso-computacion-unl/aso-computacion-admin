@@ -8,9 +8,10 @@ export interface NavItem {
   action?: { href: string; label: string };
 }
 
-/** The six content modules, in the order the board uses them most. Home is reached from the logo. */
+/** The seven content modules, in the order the board uses them most. Home is reached from the logo. */
 export const MODULE_NAV: readonly NavItem[] = [
   { href: "/admin/events", label: "Eventos", icon: "events", action: { href: "/admin/events/new", label: "Nuevo evento" } },
+  { href: "/admin/news", label: "Novedades", icon: "news", action: { href: "/admin/news/new", label: "Nueva noticia" } },
   { href: "/admin/faqs", label: "FAQ", icon: "faq", action: { href: "/admin/faqs/new", label: "Nueva pregunta" } },
   { href: "/admin/board", label: "Directiva", icon: "board", action: { href: "/admin/board/new", label: "Agregar integrante" } },
   { href: "/admin/pillars", label: "Pilares", icon: "pillars", action: { href: "/admin/pillars/new", label: "Nuevo pilar" } },
@@ -21,7 +22,7 @@ export const MODULE_NAV: readonly NavItem[] = [
 export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home" };
 
 /** The modules on the phone's tab bar, in tab order: the ones the board uses after every event. */
-const TAB_HREFS = ["/admin/events", "/admin/board", "/admin/faqs"];
+const TAB_HREFS = ["/admin/events", "/admin/news", "/admin/board", "/admin/faqs"];
 
 export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NAV.filter((item) => item.href === href));
 

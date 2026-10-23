@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { getAdminFaqs } from "@/interface/admin/faqs/faqs-admin-read";
+import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
@@ -35,8 +36,9 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
     }
   };
 
-  const [events, faqs, board, pillars, socials] = await Promise.all([
+  const [events, news, faqs, board, pillars, socials] = await Promise.all([
     describe(getAdminEvents),
+    describe(getAdminNewsItems),
     describe(getAdminFaqs),
     describe(getAdminBoardMembers),
     describe(getAdminPillars),
@@ -45,6 +47,7 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
 
   return {
     "/admin/events": events,
+    "/admin/news": news,
     "/admin/faqs": faqs,
     "/admin/board": board,
     "/admin/pillars": pillars,

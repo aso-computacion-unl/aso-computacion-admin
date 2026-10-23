@@ -48,36 +48,63 @@ export function Panel({ className, children, ...props }: ComponentProps<"section
   );
 }
 
-interface FormPageProps {
+interface FormFrameProps {
   backHref: string;
   backLabel: string;
   title: string;
   meta?: ReactNode;
-  /** The right column on lg+: photos, the image panel, a preview. Below lg it stacks under the form. */
-  aside?: ReactNode;
   children: ReactNode;
 }
 
-/**
- * The frame of every create/edit page: back link, title, the form on the left and, when there is
- * one, the side column on the right (a sticky save bar inside the form keeps working in both).
- * Without a side column the form keeps a readable width instead of stretching across the screen.
- */
-export function FormPage({ backHref, backLabel, title, meta, aside, children }: FormPageProps) {
+/** The head of every create/edit page: back link and title. */
+export function FormFrame({ backHref, backLabel, title, meta, children }: FormFrameProps) {
   return (
     <div>
       <BackLink href={backHref}>{backLabel}</BackLink>
       <PageHead title={title} meta={meta} />
-      <div
-        className={cn(
-          "mt-6 grid items-start gap-6",
-          aside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_26rem]" : "max-w-4xl",
-        )}
-      >
-        <div className="grid min-w-0 gap-6">{children}</div>
-        {aside ? <div className="grid min-w-0 gap-6">{aside}</div> : null}
-      </div>
+      {children}
     </div>
+  );
+}
+
+interface FormColumnsProps {
+  /** The right column on lg+: photos, the image panel, a preview. Below lg it stacks under the form. */
+  aside?: ReactNode;
+  /** Let the right column span the form's height, so a panel inside it can stick while the form scrolls. */
+  stickyAside?: boolean;
+  children: ReactNode;
+}
+
+/**
+ * The form on the left and, when there is one, the side column on the right (a sticky save bar
+ * inside the form keeps working in both). Without a side column the form keeps a readable width
+ * instead of stretching across the screen.
+ */
+export function FormColumns({ aside, stickyAside = false, children }: FormColumnsProps) {
+  return (
+    <div
+      className={cn(
+        "mt-6 grid items-start gap-6",
+        aside ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_26rem]" : "max-w-4xl",
+      )}
+    >
+      <div className="grid min-w-0 gap-6">{children}</div>
+      {aside ? <div className={cn("grid min-w-0 content-start gap-6", stickyAside && "lg:self-stretch")}>{aside}</div> : null}
+    </div>
+  );
+}
+
+interface FormPageProps extends Omit<FormFrameProps, "children"> {
+  aside?: ReactNode;
+  children: ReactNode;
+}
+
+/** The frame of every create/edit page: the head, then the form column and its optional side column. */
+export function FormPage({ aside, children, ...frame }: FormPageProps) {
+  return (
+    <FormFrame {...frame}>
+      <FormColumns aside={aside}>{children}</FormColumns>
+    </FormFrame>
   );
 }
 

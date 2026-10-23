@@ -66,8 +66,8 @@ interface MoveButtonsProps {
   isFirst: boolean;
   isLast: boolean;
   /** 1-based place in the list, announced after a move. */
-  position?: number;
-  total?: number;
+  position: number;
+  total: number;
   action: (direction: "up" | "down") => Promise<ActionResult>;
 }
 
@@ -88,7 +88,7 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
     const target = preferred.current && !preferred.current.disabled ? preferred.current : other.current;
 
     target?.focus();
-    setAnnouncement(position && total ? `${label}: posición ${position} de ${total}.` : "");
+    setAnnouncement(`${label}: posición ${position} de ${total}.`);
     setMoved(null);
   }, [moved, pending, label, position, total]);
 
@@ -123,6 +123,10 @@ interface DeleteButtonProps {
   action: () => Promise<ActionResult>;
   /** Wording for a softer removal than a delete, e.g. "Quitar" for a photo that is kept in storage. */
   triggerLabel?: string;
+  /** Extra classes for the trigger, e.g. a negative margin to align it with the text above. */
+  triggerClassName?: string;
+  /** In a crowded row the trigger shrinks to its icon on a phone; set false where there is room for the word. */
+  compactOnMobile?: boolean;
   confirmLabel?: string;
   note?: string;
 }
@@ -132,6 +136,8 @@ export function DeleteButton({
   warning,
   action,
   triggerLabel = "Eliminar",
+  triggerClassName,
+  compactOnMobile = true,
   confirmLabel = "Sí, eliminar",
   note = "No se puede deshacer.",
 }: DeleteButtonProps) {
@@ -140,9 +146,9 @@ export function DeleteButton({
 
   if (!confirming) {
     return (
-      <Button variant="quiet" size="sm" aria-label={`${triggerLabel}: ${label}`} onClick={() => setConfirming(true)} className="max-sm:min-w-10 max-sm:px-0">
+      <Button variant="quiet" size="sm" aria-label={`${triggerLabel}: ${label}`} onClick={() => setConfirming(true)} className={cn(compactOnMobile && "max-sm:min-w-10 max-sm:px-0", triggerClassName)}>
         <Icon name="trash" className="size-4" />
-        <span className="max-sm:sr-only">{triggerLabel}</span>
+        <span className={cn(compactOnMobile && "max-sm:sr-only")}>{triggerLabel}</span>
       </Button>
     );
   }

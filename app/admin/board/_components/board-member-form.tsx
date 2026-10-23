@@ -1,8 +1,11 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SwitchField } from "@/components/ui/switch";
 import type { ActionResult } from "@/interface/admin/action-result";
 
-import { Field, FormFeedback } from "../../_components/form-parts";
+import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 export interface BoardMemberFormValues {
@@ -27,37 +30,37 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Field label="Nombre" hint="El nombre que se muestra en el sitio público. Hasta 60 caracteres." error={errors.name}>
-        {(control) => <input {...control} {...bind("name")} required maxLength={60} />}
-      </Field>
-      <Field label="Cargo" hint="Por ejemplo «Presidente». Hasta 60 caracteres." error={errors.role}>
-        {(control) => <input {...control} {...bind("role")} required maxLength={60} />}
-      </Field>
+    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+      <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+        <Field label="Nombre" hint="El nombre que se muestra en el sitio público. Hasta 60 caracteres." error={errors.name}>
+          {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
+        </Field>
+        <Field label="Cargo" hint="Por ejemplo «Presidente». Hasta 60 caracteres." error={errors.role}>
+          {(control) => <Input {...control} {...bind("role")} required maxLength={60} />}
+        </Field>
+      </div>
       {hasPhoto ? (
         <Field label="Descripción de la foto" hint="Obligatoria, para accesibilidad. Hasta 200 caracteres." error={errors.photoAlt}>
-          {(control) => <input {...control} {...bind("photoAlt")} required maxLength={200} />}
+          {(control) => <Input {...control} {...bind("photoAlt")} required maxLength={200} />}
         </Field>
       ) : null}
-      <p className="field">
-        <label>
-          <input type="checkbox" {...toggle("isPublished")} /> Publicado
-        </label>
-        <small className="field-hint">
-          {hasPhoto
-            ? "Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
-            : "Sin foto no se puede publicar: suba la foto primero."}
-        </small>
-        {errors.photo ? (
-          <small role="alert" className="field-error">
-            {errors.photo}
-          </small>
-        ) : null}
-      </p>
-      <FormFeedback state={state} />
-      <button type="submit" aria-disabled={isPending || undefined}>
-        {isPending ? "Guardando..." : submitLabel}
-      </button>
+      <div className="grid gap-1">
+        <SwitchField
+          label="Publicado"
+          description={
+            hasPhoto
+              ? "Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
+              : "Sin foto no se puede publicar: suba la foto primero."
+          }
+          {...toggle("isPublished")}
+        />
+        {errors.photo ? <FieldError>{errors.photo}</FieldError> : null}
+      </div>
+      <ActionBar status={<FormFeedback state={state} />}>
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+          {isPending ? "Guardando…" : submitLabel}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

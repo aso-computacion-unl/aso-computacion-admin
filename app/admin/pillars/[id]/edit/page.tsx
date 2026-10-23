@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { updatePillar } from "@/interface/admin/pillars/actions";
 import { getAdminPillar } from "@/interface/admin/pillars/pillars-admin-read";
 
+import { FormPage, Panel } from "../../../_components/page-head";
 import { PillarForm } from "../../_components/pillar-form";
 import { PillarImagePanel } from "../../_components/pillar-image-panel";
 
@@ -20,26 +20,24 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
   if (!pillar) notFound();
 
   return (
-    <section>
-      <p>
-        <Link href="/admin/pillars">← Volver a pilares</Link>
-      </p>
-      <h1>Editar pilar</h1>
+    <FormPage backHref="/admin/pillars" backLabel="Volver a pilares" title="Editar pilar">
       {/* Keyed by the image so the alt field and the panel start fresh after a replace or remove. */}
-      <PillarForm
-        key={pillar.image?.url ?? "no-image"}
-        action={updatePillar.bind(null, id)}
-        submitLabel="Guardar cambios"
-        hasImage={pillar.image !== null}
-        initialValues={{
-          word: pillar.word,
-          title: pillar.title,
-          text: pillar.text,
-          imageAlt: pillar.image?.alt ?? "",
-          isPublished: pillar.isPublished,
-        }}
-      />
+      <Panel>
+        <PillarForm
+          key={pillar.image?.url ?? "no-image"}
+          action={updatePillar.bind(null, id)}
+          submitLabel="Guardar cambios"
+          hasImage={pillar.image !== null}
+          initialValues={{
+            word: pillar.word,
+            title: pillar.title,
+            text: pillar.text,
+            imageAlt: pillar.image?.alt ?? "",
+            isPublished: pillar.isPublished,
+          }}
+        />
+      </Panel>
       <PillarImagePanel key={pillar.image?.url ?? "no-image"} pillarId={id} image={pillar.image} />
-    </section>
+    </FormPage>
   );
 }

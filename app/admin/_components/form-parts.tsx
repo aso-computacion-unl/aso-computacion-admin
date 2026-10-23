@@ -77,7 +77,7 @@ export function FormFeedback({ state }: { state: ActionResult | null }) {
  */
 export function ActionBar({ status, children }: { status: ReactNode; children: ReactNode }) {
   return (
-    <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 -mx-4 mt-8 grid gap-3 bg-muted px-4 py-3.5 shadow-[0_-1px_0_var(--color-border)] md:-mx-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-6 md:px-5 lg:bottom-0 lg:-mb-5 lg:rounded-b">
+    <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 -mx-4 mt-4 grid gap-3 bg-muted px-4 py-3.5 shadow-[0_-1px_0_var(--color-border)] md:-mx-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-6 md:px-5 lg:bottom-0 lg:-mb-5 lg:rounded-b">
       {status}
       <div className="flex flex-wrap justify-end gap-2 [&>*]:flex-1 md:[&>*]:flex-none">{children}</div>
     </div>

@@ -1,8 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SwitchField } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
 
-import { Field, FormFeedback } from "../../_components/form-parts";
+import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 export interface PillarFormValues {
@@ -27,33 +31,33 @@ export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_F
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Field label="Palabra" hint="La palabra grande de la tarjeta, por ejemplo «VOZ». Hasta 20 caracteres." error={errors.word}>
-        {(control) => <input {...control} {...bind("word")} required maxLength={20} />}
-      </Field>
-      <Field label="Título" hint="Hasta 60 caracteres." error={errors.title}>
-        {(control) => <input {...control} {...bind("title")} required maxLength={60} />}
-      </Field>
+    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+      <div className="grid gap-x-4 gap-y-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Field label="Palabra" hint="La palabra grande de la tarjeta, por ejemplo «VOZ». Hasta 20 caracteres." error={errors.word}>
+          {(control) => <Input {...control} {...bind("word")} required maxLength={20} />}
+        </Field>
+        <Field label="Título" hint="Hasta 60 caracteres." error={errors.title}>
+          {(control) => <Input {...control} {...bind("title")} required maxLength={60} />}
+        </Field>
+      </div>
       <Field label="Texto" hint="Hasta 300 caracteres." error={errors.text}>
-        {(control) => <textarea {...control} {...bind("text")} rows={4} required maxLength={300} />}
+        {(control) => <Textarea {...control} {...bind("text")} rows={4} required maxLength={300} />}
       </Field>
       {hasImage ? (
         <Field label="Descripción de la imagen" hint="Obligatoria, para accesibilidad. Hasta 200 caracteres." error={errors.imageAlt}>
-          {(control) => <input {...control} {...bind("imageAlt")} required maxLength={200} />}
+          {(control) => <Input {...control} {...bind("imageAlt")} required maxLength={200} />}
         </Field>
       ) : null}
-      <p className="field">
-        <label>
-          <input type="checkbox" {...toggle("isPublished")} /> Publicado
-        </label>
-        <small className="field-hint">
-          Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización.
-        </small>
-      </p>
-      <FormFeedback state={state} />
-      <button type="submit" aria-disabled={isPending || undefined}>
-        {isPending ? "Guardando..." : submitLabel}
-      </button>
+      <SwitchField
+        label="Publicado"
+        description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
+        {...toggle("isPublished")}
+      />
+      <ActionBar status={<FormFeedback state={state} />}>
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+          {isPending ? "Guardando…" : submitLabel}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

@@ -61,6 +61,8 @@ model Faq {
   id          String   @id
   question    String
   answer      String
+  /// Optional `git help <command>` topic; unique among FAQs (the application also keeps it apart from free commands).
+  command     String?  @unique
   sortOrder   Int
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())

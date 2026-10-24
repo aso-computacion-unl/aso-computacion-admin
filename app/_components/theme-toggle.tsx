@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { nextTheme, THEME_COLOR, THEME_KEY, type Theme } from "@/interface/theme/theme";
 
 /** The pre-paint script writes the theme on `<html>`; every toggle on the page reads it from there. */
@@ -30,9 +31,9 @@ interface ThemeToggleProps {
 }
 
 /**
- * Light/dark switch. `aria-pressed` is "dark mode is on". The icon is the theme the button switches to,
- * sun while dark and moon while light; both are in the markup and CSS picks one, so there is no flicker
- * before hydration.
+ * Light/dark switch, named by what it does: "Modo claro" with a sun while dark, "Modo oscuro" with a
+ * moon while light. Both labels and icons are in the markup and CSS shows the current theme's pair (the
+ * hidden one is `display: none`, so screen readers get the same name), with no flicker before hydration.
  */
 export function ThemeToggle({ showLabel = false, className }: ThemeToggleProps) {
   const theme = useSyncExternalStore(subscribe, currentTheme, () => "dark" as Theme);
@@ -60,15 +61,14 @@ export function ThemeToggle({ showLabel = false, className }: ThemeToggleProps) 
       variant="quiet"
       size={showLabel ? "default" : "icon"}
       data-theme-toggle
-      aria-pressed={theme === "dark"}
-      aria-label={showLabel ? undefined : "Modo oscuro"}
-      title={showLabel ? undefined : "Modo oscuro"}
+      title={showLabel ? undefined : "Cambiar tema"}
       onClick={toggle}
       className={className}
     >
       <Icon name="sun" className="theme-dark-only" />
       <Icon name="moon" className="theme-light-only" />
-      {showLabel ? <span>Modo oscuro</span> : null}
+      <span className={cn(!showLabel && "sr-only", "theme-dark-only")}>Modo claro</span>
+      <span className={cn(!showLabel && "sr-only", "theme-light-only")}>Modo oscuro</span>
     </Button>
   );
 }

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { THEME_COLOR, THEME_INIT_SCRIPT } from "@/interface/theme/theme";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,14 +12,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#03224a",
-  colorScheme: "dark",
+  themeColor: THEME_COLOR.dark,
   viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es">
+    // The pre-paint script sets data-theme on <html> before React hydrates, hence suppressHydrationWarning.
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

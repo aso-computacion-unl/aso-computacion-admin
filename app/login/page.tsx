@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 
-import logo from "@/components/brand/logo.svg";
 import { login } from "@/interface/auth/actions";
+
+import { BrandLogo } from "../_components/brand-mark";
+import { ThemeToggle } from "../_components/theme-toggle";
 
 import { LoginForm } from "./_components/login-form";
 
@@ -13,9 +14,10 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="grid min-h-screen place-items-center px-6 py-10">
+    <main className="relative grid min-h-screen place-items-center px-6 py-10">
+      <ThemeToggle className="absolute top-3 right-3" />
       <div className="w-full max-w-sm">
-        <Image src={logo} alt="ASO Computación" width={168} priority className="mb-10 h-auto w-42" />
+        <BrandLogo alt="ASO Computación" width={168} className="mb-10 h-auto w-42" />
 
         {/* The landing's branch line, with the page title as its first commit. */}
         <section aria-labelledby="login-title" className="relative border-l-2 border-sky pb-2 pl-7">

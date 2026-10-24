@@ -8,7 +8,10 @@ export default defineConfig({
   // components written in JSX (no React import) stay unit-testable.
   esbuild: { jsx: "automatic" },
   resolve: {
+    // Mirrors the `paths` in tsconfig.json; the more specific aliases come first.
     alias: {
+      "@/components": path.resolve(__dirname, "./components"),
+      "@/lib": path.resolve(__dirname, "./lib"),
       "@": path.resolve(__dirname, "./src"),
     },
   },

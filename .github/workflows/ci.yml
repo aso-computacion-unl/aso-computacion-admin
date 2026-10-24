@@ -26,7 +26,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
+      - run: npm run postinstall
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -46,5 +48,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
+      - run: npm run postinstall
       - run: npm run test:integration

@@ -51,6 +51,9 @@ export type { CommandNameOwner, CommandNameRegistry } from "./ports/command-name
 export { assertCommandNameFree } from "./use-cases/assert-command-name-free";
 export { CreateFaqUseCase } from "./use-cases/create-faq.use-case";
 export { UpdateFaqUseCase } from "./use-cases/update-faq.use-case";
+export type { TerminalCommandResult } from "./dto/terminal-command-result.dto";
+export { CreateTerminalCommandUseCase } from "./use-cases/create-terminal-command.use-case";
+export { UpdateTerminalCommandUseCase } from "./use-cases/update-terminal-command.use-case";
 export type { SocialLinkResult } from "./dto/social-link-result.dto";
 export { CreateSocialLinkUseCase } from "./use-cases/create-social-link.use-case";
 export { UpdateSocialLinkUseCase } from "./use-cases/update-social-link.use-case";

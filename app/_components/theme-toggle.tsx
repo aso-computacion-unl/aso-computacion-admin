@@ -38,7 +38,8 @@ export function ThemeToggle({ showLabel = false, className }: ThemeToggleProps) 
   const theme = useSyncExternalStore(subscribe, currentTheme, () => "dark" as Theme);
 
   // The inline script may run before the theme-color tag exists; keep the browser chrome in step once mounted.
-  useEffect(() => applyThemeColor(theme), [theme]);
+  // Read the DOM, not `theme`: during hydration `theme` is still the server snapshot ("dark").
+  useEffect(() => applyThemeColor(currentTheme()), [theme]);
 
   function toggle() {
     const next = nextTheme(currentTheme());

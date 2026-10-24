@@ -64,6 +64,7 @@ const FIELD_MESSAGES: Record<string, string> = {
 // NotFoundError texts by entity; anything else keeps the generic event/photo wording.
 const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Faq not found": "No se encontró la pregunta frecuente.",
+  "Terminal command not found": "No se encontró el comando.",
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
   "Board member not found": "No se encontró al integrante de la directiva.",

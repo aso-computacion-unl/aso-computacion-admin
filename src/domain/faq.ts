@@ -1,3 +1,4 @@
+import { optionalCommandName } from "./command-name";
 import { assertSortOrder } from "./sort-order";
 import { requiredText } from "./text";
 
@@ -8,6 +9,8 @@ export interface FaqProps {
   readonly id: string;
   readonly question: string;
   readonly answer: string;
+  /** Optional `git help <command>` topic on the landing; null keeps the auto-generated one. */
+  readonly command: string | null;
   readonly sortOrder: number;
   readonly isPublished: boolean;
   readonly createdAt: Date;
@@ -17,18 +20,22 @@ export interface FaqProps {
 export interface FaqFields {
   question: string;
   answer: string;
+  command: string | null;
   sortOrder: number;
   isPublished: boolean;
 }
 
-export type CreateFaqInput = Pick<FaqFields, "question" | "answer" | "sortOrder"> & Partial<Pick<FaqFields, "isPublished">>;
-export type UpdateFaqInput = Partial<Pick<FaqFields, "question" | "answer" | "isPublished">>;
+/** `command` may be blank or null: both mean "no command". */
+export type CreateFaqInput = Pick<FaqFields, "question" | "answer" | "sortOrder"> & Partial<Pick<FaqFields, "command" | "isPublished">>;
+/** `command`: undefined keeps it, blank or null clears it. */
+export type UpdateFaqInput = Partial<Pick<FaqFields, "question" | "answer" | "command" | "isPublished">>;
 
 function build(base: Pick<FaqProps, "id" | "createdAt" | "updatedAt">, fields: FaqFields): FaqProps {
   return {
     ...base,
     question: requiredText("question", fields.question, FAQ_QUESTION_MAX_LENGTH),
     answer: requiredText("answer", fields.answer, FAQ_ANSWER_MAX_LENGTH),
+    command: optionalCommandName("command", fields.command),
     sortOrder: assertSortOrder(fields.sortOrder),
     isPublished: fields.isPublished,
   };
@@ -40,7 +47,7 @@ export class Faq {
   static create(input: CreateFaqInput): Faq {
     const now = new Date();
 
-    return new Faq(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { isPublished: false, ...input }));
+    return new Faq(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { command: null, isPublished: false, ...input }));
   }
 
   /** Rehydrates a FAQ from trusted persistence data without validation. */

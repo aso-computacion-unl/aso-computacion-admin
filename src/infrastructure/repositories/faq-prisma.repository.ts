@@ -1,15 +1,30 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { CommandNameConflictError } from "@/domain/command-name";
 import type { Faq } from "@/domain/faq";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./faq.mapper";
 
+/** The command check in the use case is advisory; the unique index is what actually decides a race. */
+function rethrowCommandCollision(error: unknown, faq: Faq): never {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && faq.props.command) {
+    throw new CommandNameConflictError("command", faq.props.command, "faq");
+  }
+
+  throw error;
+}
+
 export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
   async create(faq: Faq): Promise<Faq> {
-    return toDomain(await prisma.faq.create({ data: toPrismaCreate(faq) }));
+    try {
+      return toDomain(await prisma.faq.create({ data: toPrismaCreate(faq) }));
+    } catch (error) {
+      return rethrowCommandCollision(error, faq);
+    }
   }
 
   async getById(id: string): Promise<Faq | null> {
@@ -26,7 +41,13 @@ export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
   }
 
   async update(faq: Faq): Promise<Faq> {
-    const [record] = await prisma.faq.updateManyAndReturn({ where: { id: faq.props.id }, data: toPrismaUpdate(faq) });
+    let record;
+
+    try {
+      [record] = await prisma.faq.updateManyAndReturn({ where: { id: faq.props.id }, data: toPrismaUpdate(faq) });
+    } catch (error) {
+      return rethrowCommandCollision(error, faq);
+    }
 
     if (!record) {
       throw new NotFoundError("Faq not found");

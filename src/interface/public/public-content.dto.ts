@@ -38,6 +38,8 @@ export interface PublicEvent {
 export interface PublicFaq {
   question: string;
   answer: string;
+  /** Terminal topic chosen in the admin (`git help <command>`); `null` keeps the landing's auto-generated one. Additive. */
+  command: string | null;
 }
 
 export interface PublicPillar {

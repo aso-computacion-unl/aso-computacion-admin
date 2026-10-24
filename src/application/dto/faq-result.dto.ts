@@ -3,6 +3,7 @@ export interface FaqResult {
   id: string;
   question: string;
   answer: string;
+  command: string | null;
   sortOrder: number;
   isPublished: boolean;
   createdAt: Date;

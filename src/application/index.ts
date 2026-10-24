@@ -47,6 +47,8 @@ export {
   SetOrderedContentPublishedUseCase,
   nextSortOrder,
 } from "./use-cases/ordered-content.use-cases";
+export type { CommandNameOwner, CommandNameRegistry } from "./ports/command-name-registry.port";
+export { assertCommandNameFree } from "./use-cases/assert-command-name-free";
 export { CreateFaqUseCase } from "./use-cases/create-faq.use-case";
 export { UpdateFaqUseCase } from "./use-cases/update-faq.use-case";
 export type { SocialLinkResult } from "./dto/social-link-result.dto";

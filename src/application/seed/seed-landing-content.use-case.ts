@@ -151,7 +151,8 @@ export class SeedLandingContentUseCase {
     const upload = new UploadImageUseCase(deps.storage);
 
     this.createEvent = new CreateEventUseCase(deps.events);
-    this.createFaq = new CreateFaqUseCase(deps.faqs);
+    // Seeded FAQs never carry a command, so there is no name to check.
+    this.createFaq = new CreateFaqUseCase(deps.faqs, { findOwner: async () => null });
     this.createSocial = new CreateSocialLinkUseCase(deps.socials);
     this.updateSettings = new UpdateSiteSettingsUseCase(deps.settings);
     this.createPillar = new CreatePillarUseCase(deps.pillars);

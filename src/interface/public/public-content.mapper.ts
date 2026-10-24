@@ -29,7 +29,7 @@ export function toPublicContentResponse(snapshot: PublicContentSnapshot, generat
       highlights: [...event.highlights],
       photos: event.photos.map(toPublicImage),
     })),
-    faqs: snapshot.faqs.map((faq) => ({ question: faq.question, answer: faq.answer })),
+    faqs: snapshot.faqs.map((faq) => ({ question: faq.question, answer: faq.answer, command: faq.command })),
     pillars: snapshot.pillars.map((pillar) => ({
       word: pillar.word,
       title: pillar.title,

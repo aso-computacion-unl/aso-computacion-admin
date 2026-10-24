@@ -110,3 +110,25 @@ describe("GetPublicContentUseCase", () => {
     expect(result.news[1]?.cover).toBeNull();
   });
 });
+
+describe("GetPublicContentUseCase faq commands", () => {
+  it("carries each published FAQ's command (null when it has none) in display order", async () => {
+    const eventPhotos = new InMemoryEventPhotoRepository();
+    const faqs = new InMemoryOrderedRepository<Faq>();
+    const useCase = new GetPublicContentUseCase(
+      new InMemoryEventRepository(eventPhotos),
+      eventPhotos,
+      faqs,
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemorySiteSettingsRepository(),
+      new InMemoryNewsRepository(),
+    );
+    await faqs.create(Faq.create({ question: "B", answer: "b", sortOrder: 1, isPublished: true }));
+    await faqs.create(Faq.create({ question: "A", answer: "a", sortOrder: 0, isPublished: true, command: "costo" }));
+    await faqs.create(Faq.create({ question: "Draft", answer: "d", sortOrder: 2, command: "borrador" }));
+
+    expect((await useCase.execute()).faqs.map((faq) => [faq.question, faq.command])).toEqual([["A", "costo"], ["B", null]]);
+  });
+});

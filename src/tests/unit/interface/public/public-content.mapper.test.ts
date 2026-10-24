@@ -32,7 +32,10 @@ const snapshot = {
       photos: [{ id: "p1", eventId: "event-1", ...image, publicId: "aso/p1", sortOrder: 0, isActive: true, createdAt: AT }],
     },
   ],
-  faqs: [{ id: "f1", question: "¿Q?", answer: "A", sortOrder: 0, isPublished: true, ...timestamps }],
+  faqs: [
+    { id: "f1", question: "¿Q?", answer: "A", command: "costo", sortOrder: 0, isPublished: true, ...timestamps },
+    { id: "f2", question: "¿R?", answer: "B", command: null, sortOrder: 1, isPublished: true, ...timestamps },
+  ],
   pillars: [
     { id: "pl1", word: "VOZ", title: "Representamos", text: "t", image, publicId: "aso/pl1", sortOrder: 0, isPublished: true, ...timestamps },
     { id: "pl2", word: "APOYO", title: "Acompañamos", text: "t", image: null, sortOrder: 1, isPublished: true, ...timestamps },
@@ -112,7 +115,8 @@ describe("toPublicContentResponse", () => {
   });
 
   it("exposes exact faq, pillar, social and settings keys", () => {
-    expect(keys(body.faqs[0]!)).toEqual(["answer", "question"]);
+    expect(keys(body.faqs[0]!)).toEqual(["answer", "command", "question"]);
+    expect(body.faqs.map((faq) => faq.command)).toEqual(["costo", null]);
     expect(keys(body.pillars[0]!)).toEqual(["image", "text", "title", "word"]);
     expect(keys(body.pillars[0]!.image!)).toEqual(["alt", "height", "url", "width"]);
     expect(body.pillars[1]!.image).toBeNull();

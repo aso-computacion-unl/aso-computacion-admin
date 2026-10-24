@@ -132,14 +132,14 @@ describe("auth actions", () => {
 
     const result = await login(null, formDataWith("wrong-password"));
 
-    expect(result).toEqual({ error: "Contraseña incorrecta." });
+    expect(result).toEqual({ error: "Contraseña incorrecta.", field: "password" });
     expect(signSessionMock).not.toHaveBeenCalled();
   });
 
   it("ACTION-003: login con campo vacío retorna error genérico", async () => {
     const result = await login(null, formDataWith(""));
 
-    expect(result).toEqual({ error: "Contraseña incorrecta." });
+    expect(result).toEqual({ error: "Contraseña incorrecta.", field: "password" });
   });
 
   it("ACTION-004: logout limpia cookie y redirige a /login", async () => {
@@ -156,7 +156,7 @@ describe("auth actions", () => {
 
     const result = await login(null, formDataWith("any-password"));
 
-    expect(result).toEqual({ error: "Authentication service is temporarily unavailable." });
+    expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
     expect(reportAdminPasswordMisconfigurationMock).toHaveBeenCalledTimes(1);
     expect(consumeLoginAttemptMock).not.toHaveBeenCalled();
     expect(comparePasswordMock).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe("auth actions", () => {
   it("ACTION-006: formData.get('password') null retorna error genérico", async () => {
     const result = await login(null, formDataWith(null));
 
-    expect(result).toEqual({ error: "Contraseña incorrecta." });
+    expect(result).toEqual({ error: "Contraseña incorrecta.", field: "password" });
   });
 
   it("returns a service-unavailable error when ADMIN_SECRET is invalid", async () => {
@@ -176,7 +176,7 @@ describe("auth actions", () => {
 
     const result = await login(null, formDataWith("correct-password"));
 
-    expect(result).toEqual({ error: "Authentication service is temporarily unavailable." });
+    expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
     expect(setSessionCookieMock).not.toHaveBeenCalled();
     expect(reportSessionSecretMisconfigurationMock).toHaveBeenCalledTimes(1);
   });
@@ -265,7 +265,7 @@ describe("auth actions", () => {
 
     const result = await login(null, formDataWith("correct-password"));
 
-    expect(result).toEqual({ error: "Authentication service is temporarily unavailable." });
+    expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
     expect(comparePasswordMock).not.toHaveBeenCalled();
     expect(signSessionMock).not.toHaveBeenCalled();
     expect(setSessionCookieMock).not.toHaveBeenCalled();
@@ -401,7 +401,7 @@ describe("auth actions", () => {
 
       const result = await login(null, formDataWith("correct-password"));
 
-      expect(result).toEqual({ error: "Authentication service is temporarily unavailable." });
+      expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
       expect(comparePasswordMock).not.toHaveBeenCalled();
       errorLog.mockRestore();
     });

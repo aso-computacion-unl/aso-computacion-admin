@@ -81,7 +81,7 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
     ["an empty password", ""],
     ["a missing password field", null],
   ])("%s: generic error, no cookie, no redirect", async (_label, password) => {
-    await expect(login(null, passwordForm(password))).resolves.toEqual({ error: "Contraseña incorrecta." });
+    await expect(login(null, passwordForm(password))).resolves.toEqual({ error: "Contraseña incorrecta.", field: "password" });
 
     expect(cookieSetMock).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(login(null, passwordForm("correct horse battery staple"))).resolves.toEqual({
-      error: "Authentication service is temporarily unavailable.",
+      error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.",
     });
     expect(cookieSetMock).not.toHaveBeenCalled();
   });

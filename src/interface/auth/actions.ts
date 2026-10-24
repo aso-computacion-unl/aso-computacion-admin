@@ -26,10 +26,12 @@ import {
 
 export interface LoginResult {
   error?: string;
+  /** Set only when the typed password caused the error; service failures are not the field's fault. */
+  field?: "password";
 }
 
 const INVALID_CREDENTIALS_ERROR = "Contraseña incorrecta.";
-const AUTH_SERVICE_UNAVAILABLE_ERROR = "Authentication service is temporarily unavailable.";
+const AUTH_SERVICE_UNAVAILABLE_ERROR = "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.";
 const TOO_MANY_ATTEMPTS_ERROR = "Demasiados intentos. Intente de nuevo más tarde.";
 
 /**
@@ -110,11 +112,11 @@ export async function login(prevState: LoginResult | null, formData: FormData): 
   const password = formData.get("password");
 
   if (typeof password !== "string" || password.length === 0) {
-    return { error: INVALID_CREDENTIALS_ERROR };
+    return { error: INVALID_CREDENTIALS_ERROR, field: "password" };
   }
 
   if (!comparePassword(password, adminPassword)) {
-    return { error: INVALID_CREDENTIALS_ERROR };
+    return { error: INVALID_CREDENTIALS_ERROR, field: "password" };
   }
 
   try {

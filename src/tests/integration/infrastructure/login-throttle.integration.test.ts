@@ -71,7 +71,7 @@ describe("login action with the Postgres throttle", () => {
 
   it("a mistyped password under the free attempts does not slow the next correct one, and success clears the count", async () => {
     fromIp("203.0.113.7");
-    for (let i = 0; i < 4; i += 1) await expect(login(null, form("wrong"))).resolves.toEqual({ error: "Contraseña incorrecta." });
+    for (let i = 0; i < 4; i += 1) await expect(login(null, form("wrong"))).resolves.toEqual({ error: "Contraseña incorrecta.", field: "password" });
 
     await expect(login(null, form(PASSWORD))).rejects.toThrow("REDIRECT:/admin");
 
@@ -104,7 +104,7 @@ describe("login action with the Postgres throttle", () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     fromIp("203.0.113.7");
 
-    await expect(login(null, form("anything"))).resolves.toEqual({ error: "Authentication service is temporarily unavailable." });
+    await expect(login(null, form("anything"))).resolves.toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
 
     expect(errorLog).toHaveBeenCalledWith(expect.stringMatching(/ADMIN_PASSWORD.*(not set|missing|configure)/i));
     expect(cookieSetMock).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe("login action with the Postgres throttle", () => {
     fromIp("203.0.113.7");
 
     for (let i = 0; i < 4; i += 1) {
-      await expect(login(null, form("anything"))).resolves.toEqual({ error: "Authentication service is temporarily unavailable." });
+      await expect(login(null, form("anything"))).resolves.toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
     }
 
     expect(errorLog.mock.calls.filter(([message]) => /ADMIN_PASSWORD/.test(String(message)))).toHaveLength(1);
@@ -128,7 +128,7 @@ describe("login action with the Postgres throttle", () => {
     fromIp("203.0.113.7");
 
     await expect(login(null, form("fifteen-chars!!"))).resolves.toEqual({
-      error: "Authentication service is temporarily unavailable.",
+      error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.",
     });
 
     expect(errorLog).toHaveBeenCalledWith(expect.stringMatching(/ADMIN_PASSWORD.*16/));
@@ -139,7 +139,7 @@ describe("login action with the Postgres throttle", () => {
   it("keys IPv6 clients by their /64: rotating the host part does not buy fresh attempts", async () => {
     for (let i = 0; i < 5; i += 1) {
       fromIp(`2001:db8:1:2::${i + 1}`);
-      await expect(login(null, form("wrong"))).resolves.toEqual({ error: "Contraseña incorrecta." });
+      await expect(login(null, form("wrong"))).resolves.toEqual({ error: "Contraseña incorrecta.", field: "password" });
     }
 
     fromIp("2001:db8:1:2:ffff:ffff:ffff:ffff");

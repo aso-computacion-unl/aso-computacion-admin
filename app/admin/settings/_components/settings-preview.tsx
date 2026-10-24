@@ -3,7 +3,8 @@ import type { SettingsValues } from "@/interface/admin/settings/settings-editor-
 import { Panel } from "../../_components/page-head";
 
 /**
- * Approximate: the landing's hero and "Nosotros" block in the admin's own type and colours.
+ * Approximate: where each text lands on the public site, in the admin's own type and colours. The tagline
+ * only shows in the browser tab title; the description is the hero lead; "Acerca de" is the README block.
  * The visible mock is hidden from screen readers, who already have the same text in the fields.
  */
 export function SettingsPreview({ values }: { values: SettingsValues }) {
@@ -24,9 +25,13 @@ export function SettingsPreview({ values }: { values: SettingsValues }) {
         </p>
       ) : (
         <div aria-hidden="true" className="overflow-hidden rounded">
+          <div className="flex items-center gap-2 bg-navy-deep px-3 pt-2">
+            <p className="max-w-full truncate rounded-t bg-navy px-3 py-1.5 text-xs">
+              ASO Computación{tagline ? ` · ${tagline}` : ""}
+            </p>
+          </div>
           <div className="grid gap-4 bg-navy p-5">
             <span className="h-0.5 w-10 bg-sky" />
-            {tagline ? <p className="font-display text-2xl leading-tight wrap-anywhere">{tagline}</p> : null}
             {description ? <p className="text-mist wrap-anywhere whitespace-pre-line">{description}</p> : null}
           </div>
           <div className="grid gap-3 bg-navy-deep p-5">

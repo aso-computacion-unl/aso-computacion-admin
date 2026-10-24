@@ -10,6 +10,7 @@ export { EventPhotoPrismaRepository } from "./repositories/event-photo-prisma.re
 export { EventPrismaRepository } from "./repositories/event-prisma.repository";
 export { CommandNamePrismaRegistry } from "./repositories/command-name-prisma.registry";
 export { FaqPrismaRepository } from "./repositories/faq-prisma.repository";
+export { TerminalCommandPrismaRepository } from "./repositories/terminal-command-prisma.repository";
 export { SocialLinkPrismaRepository } from "./repositories/social-link-prisma.repository";
 export { PillarPrismaRepository } from "./repositories/pillar-prisma.repository";
 export { SiteSettingsPrismaRepository } from "./repositories/site-settings-prisma.repository";

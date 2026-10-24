@@ -27,7 +27,7 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
   return (
     <Link
       href={href}
-      className="-ml-1 mb-2 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-white"
+      className="-ml-1 mb-2 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground"
     >
       <Icon name="left" className="size-4" />
       {children}

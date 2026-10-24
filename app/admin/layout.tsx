@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       <a
         href="#main"
-        className="fixed top-[-4rem] left-3 z-100 rounded bg-sky px-4 py-2.5 font-bold text-navy-deep focus:top-3"
+        className="fixed top-[-4rem] left-3 z-100 rounded bg-sky px-4 py-2.5 font-bold text-primary-foreground focus:top-3"
       >
         Saltar al contenido
       </a>

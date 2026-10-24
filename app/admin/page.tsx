@@ -84,7 +84,7 @@ export default async function AdminHomePage() {
               <li key={item.href} className="group relative sm:flex sm:flex-col sm:rounded sm:bg-card">
                 <Link
                   href={item.href}
-                  className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 py-3 pr-2 transition-colors duration-150 ease-out after:absolute after:inset-0 after:content-[''] hover:bg-white/4 sm:flex-1 sm:items-start sm:rounded sm:p-5 sm:pb-4"
+                  className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 py-3 pr-2 transition-colors duration-150 ease-out after:absolute after:inset-0 after:content-[''] hover:bg-foreground/4 sm:flex-1 sm:items-start sm:rounded sm:p-5 sm:pb-4"
                 >
                   <Icon name={item.icon} className="ml-2 text-sky sm:mt-1 sm:ml-0" />
                   <span className="grid">
@@ -96,7 +96,7 @@ export default async function AdminHomePage() {
                       {count}
                     </span>
                   )}
-                  <Icon name="right" className="text-mist transition-transform duration-200 ease-(--ease-reveal) group-hover:translate-x-0.5 group-hover:text-white sm:hidden" />
+                  <Icon name="right" className="text-mist transition-transform duration-200 ease-(--ease-reveal) group-hover:translate-x-0.5 group-hover:text-foreground sm:hidden" />
                 </Link>
                 {item.action ? (
                   <div className="relative z-1 hidden px-5 pb-5 sm:block">

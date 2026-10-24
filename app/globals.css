@@ -8,6 +8,10 @@
 @source not "../.impeccable";
 
 /*
+ * Theme roles: `html[data-theme]` is set before paint (see the root layout). Dark is the brand look and
+ * the default; the `light` block below repaints the same roles, so components only pick a role
+ * (`foreground` for ink, `muted`/`card` for surfaces) and never a literal white.
+ *
  * ASO Computación brand tokens: the same values as the landing's `src/styles/global.css`.
  * - navy:   page background and text on light fills.
  * - sky:    the line of the history graph, links, primary actions and focus.
@@ -52,6 +56,38 @@
 	--ease-reveal: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/*
+ * Light theme: the landing's values for the shared tokens (pale surfaces, navy ink, a deeper sky that still
+ * reads as text) plus the admin-only ones, each checked for contrast:
+ * - foreground #0b2447 is 12.9:1 or more on every surface; mist #45556d is 6.3:1 or more.
+ * - sky #0a6f9e is 4.6:1 or more as text; white on sky, sky-bright and sky-press is 5.5:1 or more.
+ * - hover and press go darker here (lighter would fade into the page).
+ * - signal stays a fill with white text (5.9:1); error is its text form, 5.5:1 or more on every surface.
+ * - input outlines are 3.2:1 or more against the field (WCAG 1.4.11).
+ */
+:root[data-theme="light"] {
+	--color-navy: #f4f7fb;
+	--color-navy-deep: #e4ebf4;
+	--color-navy-lift: #ffffff;
+	--color-sky: #0a6f9e;
+	--color-sky-bright: #085f87;
+	--color-sky-press: #064e70;
+	--color-mist: #45556d;
+	--color-error: #b3202b;
+
+	--color-foreground: #0b2447;
+	--color-primary-foreground: #ffffff;
+	--color-border: color-mix(in srgb, var(--color-sky) 35%, transparent);
+	--color-input: color-mix(in srgb, var(--color-mist) 70%, transparent);
+	color-scheme: light;
+}
+
+/* Pieces drawn for one theme only (the toggle's sun and moon, the white and the navy logo). */
+:root[data-theme="light"] .theme-dark-only,
+:root:not([data-theme="light"]) .theme-light-only {
+	display: none;
+}
+
 @layer base {
 	html {
 		font-variant-ligatures: none;
@@ -70,7 +106,7 @@
 	body {
 		min-height: 100vh;
 		background: var(--color-navy);
-		color: #fff;
+		color: var(--color-foreground);
 		font-family: var(--font-sans);
 		font-weight: 420;
 		font-stretch: 100%;
@@ -118,13 +154,19 @@
 		cursor: pointer;
 	}
 
+	/* The light native picker icon is already dark. */
+	:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+	:root[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator {
+		filter: none;
+	}
+
 	input[type="file"]::file-selector-button {
 		margin-right: 0.75rem;
 		padding: 0.5rem 0.875rem;
 		border: 1px solid var(--color-sky);
 		border-radius: 4px;
 		background: transparent;
-		color: #fff;
+		color: var(--color-foreground);
 		font: inherit;
 		font-weight: 600;
 		cursor: pointer;

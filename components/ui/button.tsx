@@ -23,8 +23,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-primary text-primary-foreground hover:bg-sky-bright active:bg-sky-press",
-        line: "border-sky text-white hover:bg-sky/15 active:bg-sky/30",
-        quiet: "font-semibold font-stretch-100 text-mist hover:bg-white/8 hover:text-white",
+        line: "border-sky text-foreground hover:bg-sky/15 active:bg-sky/30",
+        quiet: "font-semibold font-stretch-100 text-mist hover:bg-foreground/8 hover:text-foreground",
         danger: "bg-destructive text-destructive-foreground hover:bg-signal-press",
       },
       size: {

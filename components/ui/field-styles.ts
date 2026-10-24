@@ -4,7 +4,7 @@
  * carries `aria-invalid` and a message under it).
  */
 export const fieldClasses = [
-  "block w-full min-h-11 rounded border border-input bg-muted px-3 py-2 text-white",
+  "block w-full min-h-11 rounded border border-input bg-muted px-3 py-2 text-foreground",
   "placeholder:text-mist/80",
   "transition-colors duration-150 ease-out",
   "hover:border-mist/65",

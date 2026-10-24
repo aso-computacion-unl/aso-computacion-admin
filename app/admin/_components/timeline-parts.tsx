@@ -8,7 +8,7 @@ export function Stamp({ children, solid = false, className }: { children: ReactN
     <span
       className={cn(
         "inline-flex h-6 items-center px-2.5 font-mono text-xs leading-none font-semibold tracking-[0.02em] tabular-nums",
-        solid ? "bg-signal text-white" : "text-mist shadow-[inset_0_0_0_1px_var(--color-sky)]",
+        solid ? "bg-signal text-destructive-foreground" : "text-mist shadow-[inset_0_0_0_1px_var(--color-sky)]",
         className,
       )}
     >

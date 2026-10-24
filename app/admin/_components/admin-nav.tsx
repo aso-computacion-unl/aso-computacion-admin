@@ -30,8 +30,8 @@ export function SideNav() {
                 aria-current={current ? "page" : undefined}
                 className={cn(
                   "group flex min-h-11 items-center gap-3 rounded px-3 font-semibold text-mist",
-                  "transition-colors duration-150 ease-out hover:bg-white/6 hover:text-white",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-white",
+                  "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
+                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
                 )}
               >
                 <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />
@@ -104,7 +104,7 @@ function MoreTab({ pathname }: { pathname: string }) {
         onClose={() => setOpen(false)}
         // A click on the backdrop lands on the dialog element itself, outside its content box.
         onClick={(event) => event.target === event.currentTarget && close()}
-        className="fixed inset-x-0 top-auto bottom-[calc(4.25rem+env(safe-area-inset-bottom))] m-0 w-full max-w-none rounded-t border-0 bg-muted p-2 text-white shadow-[0_-1px_0_var(--color-border)] backdrop:bg-black/50 lg:hidden"
+        className="fixed inset-x-0 top-auto bottom-[calc(4.25rem+env(safe-area-inset-bottom))] m-0 w-full max-w-none rounded-t border-0 bg-muted p-2 text-foreground shadow-[0_-1px_0_var(--color-border)] backdrop:bg-black/50 lg:hidden"
       >
         <ul className="grid gap-1">
           {MORE_NAV.map((item) => (
@@ -116,7 +116,7 @@ function MoreTab({ pathname }: { pathname: string }) {
                 className={cn(
                   "group flex min-h-12 items-center gap-3 rounded px-3 font-semibold text-mist",
                   "transition-colors duration-150 ease-out active:bg-navy-lift",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-white",
+                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
                 )}
               >
                 <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />

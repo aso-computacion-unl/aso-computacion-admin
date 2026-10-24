@@ -82,6 +82,14 @@ export interface PublicNewsItem {
   cover: PublicImage | null;
 }
 
+/** A published free terminal command: the landing's shell runs `command` and prints `output`, and lists `description` in `help`. */
+export interface PublicTerminalCommand {
+  id: string;
+  command: string;
+  description: string;
+  output: string;
+}
+
 export interface PublicContentResponse {
   /** Shape version of this document; bumped on a breaking change so the landing can refuse what it does not understand. */
   version: number;
@@ -96,4 +104,6 @@ export interface PublicContentResponse {
   settings: PublicSiteSettings | null;
   /** Published news, newest `publishedAt` first. Additive: a landing built against an admin without it treats it as `[]`. */
   news: PublicNewsItem[];
+  /** Published free terminal commands in admin order. Additive: a landing built against an admin without it treats it as `[]`. */
+  commands: PublicTerminalCommand[];
 }

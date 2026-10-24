@@ -62,5 +62,11 @@ export function toPublicContentResponse(snapshot: PublicContentSnapshot, generat
       publishedAt: item.publishedAt,
       cover: item.cover && toPublicImage(item.cover),
     })),
+    commands: snapshot.commands.map((item) => ({
+      id: item.id,
+      command: item.command,
+      description: item.description,
+      output: item.output,
+    })),
   };
 }

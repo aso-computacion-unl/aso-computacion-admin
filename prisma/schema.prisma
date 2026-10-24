@@ -71,6 +71,20 @@ model Faq {
   @@index([sortOrder, createdAt])
 }
 
+/// A free terminal command: `❯ <command>` prints `output` on the landing and is listed in `help` with `description`.
+model TerminalCommand {
+  id          String   @id
+  command     String   @unique
+  description String
+  output      String
+  sortOrder   Int
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+
+  @@index([sortOrder, createdAt])
+}
+
 model SocialLink {
   id          String   @id
   // One of SOCIAL_PLATFORMS; kept as text so adding a platform needs no migration.

@@ -19,7 +19,7 @@ import { HttpError } from "@/interface/errors/http-error";
 let route: typeof import("../../../../../app/api/public/content/route");
 
 const LANDING = "https://aso-computacion.pages.dev";
-const emptySnapshot = { events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [] };
+const emptySnapshot = { events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [], commands: [] };
 
 function get(headers: Record<string, string> = {}): NextRequest {
   return new NextRequest("https://admin.test/api/public/content", { headers });
@@ -51,7 +51,7 @@ describe("GET /api/public/content", () => {
   it("serves the versioned snapshot with the settings null when never saved", async () => {
     const body = await (await route.GET(get())).json();
 
-    expect(Object.keys(body).sort()).toEqual(["board", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
+    expect(Object.keys(body).sort()).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
     expect(body).toMatchObject({ version: 1, settings: null, events: [], board: [] });
     expect(Number.isNaN(Date.parse(body.generatedAt))).toBe(false);
   });

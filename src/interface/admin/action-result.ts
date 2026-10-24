@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import {
+  CommandNameConflictError,
   ImageTooLargeError,
   ImageTooSmallError,
   InvalidImageFormatError,
@@ -39,6 +40,7 @@ const FIELD_MESSAGES: Record<string, string> = {
   linkUrl: "Use un enlace que empiece con https://.",
   linkLabel: "El texto del enlace admite hasta 80 caracteres y requiere un enlace.",
   highlights: "Hasta 8 líneas de 80 caracteres como máximo.",
+  command: "Use de 2 a 28 caracteres: minúsculas, números y guiones simples, empezando con una letra.",
   question: "La pregunta es obligatoria y admite hasta 200 caracteres.",
   answer: "La respuesta es obligatoria y admite hasta 1000 caracteres.",
   platform: "Elija una red de la lista.",
@@ -62,10 +64,17 @@ const FIELD_MESSAGES: Record<string, string> = {
 // NotFoundError texts by entity; anything else keeps the generic event/photo wording.
 const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Faq not found": "No se encontró la pregunta frecuente.",
+  "Terminal command not found": "No se encontró el comando.",
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
   "Board member not found": "No se encontró al integrante de la directiva.",
 };
+
+const COMMAND_CONFLICT_MESSAGES = {
+  reserved: (command: string) => `«${command}» es una palabra reservada del terminal. Elija otra.`,
+  faq: (command: string) => `«${command}» ya lo usa una pregunta frecuente. Elija otro nombre.`,
+  command: (command: string) => `«${command}» ya lo usa otro comando. Elija otro nombre.`,
+} as const;
 
 const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";
 
@@ -92,6 +101,10 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
     }
 
     return fieldError(String(issue?.path[0] ?? "form"), issue?.path[0] === "file" ? undefined : issue?.message);
+  }
+
+  if (error instanceof CommandNameConflictError) {
+    return fieldError(error.field, COMMAND_CONFLICT_MESSAGES[error.conflict](error.command));
   }
 
   if (error instanceof ValidationError) {

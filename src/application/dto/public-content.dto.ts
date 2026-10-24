@@ -5,6 +5,7 @@ import type { NewsItemResult } from "./news-item-result.dto";
 import type { PillarResult } from "./pillar-result.dto";
 import type { SiteSettingsResult } from "./site-settings-result.dto";
 import type { SocialLinkResult } from "./social-link-result.dto";
+import type { TerminalCommandResult } from "./terminal-command-result.dto";
 
 /**
  * Everything the landing build reads, published items only and in display
@@ -21,4 +22,6 @@ export interface PublicContentSnapshot {
   settings: SiteSettingsResult | null;
   /** Published news, newest publication date first. */
   news: NewsItemResult[];
+  /** Published free terminal commands, in the order the admin set. */
+  commands: TerminalCommandResult[];
 }

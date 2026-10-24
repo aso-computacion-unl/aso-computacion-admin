@@ -8,11 +8,12 @@ export interface NavItem {
   action?: { href: string; label: string };
 }
 
-/** The seven content modules, in the order the board uses them most. Home is reached from the logo. */
+/** The eight content modules, in the order the board uses them most. Home is reached from the logo. */
 export const MODULE_NAV: readonly NavItem[] = [
   { href: "/admin/events", label: "Eventos", icon: "events", action: { href: "/admin/events/new", label: "Nuevo evento" } },
   { href: "/admin/news", label: "Novedades", icon: "news", action: { href: "/admin/news/new", label: "Nueva noticia" } },
   { href: "/admin/faqs", label: "FAQ", icon: "faq", action: { href: "/admin/faqs/new", label: "Nueva pregunta" } },
+  { href: "/admin/commands", label: "Comandos", icon: "merge", action: { href: "/admin/commands/new", label: "Nuevo comando" } },
   { href: "/admin/board", label: "Directiva", icon: "board", action: { href: "/admin/board/new", label: "Agregar integrante" } },
   { href: "/admin/pillars", label: "Pilares", icon: "pillars", action: { href: "/admin/pillars/new", label: "Nuevo pilar" } },
   { href: "/admin/socials", label: "Redes", icon: "share", action: { href: "/admin/socials/new", label: "Agregar red" } },

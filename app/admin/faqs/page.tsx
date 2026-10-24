@@ -71,6 +71,7 @@ export default async function AdminFaqsPage() {
                   {faq.question}
                 </Link>
               </h2>
+              {faq.command ? <p className="font-mono text-[0.8125rem] text-sky">❯ git help {faq.command}</p> : null}
               <p className="line-clamp-2 text-sm text-mist">{faq.answer}</p>
             </OrderedRow>
           ))}

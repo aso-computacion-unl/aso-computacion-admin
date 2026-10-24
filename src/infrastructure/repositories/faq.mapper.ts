@@ -7,6 +7,7 @@ export function toDomain(record: PrismaFaq): Faq {
     id: record.id,
     question: record.question,
     answer: record.answer,
+    command: record.command,
     sortOrder: record.sortOrder,
     isPublished: record.isPublished,
     createdAt: record.createdAt,

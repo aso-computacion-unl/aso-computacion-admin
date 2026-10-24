@@ -9,6 +9,7 @@ import { NewsItem } from "@/domain/news-item";
 import { Pillar } from "@/domain/pillar";
 import { SiteSettings } from "@/domain/site-settings";
 import { SocialLink } from "@/domain/social-link";
+import { TerminalCommand } from "@/domain/terminal-command";
 import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryNewsRepository } from "@/tests/fakes/in-memory-news.repository";
@@ -26,6 +27,7 @@ describe("GetPublicContentUseCase", () => {
   let board: InMemoryOrderedRepository<BoardMember>;
   let settings: InMemorySiteSettingsRepository;
   let news: InMemoryNewsRepository;
+  let commands: InMemoryOrderedRepository<TerminalCommand>;
   let useCase: GetPublicContentUseCase;
 
   beforeEach(() => {
@@ -37,11 +39,12 @@ describe("GetPublicContentUseCase", () => {
     board = new InMemoryOrderedRepository();
     settings = new InMemorySiteSettingsRepository();
     news = new InMemoryNewsRepository();
-    useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings, news);
+    commands = new InMemoryOrderedRepository();
+    useCase = new GetPublicContentUseCase(events, eventPhotos, faqs, pillars, socials, board, settings, news, commands);
   });
 
   it("is empty, with settings null, when nothing was ever saved", async () => {
-    expect(await useCase.execute()).toEqual({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [] });
+    expect(await useCase.execute()).toEqual({ events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [], commands: [] });
   });
 
   it("returns only published events, newest date first, each with only its active photos in gallery order", async () => {
@@ -89,6 +92,21 @@ describe("GetPublicContentUseCase", () => {
     expect(result.board.map((member) => member.name)).toEqual(["Visible"]);
   });
 
+  it("returns only published free commands, in display order", async () => {
+    const make = (command: string, sortOrder: number, isPublished = false) =>
+      commands.create(TerminalCommand.create({ command, description: `d-${command}`, output: `o-${command}`, sortOrder, isPublished }));
+    await make("segundo", 1, true);
+    await make("borrador", 2);
+    await make("primero", 0, true);
+
+    const result = await useCase.execute();
+
+    expect(result.commands.map((command) => [command.command, command.description, command.output])).toEqual([
+      ["primero", "d-primero", "o-primero"],
+      ["segundo", "d-segundo", "o-segundo"],
+    ]);
+  });
+
   it("returns the saved site settings, null until the first save", async () => {
     expect((await useCase.execute()).settings).toBeNull();
 
@@ -108,5 +126,28 @@ describe("GetPublicContentUseCase", () => {
     expect(result.news.map((item) => item.title)).toEqual(["Reciente", "Vieja"]);
     expect(result.news[0]?.cover).toEqual({ url: image("cover").url, width: 1200, height: 800, alt: "cover" });
     expect(result.news[1]?.cover).toBeNull();
+  });
+});
+
+describe("GetPublicContentUseCase faq commands", () => {
+  it("carries each published FAQ's command (null when it has none) in display order", async () => {
+    const eventPhotos = new InMemoryEventPhotoRepository();
+    const faqs = new InMemoryOrderedRepository<Faq>();
+    const useCase = new GetPublicContentUseCase(
+      new InMemoryEventRepository(eventPhotos),
+      eventPhotos,
+      faqs,
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemorySiteSettingsRepository(),
+      new InMemoryNewsRepository(),
+      new InMemoryOrderedRepository(),
+    );
+    await faqs.create(Faq.create({ question: "B", answer: "b", sortOrder: 1, isPublished: true }));
+    await faqs.create(Faq.create({ question: "A", answer: "a", sortOrder: 0, isPublished: true, command: "costo" }));
+    await faqs.create(Faq.create({ question: "Draft", answer: "d", sortOrder: 2, command: "borrador" }));
+
+    expect((await useCase.execute()).faqs.map((faq) => [faq.question, faq.command])).toEqual([["A", "costo"], ["B", null]]);
   });
 });

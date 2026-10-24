@@ -18,6 +18,12 @@ describe("parseFaqFormData", () => {
     });
   });
 
+  it("reads the optional command trimmed: an empty one stays an empty string for the domain to clear, a missing one stays undefined", () => {
+    expect(parseFaqFormData(form({ question: "q", answer: "a", command: " costo " })).command).toBe("costo");
+    expect(parseFaqFormData(form({ question: "q", answer: "a", command: "" })).command).toBe("");
+    expect(parseFaqFormData(form({ question: "q", answer: "a" })).command).toBeUndefined();
+  });
+
   it("rejects a missing question and unknown fields", () => {
     expect(() => parseFaqFormData(form({ answer: "No." }))).toThrow(ZodError);
     expect(() => parseFaqFormData(form({ question: "q", answer: "a", sortOrder: "0" }))).toThrow(ZodError);

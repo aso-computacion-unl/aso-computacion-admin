@@ -12,10 +12,11 @@ import { useControlledForm } from "../../_components/use-controlled-form";
 export interface FaqFormValues {
   question: string;
   answer: string;
+  command: string;
   isPublished: boolean;
 }
 
-export const EMPTY_FAQ_FORM_VALUES: FaqFormValues = { question: "", answer: "", isPublished: false };
+export const EMPTY_FAQ_FORM_VALUES: FaqFormValues = { question: "", answer: "", command: "", isPublished: false };
 
 interface FaqFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -25,6 +26,7 @@ interface FaqFormProps {
 
 export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VALUES }: FaqFormProps) {
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const command = bind("command").value.trim();
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
@@ -34,6 +36,20 @@ export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VA
       <Field label="Respuesta" hint="Hasta 1000 caracteres." error={errors.answer}>
         {(control) => <Textarea {...control} {...bind("answer")} rows={6} required maxLength={1000} />}
       </Field>
+      <div className="grid gap-2">
+        <Field
+          label="Comando (opcional)"
+          hint="Una palabra corta: minúsculas, números y guiones, de 2 a 28 caracteres. No puede repetirse ni coincidir con otro comando."
+          error={errors.command}
+        >
+          {(control) => (
+            <Input {...control} {...bind("command")} maxLength={28} autoCapitalize="off" autoComplete="off" spellCheck={false} className="font-mono" />
+          )}
+        </Field>
+        <p className="font-mono text-[0.8125rem] text-mist">
+          {command ? `❯ git help ${command}` : "Vacío: el sitio lo genera solo a partir de la pregunta."}
+        </p>
+      </div>
       <SwitchField
         label="Publicada"
         description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."

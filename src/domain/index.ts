@@ -26,8 +26,23 @@ export type { CreateEventInput, EventProps, EventType, UpdateEventInput } from "
 export { EventPhoto, MAX_ACTIVE_EVENT_PHOTOS } from "./event-photo";
 export type { CreateEventPhotoInput, EventPhotoProps } from "./event-photo";
 export { assertSlug, slugify } from "./slug";
+export {
+  COMMAND_NAME_MAX_LENGTH,
+  COMMAND_NAME_MIN_LENGTH,
+  CommandNameConflictError,
+  RESERVED_COMMAND_NAMES,
+  assertCommandName,
+  optionalCommandName,
+} from "./command-name";
+export type { CommandNameConflict } from "./command-name";
 export { Faq } from "./faq";
 export type { CreateFaqInput, FaqProps, UpdateFaqInput } from "./faq";
+export {
+  TERMINAL_COMMAND_DESCRIPTION_MAX_LENGTH,
+  TERMINAL_COMMAND_OUTPUT_MAX_LENGTH,
+  TerminalCommand,
+} from "./terminal-command";
+export type { CreateTerminalCommandInput, TerminalCommandProps, UpdateTerminalCommandInput } from "./terminal-command";
 export { SOCIAL_PLATFORMS, SocialLink } from "./social-link";
 export type { CreateSocialLinkInput, SocialLinkProps, SocialPlatform, UpdateSocialLinkInput } from "./social-link";
 export { Pillar } from "./pillar";

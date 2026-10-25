@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",
+    "e2e": "node scripts/run-e2e.mjs",
     "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.2.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.12.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

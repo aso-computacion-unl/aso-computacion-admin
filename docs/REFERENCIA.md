@@ -12,7 +12,7 @@ Content admin for the ASO Computación student association. It manages the conte
 - Hexagonal layers: `src/domain`, `src/application`, `src/infrastructure`, `src/interface` (boundaries enforced by `architecture-boundaries.test.ts`)
 - Prisma 6 + PostgreSQL
 - Cloudinary for images (SDK confined to `src/infrastructure/storage`)
-- Vitest 3 for unit and Prisma integration tests
+- Vitest 3 for unit and Prisma integration tests; Playwright (Chromium) for end-to-end
 - Deployed on Vercel
 
 ## Scripts
@@ -27,6 +27,7 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run test:coverage` | Unit tests with the coverage thresholds in `vitest.config.ts` (what CI runs) |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
+| `npm run e2e` | Playwright end-to-end tests: starts the disposable Docker Postgres, migrates it, runs `next build`, then the tests against `next start` on port 3100, and tears everything down. Needs Docker and Chromium once (`npx playwright install chromium`). Uses test-only admin credentials unless `ADMIN_PASSWORD`/`ADMIN_SECRET` are set; `TEST_DATABASE_URL` defaults to the canonical test URL |
 
 Requires Node `>=22.12.0` (see `.nvmrc`).
 

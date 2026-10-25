@@ -29,9 +29,12 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
       - run: npm run postinstall
+      # Production dependencies only; fails on high or critical advisories.
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      # Unit tests with the coverage thresholds from vitest.config.ts.
+      - run: npm run test:coverage
       - run: npm run build
 
   integration:

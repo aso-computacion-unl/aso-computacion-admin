@@ -13,6 +13,7 @@
     "postinstall": "prisma generate",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",
     "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --"
   },

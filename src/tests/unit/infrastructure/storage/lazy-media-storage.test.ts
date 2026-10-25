@@ -76,5 +76,6 @@ describe("admin containers", () => {
     } finally {
       vi.unstubAllEnvs();
     }
-  });
+    // A cold import of a whole container after resetModules exceeds the 5 s default under coverage instrumentation.
+  }, 20_000);
 });

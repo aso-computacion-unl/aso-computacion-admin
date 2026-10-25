@@ -43,4 +43,15 @@ describe("buildContentSecurityPolicy", () => {
       expect(buildContentSecurityPolicy("production", dsn)).toBe(buildContentSecurityPolicy("production"));
     }
   });
+
+  it("ignores a DSN whose host could inject a directive or a wildcard", () => {
+    for (const dsn of [
+      "https://a.ingest.sentry.io;script-src-elem",
+      "https://x.com%3Bscript-src/1",
+      "https://*.com/1",
+      "https://localhost/1",
+    ]) {
+      expect(buildContentSecurityPolicy("production", dsn)).toBe(buildContentSecurityPolicy("production"));
+    }
+  });
 });

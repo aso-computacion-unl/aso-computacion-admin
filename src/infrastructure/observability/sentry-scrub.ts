@@ -10,16 +10,20 @@ interface ScrubbableEvent {
 }
 
 const SENSITIVE_HEADERS = /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key)$/i;
-const URL_IN_TEXT = /https?:\/\/[^\s"'<>]+/g;
+const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
 
 /**
  * Keeps only the origin of every URL in a text. The landing deploy hook carries its secret token in the
- * path, and the SDK records outgoing requests (breadcrumbs, spans) with their full URL.
+ * path, and the SDK records outgoing requests (breadcrumbs, spans) with their full URL. Non-http schemes
+ * (a database connection string in a Prisma error) have no origin, so they keep scheme and host only,
+ * which drops the credentials.
  */
 function redactUrls(text: string): string {
   return text.replace(URL_IN_TEXT, (match) => {
     try {
-      return new URL(match).origin;
+      const url = new URL(match);
+
+      return url.origin !== "null" ? url.origin : `${url.protocol}//${url.hostname}`;
     } catch {
       return "[url]";
     }

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ export default function AdminError({ error, reset }: AdminErrorProps) {
   // The digest ties this screen to the server log; the message and stack are never shown.
   useEffect(() => {
     console.error("Admin route error", error.digest);
+    // A no-op while the browser SDK is not configured; scrubbed like every other event.
+    Sentry.captureException(error);
   }, [error]);
 
   return (

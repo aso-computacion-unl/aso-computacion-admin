@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { executeMock, cookiesMock } = vi.hoisted(() => ({ executeMock: vi.fn(), cookiesMock: vi.fn() }));
+const { executeMock, cookiesMock, reportErrorMock } = vi.hoisted(() => ({ executeMock: vi.fn(), cookiesMock: vi.fn(), reportErrorMock: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: cookiesMock, headers: vi.fn() }));
+vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 vi.mock("@/interface/public/public-content-container", () => ({
   getPublicContentUseCase: () => ({ execute: executeMock }),
 }));
@@ -157,6 +158,7 @@ describe("GET /api/public/content", () => {
     }
 
     expect(errors).toHaveBeenCalledTimes(failures.length);
+    expect(reportErrorMock).toHaveBeenCalledTimes(failures.length);
   });
 
   it("answers a failure while building the response (not only the read) with the generic 503 too", async () => {

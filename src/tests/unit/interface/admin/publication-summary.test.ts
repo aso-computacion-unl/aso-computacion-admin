@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pluralize, publicationSummary } from "@/interface/admin/publication-summary";
+import { countsSummary, pluralize, publicationSummary } from "@/interface/admin/publication-summary";
 
 describe("pluralize", () => {
   it("picks the singular only for exactly one", () => {
@@ -23,5 +23,16 @@ describe("publicationSummary", () => {
 
   it("says the list is empty instead of two zeros", () => {
     expect(publicationSummary([])).toBe("Sin elementos todavía");
+  });
+});
+
+describe("countsSummary", () => {
+  it("words the totals the same way as the item list", () => {
+    expect(countsSummary({ published: 2, draft: 1 })).toBe("2 publicados · 1 borrador");
+    expect(countsSummary({ published: 1, draft: 0 })).toBe("1 publicado · 0 borradores");
+  });
+
+  it("says the list is empty instead of two zeros", () => {
+    expect(countsSummary({ published: 0, draft: 0 })).toBe("Sin elementos todavía");
   });
 });

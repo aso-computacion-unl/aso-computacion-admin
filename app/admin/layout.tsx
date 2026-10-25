@@ -9,6 +9,7 @@ import { BrandIsotype, BrandLogo } from "../_components/brand-mark";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import { SideNav, TabBar } from "./_components/admin-nav";
+import { ToastProvider } from "./_components/toast";
 import "./timeline.css";
 
 // Server actions run in the page's function. After a mutation `after()` holds it open while the
@@ -60,7 +61,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </header>
 
       <main id="main" className="mx-auto w-full max-w-360 px-4 pt-5 pb-[calc(4.25rem+5rem)] lg:px-10 lg:pt-8 lg:pb-24 xl:px-12">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </main>
 
       <TabBar />

@@ -43,7 +43,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
 
     const formData = new FormData();
     formData.set("alt", alt);
-    altAction.run(() => updateEventPhotoAlt(eventId, photo.id, null, formData));
+    altAction.run(() => updateEventPhotoAlt(eventId, photo.id, null, formData), undefined, "Descripción guardada.");
   }
 
   const message = resultMessage(altAction.result);
@@ -96,6 +96,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
             note="El archivo se conserva."
             triggerLabel="Quitar"
             confirmLabel="Sí, quitar"
+            successMessage="Foto quitada."
             action={() => deactivateEventPhoto(eventId, photo.id)}
           />
         </div>

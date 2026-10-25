@@ -10,6 +10,7 @@ import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { uploadEventPhoto } from "@/interface/admin/events/actions";
 
 import { FieldError } from "../../_components/form-parts";
+import { useToast } from "../../_components/toast";
 import { resultMessage } from "../../_components/use-run-action";
 
 interface PhotoUploadFormProps {
@@ -72,6 +73,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
   const [notice, setNotice] = useState<string | null>(null);
   const [showMissing, setShowMissing] = useState(false);
   const [uploading, startUpload] = useTransition();
+  const { notify } = useToast();
   const [inputKey, setInputKey] = useState(0);
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -138,6 +140,8 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
     }
 
     startUpload(async () => {
+      let uploaded = 0;
+
       for (const item of sendable) {
         update(item.key, { status: "uploading", error: undefined });
 
@@ -159,8 +163,11 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
         } else {
           URL.revokeObjectURL(item.previewUrl);
           setQueue((previous) => previous.filter((entry) => entry.key !== item.key));
+          uploaded += 1;
         }
       }
+
+      if (uploaded > 0) notify(uploaded === 1 ? "Foto subida." : `${uploaded} fotos subidas.`);
     });
   }
 

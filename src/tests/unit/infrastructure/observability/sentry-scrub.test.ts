@@ -51,4 +51,12 @@ describe("scrubSentryEvent", () => {
 
     expect(scrubSentryEvent({ ...event })).toEqual(event);
   });
+
+  it("strips credentials and paths from non-http URLs such as a database connection string", () => {
+    const event = scrubSentryEvent({
+      exception: { values: [{ value: "connect failed: postgresql://admin:s3cret@db.internal:5432/aso?schema=public" }] },
+    });
+
+    expect(event.exception?.values?.[0]?.value).toBe("connect failed: postgresql://db.internal");
+  });
 });

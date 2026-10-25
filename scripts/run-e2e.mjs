@@ -34,6 +34,12 @@ export function runE2e(environment = process.env) {
   const databaseEnvironment = createIntegrationEnvironment(testDatabaseUrl, environment, temporaryDirectory);
   const appEnvironment = {
     ...environment,
+    // Next also loads `.env*` files, but never overrides a variable already set: blanking these keeps a
+    // local run from triggering the real landing deploy or reporting test errors to Sentry.
+    CLOUDFLARE_DEPLOY_HOOK_URL: "",
+    SENTRY_DSN: "",
+    NEXT_PUBLIC_SENTRY_DSN: "",
+    SENTRY_AUTH_TOKEN: "",
     DATABASE_URL: testDatabaseUrl,
     TEST_DATABASE_URL: testDatabaseUrl,
     ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,

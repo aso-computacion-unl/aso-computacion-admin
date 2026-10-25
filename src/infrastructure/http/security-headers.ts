@@ -14,11 +14,15 @@
  *  - `connect-src 'self'` keeps the admin talking only to its own origin, plus the Sentry ingest
  *    origin of the DSN when error tracking is configured (the browser SDK posts there). No DSN, no extra origin.
  */
+// A dotted DNS name only: the origin lands verbatim in the CSP, so a `;`, a wildcard or an
+// encoded separator in the DSN must never reach it.
+const INGEST_HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
 function sentryIngestOrigin(dsn: string | undefined): string | undefined {
   try {
     const url = new URL(dsn?.trim() ?? "");
 
-    return url.protocol === "https:" ? url.origin : undefined;
+    return url.protocol === "https:" && INGEST_HOSTNAME.test(url.hostname) ? url.origin : undefined;
   } catch {
     return undefined;
   }

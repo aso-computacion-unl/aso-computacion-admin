@@ -8,6 +8,7 @@ import {
   InvalidImageFormatError,
   ValidationError,
 } from "@/domain";
+import { reportError } from "@/infrastructure/observability/report-error";
 
 import { HttpError } from "./http-error";
 
@@ -75,6 +76,7 @@ export function mapErrorToResponse(error: unknown): NextResponse {
   }
 
   console.error(error);
+  reportError(error);
 
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }

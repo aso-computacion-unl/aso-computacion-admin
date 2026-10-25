@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from "@/domain";
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
+import { reportError } from "@/infrastructure/observability/report-error";
 
 import { UnauthorizedError } from "../auth/require-admin-session";
 
@@ -131,6 +132,7 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
   }
 
   console.error(error);
+  reportError(error);
 
   return { error: GENERIC_ERROR_MESSAGE };
 }

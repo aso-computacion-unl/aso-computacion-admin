@@ -8,6 +8,10 @@ export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
  * Quiet time after the LAST mutation before the landing is rebuilt. Longer than
  * the 5 s edge cache of `/api/public/content` (so the build never reads a stale
  * snapshot), and short enough to fit a serverless invocation (see below).
+ *
+ * COUPLING: this must stay strictly greater than the `s-maxage` of
+ * `PUBLIC_CONTENT_CACHE_CONTROL` in app/api/public/content/route.ts. Raise
+ * that TTL and you must raise this one (and check the max wait below).
  */
 export const DEPLOY_HOOK_DEBOUNCE_MS = 8_000;
 /**

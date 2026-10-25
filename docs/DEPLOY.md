@@ -120,7 +120,7 @@ The landing's own deployment (Cloudflare Pages, `ADMIN_CONTENT_URL`, the daily r
 1. Create a **Deploy hook** in the Cloudflare Pages project (Settings → Builds → Deploy hooks) and put its URL in `CLOUDFLARE_DEPLOY_HOOK_URL`.
 2. Give the landing the public API URL, `https://<your-vercel-domain>/api/public/content`, and add the landing's production origin to `PUBLIC_CORS_ORIGINS` if a browser will read it.
 
-Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"version": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
+Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"schemaVersion": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
 
 ## 7. Operating notes
 

@@ -113,7 +113,8 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 
 ```jsonc
 {
-  "version": 1,                       // shape version of this document
+  "version": 1,                       // older name of schemaVersion, same value
+  "schemaVersion": 1,                 // version of this contract, see below
   "generatedAt": "2026-10-22T16:00:00.000Z",
   "events":   [{ "slug", "title", "description", "date", "datePrecision", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
   "faqs":     [{ "question", "answer" }],
@@ -125,12 +126,15 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 }
 ```
 
+- `schemaVersion` (constant `PUBLIC_CONTENT_SCHEMA_VERSION`, `src/interface/public/public-content.mapper.ts`) is an integer that starts at 1 and is bumped **only on a breaking change** (a field removed, renamed or retyped). Adding fields never bumps it, so a consumer can refuse a version it does not know. `version` is the older name of the same value and is kept so existing consumers keep working.
 - `datePrecision` is `"day"` or `"month"`. `date` is always a full `YYYY-MM-DD`; a month-only event emits the first of its month (`2026-02-01`) with `"month"`. `YYYY-MM` is never emitted (the landing rejects it). Additive to `version` 1.
 - `news` is additive to `version` 1 (a landing built against an admin without it treats it as `[]`): only published items, newest `publishedAt` first. `publishedAt` is a `YYYY-MM-DD` calendar date, `body` is the Markdown subset described in "News" (the landing must never render raw HTML from it), and `cover` is `null` when the item has none.
 - Image URLs are the Cloudinary `secure_url` as stored (`https://res.cloudinary.com/<cloud>/image/upload/v<n>/aso-computacion/events/<id>.<ext>`), which is the shape the landing accepts; `cloudinary-media-storage.test.ts` pins that contract.
 - Events come newest date first (undated last) with only their active photos in gallery order; news comes newest `publishedAt` first; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
 - Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). News exposes only its slug, texts, date and cover. The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
 - `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.
+- `ETag`: a strong validator (quoted SHA-256 of the serialized body). `generatedAt` changes on every read, so it is **left out of the hash**: the ETag changes exactly when the content does. A request with a matching `If-None-Match` (weak comparison, list or `*`) gets `304 Not Modified` with no body and the same `ETag`, `Cache-Control`, `Vary` and CORS headers.
+- The 5 s `s-maxage` must stay **below** the deploy-hook debounce (`DEPLOY_HOOK_DEBOUNCE_MS`, 8 s): otherwise a build fired by the hook could read a copy from before the edit. Both constants carry a comment about it and a test pins it.
 - CORS: `PUBLIC_CORS_ORIGINS` is an allowlist of exact origins (`https://host[:port]`; plain `http` only for `localhost`/`127.0.0.1`). The request's origin is echoed only when listed, never `*`, always with `Vary: Origin`; an entry with a path, wildcard or trailing slash is ignored and logged once. `OPTIONS` answers the preflight. No credentials are ever allowed.
 - Rate limit: 60 requests per minute per client (in memory, per instance), 429 beyond that. The map of clients is bounded (swept once per window, at most 10 000 tracked, oldest evicted first).
 - Errors: any failure answers a generic `503 {"error":"Service unavailable"}` with `Cache-Control: no-store`; the cause is only logged on the server.

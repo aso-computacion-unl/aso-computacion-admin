@@ -51,6 +51,11 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 
 Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by each caller (event photos 1200 px; board photos a smaller value). Cloudinary reports the real width after upload; an image narrower than the caller's minimum is destroyed immediately and rejected with `IMAGE_TOO_SMALL`. Images are otherwise retained: replacing a photo never deletes the previous asset.
 
+## Admin UI behavior
+
+- **Route states.** `app/admin/loading.tsx` (skeleton inside the admin layout), `app/admin/error.tsx` (Spanish message, "Reintentar" calls `reset()`, only the error digest is logged and shown, never the message or stack) and `app/admin/not-found.tsx`. `app/not-found.tsx` covers URLs outside `/admin`. No per-section `loading.tsx`: every list is a plain read of a small table, so the admin-level one is enough.
+- **Thumbnails.** Admin lists and previews never load the Cloudinary original for a small image. `thumbnailUrl(url, width, height?)` (`lib/cloudinary-thumbnail.ts`) inserts `w_<2×width>[,h_<2×height>],c_fill|c_limit,f_auto,q_auto` into an image delivery URL (`c_fill` with a height, `c_limit` without). It goes after any transformation already in the URL and before the version segment; without a version segment it goes right after `/upload/`. Non-Cloudinary URLs (and invalid widths) come back unchanged. Images stay plain `<img>` with `loading="lazy"`, `decoding="async"` and explicit `width`/`height`.
+
 ## Events
 
 `/admin/events` manages events and their photo gallery (list, create, edit, publish toggle, delete).

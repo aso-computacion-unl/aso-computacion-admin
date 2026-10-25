@@ -5,6 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
@@ -76,9 +77,9 @@ export function SingleImagePanel({ heading, subject, image, altField, upload, re
 
       {image ? (
         <div className="grid justify-items-start gap-3">
-          {/* Remote Cloudinary asset shown as-is in the admin; no image optimisation needed. */}
+          {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.url} alt={image.alt} width={320} height={Math.round((320 * image.height) / image.width)} className="max-h-72 w-full max-w-xs rounded-xs object-cover" />
+          <img src={thumbnailUrl(image.url, 320)} alt={image.alt} loading="lazy" decoding="async" width={320} height={Math.round((320 * image.height) / image.width)} className="max-h-72 w-full max-w-xs rounded-xs object-cover" />
           <DeleteButton
             label={subject}
             warning={copy.removeWarning}

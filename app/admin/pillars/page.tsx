@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { deletePillar, movePillar, setPillarPublished } from "@/interface/admin/pillars/actions";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
@@ -55,9 +56,9 @@ export default async function AdminPillarsPage() {
               editHref={`/admin/pillars/${pillar.id}/edit`}
               media={
                 pillar.image ? (
-                  // Remote Cloudinary asset shown as-is in the admin; no image optimisation needed.
+                  // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pillar.image.url} alt="" width={96} height={72} className="aspect-4/3 w-20 shrink-0 rounded-xs object-cover sm:w-24" />
+                  <img src={thumbnailUrl(pillar.image.url, 96, 72)} alt="" loading="lazy" decoding="async" width={96} height={72} className="aspect-4/3 w-20 shrink-0 rounded-xs object-cover sm:w-24" />
                 ) : null
               }
               toggle={<PublishedToggle label={pillar.title} isPublished={pillar.isPublished} action={setPillarPublished.bind(null, pillar.id)} />}

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { deleteBoardMember, moveBoardMember, setBoardMemberPublished } from "@/interface/admin/board/actions";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
@@ -55,9 +56,9 @@ export default async function AdminBoardPage() {
               editHref={`/admin/board/${member.id}/edit`}
               media={
                 member.photo ? (
-                  // Remote Cloudinary asset shown as-is in the admin; no image optimisation needed.
+                  // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={member.photo.url} alt="" width={64} height={64} className="size-16 shrink-0 rounded-full object-cover" />
+                  <img src={thumbnailUrl(member.photo.url, 64, 64)} alt="" loading="lazy" decoding="async" width={64} height={64} className="size-16 shrink-0 rounded-full object-cover" />
                 ) : (
                   <span aria-hidden="true" className="grid size-16 shrink-0 place-items-center rounded-full border border-dashed border-mist/60 text-mist">
                     <Icon name="board" />

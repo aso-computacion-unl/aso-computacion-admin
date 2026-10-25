@@ -88,6 +88,7 @@ export function SingleImagePanel({ heading, subject, image, altField, upload, re
             triggerClassName="-ml-3"
             compactOnMobile={false}
             confirmLabel="Sí, quitar"
+            successMessage="Imagen quitada."
             action={remove}
           />
         </div>

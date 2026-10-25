@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { deleteNewsItem, setNewsItemPublished } from "@/interface/admin/news/actions";
 import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
@@ -54,9 +55,9 @@ export default async function AdminNewsPage() {
                 </div>
                 <div className="flex min-w-0 items-start gap-4 lg:items-center">
                   {item.cover ? (
-                    // Remote Cloudinary asset shown as-is in the admin; no image optimisation needed.
+                    // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.cover.url} alt="" width={96} height={72} className="aspect-4/3 w-20 shrink-0 rounded-xs object-cover sm:w-24" />
+                    <img src={thumbnailUrl(item.cover.url, 96, 72)} alt="" loading="lazy" decoding="async" width={96} height={72} className="aspect-4/3 w-20 shrink-0 rounded-xs object-cover sm:w-24" />
                   ) : null}
                   <div className="grid min-w-0 flex-1 gap-1">
                     <h2 className="font-display text-lg leading-tight wrap-anywhere">

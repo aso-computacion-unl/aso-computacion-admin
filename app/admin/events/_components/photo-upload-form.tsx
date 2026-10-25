@@ -217,7 +217,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
                 <li key={item.key} className={cn("grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 rounded bg-muted p-2.5", (item.status === "invalid" || item.status === "failed") && "ring-1 ring-error/60")}>
                   {/* Local object URL of a file the person just picked; nothing to optimise. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.previewUrl} alt="" className={cn("aspect-4/3 w-full rounded-xs object-cover", item.status === "invalid" && "opacity-45 grayscale")} />
+                  <img src={item.previewUrl} alt="" decoding="async" width={88} height={66} className={cn("aspect-4/3 w-full rounded-xs object-cover", item.status === "invalid" && "opacity-45 grayscale")} />
                   <div className="grid min-w-0 content-start gap-1.5">
                     <p className="truncate font-mono text-[0.6875rem] text-mist" title={item.file.name}>
                       {item.file.name} · {item.width ? `${item.width} px` : "…"} · {formatSize(item.file.size)}

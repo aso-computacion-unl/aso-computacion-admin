@@ -22,6 +22,8 @@ export type {
   EventResult,
 } from "./dto/event-result.dto";
 export type { EventPhotoRepository } from "./ports/event-photo-repository.port";
+export type { ListCriteria, PublicationCounts, PublicationStatus } from "./ports/list-criteria";
+export { CountByStatusUseCase } from "./use-cases/count-by-status.use-case";
 export type { EventRepository } from "./ports/event-repository.port";
 export {
   AttachEventPhotoUseCase,

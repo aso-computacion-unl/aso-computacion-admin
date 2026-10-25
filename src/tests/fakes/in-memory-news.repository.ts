@@ -1,3 +1,4 @@
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { NewsItem } from "@/domain/news-item";
@@ -19,8 +20,17 @@ export class InMemoryNewsRepository implements NewsRepository {
     return [...this.items.values()].some((item) => item.props.slug === slug && item.props.id !== excludeId);
   }
 
-  async list(): Promise<NewsItem[]> {
-    return [...this.items.values()].sort(
+  async countByStatus(): Promise<PublicationCounts> {
+    const all = [...this.items.values()];
+    const published = all.filter((item) => item.props.isPublished).length;
+
+    return { published, draft: all.length - published };
+  }
+
+  async list(criteria: ListCriteria = {}): Promise<NewsItem[]> {
+    return [...this.items.values()]
+      .filter((item) => criteria.status === undefined || item.props.isPublished === (criteria.status === "published"))
+      .sort(
       (a, b) =>
         b.props.publishedAt.localeCompare(a.props.publishedAt) ||
         b.props.createdAt.getTime() - a.props.createdAt.getTime() ||

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateNewsItemUseCase } from "@/application/use-cases/create-news-item.use-case";
+import { CountByStatusUseCase } from "@/application/use-cases/count-by-status.use-case";
 import { DeleteNewsItemUseCase } from "@/application/use-cases/delete-news-item.use-case";
 import { GetNewsItemUseCase } from "@/application/use-cases/get-news-item.use-case";
 import { ListNewsItemsUseCase } from "@/application/use-cases/list-news-items.use-case";
@@ -117,6 +118,25 @@ describe("news use cases", () => {
       const list = await new ListNewsItemsUseCase(news).execute();
 
       expect(list.map((item) => item.title)).toEqual(["Reciente", "Intermedia", "Vieja"]);
+    });
+
+    it("lists only the published items or only the drafts when asked, in the same order", async () => {
+      await create.execute({ ...TEXT, title: "Vieja", publishedAt: "2026-01-10", isPublished: true });
+      await create.execute({ ...TEXT, title: "Borrador", publishedAt: "2026-05-01" });
+      await create.execute({ ...TEXT, title: "Nueva", publishedAt: "2026-03-01", isPublished: true });
+      const list = new ListNewsItemsUseCase(news);
+
+      expect((await list.execute({ status: "published" })).map((item) => item.title)).toEqual(["Nueva", "Vieja"]);
+      expect((await list.execute({ status: "draft" })).map((item) => item.title)).toEqual(["Borrador"]);
+      expect(await list.execute({})).toHaveLength(3);
+    });
+
+    it("counts published items and drafts", async () => {
+      await create.execute({ ...TEXT, title: "Una", isPublished: true });
+      await create.execute({ ...TEXT, title: "Dos" });
+      await create.execute({ ...TEXT, title: "Tres" });
+
+      expect(await new CountByStatusUseCase(news).execute()).toEqual({ published: 1, draft: 2 });
     });
 
     it("breaks a date tie with the newest created first", async () => {

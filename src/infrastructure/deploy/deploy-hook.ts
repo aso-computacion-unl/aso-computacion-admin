@@ -2,6 +2,8 @@
 // public, and the guard would force every action test to mock it.
 import { after } from "next/server";
 
+import { recordDeployOutcome, type DeployOutcome } from "./deploy-status";
+
 export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
 
 /**
@@ -85,16 +87,27 @@ async function postHook(url: string): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEPLOY_HOOK_TIMEOUT_MS);
 
+  let outcome: DeployOutcome;
+
   try {
     const response = await fetch(url, { method: "POST", signal: controller.signal });
 
     if (!response.ok) {
       console.warn(`Landing deploy hook answered ${response.status}; the daily rebuild will pick the change up.`);
     }
+
+    outcome = response.ok ? { ok: true, httpStatus: response.status } : { ok: false, httpStatus: response.status };
   } catch (error) {
     console.warn(`Landing deploy hook failed (${describeFailure(error)}); the daily rebuild will pick the change up.`);
+    outcome = { ok: false, errorKind: error instanceof Error && error.name === "AbortError" ? "timeout" : "network" };
   } finally {
     clearTimeout(timeout);
+  }
+
+  try {
+    await recordDeployOutcome(outcome);
+  } catch {
+    // The recorder swallows its own failures; this keeps a misbehaving one from ever blocking the release of the invocation.
   }
 }
 

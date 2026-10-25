@@ -2,6 +2,7 @@ import type { BoardMember } from "@/domain/board-member";
 import type { Faq } from "@/domain/faq";
 import type { Pillar } from "@/domain/pillar";
 import type { SocialLink } from "@/domain/social-link";
+import type { TerminalCommand } from "@/domain/terminal-command";
 
 import type { PublicContentSnapshot } from "../dto/public-content.dto";
 import { toBoardMemberResult } from "../mappers/board-member-result.mapper";
@@ -11,6 +12,7 @@ import { toNewsItemResult } from "../mappers/news-item-result.mapper";
 import { toPillarResult } from "../mappers/pillar-result.mapper";
 import { toSiteSettingsResult } from "../mappers/site-settings-result.mapper";
 import { toSocialLinkResult } from "../mappers/social-link-result.mapper";
+import { toTerminalCommandResult } from "../mappers/terminal-command-result.mapper";
 import type { EventPhotoRepository } from "../ports/event-photo-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { NewsRepository } from "../ports/news-repository.port";
@@ -34,10 +36,11 @@ export class GetPublicContentUseCase {
     private readonly board: OrderedContentRepository<BoardMember>,
     private readonly settings: SiteSettingsRepository,
     private readonly news: NewsRepository,
+    private readonly commands: OrderedContentRepository<TerminalCommand>,
   ) {}
 
   async execute(): Promise<PublicContentSnapshot> {
-    const [events, faqs, pillars, socials, board, settings, news] = await Promise.all([
+    const [events, faqs, pillars, socials, board, settings, news, commands] = await Promise.all([
       this.events.list(),
       this.faqs.list(),
       this.pillars.list(),
@@ -45,6 +48,7 @@ export class GetPublicContentUseCase {
       this.board.list(),
       this.settings.get(),
       this.news.list(),
+      this.commands.list(),
     ]);
     const published = events.filter((event) => event.props.isPublished);
     const photos = await this.eventPhotos.listActiveByEventIds(published.map((event) => event.props.id));
@@ -62,6 +66,7 @@ export class GetPublicContentUseCase {
       settings: settings && toSiteSettingsResult(settings),
       // `list()` already comes newest publication date first.
       news: news.filter(isPublished).map(toNewsItemResult),
+      commands: commands.filter(isPublished).map(toTerminalCommandResult),
     };
   }
 }

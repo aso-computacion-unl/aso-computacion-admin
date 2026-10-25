@@ -32,7 +32,10 @@ const snapshot = {
       photos: [{ id: "p1", eventId: "event-1", ...image, publicId: "aso/p1", sortOrder: 0, isActive: true, createdAt: AT }],
     },
   ],
-  faqs: [{ id: "f1", question: "¿Q?", answer: "A", sortOrder: 0, isPublished: true, ...timestamps }],
+  faqs: [
+    { id: "f1", question: "¿Q?", answer: "A", command: "costo", sortOrder: 0, isPublished: true, ...timestamps },
+    { id: "f2", question: "¿R?", answer: "B", command: null, sortOrder: 1, isPublished: true, ...timestamps },
+  ],
   pillars: [
     { id: "pl1", word: "VOZ", title: "Representamos", text: "t", image, publicId: "aso/pl1", sortOrder: 0, isPublished: true, ...timestamps },
     { id: "pl2", word: "APOYO", title: "Acompañamos", text: "t", image: null, sortOrder: 1, isPublished: true, ...timestamps },
@@ -57,6 +60,10 @@ const snapshot = {
     },
   ],
   settings: { tagline: "Tagline", description: "Description", about: "About", updatedAt: AT },
+  commands: [
+    { id: "c1", command: "horario", description: "Cuándo nos reunimos", output: "Martes y jueves.\n18:00", sortOrder: 0, isPublished: true, ...timestamps },
+    { id: "c2", command: "whoami", description: "Quiénes somos", output: "La ASO.", sortOrder: 1, isPublished: true, ...timestamps },
+  ],
   news: [
     {
       id: "n1",
@@ -79,7 +86,7 @@ describe("toPublicContentResponse", () => {
   const body = toPublicContentResponse(snapshot, AT);
 
   it("pins the top-level keys, the format version and the generation time", () => {
-    expect(keys(body)).toEqual(["board", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
+    expect(keys(body)).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
     expect(body.version).toBe(PUBLIC_CONTENT_VERSION);
     expect(body.generatedAt).toBe("2026-10-22T16:00:00.000Z");
   });
@@ -112,12 +119,24 @@ describe("toPublicContentResponse", () => {
   });
 
   it("exposes exact faq, pillar, social and settings keys", () => {
-    expect(keys(body.faqs[0]!)).toEqual(["answer", "question"]);
+    expect(keys(body.faqs[0]!)).toEqual(["answer", "command", "question"]);
+    expect(body.faqs.map((faq) => faq.command)).toEqual(["costo", null]);
     expect(keys(body.pillars[0]!)).toEqual(["image", "text", "title", "word"]);
     expect(keys(body.pillars[0]!.image!)).toEqual(["alt", "height", "url", "width"]);
     expect(body.pillars[1]!.image).toBeNull();
     expect(keys(body.socials[0]!)).toEqual(["blurb", "handle", "label", "note", "platform", "url"]);
     expect(keys(body.settings!)).toEqual(["about", "description", "tagline"]);
+  });
+
+  it("S5: a free command exposes exactly id, command, description and output, in the order given", () => {
+    expect(keys(body.commands[0]!)).toEqual(["command", "description", "id", "output"]);
+    expect(body.commands).toEqual([
+      { id: "c1", command: "horario", description: "Cuándo nos reunimos", output: "Martes y jueves.\n18:00" },
+      { id: "c2", command: "whoami", description: "Quiénes somos", output: "La ASO." },
+    ]);
+    expect(JSON.stringify(body.commands)).not.toMatch(/createdAt|updatedAt|isPublished|sortOrder/);
+    expect(toPublicContentResponse({ ...snapshot, commands: [] }, AT).commands).toEqual([]);
+    expect(body.version).toBe(1);
   });
 
   it("S6: a news item exposes exactly slug, title, summary, body, publishedAt and cover {url,width,height,alt}, or null", () => {

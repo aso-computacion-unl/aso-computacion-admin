@@ -8,6 +8,7 @@ import {
   PillarPrismaRepository,
   SiteSettingsPrismaRepository,
   SocialLinkPrismaRepository,
+  TerminalCommandPrismaRepository,
 } from "@/infrastructure";
 
 let useCase: GetPublicContentUseCase | undefined;
@@ -23,6 +24,7 @@ export function getPublicContentUseCase(): GetPublicContentUseCase {
     new BoardMemberPrismaRepository(),
     new SiteSettingsPrismaRepository(),
     new NewsPrismaRepository(),
+    new TerminalCommandPrismaRepository(),
   );
 
   return useCase;

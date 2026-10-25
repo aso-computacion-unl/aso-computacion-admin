@@ -31,6 +31,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/infrastructure/deploy/deploy-hook", () => ({ requestSiteRebuild: requestSiteRebuildMock }));
 vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: containers }));
 vi.mock("@/interface/admin/faqs/faqs-container", () => ({ getFaqUseCases: containers }));
+vi.mock("@/interface/admin/commands/commands-container", () => ({ getCommandUseCases: containers }));
 vi.mock("@/interface/admin/pillars/pillars-container", () => ({ getPillarUseCases: containers }));
 vi.mock("@/interface/admin/socials/socials-container", () => ({ getSocialLinkUseCases: containers }));
 vi.mock("@/interface/admin/news/news-container", () => ({ getNewsUseCases: containers }));
@@ -39,6 +40,7 @@ vi.mock("@/interface/admin/settings/settings-container", () => ({ getSiteSetting
 
 import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
 import * as board from "@/interface/admin/board/actions";
+import * as commands from "@/interface/admin/commands/actions";
 import * as events from "@/interface/admin/events/actions";
 import * as faqs from "@/interface/admin/faqs/actions";
 import * as news from "@/interface/admin/news/actions";
@@ -55,6 +57,7 @@ const form = (fields: Record<string, string> = {}, file = false) => {
 };
 const eventForm = () => form({ title: "Hackatón 24h" });
 const faqForm = () => form({ question: "¿Cuesta?", answer: "No." });
+const commandForm = () => form({ command: "horario", description: "Cuándo", output: "Martes." });
 const pillarForm = () => form({ word: "VOZ", title: "Representamos", text: "Texto" });
 const newsForm = () => form({ title: "Taller de Git", summary: "Resumen", body: "Cuerpo" });
 const socialForm = () => form({ platform: "instagram", label: "Instagram", handle: "@aso", url: "https://instagram.com/aso" });
@@ -88,6 +91,18 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       setFaqPublished: () => faqs.setFaqPublished("f", true),
       deleteFaq: () => faqs.deleteFaq("f"),
       moveFaq: () => faqs.moveFaq("f", "up"),
+    },
+  },
+  {
+    name: "commands",
+    file: "src/interface/admin/commands/actions.ts",
+    exported: commands,
+    calls: {
+      createCommand: () => commands.createCommand(null, commandForm()),
+      updateCommand: () => commands.updateCommand("c", null, commandForm()),
+      setCommandPublished: () => commands.setCommandPublished("c", true),
+      deleteCommand: () => commands.deleteCommand("c"),
+      moveCommand: () => commands.moveCommand("c", "up"),
     },
   },
   {
@@ -174,8 +189,8 @@ describe("deploy hook after admin mutations", () => {
     expect(Object.keys(calls).sort()).toEqual(Object.keys(exported).sort());
   });
 
-  it("covers every content module (events, photos, faqs, news, pillars, socials, board, settings)", () => {
-    expect(ALL_CALLS.length).toBe(39);
+  it("covers every content module (events, photos, faqs, commands, news, pillars, socials, board, settings)", () => {
+    expect(ALL_CALLS.length).toBe(44);
   });
 
   it.each(ALL_CALLS)("%s asks for a rebuild exactly once, after the write", async (_name, call) => {

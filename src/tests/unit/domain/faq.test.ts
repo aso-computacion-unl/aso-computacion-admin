@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ValidationError } from "@/domain";
+import { CommandNameConflictError, ValidationError } from "@/domain";
 import { Faq } from "@/domain/faq";
 
 function build(overrides: Partial<Parameters<typeof Faq.create>[0]> = {}): Faq {
@@ -47,5 +47,39 @@ describe("Faq.update / withPublished / withSortOrder", () => {
     expect(faq.withPublished(true).props.isPublished).toBe(true);
     expect(faq.withSortOrder(3).props.sortOrder).toBe(3);
     expect(() => faq.withSortOrder(-2)).toThrow(ValidationError);
+  });
+});
+
+describe("Faq command (S1, S2, S3)", () => {
+  it("is null unless given", () => {
+    expect(build().props.command).toBeNull();
+  });
+
+  it("stores a valid command trimmed", () => {
+    expect(build({ command: "  como-me-entero " }).props.command).toBe("como-me-entero");
+  });
+
+  it.each([null, undefined, "", "   "])("treats %j as no command (null)", (command) => {
+    expect(build({ command }).props.command).toBeNull();
+  });
+
+  it.each(["Mal Comando", "a", "a".repeat(29), "1abc", "a--b", "ab-"])("rejects the malformed command %j", (command) => {
+    expect(() => build({ command })).toThrow(ValidationError);
+    expect(() => build({ command })).toThrow(expect.objectContaining({ field: "command" }));
+  });
+
+  it("rejects a reserved shell word", () => {
+    expect(() => build({ command: "help" })).toThrow(CommandNameConflictError);
+  });
+
+  it("update sets, clears (null or empty) and keeps (undefined) the command", () => {
+    const faq = build({ command: "costo" });
+
+    expect(faq.update({ command: "precio" }).props.command).toBe("precio");
+    expect(faq.update({ command: null }).props.command).toBeNull();
+    expect(faq.update({ command: "" }).props.command).toBeNull();
+    expect(faq.update({ answer: "Otra." }).props.command).toBe("costo");
+    expect(() => faq.update({ command: "Bad Name" })).toThrow(ValidationError);
+    expect(faq.withPublished(true).props.command).toBe("costo");
   });
 });

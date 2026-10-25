@@ -93,6 +93,8 @@ export interface PublicTerminalCommand {
 export interface PublicContentResponse {
   /** Shape version of this document; bumped on a breaking change so the landing can refuse what it does not understand. */
   version: number;
+  /** Same value as `version`, under the name the contract documents; both are bumped together, only on a breaking change. */
+  schemaVersion: number;
   /** ISO timestamp of when the snapshot was read. */
   generatedAt: string;
   events: PublicEvent[];

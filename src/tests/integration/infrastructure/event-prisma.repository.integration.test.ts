@@ -79,6 +79,20 @@ describe("EventPrismaRepository (integration)", () => {
     expect(ids).toEqual([next, old, undatedNew, undatedOld].map((event) => event.props.id));
   });
 
+  it("list narrows by status and countByStatus counts both states", async () => {
+    const published = await repository.create(Event.create({ title: "Publicado", date: "2026-02-01", isPublished: true }));
+    const draft = await repository.create(Event.create({ title: "Borrador", date: "2026-03-01" }));
+
+    expect((await repository.list({ status: "published" })).map((event) => event.props.id)).toEqual([published.props.id]);
+    expect((await repository.list({ status: "draft" })).map((event) => event.props.id)).toEqual([draft.props.id]);
+    expect(await repository.list({})).toHaveLength(2);
+    expect(await repository.countByStatus()).toEqual({ published: 1, draft: 1 });
+  });
+
+  it("countByStatus is zero for both states when there are no events", async () => {
+    expect(await repository.countByStatus()).toEqual({ published: 0, draft: 0 });
+  });
+
   it("updates an event, keeping its id and creation time", async () => {
     const created = await repository.create(Event.create({ title: "Original" }));
 

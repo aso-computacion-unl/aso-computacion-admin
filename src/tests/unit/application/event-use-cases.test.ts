@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateEventUseCase } from "@/application/use-cases/create-event.use-case";
 import { DeleteEventUseCase } from "@/application/use-cases/delete-event.use-case";
+import { CountByStatusUseCase } from "@/application/use-cases/count-by-status.use-case";
 import { GetEventUseCase } from "@/application/use-cases/get-event.use-case";
 import { ListEventsUseCase } from "@/application/use-cases/list-events.use-case";
 import { SetEventPublishedUseCase } from "@/application/use-cases/set-event-published.use-case";
@@ -236,6 +237,44 @@ describe("event use cases", () => {
         [old.id, 1, true],
         [draft.id, 0, false],
       ]);
+    });
+
+    it("lists only the published events or only the drafts when asked", async () => {
+      const create = new CreateEventUseCase(events);
+      const published = await create.execute({ title: "Publicado", date: "2026-02-01", isPublished: true });
+      const draft = await create.execute({ title: "Borrador", date: "2026-03-01" });
+      const list = new ListEventsUseCase(events, photos);
+
+      expect((await list.execute({ status: "published" })).map((item) => item.id)).toEqual([published.id]);
+      expect((await list.execute({ status: "draft" })).map((item) => item.id)).toEqual([draft.id]);
+      expect(await list.execute({})).toHaveLength(2);
+    });
+
+    it("counts the photos of the filtered events only", async () => {
+      const create = new CreateEventUseCase(events);
+      const published = await create.execute({ title: "Publicado", isPublished: true });
+      await create.execute({ title: "Borrador" });
+      const input = { eventId: published.id, url: "https://img.test/a.jpg", width: 1600, height: 900, alt: "Foto" };
+      await photos.add(EventPhoto.create({ ...input, publicId: "a", sortOrder: 0 }), 12);
+
+      const result = await new ListEventsUseCase(events, photos).execute({ status: "published" });
+
+      expect(result.map((item) => item.photoCount)).toEqual([1]);
+    });
+  });
+
+  describe("CountByStatusUseCase", () => {
+    it("counts published events and drafts, not the filtered list", async () => {
+      const create = new CreateEventUseCase(events);
+      await create.execute({ title: "Uno", isPublished: true });
+      await create.execute({ title: "Dos", isPublished: true });
+      await create.execute({ title: "Tres" });
+
+      expect(await new CountByStatusUseCase(events).execute()).toEqual({ published: 2, draft: 1 });
+    });
+
+    it("is zero for both when there are no events", async () => {
+      expect(await new CountByStatusUseCase(events).execute()).toEqual({ published: 0, draft: 0 });
     });
   });
 

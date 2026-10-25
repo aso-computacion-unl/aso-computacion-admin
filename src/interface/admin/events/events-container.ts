@@ -1,5 +1,6 @@
 import {
   AttachEventPhotoUseCase,
+  CountByStatusUseCase,
   CreateEventUseCase,
   DeactivateEventPhotoUseCase,
   DeleteEventUseCase,
@@ -22,6 +23,7 @@ function createEventUseCases() {
 
   return {
     list: new ListEventsUseCase(events, photos),
+    count: new CountByStatusUseCase(events),
     get: new GetEventUseCase(events, photos),
     create: new CreateEventUseCase(events),
     update: new UpdateEventUseCase(events),

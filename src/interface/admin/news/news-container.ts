@@ -1,4 +1,5 @@
 import {
+  CountByStatusUseCase,
   CreateNewsItemUseCase,
   DeleteNewsItemUseCase,
   GetNewsItemUseCase,
@@ -19,6 +20,7 @@ function createNewsUseCases() {
 
   return {
     list: new ListNewsItemsUseCase(news),
+    count: new CountByStatusUseCase(news),
     get: new GetNewsItemUseCase(news),
     create: new CreateNewsItemUseCase(news),
     update: new UpdateNewsItemUseCase(news),

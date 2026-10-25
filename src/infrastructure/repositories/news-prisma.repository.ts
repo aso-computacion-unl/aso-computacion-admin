@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
@@ -8,6 +9,7 @@ import type { NewsItem } from "@/domain/news-item";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./news.mapper";
+import { publicationWhere, toPublicationCounts } from "./publication-filter";
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -42,9 +44,17 @@ export class NewsPrismaRepository implements NewsRepository {
     return record !== null;
   }
 
-  async list(): Promise<NewsItem[]> {
+  async countByStatus(): Promise<PublicationCounts> {
+    // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
+    const groups = await prisma.newsItem.groupBy({ by: ["isPublished"], _count: { _all: true } });
+
+    return toPublicationCounts(groups);
+  }
+
+  async list(criteria?: ListCriteria): Promise<NewsItem[]> {
     // id breaks the last tie so the order is stable between reads.
     const records = await prisma.newsItem.findMany({
+      where: publicationWhere(criteria),
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     });
 

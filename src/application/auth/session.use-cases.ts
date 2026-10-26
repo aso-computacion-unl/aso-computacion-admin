@@ -120,9 +120,13 @@ export class ListActiveSessionsUseCase {
     private readonly now: Clock = () => new Date(),
   ) {}
 
-  /** An admin sees every session; anyone else only their own. */
-  execute({ actor }: { actor: Actor }) {
-    return this.sessions.listActive(this.now(), actor.role === "ADMIN" ? undefined : { userId: actor.userId ?? "" });
+  /** An admin sees every session; anyone else only their own (and nothing without a user id). */
+  async execute({ actor }: { actor: Actor }) {
+    if (actor.role === "ADMIN") {
+      return this.sessions.listActive(this.now(), "all");
+    }
+
+    return actor.userId ? this.sessions.listActive(this.now(), { userId: actor.userId }) : [];
   }
 }
 

@@ -31,6 +31,8 @@ export interface ActiveSessionView {
   userAgent: string | null;
 }
 
+export type SessionScope = { userId: string } | "all";
+
 export interface SessionRepository {
   create(session: SessionRecord): Promise<void>;
   findWithUser(id: string): Promise<SessionWithUser | null>;
@@ -38,8 +40,12 @@ export interface SessionRepository {
   /** True when the session was active and is now revoked. */
   revoke(id: string, at: Date): Promise<boolean>;
   revokeAllForUser(userId: string, at: Date): Promise<number>;
-  /** Not revoked and not expired at `now`, newest first. */
-  listActive(now: Date, filter?: { userId?: string }): Promise<ActiveSessionView[]>;
+  /**
+   * Not revoked and not expired at `now`, newest first. The scope is always explicit: one user's
+   * sessions, or `"all"` (only for a caller that already passed an admin check). An empty user id
+   * matches nothing.
+   */
+  listActive(now: Date, scope: SessionScope): Promise<ActiveSessionView[]>;
 }
 
 export type UserChangeOutcome = "ok" | "not-found" | "last-admin";

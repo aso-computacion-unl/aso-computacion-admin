@@ -146,12 +146,13 @@ describe("SessionPrismaRepository (integration)", () => {
     await sessions.create(sessionOf("expired", "ana", { expiresAt: later(-1) }));
     await sessions.create(sessionOf("bg", null, { createdAt: later(20) }));
 
-    const all = await sessions.listActive(later(100));
+    const all = await sessions.listActive(later(100), "all");
 
     expect(all.map((session) => session.id)).toEqual(["bg", "new", "old"]);
     expect(all[1]).toMatchObject({ userName: "Ben", userEmail: "ben@example.org", kind: "user" });
     expect(all[0]).toMatchObject({ userName: null, kind: "break_glass" });
     expect((await sessions.listActive(later(100), { userId: "ana" })).map((session) => session.id)).toEqual(["old"]);
+    expect(await sessions.listActive(later(100), { userId: "" })).toEqual([]);
   });
 });
 

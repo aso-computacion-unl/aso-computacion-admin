@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ActiveSessionView, SessionRecord, SessionRepository, SessionWithUser } from "@/application/ports/auth.ports";
+import type { ActiveSessionView, SessionRecord, SessionRepository, SessionScope, SessionWithUser } from "@/application/ports/auth.ports";
 
 import type { SessionKind } from "@/domain/user";
 
@@ -42,9 +42,9 @@ export class SessionPrismaRepository implements SessionRepository {
     return count;
   }
 
-  async listActive(now: Date, filter?: { userId?: string }): Promise<ActiveSessionView[]> {
+  async listActive(now: Date, scope: SessionScope): Promise<ActiveSessionView[]> {
     const rows = await prisma.session.findMany({
-      where: { revokedAt: null, expiresAt: { gt: now }, ...(filter?.userId ? { userId: filter.userId } : {}) },
+      where: { revokedAt: null, expiresAt: { gt: now }, ...(scope === "all" ? {} : { userId: scope.userId }) },
       include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });

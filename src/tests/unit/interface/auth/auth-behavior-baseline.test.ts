@@ -73,7 +73,8 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
     const [name, token, options] = sessionCalls[0] as [string, string, Record<string, unknown>];
     expect(name).toBe(AUTH_COOKIE_NAME);
     expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 86400 });
-    expect(await verifySession(token)).toMatchObject({ valid: true, payload: { sub: "admin" } });
+    // S5: the shared-password login is now the break-glass actor, with a session row behind its cookie.
+    expect(await verifySession(token)).toMatchObject({ valid: true, payload: { sub: "break_glass", kind: "break_glass", role: "ADMIN" } });
   });
 
   it.each([

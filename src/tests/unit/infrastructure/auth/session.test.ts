@@ -6,6 +6,8 @@ vi.mock("server-only", () => ({}));
 const VALID_SECRET = "a".repeat(32);
 const OTHER_SECRET = "b".repeat(32);
 const SHORT_SECRET = "too-short";
+const USER_CLAIMS = { sid: "session-1", kind: "user", uid: "user-1", role: "EDITOR" } as const;
+const BREAK_GLASS_CLAIMS = { sid: "session-2", kind: "break_glass", uid: null, role: "ADMIN" } as const;
 
 describe("session-jwt", () => {
   afterEach(() => {
@@ -52,18 +54,28 @@ describe("session-jwt", () => {
   });
 
   describe("signSession", () => {
-    it("SESSION-001: returns a non-empty JWT with sub=admin and a 24h expiration", async () => {
+    it("SESSION-001: returns a non-empty JWT carrying sid, uid and role, with the user as subject and a 24h expiration", async () => {
       vi.stubEnv("ADMIN_SECRET", VALID_SECRET);
 
       const { signSession } = await import("@/infrastructure/auth/session-jwt");
 
-      const token = await signSession();
+      const token = await signSession(USER_CLAIMS);
       expect(token).toEqual(expect.any(String));
       expect(token.length).toBeGreaterThan(0);
 
       const { payload } = await jwtVerify(token, new TextEncoder().encode(VALID_SECRET));
-      expect(payload.sub).toBe("admin");
+      expect(payload).toMatchObject({ sub: "user-1", sid: "session-1", uid: "user-1", role: "EDITOR", kind: "user" });
       expect(payload.exp! - payload.iat!).toBe(86400);
+    });
+
+    it("signs a break-glass session with the synthetic subject and no uid", async () => {
+      vi.stubEnv("ADMIN_SECRET", VALID_SECRET);
+
+      const { signSession } = await import("@/infrastructure/auth/session-jwt");
+      const { payload } = await jwtVerify(await signSession(BREAK_GLASS_CLAIMS), new TextEncoder().encode(VALID_SECRET));
+
+      expect(payload).toMatchObject({ sub: "break_glass", sid: "session-2", kind: "break_glass", role: "ADMIN" });
+      expect(payload.uid).toBeUndefined();
     });
 
     it("SESSION-007: rejects with SessionSecretError when ADMIN_SECRET is short", async () => {
@@ -71,7 +83,7 @@ describe("session-jwt", () => {
 
       const { signSession, SessionSecretError } = await import("@/infrastructure/auth/session-jwt");
 
-      await expect(signSession()).rejects.toThrow(SessionSecretError);
+      await expect(signSession(USER_CLAIMS)).rejects.toThrow(SessionSecretError);
     });
   });
 
@@ -81,12 +93,13 @@ describe("session-jwt", () => {
 
       const { signSession, verifySession } = await import("@/infrastructure/auth/session-jwt");
 
-      const token = await signSession();
-      const result = await verifySession(token);
-
-      expect(result).toEqual({
+      expect(await verifySession(await signSession(USER_CLAIMS))).toEqual({
         valid: true,
-        payload: expect.objectContaining({ sub: "admin" }),
+        payload: expect.objectContaining({ sub: "user-1", sid: "session-1", uid: "user-1", role: "EDITOR", kind: "user" }),
+      });
+      expect(await verifySession(await signSession(BREAK_GLASS_CLAIMS))).toEqual({
+        valid: true,
+        payload: expect.objectContaining({ sub: "break_glass", sid: "session-2", uid: null, role: "ADMIN", kind: "break_glass" }),
       });
     });
 
@@ -124,21 +137,27 @@ describe("session-jwt", () => {
       expect(result).toEqual({ valid: false, reason: "invalid" });
     });
 
-    it("SESSION-005: returns reason=bad-sub for a token with a non-admin subject", async () => {
+    it.each([
+      ["the legacy shared-password token", { sub: "admin" }],
+      ["a token without a session id", { sub: "user-1", kind: "user", uid: "user-1", role: "EDITOR" }],
+      ["a token with an unknown role", { sub: "user-1", sid: "s", kind: "user", uid: "user-1", role: "ROOT" }],
+      ["a token with an unknown kind", { sub: "user-1", sid: "s", kind: "robot", uid: "user-1", role: "ADMIN" }],
+      ["a user token whose subject is not its uid", { sub: "someone-else", sid: "s", kind: "user", uid: "user-1", role: "ADMIN" }],
+      ["a user token without a uid", { sub: "break_glass", sid: "s", kind: "user", role: "ADMIN" }],
+      ["a break-glass token that names a user", { sub: "user-1", sid: "s", kind: "break_glass", uid: "user-1", role: "ADMIN" }],
+    ])("SESSION-005: returns reason=bad-claims for %s", async (_label, claims) => {
       vi.stubEnv("ADMIN_SECRET", VALID_SECRET);
 
       const { verifySession } = await import("@/infrastructure/auth/session-jwt");
 
       const now = Math.floor(Date.now() / 1000);
-      const hackerToken = await new SignJWT({ sub: "hacker" })
+      const token = await new SignJWT(claims)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt(now)
         .setExpirationTime(now + 86400)
         .sign(new TextEncoder().encode(VALID_SECRET));
 
-      const result = await verifySession(hackerToken);
-
-      expect(result).toEqual({ valid: false, reason: "bad-sub" });
+      expect(await verifySession(token)).toEqual({ valid: false, reason: "bad-claims" });
     });
 
     it("rejects a correctly signed token without an expiration", async () => {

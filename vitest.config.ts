@@ -19,6 +19,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/tests/**/*.test.ts"],
     exclude: [...INTEGRATION_SUITES],
+    setupFiles: ["src/tests/support/auth-doubles.setup.ts"],
     coverage: {
       provider: "v8",
       // Floor of the coverage measured when the gate was added. Raise these as

@@ -26,7 +26,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/interface/admin/commands/commands-container", () => ({ getCommandUseCases: getCommandUseCasesMock }));
 
-import { signSession } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/commands/actions";
 import { cookieJar, registerAdminActionAuthCases } from "@/tests/support/admin-action-auth";
 
@@ -54,7 +54,7 @@ describe("command server actions require an admin session (L9)", () => {
   });
 
   it("positive control: a valid session reaches the use cases", async () => {
-    cookieJar(cookiesMock, await signSession());
+    cookieJar(cookiesMock, await signInAs("ADMIN"));
 
     await expect(actions.trashCommand("cmd-1")).resolves.toEqual({ success: true });
 

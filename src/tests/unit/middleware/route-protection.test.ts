@@ -11,8 +11,9 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 // The two Google routes are how a session is obtained, so they cannot require one: the callback only
 // opens a session for a verified Google identity that is on the user list, behind the login throttle.
 // The forum is a separate zone with its own session (`forum_session`, own secret, own guard): its pages and
-// its two Google routes are outside the admin middleware on purpose, and its guard fails closed.
-const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback"];
+// its two Google routes are outside the admin middleware on purpose, and its guard fails closed. Every page
+// of the student screens (`requireForumPageMember`) sends a visitor to the sign-in at `/foro`.
+const FORUM_ROUTES = ["/foro", "/foro/c/x", "/foro/c/x/nuevo", "/foro/hilo/x", "/foro/auth/google/start", "/foro/auth/google/callback"];
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
 const PUBLIC_ROUTES = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", ...FORUM_ROUTES];

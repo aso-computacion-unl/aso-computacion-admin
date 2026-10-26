@@ -98,6 +98,8 @@ export { SetSponsorLogoUseCase, SPONSOR_LOGO_FOLDER, SPONSOR_LOGO_MIN_WIDTH } fr
 export { UpdateSponsorUseCase } from "./use-cases/update-sponsor.use-case";
 export type { PublicContentSnapshot } from "./dto/public-content.dto";
 export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";
+export type { PublicSocialProofSnapshot } from "./dto/public-social-proof.dto";
+export { GetPublicSocialProofUseCase } from "./use-cases/get-public-social-proof.use-case";
 export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-content";
 export type { LandingSeedContent } from "./seed/landing-seed-content";
 export { SeedLandingContentUseCase, SeedPlanInvalidError, emptyExistingKeys } from "./seed/seed-landing-content.use-case";

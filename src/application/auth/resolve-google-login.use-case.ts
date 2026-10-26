@@ -3,7 +3,7 @@ import { emailDomain, normalizeEmail, type User } from "@/domain/user";
 import type { UserRepository } from "../ports/auth.ports";
 
 export interface GoogleLoginConfig {
-  /** When set, only emails of this domain can log in. */
+  /** When set, only Google Workspace accounts of this domain can log in: the email domain and the `hd` claim must both match. */
   allowedDomain?: string;
   /** Emails that become ADMIN on their first successful Google login, if no such user exists yet. */
   bootstrapEmails: string[];
@@ -28,14 +28,16 @@ export class ResolveGoogleLoginUseCase {
     this.bootstrapEmails = new Set(config.bootstrapEmails.flatMap((email) => (email.trim() ? [normalizeEmail(email)] : [])));
   }
 
-  async execute(input: { email: string; emailVerified: boolean; name?: string }): Promise<GoogleLoginOutcome> {
+  async execute(input: { email: string; emailVerified: boolean; name?: string; hostedDomain?: string }): Promise<GoogleLoginOutcome> {
     if (!input.emailVerified) {
       return { ok: false, reason: "unverified" };
     }
 
     const email = normalizeEmail(input.email);
 
-    if (this.allowedDomain && emailDomain(email) !== this.allowedDomain) {
+    // An address of the domain is not enough: a personal Google account can carry any email, so the
+    // verified `hd` claim (absent for personal accounts) has to name the domain too.
+    if (this.allowedDomain && (emailDomain(email) !== this.allowedDomain || input.hostedDomain?.trim().toLowerCase() !== this.allowedDomain)) {
       return { ok: false, reason: "domain" };
     }
 

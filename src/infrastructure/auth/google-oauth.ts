@@ -58,6 +58,8 @@ export interface GoogleIdentity {
   /** True only when Google's token says `email_verified: true`. */
   emailVerified: boolean;
   name?: string;
+  /** Google's `hd` claim: the Workspace domain of the account. Absent for a personal account. */
+  hostedDomain?: string;
 }
 
 interface AuthorizationClient {
@@ -110,5 +112,6 @@ export async function completeGoogleAuthorization(input: CompleteGoogleAuthoriza
     email: payload.email,
     emailVerified: payload.email_verified === true,
     ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+    ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
   };
 }

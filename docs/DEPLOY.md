@@ -63,7 +63,7 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | for Google login | The OAuth client of section 4a. Mark the secret Sensitive. |
 | `AUTH_URL` | for Google login | Public origin of this admin, `https://…` with no path (plain `http` only for localhost). The OAuth redirect URI is `${AUTH_URL}/auth/google/callback`. |
 | `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
-| `ALLOWED_EMAIL_DOMAIN` | no | Only Google accounts of this domain can log in (e.g. `unl.edu.ec`). Unset: any verified account that is on the user list. |
+| `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
 | `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured. Anything else turns it off. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |

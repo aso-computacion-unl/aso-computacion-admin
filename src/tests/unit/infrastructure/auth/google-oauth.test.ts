@@ -98,6 +98,11 @@ describe("completeGoogleAuthorization", () => {
     expect(google.validateAuthorizationCode).toHaveBeenCalledWith("auth-code", "verifier");
   });
 
+  it("carries Google's hd (hosted domain) claim, and only when it is a string", async () => {
+    expect((await complete(await idToken({ claims: { hd: "unl.edu.ec" } })).result).hostedDomain).toBe("unl.edu.ec");
+    expect(await complete(await idToken({ claims: { hd: 42 } })).result).not.toHaveProperty("hostedDomain");
+  });
+
   it("accepts the legacy issuer without the scheme", async () => {
     const { result } = complete(await idToken({ issuer: "accounts.google.com" }));
 

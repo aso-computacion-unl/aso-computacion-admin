@@ -44,8 +44,42 @@ describe("ResolveGoogleLoginUseCase", () => {
       users.users.set("u", makeUser({ id: "u", email: "u@unl.edu.ec" }));
       users.users.set("x", makeUser({ id: "x", email: "x@evil-unl.edu.ec" }));
 
-      expect(await resolve({ allowedDomain: "@UNL.edu.ec" }).execute({ email: "u@unl.edu.ec", emailVerified: true })).toMatchObject({ ok: true });
-      expect(await resolve({ allowedDomain: "unl.edu.ec" }).execute({ email: "x@evil-unl.edu.ec", emailVerified: true })).toEqual({ ok: false, reason: "domain" });
+      expect(await resolve({ allowedDomain: "@UNL.edu.ec" }).execute({ email: "u@unl.edu.ec", emailVerified: true, hostedDomain: "unl.edu.ec" })).toMatchObject({ ok: true });
+      expect(await resolve({ allowedDomain: "unl.edu.ec" }).execute({ email: "x@evil-unl.edu.ec", emailVerified: true, hostedDomain: "evil-unl.edu.ec" })).toEqual({ ok: false, reason: "domain" });
+    });
+  });
+
+  describe("hosted domain (hd claim)", () => {
+    beforeEach(() => {
+      users.users.set("u", makeUser({ id: "u", email: "u@unl.edu.ec" }));
+    });
+
+    const login = (allowedDomain: string | undefined, hostedDomain?: string) =>
+      resolve(allowedDomain ? { allowedDomain } : {}).execute({ email: "u@unl.edu.ec", emailVerified: true, ...(hostedDomain ? { hostedDomain } : {}) });
+
+    it("lets the user in when hd matches the domain, regardless of case", async () => {
+      expect(await login("unl.edu.ec", "unl.edu.ec")).toMatchObject({ ok: true, user: { id: "u" } });
+      expect(await login("@UNL.edu.ec", "UNL.EDU.EC")).toMatchObject({ ok: true });
+    });
+
+    it("refuses a personal account (no hd) even with an email of the domain", async () => {
+      expect(await login("unl.edu.ec")).toEqual({ ok: false, reason: "domain" });
+    });
+
+    it("refuses an hd that is a different domain", async () => {
+      expect(await login("unl.edu.ec", "evil.example")).toEqual({ ok: false, reason: "domain" });
+    });
+
+    it("refuses an hd of the domain when the email is not", async () => {
+      expect(await resolve({ allowedDomain: "unl.edu.ec" }).execute({ email: "ana@example.org", emailVerified: true, hostedDomain: "unl.edu.ec" })).toEqual({
+        ok: false,
+        reason: "domain",
+      });
+    });
+
+    it("ignores hd when no domain is configured", async () => {
+      expect(await login(undefined)).toMatchObject({ ok: true });
+      expect(await login(undefined, "evil.example")).toMatchObject({ ok: true });
     });
   });
 

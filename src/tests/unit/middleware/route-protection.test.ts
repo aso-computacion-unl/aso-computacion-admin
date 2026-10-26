@@ -15,7 +15,7 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback"];
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
-const PUBLIC_ROUTES = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", ...FORUM_ROUTES];
+const PUBLIC_ROUTES = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", ...FORUM_ROUTES];
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

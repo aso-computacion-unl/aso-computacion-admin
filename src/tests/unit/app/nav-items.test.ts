@@ -23,6 +23,12 @@ describe("admin navigation and the trash", () => {
     expect(moreNav("EDITOR").map((item) => item.href)).not.toContain("/admin/settings");
   });
 
+  it("offers the preview page to editors and admins alike", () => {
+    expect(sideNav("EDITOR").map((item) => item.href)).toContain("/admin/vista-previa");
+    expect(sideNav("ADMIN").map((item) => item.href)).toContain("/admin/vista-previa");
+    expect(moreNav("EDITOR").map((item) => item.href)).toContain("/admin/vista-previa");
+  });
+
   it("shows an admin everything, in the sidebar and in the phone's «Más» sheet", () => {
     const all = [...MODULE_NAV, TRASH_NAV, ...ACCOUNT_NAV].map((item) => item.href);
 

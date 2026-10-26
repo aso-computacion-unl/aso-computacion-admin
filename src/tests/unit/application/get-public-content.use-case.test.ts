@@ -227,3 +227,44 @@ describe("GetPublicContentUseCase publication windows", () => {
     expect((await useCase.execute({ now: OPEN })).events[0]).toMatchObject({ slug: props.slug, photos: [] });
   });
 });
+
+describe("GetPublicContentUseCase preview", () => {
+  const OPEN = new Date("2026-11-02T13:00:00.000Z");
+  const CLOSE = new Date("2026-11-09T13:00:00.000Z");
+  const text = { summary: "Resumen", body: "Cuerpo" };
+
+  it("adds drafts and scheduled items, everywhere, but still hides what already expired", async () => {
+    const eventPhotos = new InMemoryEventPhotoRepository();
+    const events = new InMemoryEventRepository(eventPhotos);
+    const news = new InMemoryNewsRepository();
+    const faqs = new InMemoryOrderedRepository<Faq>();
+    const useCase = new GetPublicContentUseCase(
+      events,
+      eventPhotos,
+      faqs,
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemorySiteSettingsRepository(),
+      news,
+      new InMemoryOrderedRepository(),
+    );
+    const now = new Date("2026-11-05T00:00:00.000Z");
+    await events.create(Event.create({ title: "En vivo", isPublished: true }));
+    await events.create(Event.create({ title: "Borrador" }));
+    await events.create(Event.create({ title: "Programado", isPublished: true, publishAt: CLOSE }));
+    await events.create(Event.create({ title: "Vencido", isPublished: true, unpublishAt: OPEN }));
+    await news.create(NewsItem.create({ ...text, title: "Programada", isPublished: true, publishAt: CLOSE }));
+    await news.create(NewsItem.create({ ...text, title: "Vencida", isPublished: true, unpublishAt: OPEN }));
+    await faqs.create(Faq.create({ question: "Borrador", answer: "a", sortOrder: 0 }));
+
+    const publicView = await useCase.execute({ now });
+    const preview = await useCase.execute({ now, includeUnpublished: true });
+
+    expect(publicView.events.map((event) => event.title)).toEqual(["En vivo"]);
+    expect(publicView.faqs).toEqual([]);
+    expect(preview.events.map((event) => event.title).sort()).toEqual(["Borrador", "En vivo", "Programado"]);
+    expect(preview.news.map((item) => item.title)).toEqual(["Programada"]);
+    expect(preview.faqs.map((faq) => faq.question)).toEqual(["Borrador"]);
+  });
+});

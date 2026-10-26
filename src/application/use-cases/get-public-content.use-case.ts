@@ -2,7 +2,7 @@ import type { BoardMember } from "@/domain/board-member";
 import type { Faq } from "@/domain/faq";
 import type { Pillar } from "@/domain/pillar";
 import type { SocialLink } from "@/domain/social-link";
-import { isPubliclyVisible } from "@/domain/publication-window";
+import { isPubliclyVisible, publicationState } from "@/domain/publication-window";
 import type { TerminalCommand } from "@/domain/terminal-command";
 
 import type { PublicContentSnapshot } from "../dto/public-content.dto";
@@ -23,6 +23,11 @@ import type { SiteSettingsRepository } from "../ports/site-settings-repository.p
 export interface GetPublicContentOptions {
   /** The moment publish windows are judged at. Defaults to the current time. */
   now?: Date;
+  /**
+   * Preview for a signed-token holder: drafts and scheduled items are included as well (every entity), and
+   * only what already expired stays out. Never set it for a request that has not proved it may see drafts.
+   */
+  includeUnpublished?: boolean;
 }
 
 /**
@@ -46,7 +51,7 @@ export class GetPublicContentUseCase {
     private readonly commands: OrderedContentRepository<TerminalCommand>,
   ) {}
 
-  async execute({ now = new Date() }: GetPublicContentOptions = {}): Promise<PublicContentSnapshot> {
+  async execute({ now = new Date(), includeUnpublished = false }: GetPublicContentOptions = {}): Promise<PublicContentSnapshot> {
     const [events, faqs, pillars, socials, board, settings, news, commands] = await Promise.all([
       this.events.list(),
       this.faqs.list(),
@@ -57,9 +62,11 @@ export class GetPublicContentUseCase {
       this.news.list(),
       this.commands.list(),
     ]);
-    const published = events.filter((event) => isPubliclyVisible(event.props, now));
+    const inView = ({ props }: { props: Parameters<typeof publicationState>[0] }) =>
+      includeUnpublished ? publicationState(props, now) !== "expired" : isPubliclyVisible(props, now);
+    const published = events.filter(inView);
     const photos = await this.eventPhotos.listActiveByEventIds(published.map((event) => event.props.id));
-    const isPublished = ({ props }: { props: { isPublished: boolean } }) => props.isPublished;
+    const isPublished = ({ props }: { props: { isPublished: boolean } }) => includeUnpublished || props.isPublished;
 
     return {
       events: published.map((event) => ({
@@ -72,7 +79,7 @@ export class GetPublicContentUseCase {
       board: board.filter(isPublished).map(toBoardMemberResult),
       settings: settings && toSiteSettingsResult(settings),
       // `list()` already comes newest publication date first.
-      news: news.filter((item) => isPubliclyVisible(item.props, now)).map(toNewsItemResult),
+      news: news.filter(inView).map(toNewsItemResult),
       commands: commands.filter(isPublished).map(toTerminalCommandResult),
     };
   }

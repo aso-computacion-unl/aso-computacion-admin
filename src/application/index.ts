@@ -79,6 +79,9 @@ export {
   SetBoardMemberPhotoUseCase,
 } from "./use-cases/set-board-member-photo.use-case";
 export { UpdateBoardMemberUseCase } from "./use-cases/update-board-member.use-case";
+export type { ImpactStatResult } from "./dto/impact-stat-result.dto";
+export { CreateImpactStatUseCase } from "./use-cases/create-impact-stat.use-case";
+export { UpdateImpactStatUseCase } from "./use-cases/update-impact-stat.use-case";
 export type { PublicContentSnapshot } from "./dto/public-content.dto";
 export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";
 export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-content";

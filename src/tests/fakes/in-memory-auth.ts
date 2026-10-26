@@ -7,6 +7,7 @@ import type {
   AuditRecorder,
   SessionRecord,
   SessionRepository,
+  SessionScope,
   SessionWithUser,
   UserChangeOutcome,
   UserRepository,
@@ -109,12 +110,12 @@ export class InMemorySessionRepository implements SessionRepository {
     return count;
   }
 
-  async listActive(now: Date, filter?: { userId?: string }): Promise<ActiveSessionView[]> {
+  async listActive(now: Date, scope: SessionScope): Promise<ActiveSessionView[]> {
     const views: ActiveSessionView[] = [];
 
     for (const session of this.sessions.values()) {
       if (session.revokedAt || session.expiresAt <= now) continue;
-      if (filter?.userId && session.userId !== filter.userId) continue;
+      if (scope !== "all" && session.userId !== scope.userId) continue;
       const user = session.userId ? await this.users.findById(session.userId) : null;
       views.push({
         id: session.id,

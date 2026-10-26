@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ListActiveSessionsUseCase,
@@ -193,6 +193,28 @@ describe("ListActiveSessionsUseCase", () => {
     const list = await new ListActiveSessionsUseCase(sessions, now).execute({ actor: admin });
 
     expect(list.map((session) => session.id).sort()).toEqual(["s1", "s2", "s3"]);
+  });
+
+  it("shows an editor without a user id nothing, never everyone's (an empty id is not a wildcard)", async () => {
+    const orphan: Actor = { kind: "user", sessionId: "x", userId: null, name: "Orphan", role: "EDITOR" };
+
+    expect(await new ListActiveSessionsUseCase(sessions, now).execute({ actor: orphan })).toEqual([]);
+  });
+
+  it("asks the repository for an explicit scope: the actor's own id, or all only for an admin", async () => {
+    const listActive = vi.spyOn(sessions, "listActive");
+    const list = new ListActiveSessionsUseCase(sessions, now);
+
+    await list.execute({ actor: editor });
+    await list.execute({ actor: admin });
+
+    expect(listActive).toHaveBeenNthCalledWith(1, NOW, { userId: "ana" });
+    expect(listActive).toHaveBeenNthCalledWith(2, NOW, "all");
+    expect(listActive).not.toHaveBeenCalledWith(NOW, undefined);
+  });
+
+  it("never lists others' sessions for an editor, whoever the scope names", async () => {
+    expect((await sessions.listActive(NOW, { userId: "" })).map((session) => session.id)).toEqual([]);
   });
 
   it("shows a break-glass actor everything (it is an admin)", async () => {

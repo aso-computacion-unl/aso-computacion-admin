@@ -180,7 +180,12 @@ export function makeInvite(overrides: Partial<AdminInviteRecord> = {}): AdminInv
 }
 
 const isPending = (invite: AdminInviteRecord, now: Date) => !invite.usedAt && !invite.revokedAt && invite.expiresAt.getTime() > now.getTime();
-const withoutHash = ({ tokenHash: _tokenHash, ...invite }: AdminInviteRecord): AdminInvite => invite;
+
+function withoutHash(record: AdminInviteRecord): AdminInvite {
+  const invite: Partial<AdminInviteRecord> & AdminInvite = { ...record };
+  delete invite.tokenHash;
+  return invite;
+}
 
 export class InMemoryAdminInviteRepository implements AdminInviteRepository {
   readonly invites = new Map<string, AdminInviteRecord>();

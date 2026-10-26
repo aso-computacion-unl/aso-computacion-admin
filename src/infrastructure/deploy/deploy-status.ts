@@ -38,3 +38,8 @@ export async function recordDeployOutcome(outcome: DeployOutcome, now: Date = ne
 export async function readLastDeployStatus(): Promise<LastDeployStatus | null> {
   return (await repository()).findLast();
 }
+
+/** When the hook was last accepted, or `null` when never recorded. Throws when the database is unreachable. */
+export async function readLastSuccessAt(): Promise<Date | null> {
+  return (await repository()).findLastSuccessAt();
+}

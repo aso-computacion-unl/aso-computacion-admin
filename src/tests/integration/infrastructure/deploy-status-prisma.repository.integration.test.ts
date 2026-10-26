@@ -41,3 +41,23 @@ describe("DeployStatusPrismaRepository (integration)", () => {
     await expect(prisma.deployStatus.create({ data: { id: "other", attemptedAt: T0, ok: true } })).rejects.toThrow();
   });
 });
+
+describe("DeployStatusPrismaRepository last accepted rebuild (integration)", () => {
+  it("is null until a hook call is accepted, and a failed attempt does not set it", async () => {
+    expect(await repository.findLastSuccessAt()).toBeNull();
+
+    await repository.record({ ok: false, httpStatus: 500 }, T0);
+
+    expect(await repository.findLastSuccessAt()).toBeNull();
+  });
+
+  it("moves to the time of each accepted call and survives a later failed attempt", async () => {
+    const accepted = new Date(T0.getTime() + 60_000);
+    await repository.record({ ok: true, httpStatus: 200 }, T0);
+    await repository.record({ ok: true, httpStatus: 202 }, accepted);
+    await repository.record({ ok: false, errorKind: "timeout" }, new Date(T0.getTime() + 120_000));
+
+    expect(await repository.findLastSuccessAt()).toEqual(accepted);
+    expect(await repository.findLast()).toMatchObject({ ok: false, errorKind: "timeout" });
+  });
+});

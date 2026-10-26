@@ -89,7 +89,7 @@ function describeFailure(error: unknown): string {
   return message.replace(/https?:\/\/\S+/g, "[url]");
 }
 
-async function postHook(url: string): Promise<void> {
+async function postHook(url: string): Promise<DeployOutcome> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEPLOY_HOOK_TIMEOUT_MS);
 
@@ -111,6 +111,8 @@ async function postHook(url: string): Promise<void> {
   }
 
   await recordWithin(outcome, DEPLOY_STATUS_WRITE_TIMEOUT_MS);
+
+  return outcome;
 }
 
 /** Records the outcome, giving up after `timeoutMs`: a timeout is logged and reported, never thrown. */
@@ -181,4 +183,18 @@ export function requestSiteRebuild(): void {
   }, Math.min(DEPLOY_HOOK_DEBOUNCE_MS, untilMaxWait));
 
   keepInvocationAlive(current.settled);
+}
+
+/**
+ * Calls the hook right now and waits for its answer, for the scheduled-content cron: there is no edit burst to
+ * coalesce and the caller is a request that can wait. Records the outcome like any other call and never throws.
+ */
+export async function triggerSiteRebuildNow(): Promise<"accepted" | "failed" | "disabled"> {
+  const url = resolveHookUrl();
+
+  if (!url) {
+    return "disabled";
+  }
+
+  return (await postHook(url)).ok ? "accepted" : "failed";
 }

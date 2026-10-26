@@ -31,6 +31,45 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     uploadNewsCover: { role: "EDITOR", audit: "news.cover_set" },
     removeNewsCover: { role: "EDITOR", audit: "news.cover_remove" },
   },
+  "src/interface/admin/board/actions.ts": {
+    createBoardMember: { role: "EDITOR", audit: "board.create" },
+    updateBoardMember: { role: "EDITOR", audit: "board.update" },
+    setBoardMemberPublished: { role: "EDITOR", audit: "board.publish" },
+    trashBoardMember: { role: "EDITOR", audit: "board.trash" },
+    moveBoardMember: { role: "EDITOR", audit: "board.move" },
+    uploadBoardMemberPhoto: { role: "EDITOR", audit: "board.photo_set" },
+    removeBoardMemberPhoto: { role: "EDITOR", audit: "board.photo_remove" },
+  },
+  "src/interface/admin/faqs/actions.ts": {
+    createFaq: { role: "EDITOR", audit: "faq.create" },
+    updateFaq: { role: "EDITOR", audit: "faq.update" },
+    setFaqPublished: { role: "EDITOR", audit: "faq.publish" },
+    trashFaq: { role: "EDITOR", audit: "faq.trash" },
+    moveFaq: { role: "EDITOR", audit: "faq.move" },
+  },
+  "src/interface/admin/pillars/actions.ts": {
+    createPillar: { role: "EDITOR", audit: "pillar.create" },
+    updatePillar: { role: "EDITOR", audit: "pillar.update" },
+    setPillarPublished: { role: "EDITOR", audit: "pillar.publish" },
+    trashPillar: { role: "EDITOR", audit: "pillar.trash" },
+    movePillar: { role: "EDITOR", audit: "pillar.move" },
+    uploadPillarImage: { role: "EDITOR", audit: "pillar.image_set" },
+    removePillarImage: { role: "EDITOR", audit: "pillar.image_remove" },
+  },
+  "src/interface/admin/socials/actions.ts": {
+    createSocialLink: { role: "EDITOR", audit: "social.create" },
+    updateSocialLink: { role: "EDITOR", audit: "social.update" },
+    setSocialLinkPublished: { role: "EDITOR", audit: "social.publish" },
+    trashSocialLink: { role: "EDITOR", audit: "social.trash" },
+    moveSocialLink: { role: "EDITOR", audit: "social.move" },
+  },
+  "src/interface/admin/commands/actions.ts": {
+    createCommand: { role: "EDITOR", audit: "command.create" },
+    updateCommand: { role: "EDITOR", audit: "command.update" },
+    setCommandPublished: { role: "EDITOR", audit: "command.publish" },
+    trashCommand: { role: "EDITOR", audit: "command.trash" },
+    moveCommand: { role: "EDITOR", audit: "command.move" },
+  },
 };
 
 export function cookieJar(cookiesMock: Mock, value: string | undefined) {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { ForumMemberSuspendedError } from "@/domain/forum";
 import { prisma } from "@/infrastructure/prisma/client";
 import { ForumCategoryPrismaRepository } from "@/infrastructure/repositories/forum-category-prisma.repository";
 import { ForumMemberPrismaRepository } from "@/infrastructure/repositories/forum-member-prisma.repository";
@@ -59,6 +60,55 @@ describe("ForumReactionPrismaRepository (integration)", () => {
 
     await expect(reactions.toggle("ana", { kind: "thread", id: "ghost" }, reaction("x1"))).rejects.toThrow(NotFoundError);
     await expect(reactions.toggle("ana", { kind: "reply", id: "ghost" }, reaction("x2"))).rejects.toThrow(NotFoundError);
+    expect(await prisma.forumReaction.count()).toBe(0);
+  });
+
+  it("refuses a suspended member and a hidden post inside the transaction, even when the caller's checks were stale", async () => {
+    await seed();
+    await moderation.setMemberSuspended("ana", true, { at: T0, by: "u1" });
+    await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, { at: T0, by: "u1" });
+    await moderation.setPostHidden({ kind: "thread", id: "t2" }, true, { at: T0, by: "u1" });
+
+    await expect(reactions.toggle("ana", thread, reaction("x1"))).rejects.toThrow(ForumMemberSuspendedError);
+    await expect(reactions.toggle("beto", reply, reaction("x2"))).rejects.toThrow(NotFoundError);
+    await expect(reactions.toggle("beto", { kind: "thread", id: "t2" }, reaction("x3"))).rejects.toThrow(NotFoundError);
+    // A reply of a hidden thread is gone too.
+    await expect(reactions.toggle("beto", { kind: "reply", id: "other" }, reaction("x4"))).rejects.toThrow(NotFoundError);
+    expect(await prisma.forumReaction.count()).toBe(0);
+  });
+
+  it("waits for a suspension that is being committed and then refuses, so no reaction slips in after it", async () => {
+    await seed();
+    let racing: Promise<unknown> = Promise.resolve();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.forumMember.update({ where: { id: "ana" }, data: { status: "SUSPENDED", suspendedAt: T0 } });
+      racing = reactions.toggle("ana", thread, reaction("x1")).then(
+        () => "reacted",
+        (error: unknown) => error,
+      );
+      // Long enough for a toggle that does not wait on the member row to finish first.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    expect(await racing).toBeInstanceOf(ForumMemberSuspendedError);
+    expect(await prisma.forumReaction.count()).toBe(0);
+  });
+
+  it("waits for a hide that is being committed and then refuses, so no reaction lands on a hidden reply", async () => {
+    await seed();
+    let racing: Promise<unknown> = Promise.resolve();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.forumReply.update({ where: { id: "r1" }, data: { hiddenAt: T0, hiddenBy: "u1" } });
+      racing = reactions.toggle("ana", reply, reaction("x1")).then(
+        () => "reacted",
+        (error: unknown) => error,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    expect(await racing).toBeInstanceOf(NotFoundError);
     expect(await prisma.forumReaction.count()).toBe(0);
   });
 

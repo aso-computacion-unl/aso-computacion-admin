@@ -5,15 +5,50 @@ import { Prisma } from "@prisma/client";
 import type { ForumPostTarget } from "@/application/ports/forum-moderation.ports";
 import type { ForumReactionRepository, ForumThreadReactions } from "@/application/ports/forum-reactions.ports";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { ForumMemberSuspendedError } from "@/domain/forum";
 
 import { prisma } from "../prisma/client";
 
 const onTarget = (target: ForumPostTarget) => (target.kind === "thread" ? { threadId: target.id } : { replyId: target.id });
 
+/**
+ * Shared row locks on the member and on the post (reply first, then its thread: the order every other
+ * writer takes them in), taken only while the member is active and the post visible. A suspension or a
+ * hide committing first makes this refuse; one arriving later waits for the transaction.
+ */
+async function lockActiveMemberAndVisiblePost(tx: Prisma.TransactionClient, memberId: string, target: ForumPostTarget): Promise<void> {
+  const member = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumMember" WHERE "id" = ${memberId} AND "status" = 'ACTIVE' FOR SHARE`;
+
+  if (member.length === 0) {
+    // Unknown members are refused like suspended ones: the session behind the call is no longer good.
+    throw new ForumMemberSuspendedError();
+  }
+
+  let threadId = target.id;
+
+  if (target.kind === "reply") {
+    const reply = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${target.id} AND "hiddenAt" IS NULL FOR SHARE`;
+
+    if (reply.length === 0) {
+      throw new NotFoundError("Forum post not found");
+    }
+
+    threadId = reply[0].threadId;
+  }
+
+  const thread = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${threadId} AND "hiddenAt" IS NULL FOR SHARE`;
+
+  if (thread.length === 0) {
+    throw new NotFoundError("Forum post not found");
+  }
+}
+
 export class ForumReactionPrismaRepository implements ForumReactionRepository {
   async toggle(memberId: string, target: ForumPostTarget, reaction: { id: string; at: Date }): Promise<{ reacted: boolean; count: number }> {
     try {
       return await prisma.$transaction(async (tx) => {
+        await lockActiveMemberAndVisiblePost(tx, memberId, target);
+
         const removed = await tx.forumReaction.deleteMany({ where: { memberId, ...onTarget(target) } });
 
         if (removed.count === 0) {

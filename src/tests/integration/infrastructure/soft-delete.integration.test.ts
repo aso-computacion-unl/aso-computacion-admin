@@ -58,13 +58,13 @@ function itSkipsTrashed<E extends OrderedContent<E>>(table: string, repository: 
 }
 
 describe("soft delete: schema (integration)", () => {
-  it("adds a nullable deletedAt to the seven content tables and leaves new rows live", async () => {
+  it("adds a nullable deletedAt to the ten content tables and leaves new rows live", async () => {
     const columns = await prisma.$queryRaw<{ table_name: string; is_nullable: string }[]>`
       SELECT table_name, is_nullable FROM information_schema.columns
       WHERE table_schema = current_schema() AND column_name = 'deletedAt' ORDER BY table_name`;
 
     expect(columns).toEqual(
-      ["BoardMember", "Event", "Faq", "NewsItem", "Pillar", "SocialLink", "TerminalCommand"].map((table_name) => ({ table_name, is_nullable: "YES" })),
+      ["BoardMember", "Event", "Faq", "ImpactStat", "NewsItem", "Pillar", "SocialLink", "Sponsor", "TerminalCommand", "Testimonial"].map((table_name) => ({ table_name, is_nullable: "YES" })),
     );
 
     const event = await events.create(Event.create({ title: "Charla" }));

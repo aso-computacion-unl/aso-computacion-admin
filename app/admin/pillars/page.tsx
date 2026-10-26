@@ -6,6 +6,7 @@ import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { trashPillar, movePillar, setPillarPublished } from "@/interface/admin/pillars/actions";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
@@ -73,7 +74,7 @@ export default async function AdminPillarsPage() {
                 />
               }
               remove={
-                <DeleteButton label={pillar.title} warning="¿Eliminar este pilar y su imagen?" action={trashPillar.bind(null, pillar.id)} />
+                <DeleteButton label={pillar.title} warning="¿Mover este pilar a la papelera?" action={trashPillar.bind(null, pillar.id)} undo={restoreTrashed.bind(null, "pillar", pillar.id)} />
               }
             >
               <p className="font-mono text-xs font-semibold tracking-[0.04em] text-sky uppercase">{pillar.word}</p>

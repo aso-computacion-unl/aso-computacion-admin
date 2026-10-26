@@ -44,3 +44,13 @@ describe("dismissToast", () => {
     expect(dismissToast(toasts, 9)).toEqual(toasts);
   });
 });
+
+describe("toast actions", () => {
+  it("keeps the action a toast was pushed with", () => {
+    const onAction = () => undefined;
+
+    const toasts = pushToast([], { id: 1, message: "Movido a la papelera", action: { label: "Deshacer", onAction } });
+
+    expect(toasts[0]?.action).toEqual({ label: "Deshacer", onAction });
+  });
+});

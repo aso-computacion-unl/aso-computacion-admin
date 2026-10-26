@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useOptimistic, useRef, useState } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
+import { useToast } from "./toast";
 import { resultMessage, useRunAction } from "./use-run-action";
 
 function RowError({ result }: { result: ActionResult | null }) {
@@ -26,13 +27,23 @@ interface PublishedToggleProps {
 
 export function PublishedToggle({ label, isPublished, action }: PublishedToggleProps) {
   const { pending, result, run } = useRunAction();
+  // `published` is what the server confirmed; `shown` flips at once while the action runs and
+  // falls back to `published` by itself if the action fails, leaving the inline error to explain.
   const [published, setPublished] = useState(isPublished);
+  const [shown, setShown] = useOptimistic(published);
 
   function toggle() {
     if (pending) return;
 
     const next = !published;
-    run(() => action(next), () => setPublished(next));
+    run(
+      async () => {
+        setShown(next);
+        return action(next);
+      },
+      () => setPublished(next),
+      next ? `«${label}» publicado.` : `«${label}» pasó a borrador.`,
+    );
   }
 
   return (
@@ -40,7 +51,8 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
       <button
         type="button"
         role="switch"
-        aria-checked={published}
+        aria-checked={shown}
+        aria-busy={pending || undefined}
         aria-label={`Publicado: ${label}`}
         onClick={toggle}
         className="group inline-flex min-h-11 items-center gap-2.5 rounded pr-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground aria-checked:text-foreground"
@@ -54,7 +66,7 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
             pending && "opacity-60",
           )}
         />
-        {pending ? "Guardando…" : published ? "Publicado" : "Borrador"}
+        {shown ? "Publicado" : "Borrador"}
       </button>
       <RowError result={result} />
     </>
@@ -76,7 +88,7 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
   const up = useRef<HTMLButtonElement>(null);
   const down = useRef<HTMLButtonElement>(null);
   const [moved, setMoved] = useState<"up" | "down" | null>(null);
-  const [announcement, setAnnouncement] = useState("");
+  const { notify } = useToast();
 
   // The list re-renders in the new order and the browser drops focus from the node it moved:
   // put it back on the same button, or on the other one when this one just became disabled.
@@ -88,9 +100,10 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
     const target = preferred.current && !preferred.current.disabled ? preferred.current : other.current;
 
     target?.focus();
-    setAnnouncement(`${label}: posición ${position} de ${total}.`);
+    // The toast is the announcement: the live region reads the new place aloud.
+    notify(`${label}: posición ${position} de ${total}.`);
     setMoved(null);
-  }, [moved, pending, label, position, total]);
+  }, [moved, pending, label, position, total, notify]);
 
   function move(direction: "up" | "down") {
     if (pending) return;
@@ -108,9 +121,6 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
         <Icon name="down" />
         <span className="sr-only">Bajar</span>
       </Button>
-      <span role="status" className="sr-only">
-        {announcement}
-      </span>
       <RowError result={result} />
     </div>
   );
@@ -129,6 +139,8 @@ interface DeleteButtonProps {
   compactOnMobile?: boolean;
   confirmLabel?: string;
   note?: string;
+  /** Toast shown once the removal went through. */
+  successMessage?: string;
 }
 
 export function DeleteButton({
@@ -140,6 +152,7 @@ export function DeleteButton({
   compactOnMobile = true,
   confirmLabel = "Sí, eliminar",
   note = "No se puede deshacer.",
+  successMessage = "Eliminado.",
 }: DeleteButtonProps) {
   const { pending, result, run } = useRunAction();
   const [confirming, setConfirming] = useState(false);
@@ -159,7 +172,7 @@ export function DeleteButton({
         {warning} <span className="text-mist">{note}</span>
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action)}>
+        <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action, undefined, successMessage)}>
           {confirmLabel}
         </Button>
         <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>

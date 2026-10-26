@@ -4,11 +4,13 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { EventListItemResult } from "@/application";
 import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
-import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
+import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { pluralize } from "@/interface/admin/publication-summary";
+import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
 
 import { EmptyState, Stamp, TimelineItem } from "../_components/timeline-parts";
 import { PageHead } from "../_components/page-head";
+import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EventDeleteButton } from "./_components/event-delete-button";
 import { EventPublishedToggle } from "./_components/event-published-toggle";
 
@@ -91,17 +93,102 @@ function Legend() {
   );
 }
 
-export default async function AdminEventsPage() {
-  const events = await getAdminEvents();
+interface EventsTimelineProps {
+  drafts: EventListItemResult[];
+  upcoming: EventListItemResult[];
+  past: EventListItemResult[];
+  today: string;
+  /** False when only drafts are listed: the main line has nothing to show then. */
+  showMainLine: boolean;
+}
+
+function EventsTimeline({ drafts, upcoming, past, today, showMainLine }: EventsTimelineProps) {
+  return (
+    <>
+      <div className="mt-5">
+        <Legend />
+      </div>
+
+      <div className="tl mt-6">
+        {drafts.length > 0 ? (
+          <>
+            <section className="tl-drafts" aria-labelledby="h-drafts">
+              <GroupTitle id="h-drafts" title="Borradores" hint="Rama aparte. Al publicar, el evento se une a la línea principal." />
+              <ol className="tl-list">
+                {drafts.map((event) => (
+                  <EventCommit key={event.id} event={event} />
+                ))}
+              </ol>
+            </section>
+            {showMainLine ? (
+              <div className="tl-bend" aria-hidden="true">
+                <svg viewBox="0 0 56 40" preserveAspectRatio="none">
+                  <path d="M14 0C14 22 42 18 42 40" vectorEffect="non-scaling-stroke" />
+                </svg>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {showMainLine ? (
+          <div className="tl-trunk">
+            <section aria-labelledby="h-upcoming">
+              <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren." />
+              {upcoming.length > 0 ? (
+                <ol className="tl-list">
+                  {upcoming.map((event) => (
+                    <EventCommit key={event.id} event={event} when="next" />
+                  ))}
+                </ol>
+              ) : (
+                <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos próximos. Publique un borrador para verlo aquí.</p>
+              )}
+            </section>
+
+            <div className="tl-head" role="separator" aria-label={`Hoy, ${formatEventDate(today)}`}>
+              <span className="tl-node" aria-hidden="true" />
+              <span className="tl-link" aria-hidden="true" />
+              <p className="relative z-1 col-start-2 flex flex-wrap items-baseline gap-x-3.5 gap-y-1 rounded bg-muted px-4 py-2.5 text-[0.9375rem]">
+                <span className="font-mono text-[0.8125rem] font-semibold text-sky">HEAD → main</span>
+                <strong>Hoy · {formatEventDate(today)}</strong>
+                <span className="text-sm text-mist">Arriba lo que viene; abajo lo que ya pasó.</span>
+              </p>
+            </div>
+
+            <section aria-labelledby="h-past">
+              <GroupTitle id="h-past" title="Pasados" hint="Publicados, del más reciente al más antiguo." />
+              {past.length > 0 ? (
+                <ol className="tl-list">
+                  {past.map((event) => (
+                    <EventCommit key={event.id} event={event} />
+                  ))}
+                </ol>
+              ) : (
+                <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos pasados todavía.</p>
+              )}
+            </section>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+const LIST_PATH = "/admin/events";
+
+export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[] }> }) {
+  const filter = parseStatusFilter((await searchParams).estado);
+  const [events, counts] = await Promise.all([getAdminEvents(statusCriteria(filter)), getAdminEventCounts()]);
   const today = todayInLoja(new Date());
   const { drafts, upcoming, past } = groupEvents(events, today);
-  const published = upcoming.length + past.length;
+  // Drafts have their own branch; with only drafts asked for, the main line has nothing to show.
+  const showMainLine = filter !== "borradores";
 
   return (
     <>
       <PageHead
         title="Eventos"
-        meta={`main · ${pluralize(published, "publicado", "publicados")} · ${pluralize(drafts.length, "borrador", "borradores")}`}
+        meta={`main · ${pluralize(counts.published, "publicado", "publicados")} · ${pluralize(counts.draft, "borrador", "borradores")}`}
         action={
           <Button asChild className="min-h-12 flex-none">
             <Link href="/admin/events/new">
@@ -112,7 +199,7 @@ export default async function AdminEventsPage() {
         }
       />
 
-      {events.length === 0 ? (
+      {counts.published + counts.draft === 0 ? (
         <EmptyState
           action={
             <Button asChild>
@@ -127,67 +214,12 @@ export default async function AdminEventsPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="mt-5">
-            <Legend />
-          </div>
-
-          <div className="tl mt-6">
-            {drafts.length > 0 ? (
-              <>
-                <section className="tl-drafts" aria-labelledby="h-drafts">
-                  <GroupTitle id="h-drafts" title="Borradores" hint="Rama aparte. Al publicar, el evento se une a la línea principal." />
-                  <ol className="tl-list">
-                    {drafts.map((event) => (
-                      <EventCommit key={event.id} event={event} />
-                    ))}
-                  </ol>
-                </section>
-                <div className="tl-bend" aria-hidden="true">
-                  <svg viewBox="0 0 56 40" preserveAspectRatio="none">
-                    <path d="M14 0C14 22 42 18 42 40" vectorEffect="non-scaling-stroke" />
-                  </svg>
-                </div>
-              </>
-            ) : null}
-
-            <div className="tl-trunk">
-              <section aria-labelledby="h-upcoming">
-                <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren." />
-                {upcoming.length > 0 ? (
-                  <ol className="tl-list">
-                    {upcoming.map((event) => (
-                      <EventCommit key={event.id} event={event} when="next" />
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos próximos. Publique un borrador para verlo aquí.</p>
-                )}
-              </section>
-
-              <div className="tl-head" role="separator" aria-label={`Hoy, ${formatEventDate(today)}`}>
-                <span className="tl-node" aria-hidden="true" />
-                <span className="tl-link" aria-hidden="true" />
-                <p className="relative z-1 col-start-2 flex flex-wrap items-baseline gap-x-3.5 gap-y-1 rounded bg-muted px-4 py-2.5 text-[0.9375rem]">
-                  <span className="font-mono text-[0.8125rem] font-semibold text-sky">HEAD → main</span>
-                  <strong>Hoy · {formatEventDate(today)}</strong>
-                  <span className="text-sm text-mist">Arriba lo que viene; abajo lo que ya pasó.</span>
-                </p>
-              </div>
-
-              <section aria-labelledby="h-past">
-                <GroupTitle id="h-past" title="Pasados" hint="Publicados, del más reciente al más antiguo." />
-                {past.length > 0 ? (
-                  <ol className="tl-list">
-                    {past.map((event) => (
-                      <EventCommit key={event.id} event={event} />
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos pasados todavía.</p>
-                )}
-              </section>
-            </div>
-          </div>
+          <StatusFilter path={LIST_PATH} current={filter} counts={counts} />
+          {events.length === 0 ? (
+            <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" />
+          ) : (
+            <EventsTimeline drafts={drafts} upcoming={upcoming} past={past} today={today} showMainLine={showMainLine} />
+          )}
         </>
       )}
     </>

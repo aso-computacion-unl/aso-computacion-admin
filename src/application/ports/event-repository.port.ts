@@ -1,13 +1,15 @@
 import type { Event } from "@/domain/event";
 
+import type { ListCriteria, PublicationCounter } from "./list-criteria";
+
 /** Persistence port for events. Implemented by the Prisma adapter and by in-memory fakes in tests. */
-export interface EventRepository {
+export interface EventRepository extends PublicationCounter {
   create(event: Event): Promise<Event>;
   getById(id: string): Promise<Event | null>;
   /** True when another event (not `excludeId`) already uses the slug. */
   slugExists(slug: string, excludeId?: string): Promise<boolean>;
-  /** Every event, drafts included: date descending (undated last), then newest first. */
-  list(): Promise<Event[]>;
+  /** Every event, drafts included unless `criteria` narrows it: date descending (undated last), then newest first. */
+  list(criteria?: ListCriteria): Promise<Event[]>;
   update(event: Event): Promise<Event>;
   /**
    * Deletes the event and, by cascade, its photo rows, and returns the storage

@@ -61,6 +61,16 @@ describe("NewsPrismaRepository (integration)", () => {
     expect(ids).toEqual([recent, sameDaySecond, sameDayFirst, old].map((item) => item.props.id));
   });
 
+  it("list narrows by status and countByStatus counts both states", async () => {
+    const published = await repository.create(make("Publicada", { publishedAt: "2026-02-01", isPublished: true }));
+    const draft = await repository.create(make("Borrador", { publishedAt: "2026-03-01" }));
+
+    expect((await repository.list({ status: "published" })).map((item) => item.props.id)).toEqual([published.props.id]);
+    expect((await repository.list({ status: "draft" })).map((item) => item.props.id)).toEqual([draft.props.id]);
+    expect(await repository.list({})).toHaveLength(2);
+    expect(await repository.countByStatus()).toEqual({ published: 1, draft: 1 });
+  });
+
   it("updates an item, keeping its id and creation time", async () => {
     const created = await repository.create(make("Original"));
 

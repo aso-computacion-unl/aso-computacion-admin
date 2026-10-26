@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { parseMarkdownSubset, type InlineNode } from "@/interface/admin/markdown-subset";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
 import { Panel } from "../../_components/page-head";
 
@@ -59,9 +60,9 @@ export function NewsPreview({ values, cover, coverAlt }: NewsPreviewProps) {
       ) : (
         <article className="grid gap-3 rounded bg-muted p-4">
           {cover ? (
-            // Remote Cloudinary asset shown as-is in the admin; no image optimisation needed.
+            // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover.url} alt={coverAlt} width={cover.width} height={cover.height} className="aspect-3/2 w-full rounded-xs object-cover" />
+            <img src={thumbnailUrl(cover.url, 400, 267)} alt={coverAlt} loading="lazy" decoding="async" width={cover.width} height={cover.height} className="aspect-3/2 w-full rounded-xs object-cover" />
           ) : null}
           {date ? <p className="font-mono text-xs font-semibold text-sky tabular-nums">{date}</p> : null}
           {values.title.trim() ? <h3 className="font-display text-xl leading-tight wrap-anywhere">{values.title}</h3> : null}

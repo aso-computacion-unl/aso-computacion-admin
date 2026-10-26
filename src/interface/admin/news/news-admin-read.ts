@@ -1,12 +1,17 @@
 import "server-only";
 
-import { NotFoundError } from "@/application";
+import { NotFoundError, type ListCriteria } from "@/application";
 
 import { getNewsUseCases } from "./news-container";
 
-/** Admin list: every news item, drafts included, newest publication date first. */
-export function getAdminNewsItems() {
-  return getNewsUseCases().list.execute();
+/** Admin list: every news item, drafts included unless the criteria narrows it, newest publication date first. */
+export function getAdminNewsItems(criteria?: ListCriteria) {
+  return getNewsUseCases().list.execute(criteria);
+}
+
+/** Published and draft totals, whatever the list is filtered by. */
+export function getAdminNewsCounts() {
+  return getNewsUseCases().count.execute();
 }
 
 /** One news item, or null when it does not exist. */

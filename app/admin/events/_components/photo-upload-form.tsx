@@ -10,6 +10,7 @@ import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { uploadEventPhoto } from "@/interface/admin/events/actions";
 
 import { FieldError } from "../../_components/form-parts";
+import { useToast } from "../../_components/toast";
 import { resultMessage } from "../../_components/use-run-action";
 
 interface PhotoUploadFormProps {
@@ -72,6 +73,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
   const [notice, setNotice] = useState<string | null>(null);
   const [showMissing, setShowMissing] = useState(false);
   const [uploading, startUpload] = useTransition();
+  const { notify } = useToast();
   const [inputKey, setInputKey] = useState(0);
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -138,6 +140,8 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
     }
 
     startUpload(async () => {
+      let uploaded = 0;
+
       for (const item of sendable) {
         update(item.key, { status: "uploading", error: undefined });
 
@@ -159,8 +163,11 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
         } else {
           URL.revokeObjectURL(item.previewUrl);
           setQueue((previous) => previous.filter((entry) => entry.key !== item.key));
+          uploaded += 1;
         }
       }
+
+      if (uploaded > 0) notify(uploaded === 1 ? "Foto subida." : `${uploaded} fotos subidas.`);
     });
   }
 
@@ -217,7 +224,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
                 <li key={item.key} className={cn("grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 rounded bg-muted p-2.5", (item.status === "invalid" || item.status === "failed") && "ring-1 ring-error/60")}>
                   {/* Local object URL of a file the person just picked; nothing to optimise. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.previewUrl} alt="" className={cn("aspect-4/3 w-full rounded-xs object-cover", item.status === "invalid" && "opacity-45 grayscale")} />
+                  <img src={item.previewUrl} alt="" decoding="async" width={88} height={66} className={cn("aspect-4/3 w-full rounded-xs object-cover", item.status === "invalid" && "opacity-45 grayscale")} />
                   <div className="grid min-w-0 content-start gap-1.5">
                     <p className="truncate font-mono text-[0.6875rem] text-mist" title={item.file.name}>
                       {item.file.name} · {item.width ? `${item.width} px` : "…"} · {formatSize(item.file.size)}

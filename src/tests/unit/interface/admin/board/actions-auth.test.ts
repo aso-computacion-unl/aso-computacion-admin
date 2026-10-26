@@ -6,7 +6,7 @@ const { cookiesMock, getBoardMemberUseCasesMock, revalidatePathMock, redirectMoc
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     move: { execute: execute() },
     setPhoto: { execute: execute() },
     removePhoto: { execute: execute() },
@@ -53,7 +53,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createBoardMember: () => actions.createBoardMember(null, memberForm()),
   updateBoardMember: () => actions.updateBoardMember("member-1", null, memberForm()),
   setBoardMemberPublished: () => actions.setBoardMemberPublished("member-1", true),
-  deleteBoardMember: () => actions.deleteBoardMember("member-1"),
+  trashBoardMember: () => actions.trashBoardMember("member-1"),
   moveBoardMember: () => actions.moveBoardMember("member-1", "up"),
   uploadBoardMemberPhoto: () => actions.uploadBoardMemberPhoto("member-1", null, photoForm()),
   removeBoardMemberPhoto: () => actions.removeBoardMemberPhoto("member-1"),
@@ -95,9 +95,9 @@ describe("board member server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deleteBoardMember("member-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashBoardMember("member-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "member-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "member-1" });
   });
 
   it("the guard is the first statement of every action", () => {

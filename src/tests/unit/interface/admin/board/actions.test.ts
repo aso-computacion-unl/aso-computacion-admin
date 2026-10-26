@@ -10,7 +10,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     move: { execute: vi.fn() },
     setPhoto: { execute: vi.fn() },
     removePhoto: { execute: vi.fn() },
@@ -42,6 +42,7 @@ describe("board member server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createBoardMember creates the member, refreshes the list and continues on its edit page (the photo needs an id)", async () => {
@@ -83,13 +84,13 @@ describe("board member server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/board/member-1/edit");
   });
 
-  it("publish, delete and move delegate and refresh", async () => {
+  it("publish, trash and move delegate and refresh", async () => {
     await expect(actions.setBoardMemberPublished("member-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deleteBoardMember("member-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashBoardMember("member-1")).resolves.toEqual({ success: true });
     await expect(actions.moveBoardMember("member-1", "down")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "member-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "member-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "member-1" });
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "member-1", direction: "down" });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/board");
   });
@@ -106,9 +107,9 @@ describe("board member server actions", () => {
   });
 
   it("maps NotFoundError to a message that names the member", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("Board member not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("Board member not found"));
 
-    expect((await actions.deleteBoardMember("gone")).error).toContain("integrante");
+    expect((await actions.trashBoardMember("gone")).error).toContain("integrante");
   });
 
   describe("photos", () => {

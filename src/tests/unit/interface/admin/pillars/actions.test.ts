@@ -10,7 +10,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     move: { execute: vi.fn() },
     setImage: { execute: vi.fn() },
     removeImage: { execute: vi.fn() },
@@ -42,6 +42,7 @@ describe("pillar server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createPillar creates the pillar, refreshes the list and continues on its edit page (the image needs an id)", async () => {
@@ -76,13 +77,13 @@ describe("pillar server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/pillars/pillar-1/edit");
   });
 
-  it("publish, delete and move delegate and refresh", async () => {
+  it("publish, trash and move delegate and refresh", async () => {
     await expect(actions.setPillarPublished("pillar-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deletePillar("pillar-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashPillar("pillar-1")).resolves.toEqual({ success: true });
     await expect(actions.movePillar("pillar-1", "down")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "pillar-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "pillar-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "pillar-1" });
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "pillar-1", direction: "down" });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/pillars");
   });
@@ -93,9 +94,9 @@ describe("pillar server actions", () => {
   });
 
   it("maps NotFoundError to a message that names the pillar", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("Pillar not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("Pillar not found"));
 
-    expect((await actions.deletePillar("gone")).error).toContain("pilar");
+    expect((await actions.trashPillar("gone")).error).toContain("pilar");
   });
 
   describe("images", () => {

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
-import { deleteBoardMember, moveBoardMember, setBoardMemberPublished } from "@/interface/admin/board/actions";
+import { trashBoardMember, moveBoardMember, setBoardMemberPublished } from "@/interface/admin/board/actions";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 
@@ -77,7 +77,7 @@ export default async function AdminBoardPage() {
                 />
               }
               remove={
-                <DeleteButton label={member.name} warning="¿Eliminar a este integrante y su foto?" action={deleteBoardMember.bind(null, member.id)} />
+                <DeleteButton label={member.name} warning="¿Eliminar a este integrante y su foto?" action={trashBoardMember.bind(null, member.id)} />
               }
             >
               <h2 className="font-display text-lg leading-tight wrap-anywhere">

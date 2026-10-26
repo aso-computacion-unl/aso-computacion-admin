@@ -6,7 +6,7 @@ const { cookiesMock, getSocialLinkUseCasesMock, revalidatePathMock, redirectMock
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     move: { execute: execute() },
   };
 
@@ -46,7 +46,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createSocialLink: () => actions.createSocialLink(null, socialForm()),
   updateSocialLink: () => actions.updateSocialLink("social-1", null, socialForm()),
   setSocialLinkPublished: () => actions.setSocialLinkPublished("social-1", true),
-  deleteSocialLink: () => actions.deleteSocialLink("social-1"),
+  trashSocialLink: () => actions.trashSocialLink("social-1"),
   moveSocialLink: () => actions.moveSocialLink("social-1", "up"),
 };
 
@@ -86,9 +86,9 @@ describe("social link server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deleteSocialLink("social-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashSocialLink("social-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "social-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "social-1" });
   });
 
   it("the guard is the first statement of every action", () => {

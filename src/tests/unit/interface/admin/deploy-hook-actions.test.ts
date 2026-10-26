@@ -37,6 +37,9 @@ vi.mock("@/interface/admin/socials/socials-container", () => ({ getSocialLinkUse
 vi.mock("@/interface/admin/news/news-container", () => ({ getNewsUseCases: containers }));
 vi.mock("@/interface/admin/board/board-members-container", () => ({ getBoardMemberUseCases: containers }));
 vi.mock("@/interface/admin/settings/settings-container", () => ({ getSiteSettingsUseCases: containers }));
+vi.mock("@/interface/admin/trash/trash-container", () => ({
+  getTrashUseCases: () => ({ restore: containers(), purge: containers() }),
+}));
 
 import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
 import * as board from "@/interface/admin/board/actions";
@@ -47,6 +50,7 @@ import * as news from "@/interface/admin/news/actions";
 import * as pillars from "@/interface/admin/pillars/actions";
 import * as settings from "@/interface/admin/settings/actions";
 import * as socials from "@/interface/admin/socials/actions";
+import * as trash from "@/interface/admin/trash/actions";
 import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
 const form = (fields: Record<string, string> = {}, file = false) => {
@@ -126,7 +130,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createPillar: () => pillars.createPillar(null, pillarForm()),
       updatePillar: () => pillars.updatePillar("p", null, pillarForm()),
       setPillarPublished: () => pillars.setPillarPublished("p", true),
-      deletePillar: () => pillars.deletePillar("p"),
+      trashPillar: () => pillars.trashPillar("p"),
       movePillar: () => pillars.movePillar("p", "up"),
       uploadPillarImage: () => pillars.uploadPillarImage("p", null, form({ imageAlt: "Charla" }, true)),
       removePillarImage: () => pillars.removePillarImage("p"),
@@ -140,7 +144,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createSocialLink: () => socials.createSocialLink(null, socialForm()),
       updateSocialLink: () => socials.updateSocialLink("s", null, socialForm()),
       setSocialLinkPublished: () => socials.setSocialLinkPublished("s", true),
-      deleteSocialLink: () => socials.deleteSocialLink("s"),
+      trashSocialLink: () => socials.trashSocialLink("s"),
       moveSocialLink: () => socials.moveSocialLink("s", "up"),
     },
   },
@@ -152,7 +156,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createBoardMember: () => board.createBoardMember(null, memberForm()),
       updateBoardMember: () => board.updateBoardMember("b", null, memberForm()),
       setBoardMemberPublished: () => board.setBoardMemberPublished("b", true),
-      deleteBoardMember: () => board.deleteBoardMember("b"),
+      trashBoardMember: () => board.trashBoardMember("b"),
       moveBoardMember: () => board.moveBoardMember("b", "up"),
       uploadBoardMemberPhoto: () => board.uploadBoardMemberPhoto("b", null, form({ photoAlt: "Ana" }, true)),
       removeBoardMemberPhoto: () => board.removeBoardMemberPhoto("b"),
@@ -223,5 +227,45 @@ describe("deploy hook after admin mutations", () => {
 
   it.each(MODULES)("the session guard is still the first statement of every $name action", ({ file, calls }) => {
     expect(expectGuardFirstInEveryAction(file).sort()).toEqual(Object.keys(calls).sort());
+  });
+});
+
+describe("deploy hook and the trash (S4)", () => {
+  const TRASH_CALLS = ALL_CALLS.filter(([name]) => /\/trash[A-Z]/.test(name));
+
+  it("covers the trash action of every content module", () => {
+    expect(TRASH_CALLS).toHaveLength(7);
+  });
+
+  it.each(TRASH_CALLS)("%s of a draft does NOT ask for a rebuild: the public content did not change", async (_name, call) => {
+    executeMock.mockResolvedValueOnce({ id: "item-1", wasPublished: false });
+
+    expect(await call()).toEqual({ success: true });
+
+    expect(executeMock).toHaveBeenCalledTimes(1);
+    expect(requestSiteRebuildMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["restoreTrashed", () => trash.restoreTrashed("faq", "f")],
+    ["purgeTrashed", () => trash.purgeTrashed("faq", "f")],
+  ])("%s never asks for a rebuild: a restored item is a draft and a purged one was already out", async (_name, call) => {
+    expect(await call()).toEqual({ success: true });
+
+    expect(executeMock).toHaveBeenCalledTimes(1);
+    expect(requestSiteRebuildMock).not.toHaveBeenCalled();
+  });
+
+  it.each([["restoreTrashed"], ["purgeTrashed"]] as const)("%s does nothing without a session", async (name) => {
+    session(undefined);
+
+    await trash[name]("faq", "f");
+
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(requestSiteRebuildMock).not.toHaveBeenCalled();
+  });
+
+  it("the session guard is the first statement of every trash action", () => {
+    expect(expectGuardFirstInEveryAction("src/interface/admin/trash/actions.ts").sort()).toEqual(Object.keys(trash).sort());
   });
 });

@@ -1,27 +1,17 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import {
-  consumeLoginAttempt,
-  recordSuccessfulLogin,
-  reportUnknownLoginClient,
-} from "@/infrastructure/auth/login-rate-limiter";
-import {
-  deviceThrottleKey,
-  newDeviceId,
-  signKnownDevice,
-  verifyKnownDevice,
-} from "@/infrastructure/auth/known-device";
-import { readKnownDeviceToken, setKnownDeviceCookie } from "@/infrastructure/auth/known-device-cookies";
+import { consumeLoginAttempt, recordSuccessfulLogin } from "@/infrastructure/auth/login-rate-limiter";
+import { newDeviceId, signKnownDevice } from "@/infrastructure/auth/known-device";
+import { setKnownDeviceCookie } from "@/infrastructure/auth/known-device-cookies";
 import { comparePassword, getAdminPassword, reportAdminPasswordMisconfiguration } from "@/infrastructure/auth/password";
-import { clientKeyFromHeaders, UNKNOWN_CLIENT_KEY } from "@/infrastructure/http/client-ip";
 import { isBreakGlassEnabled } from "@/infrastructure/auth/auth-config";
 import { reportError } from "@/infrastructure/observability/report-error";
 import { reportSessionSecretMisconfiguration, SessionSecretError } from "@/infrastructure/auth/session-jwt";
 
 import { recordAudit, SYSTEM_ACTOR } from "../audit/record-audit";
+import { resolveThrottleTarget } from "./login-throttle";
 import { closeSession, openSession } from "./session-lifecycle";
 
 export interface LoginResult {
@@ -34,44 +24,6 @@ const INVALID_CREDENTIALS_ERROR = "Contraseña incorrecta.";
 const AUTH_SERVICE_UNAVAILABLE_ERROR = "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.";
 const TOO_MANY_ATTEMPTS_ERROR = "Demasiados intentos. Intente de nuevo más tarde.";
 const PASSWORD_LOGIN_DISABLED_ERROR = "El acceso con contraseña no está habilitado. Use el acceso con Google.";
-
-/**
- * Best-effort per-client identifier for throttling. Uses the shared client IP
- * resolver so the login throttle and the public rate limiter trust the same
- * Vercel-set headers (`x-real-ip`, then the first `x-forwarded-for` entry).
- */
-async function getClientKey(): Promise<string> {
-  const key = clientKeyFromHeaders(await headers());
-
-  if (key === UNKNOWN_CLIENT_KEY) {
-    reportUnknownLoginClient();
-  }
-
-  return key;
-}
-
-interface ThrottleTarget {
-  /** The bucket this attempt is spent against, and cleared on success. */
-  key: string;
-  /** The known device presenting this attempt, if its cookie verified. */
-  deviceId: string | undefined;
-}
-
-/**
- * A verified known-device cookie gets its own bucket (so a neighbour on the
- * admin's NAT who holds the IP bucket at the cap cannot lock the admin out);
- * anything else, including a forged or expired cookie, shares the IP bucket.
- */
-async function resolveThrottleTarget(): Promise<ThrottleTarget> {
-  const token = await readKnownDeviceToken();
-  const device = token ? await verifyKnownDevice(token) : undefined;
-
-  if (device?.valid) {
-    return { key: deviceThrottleKey(device.deviceId), deviceId: device.deviceId };
-  }
-
-  return { key: await getClientKey(), deviceId: undefined };
-}
 
 /** Best effort: the cookie only lowers a throttle, so failing to set it must never fail a correct login. */
 async function rememberDevice(deviceId: string): Promise<void> {

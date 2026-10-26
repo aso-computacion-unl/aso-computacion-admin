@@ -5,9 +5,11 @@ import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { ifNoneMatchMatches, strongEtag } from "@/infrastructure/http/etag";
 import { reportError } from "@/infrastructure/observability/report-error";
 import { checkPublicRateLimit } from "@/infrastructure/http/rate-limiter";
-import { getPublicContentUseCase } from "@/interface/public/public-content-container";
+import { getPublicContentUseCase, getPublicSocialProofUseCase } from "@/interface/public/public-content-container";
 import type { PublicContentResponse } from "@/interface/public/public-content.dto";
 import { toPublicContentResponse } from "@/interface/public/public-content.mapper";
+import type { PublicSocialProof } from "@/interface/public/public-social-proof.dto";
+import { toPublicSocialProof } from "@/interface/public/public-social-proof.mapper";
 
 // Read from Postgres on every request: never prerendered at build time.
 export const dynamic = "force-dynamic";
@@ -46,8 +48,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const snapshot = await getPublicContentUseCase().execute();
-    const body = toPublicContentResponse(snapshot, new Date());
+    const [snapshot, socialProof] = await Promise.all([getPublicContentUseCase().execute(), getPublicSocialProofUseCase().execute()]);
+    // S9 social proof is appended after every existing key: the main document is built, and shaped, exactly as before.
+    const body: PublicContentResponse & PublicSocialProof = { ...toPublicContentResponse(snapshot, new Date()), ...toPublicSocialProof(socialProof) };
     const etag = strongEtag(JSON.stringify(withoutGeneratedAt(body)));
     // 304 and 200 share these headers: a 304 must repeat the ones that would have been on the 200.
     const headers = { "Cache-Control": PUBLIC_CONTENT_CACHE_CONTROL, ETag: etag };

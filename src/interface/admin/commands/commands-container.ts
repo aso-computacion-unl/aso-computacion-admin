@@ -1,6 +1,8 @@
 import {
+  CountByStatusUseCase,
   CreateTerminalCommandUseCase,
   GetOrderedContentUseCase,
+  ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
@@ -18,6 +20,8 @@ function createCommandUseCases() {
 
   return {
     list: new ListOrderedContentUseCase(commands, toTerminalCommandResult),
+    listPage: new ListOrderedContentPageUseCase(commands, toTerminalCommandResult),
+    count: new CountByStatusUseCase(commands),
     get: new GetOrderedContentUseCase(commands, toTerminalCommandResult, NOT_FOUND),
     create: new CreateTerminalCommandUseCase(commands, commandNames),
     update: new UpdateTerminalCommandUseCase(commands, commandNames),

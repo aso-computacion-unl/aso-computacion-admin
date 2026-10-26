@@ -150,6 +150,15 @@ describe("FAQs: search and pages (integration)", () => {
     expect(idsOf(await faqs.listPage({ search: "MEMBRESIA" }, FULL_PAGE))).toEqual([byCommand.props.id]);
   });
 
+  it("counts live rows by publication state, trash excluded", async () => {
+    await faqs.create(make(0, { isPublished: true }));
+    await faqs.create(make(1));
+    const trashed = await faqs.create(make(2));
+    await faqs.trash(trashed.props.id);
+
+    expect(await faqs.countByStatus()).toEqual({ published: 1, draft: 1 });
+  });
+
   it("pages in display order with every row once, and hides the trash", async () => {
     const created = await Promise.all(Array.from({ length: 7 }, (_, index) => faqs.create(make(index))));
     await faqs.trash(created[3]!.props.id);
@@ -176,6 +185,15 @@ describe("terminal commands: search and pages (integration)", () => {
     expect(new Set(idsOf(await commands.listPage({ search: "sudoku" }, FULL_PAGE)))).toEqual(
       new Set([byCommand, byDescription, byOutput].map((item) => item.props.id)),
     );
+  });
+
+  it("counts live rows by publication state, trash excluded", async () => {
+    await commands.create(make(0, { isPublished: true }));
+    await commands.create(make(1, { isPublished: true }));
+    const trashed = await commands.create(make(2));
+    await commands.trash(trashed.props.id);
+
+    expect(await commands.countByStatus()).toEqual({ published: 2, draft: 0 });
   });
 
   it("pages in display order with every row once", async () => {

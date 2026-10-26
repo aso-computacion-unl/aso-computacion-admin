@@ -1,14 +1,22 @@
 import "server-only";
 import { Prisma, type Faq as PrismaFaq } from "@prisma/client";
 
-import { fetchPage, type ListCriteria, type Page, type PageableRepository, type PageRequest } from "@/application/ports/list-criteria";
+import {
+  fetchPage,
+  type ListCriteria,
+  type Page,
+  type PageableRepository,
+  type PageRequest,
+  type PublicationCounter,
+  type PublicationCounts,
+} from "@/application/ports/list-criteria";
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { CommandNameConflictError } from "@/domain/command-name";
 import type { Faq } from "@/domain/faq";
 
 import { prisma } from "../prisma/client";
-import { LIVE, searchWhere } from "./publication-filter";
+import { LIVE, searchWhere, toPublicationCounts } from "./publication-filter";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./faq.mapper";
 import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
@@ -27,7 +35,7 @@ const LIST_ORDER = [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] a
 
 export class FaqPrismaRepository
   extends PurgeableTrashPrismaRepository<Faq, PrismaFaq>
-  implements OrderedContentRepository<Faq>, PageableRepository<Faq>
+  implements OrderedContentRepository<Faq>, PageableRepository<Faq>, PublicationCounter
 {
   protected readonly delegate = prisma.faq;
   protected readonly trashConfig = {
@@ -56,6 +64,13 @@ export class FaqPrismaRepository
     const records = await prisma.faq.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
+  }
+
+  async countByStatus(): Promise<PublicationCounts> {
+    // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
+    const groups = await prisma.faq.groupBy({ by: ["isPublished"], where: LIVE, _count: { _all: true } });
+
+    return toPublicationCounts(groups);
   }
 
   async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Faq>> {

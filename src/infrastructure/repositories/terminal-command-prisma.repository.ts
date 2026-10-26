@@ -1,14 +1,22 @@
 import "server-only";
 import { Prisma, type TerminalCommand as PrismaTerminalCommand } from "@prisma/client";
 
-import { fetchPage, type ListCriteria, type Page, type PageableRepository, type PageRequest } from "@/application/ports/list-criteria";
+import {
+  fetchPage,
+  type ListCriteria,
+  type Page,
+  type PageableRepository,
+  type PageRequest,
+  type PublicationCounter,
+  type PublicationCounts,
+} from "@/application/ports/list-criteria";
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { CommandNameConflictError } from "@/domain/command-name";
 import type { TerminalCommand } from "@/domain/terminal-command";
 
 import { prisma } from "../prisma/client";
-import { LIVE, searchWhere } from "./publication-filter";
+import { LIVE, searchWhere, toPublicationCounts } from "./publication-filter";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./terminal-command.mapper";
 import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
@@ -27,7 +35,7 @@ const LIST_ORDER = [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] a
 
 export class TerminalCommandPrismaRepository
   extends PurgeableTrashPrismaRepository<TerminalCommand, PrismaTerminalCommand>
-  implements OrderedContentRepository<TerminalCommand>, PageableRepository<TerminalCommand>
+  implements OrderedContentRepository<TerminalCommand>, PageableRepository<TerminalCommand>, PublicationCounter
 {
   protected readonly delegate = prisma.terminalCommand;
   protected readonly trashConfig = {
@@ -56,6 +64,13 @@ export class TerminalCommandPrismaRepository
     const records = await prisma.terminalCommand.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
+  }
+
+  async countByStatus(): Promise<PublicationCounts> {
+    // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
+    const groups = await prisma.terminalCommand.groupBy({ by: ["isPublished"], where: LIVE, _count: { _all: true } });
+
+    return toPublicationCounts(groups);
   }
 
   async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<TerminalCommand>> {

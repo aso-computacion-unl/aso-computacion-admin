@@ -4,14 +4,17 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { EventListItemResult } from "@/application";
 import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
-import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
+import { getAdminEventCounts, getAdminEventsPage } from "@/interface/admin/events/events-admin-read";
 import { windowBadge } from "@/interface/admin/publication-window-badge";
 import { pluralize } from "@/interface/admin/publication-summary";
-import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
+import { listCriteria, parseListParams } from "@/interface/admin/list-params";
+import { parseStatusFilter } from "@/interface/admin/status-filter";
 
 import { EmptyState, Stamp, TimelineItem } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
 import { PageHead } from "../_components/page-head";
+import { ListSearch } from "../_components/list-search";
+import { Pager } from "../_components/pager";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EventDeleteButton } from "./_components/event-delete-button";
 import { EventPublishedToggle } from "./_components/event-published-toggle";
@@ -179,9 +182,12 @@ function EventsTimeline({ drafts, upcoming, past, today, showMainLine }: EventsT
 
 const LIST_PATH = "/admin/events";
 
-export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[] }> }) {
-  const filter = parseStatusFilter((await searchParams).estado);
-  const [events, counts] = await Promise.all([getAdminEvents(statusCriteria(filter)), getAdminEventCounts()]);
+export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[]; q?: string | string[]; pagina?: string | string[] }> }) {
+  const params = await searchParams;
+  const filter = parseStatusFilter(params.estado);
+  const { search, page: requestedPage } = parseListParams(params);
+  const [page, counts] = await Promise.all([getAdminEventsPage(listCriteria(filter, search), requestedPage), getAdminEventCounts()]);
+  const events = page.items;
   const today = todayInLoja(new Date());
   const { drafts, upcoming, past } = groupEvents(events, today);
   // Drafts have their own branch; with only drafts asked for, the main line has nothing to show.
@@ -217,12 +223,14 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
         </EmptyState>
       ) : (
         <>
-          <StatusFilter path={LIST_PATH} current={filter} counts={counts} />
+          <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
+          <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" />
           {events.length === 0 ? (
-            <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" />
+            <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" search={search} />
           ) : (
             <EventsTimeline drafts={drafts} upcoming={upcoming} past={past} today={today} showMainLine={showMainLine} />
           )}
+          <Pager path={LIST_PATH} filter={filter} search={search} page={page} />
         </>
       )}
     </>

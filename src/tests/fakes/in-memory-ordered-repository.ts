@@ -1,4 +1,4 @@
-import type { ListCriteria, Page, PageableRepository, PageRequest } from "@/application/ports/list-criteria";
+import type { ListCriteria, Page, PageableRepository, PageRequest, PublicationCounter, PublicationCounts } from "@/application/ports/list-criteria";
 import type { OrderedContent, OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
@@ -8,7 +8,7 @@ import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `OrderedContentRepository`; `list()` mirrors the Prisma ordering (sortOrder, createdAt, id). */
 export class InMemoryOrderedRepository<E extends OrderedContent<E>>
-  implements OrderedContentRepository<E>, PageableRepository<E>
+  implements OrderedContentRepository<E>, PageableRepository<E>, PublicationCounter
 {
   private readonly items = new Map<string, E>();
   private readonly trashed = new InMemoryTrash<E>();
@@ -32,6 +32,13 @@ export class InMemoryOrderedRepository<E extends OrderedContent<E>>
         a.props.createdAt.getTime() - b.props.createdAt.getTime() ||
         a.props.id.localeCompare(b.props.id),
     );
+  }
+
+  async countByStatus(): Promise<PublicationCounts> {
+    const all = [...this.items.values()];
+    const published = all.filter((entity) => entity.props.isPublished).length;
+
+    return { published, draft: all.length - published };
   }
 
   async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<E>> {

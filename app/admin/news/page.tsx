@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { trashNewsItem, setNewsItemPublished } from "@/interface/admin/news/actions";
-import { getAdminNewsCounts, getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
+import { getAdminNewsCounts, getAdminNewsPage } from "@/interface/admin/news/news-admin-read";
 import { countsSummary } from "@/interface/admin/publication-summary";
 import { windowBadge } from "@/interface/admin/publication-window-badge";
-import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
+import { listCriteria, parseListParams } from "@/interface/admin/list-params";
+import { parseStatusFilter } from "@/interface/admin/status-filter";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { PageHead } from "../_components/page-head";
 import { TrashButton, PublishedToggle } from "../_components/row-actions";
+import { ListSearch } from "../_components/list-search";
+import { Pager } from "../_components/pager";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EmptyState, OrderedList, Stamp, TimelineItem } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
@@ -22,9 +25,12 @@ export const dynamic = "force-dynamic";
 
 const LIST_PATH = "/admin/news";
 
-export default async function AdminNewsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[] }> }) {
-  const filter = parseStatusFilter((await searchParams).estado);
-  const [news, counts] = await Promise.all([getAdminNewsItems(statusCriteria(filter)), getAdminNewsCounts()]);
+export default async function AdminNewsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[]; q?: string | string[]; pagina?: string | string[] }> }) {
+  const params = await searchParams;
+  const filter = parseStatusFilter(params.estado);
+  const { search, page: requestedPage } = parseListParams(params);
+  const [page, counts] = await Promise.all([getAdminNewsPage(listCriteria(filter, search), requestedPage), getAdminNewsCounts()]);
+  const news = page.items;
   const now = new Date();
 
   return (
@@ -56,8 +62,9 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
         </EmptyState>
       ) : (
         <>
-          <StatusFilter path={LIST_PATH} current={filter} counts={counts} />
-          {news.length === 0 ? <FilterEmpty path={LIST_PATH} filter={filter} noun="novedades" /> : null}
+          <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
+          <ListSearch path={LIST_PATH} filter={filter} search={search} label="novedades" />
+          {news.length === 0 ? <FilterEmpty path={LIST_PATH} filter={filter} noun="novedades" search={search} /> : null}
           {news.length > 0 ? (
             <OrderedList label="Novedades, de la más reciente a la más antigua">
               {news.map((item) => (
@@ -97,6 +104,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
               ))}
             </OrderedList>
           ) : null}
+          <Pager path={LIST_PATH} filter={filter} search={search} page={page} />
         </>
       )}
     </div>

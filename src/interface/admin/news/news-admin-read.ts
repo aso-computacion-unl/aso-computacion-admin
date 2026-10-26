@@ -2,6 +2,7 @@ import "server-only";
 
 import { NotFoundError, type ListCriteria } from "@/application";
 
+import { PAGE_SIZE } from "../list-params";
 import { getNewsUseCases } from "./news-container";
 import { requirePageSession } from "../../auth/require-page-session";
 
@@ -9,6 +10,12 @@ import { requirePageSession } from "../../auth/require-page-session";
 export async function getAdminNewsItems(criteria?: ListCriteria) {
   await requirePageSession();
   return getNewsUseCases().list.execute(criteria);
+}
+
+/** One page of the admin list, narrowed by status and search; `page` is clamped to the last page that exists. */
+export async function getAdminNewsPage(criteria: ListCriteria, page: number) {
+  await requirePageSession();
+  return getNewsUseCases().list.executePage(criteria, { page, pageSize: PAGE_SIZE });
 }
 
 /** Published and draft totals, whatever the list is filtered by. */

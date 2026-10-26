@@ -2,6 +2,7 @@ import "server-only";
 
 import { NotFoundError, type ListCriteria } from "@/application";
 
+import { PAGE_SIZE } from "../list-params";
 import { getEventUseCases } from "./events-container";
 import { requirePageSession } from "../../auth/require-page-session";
 
@@ -9,6 +10,12 @@ import { requirePageSession } from "../../auth/require-page-session";
 export async function getAdminEvents(criteria?: ListCriteria) {
   await requirePageSession();
   return getEventUseCases().list.execute(criteria);
+}
+
+/** One page of the admin list, narrowed by status and search; `page` is clamped to the last page that exists. */
+export async function getAdminEventsPage(criteria: ListCriteria, page: number) {
+  await requirePageSession();
+  return getEventUseCases().list.executePage(criteria, { page, pageSize: PAGE_SIZE });
 }
 
 /** Published and draft totals, whatever the list is filtered by. */

@@ -1,6 +1,8 @@
 import {
+  CountByStatusUseCase,
   CreateFaqUseCase,
   GetOrderedContentUseCase,
+  ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
@@ -18,6 +20,8 @@ function createFaqUseCases() {
 
   return {
     list: new ListOrderedContentUseCase(faqs, toFaqResult),
+    listPage: new ListOrderedContentPageUseCase(faqs, toFaqResult),
+    count: new CountByStatusUseCase(faqs),
     get: new GetOrderedContentUseCase(faqs, toFaqResult, NOT_FOUND),
     create: new CreateFaqUseCase(faqs, commandNames),
     update: new UpdateFaqUseCase(faqs, commandNames),

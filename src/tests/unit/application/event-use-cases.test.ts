@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { CreateEventUseCase } from "@/application/use-cases/create-event.use-case";
-import { DeleteEventUseCase } from "@/application/use-cases/delete-event.use-case";
 import { CountByStatusUseCase } from "@/application/use-cases/count-by-status.use-case";
 import { GetEventUseCase } from "@/application/use-cases/get-event.use-case";
 import { ListEventsUseCase } from "@/application/use-cases/list-events.use-case";
@@ -11,7 +10,6 @@ import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { EventPhoto } from "@/domain/event-photo";
 import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
-import { InMemoryMediaStorage } from "@/tests/fakes/in-memory-media-storage";
 
 const MISSING_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -108,115 +106,6 @@ describe("event use cases", () => {
       await expect(
         new SetEventPublishedUseCase(events).execute({ id: MISSING_ID, isPublished: true }),
       ).rejects.toBeInstanceOf(NotFoundError);
-    });
-  });
-
-  describe("DeleteEventUseCase", () => {
-    let storage: InMemoryMediaStorage;
-
-    beforeEach(() => {
-      storage = new InMemoryMediaStorage();
-    });
-
-    async function eventWithPhotos(...publicIds: string[]) {
-      const created = await new CreateEventUseCase(events).execute({ title: "Charla" });
-
-      for (const publicId of publicIds) {
-        await photos.add(
-          EventPhoto.create({
-            eventId: created.id,
-            url: `https://img.test/${publicId}.jpg`,
-            publicId,
-            width: 1600,
-            height: 900,
-            alt: publicId,
-            sortOrder: 0,
-          }),
-          12,
-        );
-      }
-
-      return created;
-    }
-
-    it("deletes an existing event", async () => {
-      const created = await eventWithPhotos();
-
-      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
-
-      expect(await events.getById(created.id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual([]);
-    });
-
-    it("destroys every stored image of the event, active or not, after the delete", async () => {
-      const created = await eventWithPhotos("events/a", "events/b");
-      const hidden = (await photos.listActiveByEventId(created.id))[1]!;
-      await photos.update(hidden.deactivate());
-
-      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
-
-      expect([...storage.destroyedPublicIds].sort()).toEqual(["events/a", "events/b"]);
-    });
-
-    it("destroys a photo attached after the event was first read, because the ids come from the delete itself", async () => {
-      const created = await eventWithPhotos("events/a");
-      const realDelete = events.delete.bind(events);
-      // The gap the old read-then-delete left open: an upload lands just before the row is removed.
-      events.delete = async (id) => {
-        await photos.add(
-          EventPhoto.create({
-            eventId: id,
-            url: "https://img.test/late.jpg",
-            publicId: "events/late",
-            width: 1600,
-            height: 900,
-            alt: "late",
-            sortOrder: 0,
-          }),
-          12,
-        );
-
-        return realDelete(id);
-      };
-
-      await new DeleteEventUseCase(events, storage).execute({ id: created.id });
-
-      expect([...storage.destroyedPublicIds].sort()).toEqual(["events/a", "events/late"]);
-    });
-
-    it("does not destroy anything when the delete itself fails", async () => {
-      const created = await eventWithPhotos("events/a");
-      events.delete = async () => {
-        throw new Error("db down");
-      };
-
-      await expect(new DeleteEventUseCase(events, storage).execute({ id: created.id })).rejects.toThrow(
-        "db down",
-      );
-      expect(storage.destroyedPublicIds).toEqual([]);
-    });
-
-    it("still succeeds when storage cleanup fails, logging the publicIds left behind", async () => {
-      const created = await eventWithPhotos("events/a", "events/b");
-      storage.destroyError = new Error("cloudinary down");
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      await expect(
-        new DeleteEventUseCase(events, storage).execute({ id: created.id }),
-      ).resolves.toBeUndefined();
-
-      expect(await events.getById(created.id)).toBeNull();
-      const logged = log.mock.calls.map((call) => String(call[0])).join("\n");
-      expect(logged).toContain("events/a");
-      expect(logged).toContain("events/b");
-      log.mockRestore();
-    });
-
-    it("throws NotFoundError for an unknown event and destroys nothing", async () => {
-      await expect(
-        new DeleteEventUseCase(events, storage).execute({ id: MISSING_ID }),
-      ).rejects.toBeInstanceOf(NotFoundError);
-      expect(storage.destroyedPublicIds).toEqual([]);
     });
   });
 

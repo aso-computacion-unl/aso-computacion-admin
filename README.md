@@ -43,7 +43,7 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **Pilares** | Las tarjetas de pilares que presenta el sitio |
 | **Redes** | Enlaces a las redes sociales |
 | **Sitio** | Lema, descripción y texto «Acerca de» (solo administradores) |
-| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol: editor o administrador |
+| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se suma gente con un link de invitación de un solo uso que vence a los 7 días |
 | **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
 | **Registro** | Quién cambió qué y cuándo (solo administradores) |
 

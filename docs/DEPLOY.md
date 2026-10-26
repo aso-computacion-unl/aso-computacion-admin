@@ -98,7 +98,7 @@ Change `ADMIN_PASSWORD` in Vercel and redeploy. What that does:
 
 ## 4a. Sign-in with Google, users and roles
 
-People log in with their Google account; only emails on the **Usuarios** list get in, with the role they were given.
+People log in with their Google account; only emails on the **Usuarios** list get in, with the role they were given. New people are added by invitation (see "Inviting people" below).
 
 | Role | Can |
 |------|-----|
@@ -106,6 +106,16 @@ People log in with their Google account; only emails on the **Usuarios** list ge
 | `ADMIN` | Everything an editor can, plus: the site texts (**Sitio**), delete for good from the trash, **Usuarios**, other people's sessions, and the **Registro de cambios** (audit log). |
 
 The role is checked on the server in every action (and on every page read), against the database: demoting, deactivating or revoking takes effect on the person's next request. The last active admin can be neither demoted nor deactivated.
+
+### Inviting people
+
+An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their email and a role (`EDITOR` or `ADMIN`). The app shows a link (`<AUTH_URL>/invitacion/<token>`) once; copy it and send it by any channel. There is no email sending yet. The person opens it, signs in with Google, and only then does their user exist.
+
+- The link is **single use**, **expires after 7 days**, and is **bound to that email**: a Google account with a different email, or an unverified one, is refused (the page only says the invitation is not valid, never why).
+- The database keeps only a SHA-256 hash of the token, so a leaked database does not leak working links, and the link cannot be shown again: if it is lost, create another invitation (a new one for the same email revokes the older pending one).
+- Pending invitations are listed with their expiry and can be revoked. Creating, using and revoking an invitation go to the audit log (`invite.create`, `invite.redeem`, `invite.revoke`) with the role and the invitation id, never the email or the token.
+- Creating an invitation needs `AUTH_URL` (the link is built from it) and refuses with a message when it is missing. An email that already has a user cannot be invited; `ADMIN_BOOTSTRAP_EMAILS` keeps working as before.
+- Existing users, their roles and the Google login of people already on the list are unchanged. The direct "Agregar usuario" form no longer exists.
 
 ### Google Cloud setup (once)
 
@@ -131,7 +141,7 @@ If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en uno
 
 1. Apply the migration (see "The users, sessions and audit migration" in section 8) **before** deploying this version.
 2. Deploy with the Google variables **unset**: login is the shared password, exactly as before, but each login is now a revocable session (listed as "emergencia") and the page shows a warning banner.
-3. Set the Google variables and `ADMIN_BOOTSTRAP_EMAILS`, redeploy, and log in with Google. Your first login creates your ADMIN user. Add the rest of the board in **Usuarios**.
+3. Set the Google variables and `ADMIN_BOOTSTRAP_EMAILS`, redeploy, and log in with Google. Your first login creates your ADMIN user. Invite the rest of the board from **Usuarios** (see "Inviting people").
 4. Once Google works, the password login switches off by itself (it needs `BREAK_GLASS_PASSWORD_LOGIN=1` from then on), and every emergency session still open is rejected at its next request.
 
 ### Emergency procedure (break-glass)
@@ -225,6 +235,13 @@ Purely additive: it creates the `User`, `Session` and `AuditLog` tables and two 
 - Deploy order: run the migration first, then deploy the new code (the reverse fails: the new code reads the tables).
 - Rollback, only if the feature is abandoned (roll the app back first, the old code ignores these tables): `DROP TABLE "AuditLog", "Session", "User"; DROP TYPE "ActorKind", "UserRole"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026120000_add_users_sessions_audit';`, with the **direct** connection string. The audit history is lost with it.
 - The new version no longer accepts the old session cookies (they carry no session id): everybody logs in once more after the deploy.
+
+### The admin invites migration (`20261026160000_add_admin_invites`)
+
+Purely additive: it creates the `AdminInvite` table and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy` and the previous admin keeps working against it (it ignores the table).
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if invites are abandoned (roll the app back first): `DROP TABLE "AdminInvite"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026160000_add_admin_invites';`, with the **direct** connection string. Pending invitations are lost with it; users already created from invitations stay.
 
 ### The forum migration (`20261026140000_add_forum`)
 

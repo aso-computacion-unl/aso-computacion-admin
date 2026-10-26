@@ -10,7 +10,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
-import { DeleteButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
+import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState, OrderedList } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
@@ -66,7 +66,7 @@ export default async function AdminSocialLinksPage() {
                   action={moveSocialLink.bind(null, link.id)}
                 />
               }
-              remove={<DeleteButton label={link.label} warning="¿Mover esta red a la papelera?" action={trashSocialLink.bind(null, link.id)} undo={restoreTrashed.bind(null, "social", link.id)} />}
+              remove={<TrashButton label={link.label} warning="¿Mover esta red a la papelera?" action={trashSocialLink.bind(null, link.id)} undo={restoreTrashed.bind(null, "social", link.id)} />}
             >
               <h2 className="font-display text-lg leading-tight wrap-anywhere">
                 <Link href={`/admin/socials/${link.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

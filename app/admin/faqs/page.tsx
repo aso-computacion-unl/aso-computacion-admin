@@ -9,7 +9,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
-import { DeleteButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
+import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState, OrderedList } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
@@ -65,7 +65,7 @@ export default async function AdminFaqsPage() {
                   action={moveFaq.bind(null, faq.id)}
                 />
               }
-              remove={<DeleteButton label={faq.question} warning="¿Mover esta pregunta a la papelera?" action={trashFaq.bind(null, faq.id)} undo={restoreTrashed.bind(null, "faq", faq.id)} />}
+              remove={<TrashButton label={faq.question} warning="¿Mover esta pregunta a la papelera?" action={trashFaq.bind(null, faq.id)} undo={restoreTrashed.bind(null, "faq", faq.id)} />}
             >
               <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
                 <Link href={`/admin/faqs/${faq.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

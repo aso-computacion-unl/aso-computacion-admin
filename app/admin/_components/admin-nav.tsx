@@ -7,20 +7,22 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
-import { HOME_NAV, MODULE_NAV, MORE_NAV, TAB_NAV, TRASH_NAV, type NavItem } from "./nav-items";
+import type { Role } from "@/domain/user";
+
+import { TAB_NAV, moreNav, sideNav, type NavItem } from "./nav-items";
 
 function isCurrent(pathname: string, item: NavItem): boolean {
   return item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 /** Sidebar list (desktop). */
-export function SideNav() {
+export function SideNav({ role }: { role: Role }) {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Secciones">
       <ul className="grid gap-1">
-        {[HOME_NAV, ...MODULE_NAV, TRASH_NAV].map((item) => {
+        {sideNav(role).map((item) => {
           const current = isCurrent(pathname, item);
 
           return (
@@ -58,10 +60,11 @@ const TAB_LINK_CLASSES = cn(
  * the sheet closes on navigation and when the screen grows past the phone layout. It has no
  * animation, so there is nothing for reduced motion to switch off.
  */
-function MoreTab({ pathname }: { pathname: string }) {
+function MoreTab({ pathname, role }: { pathname: string; role: Role }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
-  const current = MORE_NAV.some((item) => isCurrent(pathname, item));
+  const items = moreNav(role);
+  const current = items.some((item) => isCurrent(pathname, item));
 
   function close() {
     dialog.current?.close();
@@ -107,7 +110,7 @@ function MoreTab({ pathname }: { pathname: string }) {
         className="fixed inset-x-0 top-auto bottom-[calc(4.25rem+env(safe-area-inset-bottom))] m-0 w-full max-w-none rounded-t border-0 bg-muted p-2 text-foreground shadow-[0_-1px_0_var(--color-border)] backdrop:bg-black/50 lg:hidden"
       >
         <ul className="grid gap-1">
-          {MORE_NAV.map((item) => (
+          {items.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
@@ -131,7 +134,7 @@ function MoreTab({ pathname }: { pathname: string }) {
 }
 
 /** Bottom tab bar (phone): the busiest modules one tap away at thumb height, the rest behind "Más". */
-export function TabBar() {
+export function TabBar({ role }: { role: Role }) {
   const pathname = usePathname();
 
   return (
@@ -152,7 +155,7 @@ export function TabBar() {
             </li>
           );
         })}
-        <MoreTab pathname={pathname} />
+        <MoreTab pathname={pathname} role={role} />
       </ul>
     </nav>
   );

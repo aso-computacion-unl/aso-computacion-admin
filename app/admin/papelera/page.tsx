@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { requirePageSession } from "@/interface/auth/require-page-session";
 import { purgeTrashed, restoreTrashed } from "@/interface/admin/trash/actions";
 import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
 import { formatDeletedAt, groupTrash, purgeWarning, TRASH_KIND_LABELS } from "@/interface/admin/trash/trash-labels";
@@ -13,14 +14,18 @@ import { EmptyState } from "../_components/timeline-parts";
 export const dynamic = "force-dynamic";
 
 export default async function AdminTrashPage() {
+  const actor = await requirePageSession();
   const items = await getAdminTrash();
+  const canPurge = actor.role === "ADMIN";
 
   return (
     <div>
       <PageHead title="Papelera" meta={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`} />
       <p className="mt-4 max-w-2xl text-mist">
         Lo que se mueve a la papelera deja de mostrarse en el sitio y se conserva aquí. Al restaurarlo vuelve como borrador: nada se publica por sí solo.
-        Eliminar definitivamente borra el elemento y sus archivos, y no se puede deshacer.
+        {canPurge
+          ? "Eliminar definitivamente borra el elemento y sus archivos, y no se puede deshacer."
+          : "Solo un administrador puede eliminar definitivamente."}
       </p>
       {items.length === 0 ? (
         <EmptyState
@@ -47,16 +52,18 @@ export default async function AdminTrashPage() {
                       <p className="font-mono text-[0.8125rem] text-mist">Eliminado el {formatDeletedAt(item.deletedAt)}</p>
                     </div>
                     <RestoreButton label={item.title} action={restoreTrashed.bind(null, kind, item.id)} />
-                    <DeleteButton
-                      label={item.title}
-                      warning={purgeWarning(kind)}
-                      note="Esta acción es irreversible: no se puede deshacer."
-                      triggerLabel="Eliminar definitivamente"
-                      confirmLabel="Sí, eliminar definitivamente"
-                      successMessage="Eliminado definitivamente."
-                      compactOnMobile={false}
-                      action={purgeTrashed.bind(null, kind, item.id)}
-                    />
+                    {canPurge ? (
+                      <DeleteButton
+                        label={item.title}
+                        warning={purgeWarning(kind)}
+                        note="Esta acción es irreversible: no se puede deshacer."
+                        triggerLabel="Eliminar definitivamente"
+                        confirmLabel="Sí, eliminar definitivamente"
+                        successMessage="Eliminado definitivamente."
+                        compactOnMobile={false}
+                        action={purgeTrashed.bind(null, kind, item.id)}
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

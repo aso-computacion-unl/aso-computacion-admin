@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { RESTRICTED_NOTICE } from "@/interface/admin/role-labels";
+import { requirePageSession } from "@/interface/auth/require-page-session";
 import { getLastDeployStatus } from "@/interface/admin/deploy-status-admin-read";
 import { describeDeployStatus } from "@/interface/admin/deploy-status-label";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
@@ -14,7 +16,7 @@ import { publicationSummary } from "@/interface/admin/publication-summary";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
 
 import { PageHead } from "./_components/page-head";
-import { MODULE_NAV } from "./_components/nav-items";
+import { MODULE_NAV, visibleTo } from "./_components/nav-items";
 
 // Counts are read on every request.
 export const dynamic = "force-dynamic";
@@ -61,7 +63,10 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
   };
 }
 
-export default async function AdminHomePage() {
+export default async function AdminHomePage({ searchParams }: { searchParams: Promise<{ acceso?: string | string[] }> }) {
+  // Before the reads below, which swallow their own failures: a lost session must redirect, not show dashes.
+  const actor = await requirePageSession();
+  const restricted = (await searchParams).acceso === "restringido";
   const [lines, deployStatus] = await Promise.all([summaries(), getLastDeployStatus()]);
   const deploy = deployStatus === undefined ? undefined : describeDeployStatus(deployStatus, new Date());
 
@@ -80,6 +85,12 @@ export default async function AdminHomePage() {
         }
       />
 
+      {restricted ? (
+        <p role="status" className="mt-4 border-l-2 border-dashed border-signal pl-4 text-mist">
+          {RESTRICTED_NOTICE}
+        </p>
+      ) : null}
+
       {deploy ? (
         <p role="status" className="mt-4 font-mono text-[0.8125rem] text-mist">
           <span className={deploy.tone === "failed" ? "text-error" : undefined}>{deploy.text}</span>
@@ -90,7 +101,7 @@ export default async function AdminHomePage() {
       {/* A list on a phone; from sm up one card per module: its count, its state and its main action. */}
       <nav aria-label="Contenido del sitio" className="mt-8">
         <ul className="divide-y divide-border border-y border-border sm:grid sm:grid-cols-2 sm:gap-4 sm:divide-y-0 sm:border-y-0 xl:grid-cols-3">
-          {MODULE_NAV.map((item) => {
+          {visibleTo(MODULE_NAV, actor.role).map((item) => {
             const { count, line } = lines[item.href] ?? { count: null, line: "—" };
 
             return (

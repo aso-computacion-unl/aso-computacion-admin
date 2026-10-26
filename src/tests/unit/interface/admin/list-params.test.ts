@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { listHref, MAX_PAGE, PAGE_SIZE, parseListParams, parsePage, parseSearch, SEARCH_MAX_LENGTH } from "@/interface/admin/list-params";
+import { listCriteria, listHref, MAX_PAGE, PAGE_SIZE, parseListParams, parsePage, parseSearch, SEARCH_MAX_LENGTH } from "@/interface/admin/list-params";
 
 describe("parseSearch", () => {
   it("trims the text and collapses inner whitespace", () => {
@@ -58,6 +58,15 @@ describe("parseListParams", () => {
 
   it("defaults to no search and the first page", () => {
     expect(parseListParams({})).toEqual({ search: "", page: 1 });
+  });
+});
+
+describe("listCriteria", () => {
+  it("composes the status filter with the search for the repository", () => {
+    expect(listCriteria("publicados", "git")).toEqual({ status: "published", search: "git" });
+    expect(listCriteria("borradores", "")).toEqual({ status: "draft" });
+    expect(listCriteria("todos", "git")).toEqual({ search: "git" });
+    expect(listCriteria("todos", "")).toEqual({});
   });
 });
 

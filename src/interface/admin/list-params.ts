@@ -1,4 +1,6 @@
-import { filterHref, type StatusFilter } from "./status-filter";
+import type { ListCriteria } from "@/application";
+
+import { filterHref, statusCriteria, type StatusFilter } from "./status-filter";
 
 /** Rows per page of every admin list. */
 export const PAGE_SIZE = 20;
@@ -51,4 +53,9 @@ export function listHref(path: string, { filter = "todos", search = "", page = 1
   const text = params.toString();
 
   return text === "" ? path : `${path}?${text}`;
+}
+
+/** What the repository is asked for: the status filter and the search, each only when set. */
+export function listCriteria(filter: StatusFilter, search: string): ListCriteria {
+  return { ...statusCriteria(filter), ...(search === "" ? {} : { search }) };
 }

@@ -10,6 +10,7 @@ import { getForumThread } from "@/interface/forum/forum-read";
 
 import { PostCard } from "../../_components/post-card";
 import { PostTime } from "../../_components/post-time";
+import { ReplyForm } from "../../_components/reply-form";
 
 // The title and the page share one read per request.
 const loadThread = cache((id: string) => orNotFound(getForumThread(id)));
@@ -76,17 +77,22 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
             best={reply.isBest}
           />
         ))}
-        {thread.locked ? (
-          <li>
-            <span aria-hidden="true" className="z-1 grid size-7 place-items-center justify-self-center rounded-full border-2 border-sky bg-card text-foreground shadow-[0_0_0_4px_var(--color-navy)] sm:size-8">
-              <Icon name="lock" className="size-3.5" />
-            </span>
+        <li>
+          <span
+            aria-hidden="true"
+            className="z-1 grid size-7 place-items-center justify-self-center rounded-full border-2 border-sky bg-card text-foreground shadow-[0_0_0_4px_var(--color-navy)] sm:size-8"
+          >
+            <Icon name={thread.locked ? "lock" : "reply"} className="size-3.5" />
+          </span>
+          {thread.locked ? (
             <div className="rounded-xl border border-border bg-muted px-4 py-3.5 text-mist">
               <strong className="block text-foreground">Hilo cerrado por la moderación</strong>
               Se puede leer, pero ya no admite respuestas nuevas.
             </div>
-          </li>
-        ) : null}
+          ) : (
+            <ReplyForm threadId={thread.id} />
+          )}
+        </li>
       </ol>
     </>
   );

@@ -117,11 +117,22 @@ describe("a thread page", () => {
     expect(html).not.toContain("Mejor respuesta");
   });
 
+  it("ends an open thread with the reply form for this thread", async () => {
+    seedThread();
+
+    const html = await render("t1");
+
+    expect(html).toContain("Su respuesta");
+    expect(html).toContain("Responder");
+    expect(html).not.toContain("Hilo cerrado");
+  });
+
   it("says a locked thread is closed and offers no way to reply there", async () => {
     seedThread({ lockedAt: new Date() });
 
     const html = await render("t1");
 
+    expect(html).not.toContain("Su respuesta");
     expect(html).toContain("Cerrado");
     expect(html).toContain("Hilo cerrado por la moderación");
     expect(html).toContain("ya no admite respuestas nuevas");

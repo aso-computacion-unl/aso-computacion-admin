@@ -153,6 +153,18 @@ describe("requireSession", () => {
     await expect(requireSession()).rejects.toBeInstanceOf(UnauthorizedError);
   });
 
+  it("lets Next's own control-flow signals through instead of turning them into a denied session", async () => {
+    const dynamicUsage = Object.assign(new Error("needs the request"), { digest: "DYNAMIC_SERVER_USAGE" });
+    cookiesMock.mockRejectedValue(dynamicUsage);
+
+    await expect(requireSession()).rejects.toBe(dynamicUsage);
+
+    const redirectSignal = Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/login;307;" });
+    cookiesMock.mockRejectedValue(redirectSignal);
+
+    await expect(requireSession()).rejects.toBe(redirectSignal);
+  });
+
   it("fails closed when the cookie store itself throws, and when the database does", async () => {
     cookiesMock.mockRejectedValue(new Error("no request scope"));
     await expect(requireSession()).rejects.toBeInstanceOf(UnauthorizedError);

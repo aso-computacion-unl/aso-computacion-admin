@@ -10,7 +10,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
-import { DeleteButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
+import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState, OrderedList } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
@@ -78,7 +78,7 @@ export default async function AdminBoardPage() {
                 />
               }
               remove={
-                <DeleteButton label={member.name} warning="¿Mover a este integrante a la papelera?" action={trashBoardMember.bind(null, member.id)} undo={restoreTrashed.bind(null, "board", member.id)} />
+                <TrashButton label={member.name} warning="¿Mover a este integrante a la papelera?" action={trashBoardMember.bind(null, member.id)} undo={restoreTrashed.bind(null, "board", member.id)} />
               }
             >
               <h2 className="font-display text-lg leading-tight wrap-anywhere">

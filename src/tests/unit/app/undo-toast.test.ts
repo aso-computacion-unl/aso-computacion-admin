@@ -49,4 +49,21 @@ describe("undoAction", () => {
     expect(notify).toHaveBeenNthCalledWith(1, "No se pudo deshacer. Revise la papelera.");
     expect(notify).toHaveBeenNthCalledWith(2, "No se pudo deshacer. Revise la papelera.");
   });
+
+  it("runs the restore at most once, even when pressed again while it is pending or after it settled", async () => {
+    let finish: (result: { success: true }) => void = () => undefined;
+    const undo = vi.fn(() => new Promise<{ success: true }>((resolve) => (finish = resolve)));
+    const notify = vi.fn();
+    const action = undoAction(undo, notify);
+
+    action.onAction();
+    action.onAction();
+    finish({ success: true });
+    await settle();
+    action.onAction();
+    await settle();
+
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
 });

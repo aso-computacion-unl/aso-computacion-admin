@@ -9,7 +9,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
-import { DeleteButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
+import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState, OrderedList } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
@@ -65,7 +65,7 @@ export default async function AdminCommandsPage() {
                   action={moveCommand.bind(null, item.id)}
                 />
               }
-              remove={<DeleteButton label={item.command} warning="¿Mover este comando a la papelera?" action={trashCommand.bind(null, item.id)} undo={restoreTrashed.bind(null, "command", item.id)} />}
+              remove={<TrashButton label={item.command} warning="¿Mover este comando a la papelera?" action={trashCommand.bind(null, item.id)} undo={restoreTrashed.bind(null, "command", item.id)} />}
             >
               <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
                 <Link href={`/admin/commands/${item.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

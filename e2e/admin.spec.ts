@@ -50,7 +50,7 @@ test("an event published in the admin appears in the public content API", async 
   expect(revalidated.status()).toBe(304);
 });
 
-test("a published event moved to the trash leaves the public API, undo brings it back as a draft, and it can be deleted for good", async ({ page, request }) => {
+test("a published event moved to the trash leaves the public API, undo brings it back as a draft, and it can be restored from the trash and deleted for good", async ({ page, request }) => {
   const title = `E2E papelera ${Date.now()}`;
   const publicTitles = async () =>
     ((await (await request.get("/api/public/content")).json()).events as { title: string }[]).map((event) => event.title);
@@ -78,9 +78,26 @@ test("a published event moved to the trash leaves the public API, undo brings it
   await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
   expect(await publicTitles()).not.toContain(title);
 
-  // Trash it again, restore from the trash page, then delete it for good with the irreversible confirmation.
+  // Trash it again and wait for the toast (the action finished) before leaving the page.
   await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
   await page.getByRole("button", { name: "Sí, mover" }).click();
+  await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
+
+  // Restore it from the trash page: it leaves the trash and is back in its list as a draft, still not public.
+  await page.goto("/admin/papelera");
+  await expect(page.getByText(title)).toBeVisible();
+  await page.getByRole("button", { name: `Restaurar: ${title}` }).click();
+  await expect(page.getByRole("status").getByText("Restaurado como borrador.")).toBeVisible();
+  await expect(page.getByText(title)).toHaveCount(0);
+  await page.goto("/admin/events");
+  await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+  await expect(page.getByRole("switch", { name: `Publicado: ${title}` })).toHaveAttribute("aria-checked", "false");
+  expect(await publicTitles()).not.toContain(title);
+
+  // Trash it a last time, then delete it for good with the irreversible confirmation.
+  await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
+  await page.getByRole("button", { name: "Sí, mover" }).click();
+  await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
   await page.goto("/admin/papelera");
   await expect(page.getByText(title)).toBeVisible();
   await page.getByRole("button", { name: `Eliminar definitivamente: ${title}` }).click();
@@ -88,4 +105,5 @@ test("a published event moved to the trash leaves the public API, undo brings it
   await page.getByRole("button", { name: "Sí, eliminar definitivamente" }).click();
   await expect(page.getByRole("status").getByText("Eliminado definitivamente.")).toBeVisible();
   await expect(page.getByText(title)).toHaveCount(0);
+  expect(await publicTitles()).not.toContain(title);
 });

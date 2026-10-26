@@ -30,9 +30,9 @@ function createEventUseCases() {
     setPublished: new SetEventPublishedUseCase(events),
     trash: new TrashContentUseCase(events, "Event not found"),
     attachPhoto: new AttachEventPhotoUseCase(events, photos, new UploadImageUseCase(storage), storage),
-    updatePhotoAlt: new UpdateEventPhotoAltUseCase(photos),
-    reorderPhotos: new ReorderEventPhotosUseCase(photos),
-    deactivatePhoto: new DeactivateEventPhotoUseCase(photos),
+    updatePhotoAlt: new UpdateEventPhotoAltUseCase(events, photos),
+    reorderPhotos: new ReorderEventPhotosUseCase(events, photos),
+    deactivatePhoto: new DeactivateEventPhotoUseCase(events, photos),
   };
 }
 

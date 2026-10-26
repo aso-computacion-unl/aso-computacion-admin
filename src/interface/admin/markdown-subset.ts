@@ -7,6 +7,10 @@
  *  - Blocks are separated by blank lines. A line starting with "- " opens a list item; consecutive
  *    such lines are one list. Any other consecutive lines are one paragraph (soft breaks become spaces).
  *  - Inline markers that never close are literal text.
+ *  - Forum posts opt in (`{ codeBlocks: true }`) to fenced code blocks: a line of "```" (plus an
+ *    optional plain-word language) up to the next line of "```". The code is verbatim text, blank lines
+ *    and markers included; a fence that never closes is literal text. The news grammar has no code
+ *    blocks and stays as it was.
  */
 export type InlineNode =
   | { type: "text"; text: string }
@@ -16,10 +20,15 @@ export type InlineNode =
 
 export type BlockNode = { type: "paragraph"; children: InlineNode[] } | { type: "list"; items: InlineNode[][] };
 
+/** A fenced block of a forum post. `language` is a plain word (or null) and is only ever a label. */
+export type CodeBlockNode = { type: "code"; language: string | null; text: string };
+
 const LINK = /\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/;
 const STRONG = /\*\*(?=\S)([\s\S]+?)(?<=\S)\*\*/;
 const EM = /\*(?=\S)([^*\n]+?)(?<=\S)\*/;
 const LIST_ITEM = /^- (.*)$/;
+const FENCE_OPEN = /^```([\w+#-]{0,20})[ \t]*$/;
+const FENCE_CLOSE = /^```[ \t]*$/;
 
 function httpsHref(value: string): string | null {
   try {
@@ -66,10 +75,38 @@ function parseInline(source: string): InlineNode[] {
   return nodes;
 }
 
-export function parseMarkdownSubset(source: string): BlockNode[] {
+type Segment = { kind: "text"; text: string } | { kind: "code"; node: CodeBlockNode };
+
+/** Splits the source around its closed fences; everything else, an unclosed fence included, stays text. */
+function splitFences(source: string): Segment[] {
+  const lines = source.split("\n");
+  const segments: Segment[] = [];
+  let text: string[] = [];
+
+  for (let index = 0; index < lines.length; index++) {
+    const open = FENCE_OPEN.exec(lines[index] ?? "");
+    const close = open ? lines.findIndex((line, candidate) => candidate > index && FENCE_CLOSE.test(line)) : -1;
+
+    if (!open || close === -1) {
+      text.push(lines[index] ?? "");
+      continue;
+    }
+
+    segments.push({ kind: "text", text: text.join("\n") });
+    segments.push({ kind: "code", node: { type: "code", language: open[1] || null, text: lines.slice(index + 1, close).join("\n") } });
+    text = [];
+    index = close;
+  }
+
+  segments.push({ kind: "text", text: text.join("\n") });
+
+  return segments;
+}
+
+function parseBlocks(source: string): BlockNode[] {
   const blocks: BlockNode[] = [];
 
-  for (const chunk of source.replace(/\r\n?/g, "\n").split(/\n\s*\n/)) {
+  for (const chunk of source.split(/\n\s*\n/)) {
     let paragraph: string[] = [];
     let items: InlineNode[][] = [];
 
@@ -101,4 +138,16 @@ export function parseMarkdownSubset(source: string): BlockNode[] {
   }
 
   return blocks;
+}
+
+export function parseMarkdownSubset(source: string): BlockNode[];
+export function parseMarkdownSubset(source: string, options: { codeBlocks: true }): (BlockNode | CodeBlockNode)[];
+export function parseMarkdownSubset(source: string, options?: { codeBlocks?: boolean }): (BlockNode | CodeBlockNode)[] {
+  const normalised = source.replace(/\r\n?/g, "\n");
+
+  if (!options?.codeBlocks) {
+    return parseBlocks(normalised);
+  }
+
+  return splitFences(normalised).flatMap((segment): (BlockNode | CodeBlockNode)[] => (segment.kind === "code" ? [segment.node] : parseBlocks(segment.text)));
 }

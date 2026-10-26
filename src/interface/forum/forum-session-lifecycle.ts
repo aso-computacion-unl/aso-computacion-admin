@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 
-import { NotFoundError } from "@/application";
 import { clearForumSessionCookie, readForumSessionCookie, setForumSessionCookie } from "@/infrastructure/forum/forum-cookies";
 import { hashForumClientIp } from "@/infrastructure/forum/forum-ip-hash";
 import { ForumSecretError, signForumSession, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
@@ -8,7 +7,6 @@ import { clientKeyFromHeaders, UNKNOWN_CLIENT_KEY } from "@/infrastructure/http/
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { getForumServices } from "./forum-container";
-import { ForumUnauthorizedError, requireForumMember } from "./require-forum-member";
 
 /** The session id the browser presented, if its cookie is a well-formed, correctly signed token. */
 async function presentedSessionId(): Promise<string | undefined> {
@@ -53,15 +51,21 @@ export async function openForumSession(memberId: string): Promise<{ sessionId: s
   return { sessionId };
 }
 
-/** Logs out: revokes this browser's session (when it still has a valid one) and clears the cookie. */
+/**
+ * Logs out: revokes the session this browser presented and clears the cookie. The signed cookie names the
+ * session, so it is revoked even when the guard would refuse it (a member suspended since, say): the row
+ * is never left live behind a cleared cookie.
+ */
 export async function closeForumSession(): Promise<void> {
   try {
-    const actor = await requireForumMember();
+    const sessionId = await presentedSessionId();
 
-    await getForumServices().closeSession.execute({ sessionId: actor.sessionId });
+    if (sessionId) {
+      await getForumServices().closeSession.execute({ sessionId });
+    }
   } catch (error) {
-    // No valid session (or one already revoked) means nothing to revoke; anything else is a real failure.
-    if (!(error instanceof ForumUnauthorizedError || error instanceof NotFoundError)) {
+    // Without a usable secret no cookie can be verified, so there is nothing to revoke; anything else is a real failure.
+    if (!(error instanceof ForumSecretError)) {
       console.error("Could not revoke the forum session on logout.");
       reportError(error, { action: "forum-logout-revoke" });
     }

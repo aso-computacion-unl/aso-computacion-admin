@@ -10,6 +10,11 @@ const ENTITY_LABELS: Record<string, string> = {
   user: "Usuario",
   session: "Sesión",
   invite: "Invitación",
+  forum_category: "Categoría del foro",
+  forum_thread: "Hilo del foro",
+  forum_reply: "Respuesta del foro",
+  forum_member: "Cuenta del foro",
+  forum_report: "Reporte del foro",
 };
 
 export function entityTypeLabel(entityType: string): string {

@@ -122,7 +122,7 @@ describe("posting", () => {
     testForum.store.threads.set("locked", makeForumThread({ id: "locked", categoryId: "c1", lockedAt: new Date() }));
     testForum.store.threads.set("theirs", makeForumThread({ id: "theirs", categoryId: "c1", authorId: "someone-else" }));
 
-    expect(await posting.replyToForumThread("locked", null, replyForm())).toEqual({ error: "Este hilo está cerrado y no admite más respuestas." });
+    expect(await posting.replyToForumThread("locked", null, replyForm())).toEqual({ error: "Este hilo está cerrado: no admite respuestas ni cambios." });
     expect(await posting.editForumThread("theirs", null, threadForm())).toEqual({ error: "Solo puede editar sus propias publicaciones." });
     expect(await posting.replyToForumThread("ghost", null, replyForm())).toEqual({ error: "No se encontró la publicación." });
     expect(await posting.createForumThread("nope", null, threadForm())).toEqual({ error: "No se encontró la publicación." });

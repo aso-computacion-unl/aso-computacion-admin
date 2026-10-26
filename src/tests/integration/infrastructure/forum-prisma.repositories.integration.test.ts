@@ -195,12 +195,66 @@ describe("ForumPostPrismaRepository (integration)", () => {
     await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));
     await posts.addReply(makeForumReply({ id: "r1", threadId: "t1", authorId: "beto" }));
 
-    await posts.updateThread("t1", { title: "Nuevo", body: "Cuerpo", at: later(5000) });
-    await posts.updateReply("r1", { body: "Editada", at: later(6000) });
+    expect(await posts.updateThread("t1", { title: "Nuevo", body: "Cuerpo", at: later(5000), authorId: "ana" })).toBe("ok");
+    expect(await posts.updateReply("r1", { body: "Editada", at: later(6000), authorId: "beto" })).toBe("ok");
 
     expect((await posts.findThread("t1"))?.thread).toMatchObject({ title: "Nuevo", body: "Cuerpo", editedAt: later(5000), updatedAt: later(5000) });
     expect(await posts.findReply("r1")).toMatchObject({ body: "Editada", editedAt: later(6000) });
     expect(await posts.findReply("ghost")).toBeNull();
+  });
+
+  it("refuses to edit when the thread is locked or hidden, the post is hidden or not the author's, and changes nothing", async () => {
+    await seed();
+    await posts.create(makeForumThread({ id: "locked", categoryId: "c1", authorId: "ana", lockedAt: T0 }));
+    await posts.create(makeForumThread({ id: "hidden", categoryId: "c1", authorId: "ana", hiddenAt: T0 }));
+    await posts.create(makeForumThread({ id: "open", categoryId: "c1", authorId: "ana" }));
+    await prisma.forumReply.create({ data: makeForumReply({ id: "in-locked", threadId: "locked", authorId: "beto" }) });
+    await prisma.forumReply.create({ data: makeForumReply({ id: "in-hidden", threadId: "hidden", authorId: "beto" }) });
+    await prisma.forumReply.create({ data: { ...makeForumReply({ id: "hidden-reply", threadId: "open", authorId: "beto" }), hiddenAt: T0 } });
+    await prisma.forumReply.create({ data: makeForumReply({ id: "mine", threadId: "open", authorId: "beto" }) });
+
+    const edit = { title: "X", body: "X", at: later(1000), authorId: "ana" };
+    const reply = { body: "X", at: later(1000), authorId: "beto" };
+
+    expect(await posts.updateThread("locked", edit)).toBe("locked");
+    expect(await posts.updateThread("hidden", edit)).toBe("not-found");
+    expect(await posts.updateThread("ghost", edit)).toBe("not-found");
+    expect(await posts.updateThread("open", { ...edit, authorId: "beto" })).toBe("not-found");
+    expect(await posts.updateReply("in-locked", reply)).toBe("locked");
+    expect(await posts.updateReply("in-hidden", reply)).toBe("not-found");
+    expect(await posts.updateReply("hidden-reply", reply)).toBe("not-found");
+    expect(await posts.updateReply("ghost", reply)).toBe("not-found");
+    expect(await posts.updateReply("mine", { ...reply, authorId: "ana" })).toBe("not-found");
+    expect(await prisma.forumThread.count({ where: { editedAt: { not: null } } })).toBe(0);
+    expect(await prisma.forumReply.count({ where: { editedAt: { not: null } } })).toBe(0);
+  });
+
+  it("clears the best answer when that reply is edited, and keeps it when another one is", async () => {
+    await seed();
+    await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));
+    await posts.addReply(makeForumReply({ id: "r1", threadId: "t1", authorId: "beto" }));
+    await posts.addReply(makeForumReply({ id: "r2", threadId: "t1", authorId: "ana" }));
+    await prisma.forumThread.update({ where: { id: "t1" }, data: { bestReplyId: "r1" } });
+
+    await posts.updateReply("r2", { body: "Otra", at: later(1000), authorId: "ana" });
+    expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBe("r1");
+
+    await posts.updateReply("r1", { body: "Cambiada", at: later(2000), authorId: "beto" });
+    expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBeNull();
+  });
+
+  it("serialises a reply edit racing a lock: the edit is stored only if it won, never after the lock", async () => {
+    await seed();
+    await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));
+    await posts.addReply(makeForumReply({ id: "r1", threadId: "t1", authorId: "beto" }));
+
+    const [outcome] = await Promise.all([
+      posts.updateReply("r1", { body: "Editada", at: later(1000), authorId: "beto" }),
+      prisma.forumThread.update({ where: { id: "t1" }, data: { lockedAt: T0 } }),
+    ]);
+
+    expect((await prisma.forumReply.findUniqueOrThrow({ where: { id: "r1" } })).body).toBe(outcome === "ok" ? "Editada" : "Respuesta");
+    expect(await posts.updateReply("r1", { body: "Tarde", at: later(2000), authorId: "beto" })).toBe("locked");
   });
 
   it("counts a member's threads and replies since a time", async () => {

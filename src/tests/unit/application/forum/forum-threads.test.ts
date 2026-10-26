@@ -168,12 +168,66 @@ describe("editing your own posts", () => {
     expect(result).toMatchObject({ title: "Nuevo", body: "Cuerpo nuevo", editedAt: NOW, mine: true });
   });
 
-  it("lets the author edit a reply, also in a locked thread", async () => {
-    store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", lockedAt: NOW }));
-
+  it("lets the author edit a reply", async () => {
     const result = await new EditForumReplyUseCase(members, posts, now).execute({ memberId: "m2", replyId: "r1", body: "Editada" });
 
     expect(result).toMatchObject({ body: "Editada", editedAt: NOW });
+  });
+
+  it("refuses to edit your own thread or reply once the thread is locked, and changes nothing", async () => {
+    store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", lockedAt: NOW }));
+
+    await expect(new EditForumThreadUseCase(members, posts, now).execute({ memberId: "m1", threadId: "t1", title: "Nuevo", body: "Nuevo" })).rejects.toThrow(ForumThreadLockedError);
+    await expect(new EditForumReplyUseCase(members, posts, now).execute({ memberId: "m2", replyId: "r1", body: "Editada" })).rejects.toThrow(ForumThreadLockedError);
+    expect(store.threads.get("t1")).toMatchObject({ title: "Duda", body: "Cuerpo", editedAt: null });
+    expect(store.replies.get("r1")).toMatchObject({ body: "Respuesta", editedAt: null });
+  });
+
+  it("re-checks the thread at write time: a lock or a hide that lands after the read wins", async () => {
+    const racing = (change: Parameters<typeof makeForumThread>[0]) => {
+      store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1" }));
+      const repo = new InMemoryForumPostRepository(store);
+      const original = repo.findThread.bind(repo);
+      repo.findThread = async (id) => {
+        const row = await original(id);
+        store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", ...change }));
+        return row;
+      };
+      return repo;
+    };
+
+    await expect(new EditForumThreadUseCase(members, racing({ lockedAt: NOW }), now).execute({ memberId: "m1", threadId: "t1", title: "Nuevo", body: "Nuevo" })).rejects.toThrow(ForumThreadLockedError);
+    await expect(new EditForumThreadUseCase(members, racing({ hiddenAt: NOW }), now).execute({ memberId: "m1", threadId: "t1", title: "Nuevo", body: "Nuevo" })).rejects.toThrow(NotFoundError);
+    await expect(new EditForumReplyUseCase(members, racing({ lockedAt: NOW }), now).execute({ memberId: "m2", replyId: "r1", body: "Editada" })).rejects.toThrow(ForumThreadLockedError);
+    await expect(new EditForumReplyUseCase(members, racing({ hiddenAt: NOW }), now).execute({ memberId: "m2", replyId: "r1", body: "Editada" })).rejects.toThrow(NotFoundError);
+    expect(store.threads.get("t1")).toMatchObject({ title: "Duda", editedAt: null });
+    expect(store.replies.get("r1")).toMatchObject({ body: "Respuesta", editedAt: null });
+  });
+
+  it("re-checks the reply at write time: a hide that lands after the read wins", async () => {
+    const racing = new InMemoryForumPostRepository(store);
+    const original = racing.findReply.bind(racing);
+    racing.findReply = async (id) => {
+      const found = await original(id);
+      store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2", hiddenAt: NOW }));
+      return found;
+    };
+
+    await expect(new EditForumReplyUseCase(members, racing, now).execute({ memberId: "m2", replyId: "r1", body: "Editada" })).rejects.toThrow(NotFoundError);
+    expect(store.replies.get("r1")).toMatchObject({ body: "Respuesta", editedAt: null });
+  });
+
+  it("clears the best-answer mark when that reply is edited, and keeps it when another one is", async () => {
+    store.replies.set("r2", makeForumReply({ id: "r2", threadId: "t1", authorId: "m1" }));
+    store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", bestReplyId: "r1" }));
+
+    await new EditForumReplyUseCase(members, posts, now).execute({ memberId: "m1", replyId: "r2", body: "Otra" });
+    expect(store.threads.get("t1")?.bestReplyId).toBe("r1");
+
+    const edited = await new EditForumReplyUseCase(members, posts, now).execute({ memberId: "m2", replyId: "r1", body: "Cambiada" });
+
+    expect(edited.isBest).toBe(false);
+    expect(store.threads.get("t1")?.bestReplyId).toBeNull();
   });
 
   it("refuses somebody else's post, a hidden post, a suspended author and an unknown post", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_NAV, HOME_NAV, MODULE_NAV, TAB_NAV, TRASH_NAV, moreNav, sideNav } from "../../../../app/admin/_components/nav-items";
+import { ACCOUNT_NAV, FORUM_NAV, HOME_NAV, MODULE_NAV, TAB_NAV, TRASH_NAV, moreNav, sideNav } from "../../../../app/admin/_components/nav-items";
 
 describe("admin navigation and the trash", () => {
   it("links to the trash page, outside the content modules (it has no home card)", () => {
@@ -24,9 +24,18 @@ describe("admin navigation and the trash", () => {
   });
 
   it("shows an admin everything, in the sidebar and in the phone's «Más» sheet", () => {
-    const all = [...MODULE_NAV, TRASH_NAV, ...ACCOUNT_NAV].map((item) => item.href);
+    const all = [...MODULE_NAV, TRASH_NAV, FORUM_NAV, ...ACCOUNT_NAV].map((item) => item.href);
 
     expect(sideNav("ADMIN").map((item) => item.href)).toEqual([HOME_NAV.href, ...all]);
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));
+  });
+
+  it("offers the forum report queue to editors and admins alike, outside the content modules, and on the phone through «Más»", () => {
+    expect(FORUM_NAV).toMatchObject({ href: "/admin/foro/reportes", label: "Foro" });
+    expect(FORUM_NAV.adminOnly).toBeUndefined();
+    expect(MODULE_NAV.map((item) => item.href)).not.toContain(FORUM_NAV.href);
+    expect(sideNav("EDITOR").map((item) => item.href)).toContain(FORUM_NAV.href);
+    expect(moreNav("EDITOR").map((item) => item.href)).toContain(FORUM_NAV.href);
+    expect(TAB_NAV.map((item) => item.href)).not.toContain(FORUM_NAV.href);
   });
 });

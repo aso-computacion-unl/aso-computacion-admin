@@ -119,4 +119,38 @@ describe("forum schema (integration)", () => {
     await expect(prisma.forumReport.create({ data: { ...report, id: "p6", replyId: "r1", threadId: null, status: "RESOLVED", resolvedAt: NOW, resolvedBy: "u1" } })).resolves.toMatchObject({ status: "RESOLVED" });
     await expect(prisma.forumReport.create({ data: { ...report, id: "p7", reporterId: "m1", reason: "" } })).rejects.toThrow();
   });
+  it("allows one OPEN report per reporter per target, and a new one once the previous is closed", async () => {
+    await seed();
+    const report = { id: "p1", reporterId: "m2", threadId: "t1", reason: "Spam", createdAt: NOW };
+    const closed = { status: "DISMISSED" as const, resolvedAt: NOW, resolvedBy: "u1" };
+
+    await prisma.forumReport.create({ data: report });
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p2" } })).rejects.toThrow();
+
+    await prisma.forumReport.update({ where: { id: "p1" }, data: closed });
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p3" } })).resolves.toMatchObject({ status: "OPEN" });
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p4" } })).rejects.toThrow();
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p5", ...closed } })).resolves.toMatchObject({ status: "DISMISSED" });
+    // Another reporter, or the same reporter on a reply, is a different target.
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p6", reporterId: "m1" } })).resolves.toBeDefined();
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p7", threadId: null, replyId: "r1" } })).resolves.toBeDefined();
+    await expect(prisma.forumReport.create({ data: { ...report, id: "p8", threadId: null, replyId: "r1" } })).rejects.toThrow();
+  });
+
+  it("refuses a moderator id or a closing note without the time it happened", async () => {
+    await seed();
+    const report = { id: "p1", reporterId: "m2", threadId: "t1", reason: "Spam", createdAt: NOW };
+
+    await expect(prisma.forumThread.update({ where: { id: "t1" }, data: { hiddenBy: "u1" } })).rejects.toThrow();
+    await expect(prisma.forumThread.update({ where: { id: "t1" }, data: { lockedBy: "u1" } })).rejects.toThrow();
+    await expect(prisma.forumReply.update({ where: { id: "r1" }, data: { hiddenBy: "u1" } })).rejects.toThrow();
+    await expect(prisma.forumMember.update({ where: { id: "m1" }, data: { suspendedBy: "u1" } })).rejects.toThrow();
+    await expect(prisma.forumReport.create({ data: { ...report, resolvedBy: "u1" } })).rejects.toThrow();
+    await expect(prisma.forumReport.create({ data: { ...report, resolutionNote: "Nota" } })).rejects.toThrow();
+
+    // A break-glass moderator has no user id: the time alone is a valid trail.
+    await expect(prisma.forumThread.update({ where: { id: "t1" }, data: { hiddenAt: NOW, lockedAt: NOW } })).resolves.toMatchObject({ hiddenBy: null, lockedBy: null });
+    await expect(prisma.forumThread.update({ where: { id: "t1" }, data: { hiddenBy: "u1", lockedBy: "u1" } })).resolves.toMatchObject({ hiddenBy: "u1" });
+    await expect(prisma.forumReply.update({ where: { id: "r1" }, data: { hiddenAt: NOW, hiddenBy: "u1" } })).resolves.toMatchObject({ hiddenBy: "u1" });
+  });
 });

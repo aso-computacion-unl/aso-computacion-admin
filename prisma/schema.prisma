@@ -273,3 +273,161 @@ model AuditLog {
   @@index([entityType, at(sort: Desc)])
   @@index([actorUserId, at(sort: Desc)])
 }
+
+enum ForumMemberStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ForumReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// Students who signed in to the forum with their institutional Google account. They are NOT rows of
+// `User` (the admin's people): a forum session can never become an admin session. `email` is
+// lower-cased (CHECK in the migration), is never shown publicly, and `googleSub` is the stable
+// identity. Suspended members keep their rows: their posts and the moderation trail still point at them.
+model ForumMember {
+  id          String            @id
+  email       String            @unique
+  googleSub   String            @unique
+  displayName String
+  status      ForumMemberStatus @default(ACTIVE)
+  suspendedAt DateTime?
+  // Id of the admin `User` who suspended the account; no foreign key, like AuditLog's actor.
+  suspendedBy String?
+  createdAt   DateTime          @default(now())
+  lastLoginAt DateTime?
+  sessions    ForumSession[]
+  threads     ForumThread[]
+  replies     ForumReply[]
+  reactions   ForumReaction[]
+  reports     ForumReport[]
+}
+
+// One row per forum login, checked by the forum guard on every request, so a session can be revoked
+// at once (and a suspended member's sessions stop working). `ipHash` is a salted hash, never the address.
+model ForumSession {
+  id         String      @id
+  memberId   String
+  createdAt  DateTime    @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime
+  userAgent  String?
+  ipHash     String?
+  member     ForumMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, revokedAt])
+  @@index([expiresAt])
+}
+
+model ForumCategory {
+  id          String        @id
+  slug        String        @unique
+  name        String
+  description String?
+  sortOrder   Int
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  threads     ForumThread[]
+
+  @@index([sortOrder, createdAt])
+}
+
+// A hidden thread (hiddenAt) is invisible to students; a locked one (lockedAt) accepts no replies.
+// `hiddenBy` / `lockedBy` are admin `User` ids with no foreign key (the moderation trail is the AuditLog).
+// `bestReplyId` is the answer the author marked; the application keeps it a reply of this same thread.
+model ForumThread {
+  id             String          @id
+  categoryId     String
+  authorId       String
+  title          String
+  body           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime
+  // Set only by an edit of the title or body.
+  editedAt       DateTime?
+  // Creation, then the latest visible reply: the order of the thread list.
+  lastActivityAt DateTime
+  lockedAt       DateTime?
+  lockedBy       String?
+  hiddenAt       DateTime?
+  hiddenBy       String?
+  bestReplyId    String?         @unique
+  category       ForumCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  author         ForumMember     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  bestReply      ForumReply?     @relation("ForumBestReply", fields: [bestReplyId], references: [id], onDelete: SetNull)
+  replies        ForumReply[]    @relation("ForumThreadReplies")
+  reactions      ForumReaction[]
+  reports        ForumReport[]
+
+  @@index([categoryId, lastActivityAt(sort: Desc)])
+  @@index([authorId, createdAt])
+}
+
+model ForumReply {
+  id        String          @id
+  threadId  String
+  authorId  String
+  body      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime
+  editedAt  DateTime?
+  hiddenAt  DateTime?
+  hiddenBy  String?
+  thread    ForumThread     @relation("ForumThreadReplies", fields: [threadId], references: [id], onDelete: Cascade)
+  author    ForumMember     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  bestOf    ForumThread?    @relation("ForumBestReply")
+  reactions ForumReaction[]
+  reports   ForumReport[]
+
+  @@index([threadId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+// A "me sirvió" vote on a thread or a reply: exactly one target (CHECK in the migration), and one
+// vote per member per target (the unique indexes; Postgres treats the null target as distinct).
+model ForumReaction {
+  id        String       @id
+  memberId  String
+  threadId  String?
+  replyId   String?
+  createdAt DateTime     @default(now())
+  member    ForumMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  thread    ForumThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reply     ForumReply?  @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, threadId])
+  @@unique([memberId, replyId])
+  @@index([threadId])
+  @@index([replyId])
+}
+
+// A student's report of a thread or a reply: exactly one target (CHECK), one open-or-closed report per
+// member per target. `status` OPEN until a moderator closes it: RESOLVED (acted on) or DISMISSED, with the
+// moderator's id and optional note. The reporter's identity is for moderators only.
+model ForumReport {
+  id             String            @id
+  reporterId     String
+  threadId       String?
+  replyId        String?
+  reason         String
+  status         ForumReportStatus @default(OPEN)
+  createdAt      DateTime          @default(now())
+  resolvedAt     DateTime?
+  // Id of the admin `User` who closed it; no foreign key.
+  resolvedBy     String?
+  resolutionNote String?
+  reporter       ForumMember       @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  thread         ForumThread?      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reply          ForumReply?       @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, threadId])
+  @@unique([reporterId, replyId])
+  @@index([status, createdAt])
+  @@index([threadId])
+  @@index([replyId])
+}

@@ -53,6 +53,7 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
 | `PREVIEW_TOKEN_SECRET` | Optional. Signs the draft-preview tokens (at least 32 characters, different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`). Unset or invalid: no token can be generated or accepted. See "Scheduling and preview" |
 | `CRON_SECRET` | Optional. Bearer secret of the scheduled-rebuild cron (at least 32 characters). Vercel sends it by itself. Unset or invalid: `/api/cron/scheduled-rebuild` answers 401 to everyone. See "Scheduling and preview" |
+| `TURNSTILE_SECRET_KEY` | Optional until an event uses the open registration form. Server-side secret of Cloudflare Turnstile. In production a missing, empty or placeholder value **closes the open form** (`503`, fail closed); outside production the check is skipped when unset. See "Event registration" |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | Optional. Cloudflare Pages deploy hook (`https` only; the token is part of the path, treat it as a secret and it is never logged). POSTed after every successful admin mutation so the landing rebuilds. Unset: one `info` line per process and no rebuilds (the daily cron is then the only trigger). See "Landing rebuilds" |
 | `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Optional. Sentry DSN for the server/edge and the browser. Unset (the default) means error tracking is entirely off. See `docs/DEPLOY.md` "Error tracking" |
@@ -79,6 +80,7 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 - An event has a slug (derived from the title, editable), an optional date (future = upcoming on the landing, past = history), an optional type (`taller`, `charla`, `evento`, `comunidad`), optional `hora` / `lugar` / `para`, an https-only link, up to 8 highlights and a `featured` flag. New events are drafts.
 - **Month-only dates.** When the day is not confirmed yet, pick "Solo mes" in the form (a month picker instead of the date picker). The event keeps `datePrecision: "month"` and its date is stored as the **first of that month**; with no date the precision is always `day`. The timeline shows it as `feb 2026` and orders it as the 1st of that month, so the current month already counts as past (the landing uses the same rule, with "today" in America/Guayaquil). The column is an add-only migration (`datePrecision` text, default `day`, `CHECK` for `day`/`month`), so existing events stay exact dates.
 - Photos need alt text (1–200 characters), are at least 1200 px wide, and an event keeps at most 12 active photos. "Quitar de la galería" deactivates a photo; the Cloudinary asset is kept. Moving an event to the trash keeps its photo rows (active or not) attached, and they come back with it on restore. Only deleting it for good from the trash removes the photo rows and then destroys their stored files, active or not; when a destroy fails the delete still succeeds and the leftover `publicId`s are logged.
+- **Registration.** The form's "Inscripción" section chooses, per event, how people sign up: none, with a UNL Google account, or with an open form, plus optional seats and a deadline (Ecuador time). See "Event registration".
 - If the database write fails after an upload, the uploaded asset is destroyed (best effort, logged when that fails) and the original error is reported.
 
 ## News
@@ -143,7 +145,7 @@ Every content type (events, news, FAQ, free commands, social links, pillars, boa
   "version": 1,                       // older name of schemaVersion, same value
   "schemaVersion": 1,                 // version of this contract, see below
   "generatedAt": "2026-10-22T16:00:00.000Z",
-  "events":   [{ "slug", "title", "description", "date", "datePrecision", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
+  "events":   [{ "slug", "title", "description", "date", "datePrecision", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }], "registration": {…} | null, "calendarUrl": string | null, "structuredData": {…} | null }],
   "faqs":     [{ "question", "answer" }],
   "pillars":  [{ "word", "title", "text", "image": { "url", "width", "height", "alt" } | null }],
   "socials":  [{ "platform", "label", "handle", "url", "note", "blurb" }],
@@ -155,6 +157,7 @@ Every content type (events, news, FAQ, free commands, social links, pillars, boa
 
 - `schemaVersion` (constant `PUBLIC_CONTENT_SCHEMA_VERSION`, `src/interface/public/public-content.mapper.ts`) is an integer that starts at 1 and is bumped **only on a breaking change** (a field removed, renamed or retyped). Adding fields never bumps it, so a consumer can refuse a version it does not know. `version` is the older name of the same value and is kept so existing consumers keep working.
 - `datePrecision` is `"day"` or `"month"`. `date` is always a full `YYYY-MM-DD`; a month-only event emits the first of its month (`2026-02-01`) with `"month"`. `YYYY-MM` is never emitted (the landing rejects it). Additive to `version` 1.
+- `registration`, `calendarUrl` and `structuredData` on each event are additive to `version` 1 (S8; a landing built against an admin without them treats them as `null`): every previous event key keeps its value (`public-content-registration.mapper.test.ts` pins it). Their shapes are in "Event registration".
 - `news` is additive to `version` 1 (a landing built against an admin without it treats it as `[]`): only published items, newest `publishedAt` first. `publishedAt` is a `YYYY-MM-DD` calendar date, `body` is the Markdown subset described in "News" (the landing must never render raw HTML from it), and `cover` is `null` when the item has none.
 - Image URLs are the Cloudinary `secure_url` as stored (`https://res.cloudinary.com/<cloud>/image/upload/v<n>/aso-computacion/events/<id>.<ext>`), which is the shape the landing accepts; `cloudinary-media-storage.test.ts` pins that contract.
 - Events come newest date first (undated last) with only their active photos in gallery order; news comes newest `publishedAt` first; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
@@ -195,6 +198,61 @@ Events and news (the content with an editorial timeline) have an optional **publ
 
 **Contract for the landing (not built yet).** For the normal build nothing changes: keep reading `/api/public/content`. For a preview build, fetch `GET <admin>/api/public/preview` **server-side** with the header `X-Preview-Token` (token in a build secret, never in the page or URL), expect `preview: true` and the same shape and `schemaVersion`, never cache or deploy that build publicly, and treat `401` as "token invalid or expired: stop the build". The landing must not receive or compute windows itself.
 
+## Event registration
+
+Each event chooses how people sign up, in the "Inscripción" section of its form (`registrationMode`):
+
+| Mode | Who | Data stored | Where |
+|------|-----|-------------|-------|
+| `none` (default) | nobody | none | no registration; capacity and deadline are cleared |
+| `unl` | a signed-in **forum member** (verified `@unl.edu.ec` Google account, the same identity as the forum) | the member's name and email, as the forum holds them | `/foro/eventos/<slug>` on this admin |
+| `open` | anyone, through a form the landing hosts | name, email (**not verified**), career, semester (1 to 12) | `POST /api/public/events/<slug>/registrations` |
+
+Optional **seats** (`registrationCapacity`, 1 to 5000, blank is unlimited) and **deadline** (`registrationDeadline`, Ecuador time, blank means "until the event day is over"). Both are enforced for both modes by one decision, `registrationRefusal` (`src/domain/event-registration.ts`), in this order: the event is not public now (draft, scheduled, expired, trashed, unknown) → `not_found`; the person is using the other mode → `mode_mismatch`; the deadline passed (`now >= deadline`) or the event day (exact dates only) is over in Ecuador → `closed`; this email is already registered → `duplicate`; the seats are used → `full`. The Prisma adapter takes `SELECT … FOR UPDATE` on the event row and runs that same decision inside the transaction that inserts, so two people racing for the last seat, or one email sent twice at once, cannot both get in (`event-registration-prisma.repository.integration.test.ts`; taking the lock out makes those tests fail). Lowering the seats below the number already registered just closes registration; nobody is removed.
+
+**One registration per person and event**: `UNIQUE (eventId, email)` with the email lower-cased (`CHECK`). A repeat attempt changes nothing: the first registration stays as it was.
+
+**UNL mode.** `registerForEvent(slug)` (`src/interface/forum/event-registration.ts`) starts with `requireForumMember()`: only a `forum_session` passes, never an admin one, and a suspended member's session is already refused. It takes **no data from the caller**; the name and email come from the member row, and the email domain is checked again against `FORUM_ALLOWED_EMAIL_DOMAIN` (unset refuses everyone). The page `/foro/eventos/<slug>` shows the event, the state (open, full, closed, already registered) and, for a visitor, a link to the forum's Google login. Known limit: the forum login always returns to `/foro`, so after signing in the student reopens the event link (the forum lane owns that redirect).
+
+**Open form.** The endpoint is public by design (`route-protection.test.ts` lists it). In order, cheapest first: rate limit (5 attempts per client per 10 minutes, `429` + `Retry-After`; best effort per instance like the read limiter), request shape (`Content-Type: application/json`, at most 4 KB read as a stream, a JSON object; `415` / `413` / `400`), **Turnstile** (`turnstileToken` verified server-side with `TURNSTILE_SECRET_KEY`; `400 {"error":"captcha"}` for a missing or rejected token; `503 {"error":"unavailable"}` when Cloudflare cannot be reached, the secret is wrong, or in production there is no secret: **fail closed**), then strict validation and the atomic decision. Fields (extra keys are ignored): `name` 1–120, `email` valid and at most 254, `career` 1–120, `semester` integer 1–12; no control characters. Answers never echo what was sent and are `Cache-Control: no-store`:
+
+| Status | Body | Meaning |
+|--------|------|---------|
+| 201 | `{"ok":true}` | registered |
+| 400 | `{"error":"validation","field":"semester"}` / `{"error":"captcha"}` / `{"error":"bad_request"}` | invalid field, Turnstile failed, malformed JSON |
+| 404 | `{"error":"not_found"}` | no such public event, or it does not use the open form |
+| 409 | `{"error":"duplicate"}` / `{"error":"full"}` / `{"error":"closed"}` | already registered, no seats, deadline or event day passed |
+| 413 / 415 / 429 / 503 | `{"error":"too_large"}` / `unsupported_media_type` / `rate_limited` / `unavailable` | |
+
+CORS is the read API's allowlist (`PUBLIC_CORS_ORIGINS`, exact origins, no credentials); the preflight answers `POST, OPTIONS` and `Content-Type` only to a listed origin. A duplicate answer does reveal that an address is already registered for that event (the price of an unverified email); nothing else about a person is ever returned.
+
+**Calendar file.** `GET /api/public/events/<slug>/calendar.ics` is public (no session, no personal data), rate limited and CORS-allowlisted like the content API, `Cache-Control: public, max-age=0, s-maxage=60, must-revalidate`, `Content-Disposition: attachment`. It exists only for an event that is public now and has an exact day (`404` otherwise). Times come from the first readable `HH:MM`, `HHhMM` or `Hh` in the free-text `hora` (the next one, if later, is the end); with none it is an all-day event. Times are written in UTC (Ecuador has no daylight saving, so no `VTIMEZONE`), text is escaped and lines are folded at 75 octets per RFC 5545. A start without an end has no `DTEND`. `UID` is `<slug>@aso-computacion` (no internal id).
+
+**Public API, per event** (additive; `null` when it does not apply):
+
+```jsonc
+"registration": {
+  "mode": "unl" | "open",
+  "capacity": 40 | null,
+  "deadline": "2026-11-27T23:00:00.000Z" | null,   // exclusive, UTC
+  "url": "https://<admin>/foro/eventos/<slug>" | null,                        // unl only
+  "endpoint": "https://<admin>/api/public/events/<slug>/registrations" | null // open only
+} | null,
+"calendarUrl": "https://<admin>/api/public/events/<slug>/calendar.ics" | null,
+"structuredData": {                                // values for a schema.org Event, Ecuador time
+  "startDate": "2026-11-28T09:00:00-05:00",        // or "2026-11-28" when the time is unknown
+  "endDate": "2026-11-28T11:00:00-05:00" | null,
+  "location": "Laboratorio 2" | null,              // the event's `lugar`
+  "registrationUrl": "https://<admin>/foro/eventos/<slug>" | null   // the landing uses its own page for `open`
+} | null
+```
+
+URLs are built from `AUTH_URL` and are `null` while it is not set. `structuredData` and `calendarUrl` are `null` for a month-only or undated event. The seats left are **not** published (they change with every registration and the landing is static): `capacity` is the total, and the endpoint answers `full` / `closed` when it is too late. For the JSON-LD the landing adds `@type: "Event"`, `name`, `description`, `image`, `eventAttendanceMode` and, when registration exists, `offers: { "@type": "Offer", url: registrationUrl ?? <its own page>, price: "0", priceCurrency: "USD", availability }`.
+
+**Admin.** `/admin/events/<id>/registrations` lists the people (linked from the event editor): **ADMIN and EDITOR** can view; only an **ADMIN** can export (`GET /admin/events/<id>/registrations/export`, a UTF-8 CSV with a byte order mark, every cell quoted, spreadsheet formulas neutralised with a leading `'`; `401` / `403` / `404` as statuses) or delete a registration (`deleteEventRegistration`, `requireRole("ADMIN")`, a row in `action-policy.ts`). Both are audited (`event.registrations_export`, `event.registration_delete`) with the event id and, for the export, a count: **never a name or an email** in a summary. Deleting is permanent and frees the seat.
+
+**Personal data and retention.** Registrations are personal data, kept only for the people who signed up for that event: nothing is shared, there is no analytics on them, and the CSV is the only way out. They are deleted with their event (`ON DELETE CASCADE`, i.e. when it is deleted for good from the trash) or one by one by an ADMIN. **There is no automatic deletion yet**; the proposed policy is to delete them 90 days after the event (see the open questions in the T10 report).
+
 ## Landing rebuilds
 
 Every successful admin mutation (events and their photos, news, FAQ, pillars, socials, board, settings) calls `requestSiteRebuild()` after the write, which POSTs `CLOUDFLARE_DEPLOY_HOOK_URL`. It is best effort: it only schedules, never awaits the network and never throws, so it cannot fail or slow the mutation. A failed mutation never fires it (`deploy-hook-actions.test.ts` checks all 39 actions: fired once after the write, not fired on failure or without a session).
@@ -225,6 +283,7 @@ Students are **not** `User` rows. `ForumMember` / `ForumSession` and the other `
 
 - Cookie `forum_session`, `path=/foro`, signed HS256 with `FORUM_SESSION_SECRET` (≥ 32 characters, refused when equal to `ADMIN_SECRET`). Claims `sid`, `mid`, `typ: "forum-session"`, `aud: "aso-computacion-forum"`, `sub = mid`; none of the admin's `kind` / `uid` / `role`. The admin session module, `hasValidClaims`, `requireSession` / `requireRole` and the middleware matcher are untouched; the admin cookie (path `/`) reaches `/foro` but the forum guard reads only its own cookie.
 - Guards: `requireForumMember()` (server actions, throws) and `requireForumPageMember()` (pages and reads, redirects to `/foro`) in `src/interface/forum/`. They fail closed (missing secret, bad cookie, revoked or expired session, suspended member, database error). Every student-facing action module starts each action with `requireForumMember()` (`forum-posting.ts`); the admin-side category actions are ordinary admin actions with `requireRole("ADMIN")` and a row in `action-policy.ts`.
+- Event registration with a UNL account lives here too: `/foro/eventos/<slug>` and the `registerForEvent` action (`src/interface/forum/event-registration.ts`, guard first, no data taken from the caller). See "Event registration".
 - Login: `/foro/auth/google/start` and `/foro/auth/google/callback` (own state cookie `forum_oauth_state`, path `/foro/auth/google`). `FORUM_ALLOWED_EMAIL_DOMAIN` is required (unset = login disabled); the email domain and `hd` must match and the email must be verified. A new valid identity becomes a member on the spot.
 - No public DTO (`src/application/dto/forum-result.dto.ts`) carries an email, a Google id or a member id: other students are a display name, and "mine" is a boolean computed for the viewer.
 - Posting is throttled per member in the database (`src/application/forum/posting-throttle.ts`); a reply is written under the thread's row lock so a lock racing a reply cannot lose.

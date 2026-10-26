@@ -9,11 +9,11 @@ import { reportError } from "@/infrastructure/observability/report-error";
 
 import { getForumServices } from "./forum-container";
 import type { ForumLoginErrorCode } from "./forum-login-errors";
-import { FORUM_HOME_PATH } from "./forum-return-path";
+import { FORUM_HOME_PATH, parseForumReturnPath } from "./forum-return-path";
 import { openForumSession } from "./forum-session-lifecycle";
 
-function redirectTo(base: URL | string, error?: ForumLoginErrorCode): NextResponse {
-  const url = new URL(FORUM_HOME_PATH, base);
+function redirectTo(base: URL | string, error?: ForumLoginErrorCode, path: string = FORUM_HOME_PATH): NextResponse {
+  const url = new URL(path, base);
 
   if (error) {
     url.searchParams.set("error", error);
@@ -25,7 +25,7 @@ function redirectTo(base: URL | string, error?: ForumLoginErrorCode): NextRespon
   return response;
 }
 
-/** Step 1: sends the browser to Google, remembering (in a sealed cookie) what the callback must find again. */
+/** Step 1: sends the browser to Google, remembering (in a sealed cookie) what the callback must find again, including the forum path to return to (`?next=`, ignored when it is not one). */
 export async function startForumLogin(request: Request): Promise<NextResponse> {
   const config = forumGoogleConfig();
 
@@ -37,7 +37,9 @@ export async function startForumLogin(request: Request): Promise<NextResponse> {
   try {
     const { url, ...flow } = startGoogleAuthorization(config);
 
-    await setForumOAuthStateCookie(await sealForumOAuthState(flow));
+    const next = parseForumReturnPath(new URL(request.url).searchParams.get("next"));
+
+    await setForumOAuthStateCookie(await sealForumOAuthState(next ? { ...flow, next } : flow));
 
     const response = NextResponse.redirect(url);
     response.headers.set("Cache-Control", "no-store");
@@ -86,7 +88,8 @@ export async function finishForumLogin(request: Request): Promise<NextResponse> 
 
     await openForumSession(outcome.member.id);
 
-    return redirectTo(config.redirectUri);
+    // Only the sealed path counts (the callback URL's own `next` is never read), and it is validated again here.
+    return redirectTo(config.redirectUri, undefined, parseForumReturnPath(flow.next) ?? FORUM_HOME_PATH);
   } catch (error) {
     if (error instanceof GoogleAuthError && error.failure === "unavailable") {
       // Google or the network to it is down: not a verdict on the person, so retryable.

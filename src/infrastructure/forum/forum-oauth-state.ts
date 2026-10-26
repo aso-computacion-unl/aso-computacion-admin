@@ -16,6 +16,8 @@ export interface ForumOAuthFlow {
   state: string;
   codeVerifier: string;
   nonce: string;
+  /** Where to send the student once signed in. Sealed here so the callback never trusts its own URL; the interface layer validates it before use. */
+  next?: string;
 }
 
 /** The flow's secrets sealed into a short-lived cookie that only this browser sends back. Throws `ForumSecretError` without a usable secret. */
@@ -37,13 +39,13 @@ export async function openForumOAuthState(value: string | undefined): Promise<Fo
 
   try {
     const { payload } = await jwtVerify(value, getForumSecret(), { algorithms: [ALGORITHM], requiredClaims: ["exp"] });
-    const { purpose, state, codeVerifier, nonce } = payload;
+    const { purpose, state, codeVerifier, nonce, next } = payload;
 
     if (purpose !== PURPOSE || typeof state !== "string" || typeof codeVerifier !== "string" || typeof nonce !== "string") {
       return null;
     }
 
-    return { state, codeVerifier, nonce };
+    return typeof next === "string" ? { state, codeVerifier, nonce, next } : { state, codeVerifier, nonce };
   } catch {
     return null;
   }

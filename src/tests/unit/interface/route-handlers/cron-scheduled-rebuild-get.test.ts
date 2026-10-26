@@ -3,11 +3,12 @@ import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { runMock, reportErrorMock } = vi.hoisted(() => ({ runMock: vi.fn(), reportErrorMock: vi.fn() }));
+const { runMock, purgeMock, reportErrorMock } = vi.hoisted(() => ({ runMock: vi.fn(), purgeMock: vi.fn(), reportErrorMock: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 vi.mock("@/interface/cron/scheduled-rebuild-container", () => ({ getRebuildOnWindowCrossing: () => ({ execute: runMock }) }));
+vi.mock("@/interface/cron/registration-retention", () => ({ runRegistrationRetention: purgeMock }));
 
 const SECRET = "c".repeat(40);
 const URL = "https://admin.test/api/cron/scheduled-rebuild";
@@ -19,6 +20,8 @@ const get = (authorization?: string) => new NextRequest(URL, { headers: authoriz
 beforeEach(async () => {
   runMock.mockReset();
   runMock.mockResolvedValue({ crossed: 0, outcome: "not-needed" });
+  purgeMock.mockReset();
+  purgeMock.mockResolvedValue({ deleted: 0 });
   reportErrorMock.mockReset();
   vi.stubEnv("CRON_SECRET", SECRET);
   vi.resetModules();
@@ -41,6 +44,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     }
 
     expect(runMock).not.toHaveBeenCalled();
+    expect(purgeMock).not.toHaveBeenCalled();
   });
 
   it("refuses everything, even the secret-looking header, while CRON_SECRET is unset, empty, a placeholder or too short", async () => {
@@ -55,6 +59,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     }
 
     expect(runMock).not.toHaveBeenCalled();
+    expect(purgeMock).not.toHaveBeenCalled();
   });
 
   it("does not take the secret from the URL", async () => {
@@ -67,10 +72,21 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const response = await route.GET(get(`Bearer ${SECRET}`));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ crossed: 0, outcome: "not-needed" });
+    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 0 } });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(runMock).toHaveBeenCalledTimes(1);
     expect(runMock.mock.calls[0]![0].getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("also runs the registration retention once, at the same time as the rebuild check, and reports only the count", async () => {
+    purgeMock.mockResolvedValue({ deleted: 12 });
+
+    const response = await route.GET(get(`Bearer ${SECRET}`));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 12 } });
+    expect(purgeMock).toHaveBeenCalledTimes(1);
+    expect(purgeMock.mock.calls[0]![0]).toBe(runMock.mock.calls[0]![0]);
   });
 
   it("answers 200 when a rebuild was requested or the hook is disabled, and 502 when the hook failed so the cron shows red", async () => {
@@ -84,7 +100,8 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const failed = await route.GET(get(`Bearer ${SECRET}`));
 
     expect(failed.status).toBe(502);
-    expect(await failed.json()).toEqual({ crossed: 1, outcome: "failed" });
+    expect(await failed.json()).toEqual({ rebuild: { crossed: 1, outcome: "failed" }, retention: { deleted: 0 } });
+    expect(purgeMock).toHaveBeenCalledTimes(3);
   });
 
   it("answers an unexpected failure with a generic 500 that leaks nothing, reported without the secret", async () => {
@@ -95,9 +112,63 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const text = await response.text();
 
     expect(response.status).toBe(500);
-    expect(JSON.parse(text)).toEqual({ error: "Service unavailable" });
+    expect(JSON.parse(text)).toEqual({ rebuild: { error: "Service unavailable" }, retention: { deleted: 0 } });
+    expect(text).not.toContain("secret");
     expect(reportErrorMock).toHaveBeenCalledTimes(1);
+    expect(reportErrorMock.mock.calls[0]![1]).toEqual({ route: "cron-scheduled-rebuild" });
     expect(JSON.stringify([...vi.mocked(console.error).mock.calls, ...reportErrorMock.mock.calls])).not.toContain(SECRET);
+  });
+
+  describe("the two steps are independent", () => {
+    it("still rebuilds when the purge fails: the rebuild answer is intact, the failure is generic, reported and shows red (500)", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      runMock.mockResolvedValue({ crossed: 2, outcome: "triggered" });
+      purgeMock.mockRejectedValue(new Error("connect ECONNREFUSED postgres://user:secret@db/aso"));
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+      const text = await response.text();
+
+      expect(response.status).toBe(500);
+      expect(JSON.parse(text)).toEqual({ rebuild: { crossed: 2, outcome: "triggered" }, retention: { error: "Service unavailable" } });
+      expect(text).not.toContain("secret");
+      expect(runMock).toHaveBeenCalledTimes(1);
+      expect(reportErrorMock).toHaveBeenCalledTimes(1);
+      expect(reportErrorMock.mock.calls[0]![1]).toEqual({ route: "cron-registration-retention" });
+    });
+
+    it("still purges when the rebuild check throws", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      runMock.mockRejectedValue(new Error("boom"));
+      purgeMock.mockResolvedValue({ deleted: 4 });
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(response.status).toBe(500);
+      expect((await response.json()).retention).toEqual({ deleted: 4 });
+      expect(purgeMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still purges when the deploy hook refuses, and keeps answering 502 for that", async () => {
+      runMock.mockResolvedValue({ crossed: 1, outcome: "failed" });
+      purgeMock.mockResolvedValue({ deleted: 1 });
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(response.status).toBe(502);
+      expect((await response.json()).retention).toEqual({ deleted: 1 });
+    });
+
+    it("reports both failures when both steps throw", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      runMock.mockRejectedValue(new Error("a"));
+      purgeMock.mockRejectedValue(new Error("b"));
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ rebuild: { error: "Service unavailable" }, retention: { error: "Service unavailable" } });
+      expect(reportErrorMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("is rendered per request and only reads: GET is the only verb", () => {

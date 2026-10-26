@@ -176,6 +176,9 @@ export {
   RegisterWithUnlAccountUseCase,
 } from "./event-registration/event-registration.use-cases";
 export type { EventRegistrationStatus, RegistrationState } from "./event-registration/event-registration.use-cases";
+export { PURGE_BATCH_SIZE, PURGE_MAX_BATCHES, PurgeExpiredRegistrationsUseCase, PurgeInterruptedError } from "./event-registration/purge-expired-registrations.use-case";
+export type { PurgeResult } from "./event-registration/purge-expired-registrations.use-case";
+export type { EventRegistrationRetentionStore, RetentionCandidate } from "./ports/event-registration-retention.port";
 export { buildEventRegistrationServices } from "./event-registration/event-registration-services";
 export type { EventRegistrationServices } from "./event-registration/event-registration-services";
 export { GetPublicEventUseCase } from "./use-cases/get-public-event.use-case";

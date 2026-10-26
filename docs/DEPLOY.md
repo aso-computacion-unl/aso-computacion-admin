@@ -180,6 +180,8 @@ Each event chooses its registration mode in the admin (none, UNL Google account,
 - `PUBLIC_CORS_ORIGINS` must list the landing's origin, or the browser blocks its `POST` (and the preflight).
 - `AUTH_URL` must be set: the public API builds the registration page, endpoint and calendar URLs from it (they are `null` otherwise).
 
+- **Retention.** Registrations are deleted automatically **90 days after their event ends** (the end of its date in Ecuador time, or of its month for a month-only date; undated events are never purged). Nothing to configure beyond the cron of section 6a: the same daily route runs it, and each run that deleted rows leaves one `event.registration_purge` entry in the audit log with the count only. Without `CRON_SECRET` nothing is purged. The full rule is in [REFERENCIA.md](REFERENCIA.md#event-registration).
+
 The contract the landing codes against is in [REFERENCIA.md](REFERENCIA.md#event-registration).
 
 ## 5. Seeding the landing content
@@ -227,7 +229,8 @@ Events and news can carry a publish window (`publishAt` / `unpublishAt`, edited 
 1. Set `CRON_SECRET` (≥ 32 random characters, Sensitive) in Vercel Production and redeploy. Vercel then calls `GET /api/cron/scheduled-rebuild` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`.
 2. The endpoint asks Cloudflare for a build (`CLOUDFLARE_DEPLOY_HOOK_URL`) **only** when a published event or news item opened or closed since the hook was last accepted; otherwise it does nothing, so an idle site costs no builds. It answers 502 when the hook refuses, which shows as a failed run in Vercel → Cron Jobs.
 3. **Plan limit.** Vercel's free (Hobby) plan only allows cron jobs that run once a day, and rejects a deployment whose `vercel.json` asks for more. On Hobby, change `schedule` in `vercel.json` to a daily one (for example `"0 11 * * *"`, 06:00 in Ecuador) and accept that scheduled content appears up to a day late, or use Pro for the 15-minute schedule.
-4. Check it by hand: `curl -i -H "Authorization: Bearer $CRON_SECRET" https://<your-vercel-domain>/api/cron/scheduled-rebuild` returns `{"crossed":N,"outcome":...}`; without the header it returns 401.
+4. Check it by hand: `curl -i -H "Authorization: Bearer $CRON_SECRET" https://<your-vercel-domain>/api/cron/scheduled-rebuild` returns `{"rebuild":{"crossed":N,"outcome":...},"retention":{"deleted":N}}`; without the header it returns 401. **Careful: it really runs both steps**, so it deletes any registration already past its 90 days.
+5. **One cron, two jobs.** The same call also deletes the event registrations whose retention period (90 days after the event) is over (section 4c). The two steps are independent: if the purge fails the rebuild still runs (and the other way round), the run shows red in Vercel → Cron Jobs (500), and the failure is reported to Sentry. Hobby allows one cron per project, which is why there is no second one.
 
 Previews: set `PREVIEW_TOKEN_SECRET` (≥ 32 characters, different from the other secrets, Sensitive). Editors then generate a code on **Vista previa**; it is sent as the `X-Preview-Token` header to `GET /api/public/preview`. See "Scheduling and preview" in [REFERENCIA.md](REFERENCIA.md) for the contract.
 

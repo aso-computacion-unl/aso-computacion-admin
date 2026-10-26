@@ -6,6 +6,7 @@ import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { trashBoardMember, moveBoardMember, setBoardMemberPublished } from "@/interface/admin/board/actions";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
@@ -77,7 +78,7 @@ export default async function AdminBoardPage() {
                 />
               }
               remove={
-                <DeleteButton label={member.name} warning="¿Eliminar a este integrante y su foto?" action={trashBoardMember.bind(null, member.id)} />
+                <DeleteButton label={member.name} warning="¿Mover a este integrante a la papelera?" action={trashBoardMember.bind(null, member.id)} undo={restoreTrashed.bind(null, "board", member.id)} />
               }
             >
               <h2 className="font-display text-lg leading-tight wrap-anywhere">

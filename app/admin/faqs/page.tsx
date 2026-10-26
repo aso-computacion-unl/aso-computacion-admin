@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { trashFaq, moveFaq, setFaqPublished } from "@/interface/admin/faqs/actions";
 import { getAdminFaqs } from "@/interface/admin/faqs/faqs-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
@@ -64,7 +65,7 @@ export default async function AdminFaqsPage() {
                   action={moveFaq.bind(null, faq.id)}
                 />
               }
-              remove={<DeleteButton label={faq.question} warning="¿Eliminar esta pregunta?" action={trashFaq.bind(null, faq.id)} />}
+              remove={<DeleteButton label={faq.question} warning="¿Mover esta pregunta a la papelera?" action={trashFaq.bind(null, faq.id)} undo={restoreTrashed.bind(null, "faq", faq.id)} />}
             >
               <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
                 <Link href={`/admin/faqs/${faq.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

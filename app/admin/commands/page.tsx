@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { trashCommand, moveCommand, setCommandPublished } from "@/interface/admin/commands/actions";
 import { getAdminCommands } from "@/interface/admin/commands/commands-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
@@ -64,7 +65,7 @@ export default async function AdminCommandsPage() {
                   action={moveCommand.bind(null, item.id)}
                 />
               }
-              remove={<DeleteButton label={item.command} warning="¿Eliminar este comando?" action={trashCommand.bind(null, item.id)} />}
+              remove={<DeleteButton label={item.command} warning="¿Mover este comando a la papelera?" action={trashCommand.bind(null, item.id)} undo={restoreTrashed.bind(null, "command", item.id)} />}
             >
               <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
                 <Link href={`/admin/commands/${item.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

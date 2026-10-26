@@ -6,7 +6,7 @@ const { cookiesMock, getPillarUseCasesMock, revalidatePathMock, redirectMock, us
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     move: { execute: execute() },
     setImage: { execute: execute() },
     removeImage: { execute: execute() },
@@ -54,7 +54,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createPillar: () => actions.createPillar(null, pillarForm()),
   updatePillar: () => actions.updatePillar("pillar-1", null, pillarForm()),
   setPillarPublished: () => actions.setPillarPublished("pillar-1", true),
-  deletePillar: () => actions.deletePillar("pillar-1"),
+  trashPillar: () => actions.trashPillar("pillar-1"),
   movePillar: () => actions.movePillar("pillar-1", "up"),
   uploadPillarImage: () => actions.uploadPillarImage("pillar-1", null, imageForm()),
   removePillarImage: () => actions.removePillarImage("pillar-1"),
@@ -96,9 +96,9 @@ describe("pillar server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deletePillar("pillar-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashPillar("pillar-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "pillar-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "pillar-1" });
   });
 
   it("the guard is the first statement of every action", () => {

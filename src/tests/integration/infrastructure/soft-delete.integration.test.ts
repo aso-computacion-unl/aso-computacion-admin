@@ -197,3 +197,102 @@ describe("soft delete: reads skip trashed rows (integration)", () => {
     expect(await prisma.eventPhoto.count()).toBe(0);
   });
 });
+
+describe("soft delete: trash, restore and purge through the repositories (integration)", () => {
+  const photos = new EventPhotoPrismaRepository();
+  const countRows = async (table: string, where = "TRUE") =>
+    Number((await prisma.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM "${table}" WHERE ${where}`))[0]?.n);
+
+  it("an event keeps its photos in the trash and gets them back on restore", async () => {
+    const event = await events.create(Event.create({ title: "Taller", isPublished: true }));
+    const photo = await photos.add(EventPhoto.create({ eventId: event.props.id, ...image("taller"), sortOrder: 0 }), 12);
+
+    await events.trash(event.props.id);
+
+    expect(await photos.listActiveByEventId(event.props.id)).toHaveLength(1);
+    const trashed = await events.getTrashed(event.props.id);
+    expect(trashed?.entity.props).toMatchObject({ isPublished: false, slug: "taller" });
+
+    await events.restore(trashed!.entity);
+
+    expect((await events.getById(event.props.id))?.props.isPublished).toBe(false);
+    expect((await photos.listActiveByEventId(event.props.id)).map((item) => item.props.id)).toEqual([photo.props.id]);
+  });
+
+  it("purging a trashed event returns every photo id, active or not, and removes the rows", async () => {
+    const event = await events.create(Event.create({ title: "Taller" }));
+    await photos.add(EventPhoto.create({ eventId: event.props.id, ...image("a"), sortOrder: 0 }), 12);
+    const hidden = await photos.add(EventPhoto.create({ eventId: event.props.id, ...image("b"), sortOrder: 1 }), 12);
+    await photos.update(hidden.deactivate());
+    await events.trash(event.props.id);
+
+    expect((await events.purge(event.props.id)).sort()).toEqual(["aso/a", "aso/b"]);
+
+    expect([await countRows("Event"), await countRows("EventPhoto")]).toEqual([0, 0]);
+  });
+
+  it("purging a live event is refused and removes nothing, photos included", async () => {
+    const event = await events.create(Event.create({ title: "Vivo" }));
+    await photos.add(EventPhoto.create({ eventId: event.props.id, ...image("vivo"), sortOrder: 0 }), 12);
+
+    await expect(events.purge(event.props.id)).rejects.toMatchObject({ name: "NotFoundError" });
+    await expect(events.purge(crypto.randomUUID())).rejects.toMatchObject({ name: "NotFoundError" });
+
+    expect([await countRows("Event"), await countRows("EventPhoto")]).toEqual([1, 1]);
+  });
+
+  it("restoring an event whose slug a live one took is refused and nothing changes", async () => {
+    const original = await events.create(Event.create({ title: "Charla", slug: "charla" }));
+    await events.trash(original.props.id);
+    const second = await events.create(Event.create({ title: "Charla bis", slug: "charla" }));
+    await events.trash(second.props.id);
+    const live = await events.create(Event.create({ title: "Charla viva", slug: "charla" }));
+
+    expect((await events.listTrashed()).map((item) => item.entity.props.id)).toEqual([second.props.id, original.props.id]);
+    await expect(events.restore(original)).rejects.toMatchObject({ name: "ValidationError", field: "slug" });
+
+    expect((await events.listTrashed()).map((item) => item.entity.props.id)).toEqual([second.props.id, original.props.id]);
+    expect((await events.list()).map((item) => item.props.id)).toEqual([live.props.id]);
+  });
+
+  it("news: trash, restore collision, restore and purge", async () => {
+    const original = await newsItems.create(news("Aviso", "aviso").withPublished(true));
+    await newsItems.trash(original.props.id);
+    const live = await newsItems.create(news("Aviso vivo", "aviso"));
+
+    await expect(newsItems.restore(original.withPublished(false))).rejects.toMatchObject({ name: "ValidationError", field: "slug" });
+    expect((await newsItems.getTrashed(original.props.id))?.entity.props.isPublished).toBe(false);
+    expect((await newsItems.list()).map((item) => item.props.id)).toEqual([live.props.id]);
+
+    await newsItems.trash(live.props.id);
+    const restored = await newsItems.restore(original.withPublished(false));
+
+    expect(restored.props).toMatchObject({ id: original.props.id, isPublished: false });
+    await expect(newsItems.purge(original.props.id)).rejects.toMatchObject({ name: "NotFoundError" });
+    await newsItems.purge(live.props.id);
+    expect(await countRows("NewsItem")).toBe(1);
+  });
+
+  it("FAQ: restoring a command a live FAQ took is refused and the trashed FAQ stays as it was", async () => {
+    const original = await faqs.create(Faq.create({ question: "¿Costo?", answer: "a", sortOrder: 0, command: "costo" }));
+    await faqs.trash(original.props.id);
+    await faqs.create(Faq.create({ question: "¿Otro costo?", answer: "b", sortOrder: 0, command: "costo" }));
+
+    await expect(faqs.restore(original)).rejects.toMatchObject({ name: "CommandNameConflictError", command: "costo" });
+
+    expect(await countRows("Faq", `"deletedAt" IS NOT NULL`)).toBe(1);
+    expect((await faqs.getTrashed(original.props.id))?.entity.props.command).toBe("costo");
+  });
+
+  it("free command: restoring a name a live command took is refused and nothing changes", async () => {
+    const make = (description: string) => TerminalCommand.create({ command: "libre", description, output: "o", sortOrder: 0 });
+    const original = await commands.create(make("Primero"));
+    await commands.trash(original.props.id);
+    const live = await commands.create(make("Segundo"));
+
+    await expect(commands.restore(original)).rejects.toMatchObject({ name: "CommandNameConflictError", command: "libre" });
+
+    expect((await commands.list()).map((item) => item.props.id)).toEqual([live.props.id]);
+    expect((await commands.getTrashed(original.props.id))?.entity.props.description).toBe("Primero");
+  });
+});

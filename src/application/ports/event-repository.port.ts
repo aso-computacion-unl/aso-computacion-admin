@@ -1,9 +1,10 @@
 import type { Event } from "@/domain/event";
 
 import type { ListCriteria, PublicationCounter } from "./list-criteria";
+import type { TrashableRepository } from "./trashable-repository.port";
 
 /** Persistence port for events. Implemented by the Prisma adapter and by in-memory fakes in tests. */
-export interface EventRepository extends PublicationCounter {
+export interface EventRepository extends PublicationCounter, TrashableRepository<Event> {
   create(event: Event): Promise<Event>;
   getById(id: string): Promise<Event | null>;
   /** True when another event (not `excludeId`) already uses the slug. */
@@ -19,4 +20,10 @@ export interface EventRepository extends PublicationCounter {
    * attach fails with `NotFoundError`). Throws `NotFoundError` for an unknown event.
    */
   delete(id: string): Promise<string[]>;
+  /**
+   * Same as `delete`, but only for a TRASHED event: throws `NotFoundError` for
+   * a live or unknown one. Photos stay attached to a trashed event, so this is
+   * the one place they are removed with it.
+   */
+  purge(id: string): Promise<string[]>;
 }

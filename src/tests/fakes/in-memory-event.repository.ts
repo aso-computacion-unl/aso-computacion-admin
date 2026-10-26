@@ -1,13 +1,17 @@
 import type { EventRepository } from "@/application/ports/event-repository.port";
 import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import type { TrashedItem } from "@/application/ports/trashable-repository.port";
+import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
 
 import type { InMemoryEventPhotoRepository } from "./in-memory-event-photo.repository";
+import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `EventRepository`; `list()` mirrors the Prisma ordering (date desc, nulls last, then newest). */
 export class InMemoryEventRepository implements EventRepository {
   private readonly events = new Map<string, Event>();
+  private readonly trashed = new InMemoryTrash<Event>();
 
   /** Pass the photo fake to mirror the cascade: deleting an event removes its photos and returns their storage ids. */
   constructor(private readonly photos?: InMemoryEventPhotoRepository) {}
@@ -52,6 +56,49 @@ export class InMemoryEventRepository implements EventRepository {
 
     this.events.set(event.props.id, event);
     return event;
+  }
+
+  async trash(id: string): Promise<void> {
+    const event = this.events.get(id);
+
+    if (!event) {
+      throw new NotFoundError("Event not found");
+    }
+
+    this.events.delete(id);
+    this.trashed.put(event.update({ isPublished: false }));
+  }
+
+  async getTrashed(id: string): Promise<TrashedItem<Event> | null> {
+    return this.trashed.get(id);
+  }
+
+  async listTrashed(): Promise<TrashedItem<Event>[]> {
+    return this.trashed.list();
+  }
+
+  /** Like the partial unique index: restoring over a live event with the same slug is refused and stores nothing. */
+  async restore(event: Event): Promise<Event> {
+    if (!this.trashed.get(event.props.id)) {
+      throw new NotFoundError("Event not found");
+    }
+
+    if (await this.slugExists(event.props.slug, event.props.id)) {
+      throw new ValidationError("slug", "slug is already used by another event");
+    }
+
+    this.trashed.take(event.props.id);
+    this.events.set(event.props.id, event);
+    return event;
+  }
+
+  /** Photos stay with a trashed event, so they leave with it here (their storage ids are returned). */
+  async purge(id: string): Promise<string[]> {
+    if (!this.trashed.take(id)) {
+      throw new NotFoundError("Event not found");
+    }
+
+    return this.photos?.removeAllOfEvent(id) ?? [];
   }
 
   async delete(id: string): Promise<string[]> {

@@ -32,7 +32,6 @@ export {
 } from "./use-cases/attach-event-photo.use-case";
 export { CreateEventUseCase } from "./use-cases/create-event.use-case";
 export { DeactivateEventPhotoUseCase } from "./use-cases/deactivate-event-photo.use-case";
-export { DeleteEventUseCase } from "./use-cases/delete-event.use-case";
 export { GetEventUseCase } from "./use-cases/get-event.use-case";
 export { ListEventsUseCase } from "./use-cases/list-events.use-case";
 export { ReorderEventPhotosUseCase } from "./use-cases/reorder-event-photos.use-case";
@@ -92,7 +91,6 @@ export type { SeedDependencies, SeedPlan, SeedResult } from "./seed/seed-landing
 export type { NewsCoverResult, NewsItemResult } from "./dto/news-item-result.dto";
 export type { NewsRepository } from "./ports/news-repository.port";
 export { CreateNewsItemUseCase } from "./use-cases/create-news-item.use-case";
-export { DeleteNewsItemUseCase } from "./use-cases/delete-news-item.use-case";
 export { GetNewsItemUseCase } from "./use-cases/get-news-item.use-case";
 export { ListNewsItemsUseCase } from "./use-cases/list-news-items.use-case";
 export { RemoveNewsCoverUseCase } from "./use-cases/remove-news-cover.use-case";

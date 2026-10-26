@@ -57,6 +57,7 @@ Un PR debería poder revisarse en menos de una hora: idealmente **menos de 400 l
 Protegen la seguridad del panel y la privacidad de la directiva. Un PR que las rompe no se mergea:
 
 - **Cada server action verifica la sesión y el rol** como primera instrucción: `requireSession()` si puede llamarla cualquier usuario con sesión, o `requireRole("ADMIN")` si es solo para administradores. Tiene además una fila en `src/tests/support/action-policy.ts` y un test que prueba que sin sesión no escribe nada (ver la [referencia técnica](docs/REFERENCIA.md#server-actions-are-guarded-individually)).
+- **El foro es una zona aparte.** Las acciones y lecturas del foro verifican `requireForumMember()` / `requireForumPageMember()` (cookie `forum_session`, nunca la del admin) y nunca devuelven el correo de un estudiante en un DTO. Una cookie del foro no puede pasar un guard del admin, ni al revés: hay tests que lo prueban y no se tocan para que pasen (ver la [referencia técnica](docs/REFERENCIA.md#the-forum-is-a-separate-zone)).
 - **La directiva solo tiene nombre, cargo y foto.** Nada de teléfono, correo, edad ni redes personales: hay tests que fallan si aparecen esos campos en el modelo o en una migración.
 - **Migraciones solo hacia adelante.** No edites una migración ya mergeada; agregá una nueva. Las migraciones de producción se aplican a mano (ver `docs/DEPLOY.md`).
 - **La API pública solo expone lo publicado.** Cualquier campo nuevo en `/api/public/content` es un cambio de contrato con la landing: coordiná el PR en los dos repositorios.

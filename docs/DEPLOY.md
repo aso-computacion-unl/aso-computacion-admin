@@ -65,6 +65,9 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
 | `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
 | `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when none of the three Google variables is set). |
+| `FORUM_ALLOWED_EMAIL_DOMAIN` | for the forum | The institutional email domain students must belong to (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, and the email must be verified. **Unset or empty: the forum login is off** (section 4b). |
+| `FORUM_SESSION_SECRET` | for the forum | Signs the `forum_session` cookie and the forum's Google login cookie. At least 32 characters and **different from `ADMIN_SECRET`** (equal is refused). Missing or invalid: the forum login is off. Mark it Sensitive. |
+| `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | no | A separate Google OAuth client for the forum. Set both or neither; unset, the forum reuses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -139,6 +142,22 @@ Use it only when Google login is unavailable (Google outage, a mistyped redirect
 2. Log in with `ADMIN_PASSWORD`. You act as a synthetic admin ("Acceso de emergencia"); a warning banner shows on every page, and the login is written to the audit log.
 3. Fix the cause (for example add or reactivate a user in **Usuarios**), then **log out**, remove `BREAK_GLASS_PASSWORD_LOGIN` and redeploy. Switching it off also invalidates any emergency session still open. Rotate `ADMIN_PASSWORD` if more people than you saw it.
 
+## 4b. Student forum (`/foro`)
+
+Students sign in to the forum with their institutional Google account; there is no sign-up step: the first successful login creates the member. The forum is a separate zone from the admin: its own cookie (`forum_session`, path `/foro`), its own secret, its own tables (`ForumMember`, `ForumSession`, …) and its own guard. A forum cookie never opens an admin page or action, and an admin session is not a forum member.
+
+1. In Vercel set `FORUM_ALLOWED_EMAIL_DOMAIN` (e.g. `unl.edu.ec`) and `FORUM_SESSION_SECRET` (`openssl rand -base64 48`, a different value from `ADMIN_SECRET`; mark it Sensitive). The Google client is the admin's (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`), so those must be set as in section 4a.
+2. In Google Cloud (**APIs & Services → Credentials →** the OAuth client) add a second **authorized redirect URI**: exactly `https://<your admin domain>/foro/auth/google/callback` (that is `AUTH_URL` + `/foro/auth/google/callback`). For local development also `http://localhost:3000/foro/auth/google/callback`. Keep the admin's `/auth/google/callback` one. The consent screen must let students' accounts in (an **Internal** app only admits the organisation's own accounts; an **External** one must be published).
+3. Redeploy. `/foro/auth/google/start` now sends students to Google.
+
+**Fails closed.** Without `FORUM_ALLOWED_EMAIL_DOMAIN` or a valid `FORUM_SESSION_SECRET` (missing, a placeholder, shorter than 32 characters, or equal to `ADMIN_SECRET`) nobody can sign in and `/foro` says the access is unavailable; the admin is not affected. A login is accepted only when the email is verified by Google, its domain is exactly the configured one (sub-domains are not accepted) and Google's `hd` claim names that same domain, so a personal Google account carrying an institutional address is refused. A suspended member is refused and their open sessions stop working at their next request.
+
+**What is stored and shown.** `ForumMember` keeps the lower-cased email and Google's account id (never shown to other students; no public type carries them) and the display name taken from the Google profile (a neutral "Estudiante xxxx" when there is none or it looks like an address). Forum sessions last 7 days and are revocable; only a keyed hash of the client address is kept.
+
+**Posting limits.** A member may post (threads and replies together) 3 times per minute and 30 per hour, counted in the database; the posts are Markdown with fenced code, rendered without HTML.
+
+**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; the screens come with the forum UI.
+
 ## 5. Seeding the landing content
 
 The landing keeps its real content in `src/data/fallback.json` and its images in `src/assets/`. `npm run seed:landing` loads them into the admin through the same use cases the admin UI calls, so every rule applies: board entries carry only name, role and photo (a file with any other key on a board entry is rejected as a whole), photo minimum widths, and a board member needs a photo to be published.
@@ -207,6 +226,13 @@ Purely additive: it creates the `User`, `Session` and `AuditLog` tables and two 
 - Rollback, only if the feature is abandoned (roll the app back first, the old code ignores these tables): `DROP TABLE "AuditLog", "Session", "User"; DROP TYPE "ActorKind", "UserRole"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026120000_add_users_sessions_audit';`, with the **direct** connection string. The audit history is lost with it.
 - The new version no longer accepts the old session cookies (they carry no session id): everybody logs in once more after the deploy.
 
+### The forum migration (`20261026140000_add_forum`)
+
+Purely additive: it creates the seven `Forum*` tables and two enums and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy`, needs no downtime, and the previous admin keeps working against it (it ignores these tables).
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if the forum is abandoned (roll the app back first): `DROP TABLE "ForumReport", "ForumReaction", "ForumReply", "ForumThread", "ForumCategory", "ForumSession", "ForumMember"; DROP TYPE "ForumReportStatus", "ForumMemberStatus"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026140000_add_forum';`, with the **direct** connection string. Every post is lost with it.
+
 ### The soft-delete migration (`20261025130000_add_soft_delete`)
 
 Safe to apply on the production database with `prisma migrate deploy`; it needs no downtime and no backup beyond your usual one.
@@ -254,6 +280,7 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Cloudinary cloud name, API key and API secret copied.
 - [ ] `ADMIN_SECRET` (≥ 32 chars) and `ADMIN_PASSWORD` (≥ 16 chars, the emergency password) generated and saved in the password manager.
 - [ ] Google OAuth client created (section 4a), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL` and `ADMIN_BOOTSTRAP_EMAILS` set; the redirect URI in Google matches `AUTH_URL/auth/google/callback`.
+- [ ] Optional, only to open the forum (section 4b): `FORUM_ALLOWED_EMAIL_DOMAIN` and `FORUM_SESSION_SECRET` (≥ 32 chars, different from `ADMIN_SECRET`) set, and `https://<admin domain>/foro/auth/google/callback` added to the Google client's redirect URIs.
 - [ ] Vercel project: Next.js preset, Node 22.x, `npm ci` / `npm run build`.
 - [ ] Production variables set: `DATABASE_URL` (pooled, `pgbouncer=true`), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
 - [ ] Deployed; `GET /api/health` returns 200; `/admin` redirects to `/login`.

@@ -45,6 +45,9 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `ALLOWED_EMAIL_DOMAIN` | Optional: only Google accounts of this domain can log in |
 | `BREAK_GLASS_PASSWORD_LOGIN` | Exactly `1` keeps the shared-password login after Google is configured, or while its configuration is incomplete; off invalidates open emergency sessions. Implicitly on only when none of the three Google variables is set |
 | `ADMIN_SECRET` | Secret that signs session cookies (at least 32 characters) |
+| `FORUM_ALLOWED_EMAIL_DOMAIN` | Institutional email domain of the student forum. Required: unset or empty disables the forum login (fails closed) |
+| `FORUM_SESSION_SECRET` | Secret that signs the forum cookies (at least 32 characters, different from `ADMIN_SECRET`); invalid disables the forum login |
+| `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | Optional separate Google client for the forum (both or neither); default is the admin's client |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
@@ -184,6 +187,17 @@ The login is throttled per client, in Postgres (table `LoginAttempt`), so the li
 - **Atomic.** Each attempt is spent *before* the password is compared, in a single `INSERT ... ON CONFLICT DO UPDATE ... WHERE` statement, so 30 parallel guesses spend at most the 5 free attempts. A successful login deletes the row of the bucket it spent (the IP's, or the device's).
 - **Fails closed.** If the throttle store cannot be reached, login is refused ("temporarily unavailable") instead of running unprotected; the error is logged. If `ADMIN_PASSWORD` is unusable (unset, placeholder or under 16 characters), login is refused the same way and an `ADMIN_PASSWORD is not set, is still a placeholder or is shorter than 16 characters` error is logged once per process (not per attempt).
 - **The client IP** is `x-real-ip`, then the first `x-forwarded-for` entry (Vercel overwrites both). Without either header (local development, a bare `next start`) every request shares one `unknown` bucket: it is throttled like any other key, so it is safe, but everyone behind it slows each other down. A warning says so once per process.
+
+## The forum is a separate zone
+
+Students are **not** `User` rows. `ForumMember` / `ForumSession` and the other `Forum*` tables are independent of `User` / `Session`, and the forum has its own cookie, secret, claims and guard so that neither kind of session can ever pass the other's check:
+
+- Cookie `forum_session`, `path=/foro`, signed HS256 with `FORUM_SESSION_SECRET` (≥ 32 characters, refused when equal to `ADMIN_SECRET`). Claims `sid`, `mid`, `typ: "forum-session"`, `aud: "aso-computacion-forum"`, `sub = mid`; none of the admin's `kind` / `uid` / `role`. The admin session module, `hasValidClaims`, `requireSession` / `requireRole` and the middleware matcher are untouched; the admin cookie (path `/`) reaches `/foro` but the forum guard reads only its own cookie.
+- Guards: `requireForumMember()` (server actions, throws) and `requireForumPageMember()` (pages and reads, redirects to `/foro`) in `src/interface/forum/`. They fail closed (missing secret, bad cookie, revoked or expired session, suspended member, database error). Every student-facing action module starts each action with `requireForumMember()` (`forum-posting.ts`); the admin-side category actions are ordinary admin actions with `requireRole("ADMIN")` and a row in `action-policy.ts`.
+- Login: `/foro/auth/google/start` and `/foro/auth/google/callback` (own state cookie `forum_oauth_state`, path `/foro/auth/google`). `FORUM_ALLOWED_EMAIL_DOMAIN` is required (unset = login disabled); the email domain and `hd` must match and the email must be verified. A new valid identity becomes a member on the spot.
+- No public DTO (`src/application/dto/forum-result.dto.ts`) carries an email, a Google id or a member id: other students are a display name, and "mine" is a boolean computed for the viewer.
+- Posting is throttled per member in the database (`src/application/forum/posting-throttle.ts`); a reply is written under the thread's row lock so a lock racing a reply cannot lose.
+- Post text uses the Markdown subset (`src/interface/admin/markdown-subset.ts`), with fenced code blocks only when asked for (`{ codeBlocks: true }`); the news grammar the landing renders is unchanged.
 
 ## Server actions are guarded individually
 

@@ -1,8 +1,8 @@
 import type { OrderedContent, OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { NotFoundError } from "./use-case-error";
 
-// The admin lists (FAQ, pillars, social links, board) share list, get, publish,
-// delete and move; only create/update differ, so those stay per entity. Each
+// The admin lists (FAQ, pillars, social links, board) share list, get, publish
+// and move (trash, restore and purge live in their own modules); only create/update differ, so those stay per entity. Each
 // class takes the "not found" message so the interface layer can say what is missing.
 
 /** Position for a new item: after everything that exists. */
@@ -56,22 +56,6 @@ export class SetOrderedContentPublishedUseCase<E extends OrderedContent<E>, R> {
     }
 
     return this.toResult(await this.repository.update(entity.withPublished(isPublished)));
-  }
-}
-
-/** Removes the row only: stored images are retained, nothing is destroyed as a side effect. */
-export class DeleteOrderedContentUseCase<E extends OrderedContent<E>> {
-  constructor(
-    private readonly repository: OrderedContentRepository<E>,
-    private readonly notFoundMessage: string,
-  ) {}
-
-  async execute({ id }: { id: string }): Promise<void> {
-    if (!(await this.repository.getById(id))) {
-      throw new NotFoundError(this.notFoundMessage);
-    }
-
-    await this.repository.delete(id);
   }
 }
 

@@ -156,3 +156,5 @@ export {
   ReplyToForumThreadUseCase,
 } from "./forum/forum-threads.use-cases";
 export type { ForumThreadsPage, ForumThreadView } from "./forum/forum-threads.use-cases";
+export { buildForumServices } from "./forum/forum-services";
+export type { ForumRepositories, ForumServices } from "./forum/forum-services";

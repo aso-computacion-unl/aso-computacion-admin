@@ -10,7 +10,10 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 /** The only routes that may be reachable without a session. Adding one here is a security decision. */
 // The two Google routes are how a session is obtained, so they cannot require one: the callback only
 // opens a session for a verified Google identity that is on the user list, behind the login throttle.
-const PUBLIC_ROUTES = ["/login", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content"];
+// The forum is a separate zone with its own session (`forum_session`, own secret, own guard): its pages and
+// its two Google routes are outside the admin middleware on purpose, and its guard fails closed.
+const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback"];
+const PUBLIC_ROUTES = ["/login", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", ...FORUM_ROUTES];
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

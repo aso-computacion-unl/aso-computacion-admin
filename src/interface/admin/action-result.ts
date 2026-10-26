@@ -80,6 +80,7 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "User not found": "No se encontró el usuario.",
   "Session not found": "La sesión ya no está activa.",
   "Invite not found": "La invitación ya no está pendiente.",
+  "Registration not found": "No se encontró la inscripción.",
 };
 
 const COMMAND_CONFLICT_MESSAGES = {

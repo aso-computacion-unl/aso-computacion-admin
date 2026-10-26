@@ -12,10 +12,14 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 // opens a session for a verified Google identity that is on the user list, behind the login throttle.
 // The forum is a separate zone with its own session (`forum_session`, own secret, own guard): its pages and
 // its two Google routes are outside the admin middleware on purpose, and its guard fails closed.
-const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback"];
+// `/foro/eventos/<slug>` is the UNL-account event registration page: it shows the event's registration state to
+// anyone, and its action only works for a signed-in forum member (the forum guard, never the admin one).
+const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos/x"];
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
-const PUBLIC_ROUTES = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
+const PUBLIC_ROUTES: string[] = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
+// The open-form event registration is public by design: Turnstile, a strict rate limit and the atomic use case are its guards.
+PUBLIC_ROUTES.push("/api/public/events/x/registrations");
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

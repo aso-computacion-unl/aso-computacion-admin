@@ -11,7 +11,7 @@ import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filt
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { PageHead } from "../_components/page-head";
-import { DeleteButton, PublishedToggle } from "../_components/row-actions";
+import { TrashButton, PublishedToggle } from "../_components/row-actions";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EmptyState, OrderedList, Stamp, TimelineItem } from "../_components/timeline-parts";
 
@@ -87,7 +87,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
                           Editar
                         </Link>
                       </Button>
-                      <DeleteButton label={item.title} warning="¿Mover esta noticia a la papelera?" action={trashNewsItem.bind(null, item.id)} undo={restoreTrashed.bind(null, "news", item.id)} />
+                      <TrashButton label={item.title} warning="¿Mover esta noticia a la papelera?" action={trashNewsItem.bind(null, item.id)} undo={restoreTrashed.bind(null, "news", item.id)} />
                     </div>
                   </div>
                 </TimelineItem>

@@ -127,21 +127,22 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
   );
 }
 
+/** A two-step removal. The copy is the caller's: nothing here assumes the item goes to the trash. */
 interface DeleteButtonProps {
   label: string;
   /** What is lost with the row, shown in the confirmation. */
   warning: string;
   action: () => Promise<ActionResult>;
-  /** Wording for a softer removal than a delete, e.g. "Quitar" for a photo that is kept in storage. */
-  triggerLabel?: string;
+  /** The trigger's wording, e.g. "Quitar" for a photo that is kept in storage. */
+  triggerLabel: string;
   /** Extra classes for the trigger, e.g. a negative margin to align it with the text above. */
   triggerClassName?: string;
   /** In a crowded row the trigger shrinks to its icon on a phone; set false where there is room for the word. */
   compactOnMobile?: boolean;
-  confirmLabel?: string;
-  note?: string;
+  confirmLabel: string;
+  note: string;
   /** Toast shown once the removal went through. */
-  successMessage?: string;
+  successMessage: string;
   /** Puts the removal back. When given, the success toast offers "Deshacer", which calls it. */
   undo?: () => Promise<ActionResult>;
 }
@@ -150,12 +151,12 @@ export function DeleteButton({
   label,
   warning,
   action,
-  triggerLabel = "Mover a la papelera",
+  triggerLabel,
   triggerClassName,
   compactOnMobile = true,
-  confirmLabel = "Sí, mover",
-  note = "Podrá restaurarlo desde la papelera; volverá como borrador.",
-  successMessage = "Movido a la papelera",
+  confirmLabel,
+  note,
+  successMessage,
   undo,
 }: DeleteButtonProps) {
   const { pending, result, run } = useRunAction();
@@ -186,6 +187,21 @@ export function DeleteButton({
       </div>
       <RowError result={result} />
     </div>
+  );
+}
+
+type TrashButtonProps = Pick<DeleteButtonProps, "label" | "warning" | "action" | "undo">;
+
+/** Moves a row to the trash, which `undo` (when given) brings back: the only removal whose copy promises a restore. */
+export function TrashButton(props: TrashButtonProps) {
+  return (
+    <DeleteButton
+      {...props}
+      triggerLabel="Mover a la papelera"
+      confirmLabel="Sí, mover"
+      note="Podrá restaurarlo desde la papelera; volverá como borrador."
+      successMessage="Movido a la papelera"
+    />
   );
 }
 

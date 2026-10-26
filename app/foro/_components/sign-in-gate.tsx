@@ -10,10 +10,12 @@ const SUSPENSION_HINT = "Si ya participaba en el foro y no puede entrar, es posi
 interface SignInGateProps {
   /** Why the last sign-in attempt failed (the `?error=` of the landing), if it did. */
   problem?: ForumLoginErrorCode;
+  /** A validated forum path to come back to after signing in (`parseForumReturnPath`), if the visitor arrived for a page. */
+  next?: string;
 }
 
 /** What a visitor sees at /foro: the forum's purpose and the only way in. */
-export function SignInGate({ problem }: SignInGateProps) {
+export function SignInGate({ problem, next }: SignInGateProps) {
   return (
     <section aria-labelledby="gate-title" className="mx-auto grid max-w-xl gap-5 rounded-xl border border-border bg-muted p-6 sm:p-8">
       <h1 id="gate-title" className="font-display text-[1.75rem] leading-[1.15] text-balance">
@@ -35,7 +37,7 @@ export function SignInGate({ problem }: SignInGateProps) {
       )}
       {/* A plain link, not next/link: it starts a redirect flow and must not be prefetched. */}
       <a
-        href="/foro/auth/google/start"
+        href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}
         className="inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded border border-white bg-white px-5 font-bold text-[#1f1f1f] transition-colors hover:bg-[#e9eef5]"
       >
         <GoogleMark className="size-5" />

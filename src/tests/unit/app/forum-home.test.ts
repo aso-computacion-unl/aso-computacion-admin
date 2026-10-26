@@ -23,7 +23,7 @@ import { signInAs } from "@/tests/support/test-auth";
 import { testForum } from "@/tests/support/test-forum";
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 
-const renderHome = async (error?: string) => renderToStaticMarkup(await ForumHomePage({ searchParams: Promise.resolve({ error }) }));
+const renderHome = async (error?: string, next?: string | string[]) => renderToStaticMarkup(await ForumHomePage({ searchParams: Promise.resolve({ error, next }) }));
 const renderLayout = async () => renderToStaticMarkup(await ForumLayout({ children: createElement("p", null, "contenido") }));
 
 beforeEach(() => {
@@ -44,6 +44,25 @@ describe("/foro as a visitor", () => {
     expect(html).toContain("@unl.edu.ec");
     expect(html).not.toContain("Programación");
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("passes the path the visitor came for to the sign-in as next", async () => {
+    const html = await renderHome(undefined, "/foro/hilo/abc?x=1");
+
+    expect(html).toContain('href="/foro/auth/google/start?next=%2Fforo%2Fhilo%2Fabc%3Fx%3D1"');
+  });
+
+  it.each([
+    ["an external URL", "https://evil.example/foro"],
+    ["a protocol-relative URL", "//evil.example"],
+    ["the admin area", "/admin"],
+    ["an auth path", "/foro/auth/google/callback"],
+    ["a repeated parameter", ["/foro/hilo/a", "/foro/hilo/b"]],
+  ])("does not forward %s: the sign-in link stays plain", async (_label, next) => {
+    const html = await renderHome(undefined, next);
+
+    expect(html).toContain('href="/foro/auth/google/start"');
+    expect(html).not.toContain("next=");
   });
 
   it.each(FORUM_LOGIN_ERRORS)("explains a failed sign-in (%s) as an alert and offers to try again", async (code) => {

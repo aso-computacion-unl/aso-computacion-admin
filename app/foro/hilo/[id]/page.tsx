@@ -16,8 +16,11 @@ import { ReactionButton } from "../../_components/reaction-button";
 import { ReplyForm } from "../../_components/reply-form";
 import { ReportButton } from "../../_components/report-button";
 
+// A visitor is sent to the sign-in with this path, so signing in brings them back to the thread.
+const threadPath = (id: string) => `/foro/hilo/${encodeURIComponent(id)}`;
+
 // The title and the page share one read per request.
-const loadThread = cache((id: string) => orNotFound(getForumThread(id)));
+const loadThread = cache((id: string) => orNotFound(getForumThread(id, threadPath(id))));
 
 interface ThreadPageProps {
   params: Promise<{ id: string }>;
@@ -34,7 +37,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ThreadPage({ params }: ThreadPageProps) {
   const { id } = await params;
-  const [{ category, thread, replies }, reactions] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id))]);
+  const [{ category, thread, replies }, reactions] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id, threadPath(id)))]);
   const now = new Date();
   const status = threadStatus({ hasBestAnswer: thread.bestReplyId !== null, locked: thread.locked });
 

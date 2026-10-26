@@ -20,7 +20,7 @@ export async function getForumThreads(categorySlug: string, page: number) {
 }
 
 /** A visible thread with its visible replies, oldest first. */
-export async function getForumThread(threadId: string) {
-  const member = await requireForumPageMember();
+export async function getForumThread(threadId: string, returnTo?: string) {
+  const member = await requireForumPageMember(returnTo);
   return getForumServices().getThread.execute({ threadId, viewerId: member.memberId });
 }

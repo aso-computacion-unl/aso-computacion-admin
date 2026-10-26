@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { parseForumLoginError } from "@/interface/forum/forum-login-errors";
+import { parseForumReturnPath } from "@/interface/forum/forum-return-path";
 import { getForumCategories } from "@/interface/forum/forum-read";
 import { getForumMember } from "@/interface/forum/require-forum-member";
 
@@ -13,12 +14,12 @@ export const metadata: Metadata = { title: "Categorías" };
 // Reads the session cookie: never prerendered.
 export const dynamic = "force-dynamic";
 
-export default async function ForumHomePage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
-  const [member, { error }] = await Promise.all([getForumMember(), searchParams]);
+export default async function ForumHomePage({ searchParams }: { searchParams: Promise<{ error?: string | string[]; next?: string | string[] }> }) {
+  const [member, { error, next }] = await Promise.all([getForumMember(), searchParams]);
 
   // Not `getForumCategories` first: it sends a visitor to /foro, which is this page.
   if (!member) {
-    return <SignInGate problem={parseForumLoginError(error)} />;
+    return <SignInGate problem={parseForumLoginError(error)} next={parseForumReturnPath(typeof next === "string" ? next : null) ?? undefined} />;
   }
 
   const categories = await getForumCategories();

@@ -45,18 +45,18 @@ beforeEach(async () => {
 });
 
 describe("a thread page", () => {
-  it("is for members: a visitor goes to the sign-in at /foro", async () => {
+  it("is for members: a visitor goes to the sign-in at /foro, which brings them back to this thread", async () => {
     seedThread();
     cookiesMock.mockResolvedValue(cookieJar({}));
 
-    await expect(render("t1")).rejects.toThrow("REDIRECT /foro");
+    await expect(render("t1")).rejects.toThrow("REDIRECT /foro?next=%2Fforo%2Fhilo%2Ft1");
   });
 
   it("sends a member suspended since they signed in to the sign-in, where the suspension is explained", async () => {
     seedThread();
     testForum.members.members.set(viewerId, makeForumMember({ id: viewerId, email: "dani@unl.edu.ec", googleSub: "sub-dani", displayName: "Daniela P.", status: "SUSPENDED", suspendedAt: new Date() }));
 
-    await expect(render("t1")).rejects.toThrow("REDIRECT /foro");
+    await expect(render("t1")).rejects.toThrow("REDIRECT /foro?next=%2Fforo%2Fhilo%2Ft1");
   });
 
   it.each([

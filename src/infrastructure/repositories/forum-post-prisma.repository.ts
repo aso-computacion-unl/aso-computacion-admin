@@ -142,18 +142,22 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
 
   async updateReply(id: string, change: { body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {
     return prisma.$transaction(async (tx) => {
-      const reply = await tx.forumReply.findUnique({ where: { id }, select: { threadId: true, authorId: true, hiddenAt: true } });
+      // Row locks in the order every writer takes them (a hide, marking the best answer, a reaction): the
+      // reply first, then its thread. Taking the thread first could wait for a reply that a hide already
+      // holds while the hide waits for the thread, a deadlock.
+      const found = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${id} AND "authorId" = ${change.authorId} AND "hiddenAt" IS NULL FOR UPDATE`;
 
-      if (!reply || reply.hiddenAt || reply.authorId !== change.authorId) {
+      if (found.length === 0) {
         return "not-found";
       }
 
+      const { threadId } = found[0];
       // A shared row lock on the thread while it is open: a lock or a hide committing first matches
       // nothing here, and one arriving later waits for this transaction.
-      const open = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${reply.threadId} AND "lockedAt" IS NULL AND "hiddenAt" IS NULL FOR SHARE`;
+      const open = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${threadId} AND "lockedAt" IS NULL AND "hiddenAt" IS NULL FOR SHARE`;
 
       if (open.length === 0) {
-        const thread = await tx.forumThread.findUnique({ where: { id: reply.threadId }, select: { hiddenAt: true } });
+        const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
 
         return !thread || thread.hiddenAt ? "not-found" : "locked";
       }
@@ -164,7 +168,7 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
         return "not-found";
       }
 
-      await tx.forumThread.updateMany({ where: { id: reply.threadId, bestReplyId: id }, data: { bestReplyId: null } });
+      await tx.forumThread.updateMany({ where: { id: threadId, bestReplyId: id }, data: { bestReplyId: null } });
 
       return "ok";
     });

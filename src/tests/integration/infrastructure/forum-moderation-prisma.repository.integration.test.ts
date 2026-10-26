@@ -163,6 +163,45 @@ describe("ForumModerationPrismaRepository hide and lock (integration)", () => {
   });
 });
 
+describe("reply edit against a moderator hide (integration)", () => {
+  const edit = (body = "Texto corregido") => posts.updateReply("r1", { body, at: later(10), authorId: "beto" });
+
+  it("does not deadlock with a hide that has taken the reply and is about to clear the best answer", async () => {
+    await seed();
+    await posts.setBestReply("t1", "r1");
+    let racing: Promise<unknown> = Promise.resolve();
+
+    // The hide's own order: the reply first, then the thread's best-answer mark. An edit that took the
+    // thread first would wait for the reply while the hide waits for the thread: a deadlock.
+    await prisma.$transaction(async (tx) => {
+      await tx.forumReply.update({ where: { id: "r1" }, data: { hiddenAt: T0, hiddenBy: "u1" } });
+      racing = edit().then(
+        (outcome) => outcome,
+        (error: unknown) => error,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await tx.forumThread.updateMany({ where: { bestReplyId: "r1" }, data: { bestReplyId: null } });
+    });
+
+    expect(await racing).toBe("not-found");
+    expect((await prisma.forumReply.findUniqueOrThrow({ where: { id: "r1" } })).body).toBe("Pruebe con map");
+  });
+
+  it("settles every round of edits racing hides of the best answer, with no deadlock error", async () => {
+    await seed();
+
+    for (let round = 0; round < 15; round += 1) {
+      await prisma.forumReply.update({ where: { id: "r1" }, data: { hiddenAt: null, hiddenBy: null } });
+      await posts.setBestReply("t1", "r1");
+
+      const outcomes = await Promise.all([edit(`Texto ${round}`), moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp())]);
+
+      expect(["ok", "not-found"]).toContain(outcomes[0]);
+      expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBeNull();
+    }
+  });
+});
+
 describe("ForumModerationPrismaRepository suspension (integration)", () => {
   const session = (id: string, memberId: string) => ({ id, memberId, createdAt: T0, expiresAt: later(3_600_000), revokedAt: null, lastSeenAt: T0, userAgent: null, ipHash: null });
 

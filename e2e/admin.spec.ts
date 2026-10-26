@@ -124,6 +124,67 @@ test("a published event moved to the trash leaves the public API, undo brings it
   expect(await publicTitles()).not.toContain(title);
 });
 
+test("impact stats and testimonials managed in the admin reach the public API in order, and leave it when trashed", async ({ page, request }) => {
+  const stamp = Date.now();
+  const first = `E2E cifra A ${stamp}`;
+  const second = `E2E cifra B ${stamp}`;
+  const quote = `E2E cita ${stamp}`;
+  const publicSocialProof = async () => {
+    const body = await (await request.get("/api/public/content")).json();
+
+    return { labels: (body.impact as { label: string }[]).map((stat) => stat.label), testimonials: body.testimonials as { quote: string; name: string; role: string; photo: unknown }[] };
+  };
+  const createStat = async (label: string, value: string) => {
+    await page.goto("/admin/impact/new");
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Cifra", { exact: true }).fill(value);
+    await page.getByLabel("Qué cuenta").fill(label);
+    await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+    await page.getByRole("button", { name: "Crear cifra" }).click();
+    await expect(page).toHaveURL(/\/admin\/impact\/[^/]+\/edit$/);
+  };
+
+  await logInAsAdmin(page);
+  await createStat(first, "120+");
+  await createStat(second, "15");
+  expect((await publicSocialProof()).labels.filter((label) => label.startsWith("E2E cifra"))).toEqual([first, second]);
+
+  // Moving the second one up changes the public order at once.
+  await page.goto("/admin/impact");
+  await page.getByRole("group", { name: new RegExp(`Orden: .*${second}`) }).getByRole("button", { name: "Subir" }).click();
+  await expect(page.getByRole("status").getByText(/posición 1 de/)).toBeVisible();
+  expect((await publicSocialProof()).labels.filter((label) => label.startsWith("E2E cifra"))).toEqual([second, first]);
+
+  // A testimonial without a photo is public with the quote, the name and the role only.
+  await page.goto("/admin/testimonials/new");
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Cita").fill(quote);
+  await page.getByLabel("Nombre").fill("Ana Pérez");
+  await page.getByLabel("Cargo o afiliación").fill("Egresada de Computación");
+  // The input is visually hidden: click its label, like a person would.
+  await page.locator("label", { has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
+  await page.getByRole("button", { name: "Crear testimonio" }).click();
+  await expect(page).toHaveURL(/\/admin\/testimonials\/[^/]+\/edit$/);
+  const testimonial = (await publicSocialProof()).testimonials.find((item) => item.quote === quote);
+  expect(testimonial).toEqual({ quote, name: "Ana Pérez", role: "Egresada de Computación", photo: null });
+
+  // Trashing both kinds removes them from the public API.
+  await page.goto("/admin/impact");
+  await page.getByRole("button", { name: new RegExp(`Mover a la papelera: .*${first}`) }).click();
+  await page.getByRole("button", { name: "Sí, mover" }).click();
+  await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
+  await page.goto("/admin/testimonials");
+  await page.getByRole("button", { name: "Mover a la papelera: Ana Pérez" }).first().click();
+  await page.getByRole("button", { name: "Sí, mover" }).click();
+  await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
+
+  const after = await publicSocialProof();
+  expect(after.labels).not.toContain(first);
+  expect(after.labels).toContain(second);
+  expect(after.testimonials.map((item) => item.quote)).not.toContain(quote);
+});
+
 test("the emergency login is flagged on every page, as the session of the emergency actor", async ({ page }) => {
   await logInAsAdmin(page);
 

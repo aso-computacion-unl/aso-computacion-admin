@@ -22,6 +22,28 @@ describe("event use cases", () => {
     events = new InMemoryEventRepository(photos);
   });
 
+  describe("publish window", () => {
+    const OPEN = new Date("2026-11-02T13:00:00.000Z");
+    const CLOSE = new Date("2026-11-09T13:00:00.000Z");
+
+    it("is stored on create, changed and cleared on update, and untouched by publishing", async () => {
+      const created = await new CreateEventUseCase(events).execute({ title: "Programado", publishAt: OPEN, unpublishAt: CLOSE });
+      const update = new UpdateEventUseCase(events);
+
+      expect(created).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+      expect(await new SetEventPublishedUseCase(events).execute({ id: created.id, isPublished: true })).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+      expect(await update.execute({ id: created.id, unpublishAt: null })).toMatchObject({ publishAt: OPEN, unpublishAt: null });
+      expect(await update.execute({ id: created.id, title: "Otro nombre" })).toMatchObject({ publishAt: OPEN, unpublishAt: null });
+    });
+
+    it("refuses an update that would close the window before it opens, and keeps the stored one", async () => {
+      const created = await new CreateEventUseCase(events).execute({ title: "Programado", publishAt: OPEN, unpublishAt: CLOSE });
+
+      await expect(new UpdateEventUseCase(events).execute({ id: created.id, unpublishAt: OPEN })).rejects.toThrow(expect.objectContaining({ field: "unpublishAt" }));
+      expect((await events.getById(created.id))?.props).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+    });
+  });
+
   describe("CreateEventUseCase", () => {
     it("creates an unpublished event with a slug derived from the title", async () => {
       const result = await new CreateEventUseCase(events).execute({ title: "Hackatón 24h", date: "2026-11-28" });

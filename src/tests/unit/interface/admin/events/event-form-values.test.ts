@@ -45,6 +45,8 @@ describe("event form values", () => {
       linkLabel: "Inscribirme",
       highlights: "Apertura\nRetos",
       isPublished: true,
+      publishAt: "",
+      unpublishAt: "",
     });
   });
 

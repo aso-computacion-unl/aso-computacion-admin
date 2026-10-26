@@ -1,6 +1,8 @@
 import type { EventResult } from "@/application";
 import type { EventDatePrecision } from "@/domain/event";
 
+import { windowEndToFormValue } from "../publication-window-fields";
+
 /**
  * Editable text state of the event form. The form keeps these values in
  * React state and submits them by hand: React 19 empties uncontrolled fields
@@ -25,6 +27,10 @@ export interface EventFormValues {
   /** One highlight per line. */
   highlights: string;
   isPublished: boolean;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no start. */
+  publishAt: string;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no end. */
+  unpublishAt: string;
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
@@ -43,6 +49,8 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   linkLabel: "",
   highlights: "",
   isPublished: false,
+  publishAt: "",
+  unpublishAt: "",
 };
 
 export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | "updatedAt">): EventFormValues {
@@ -62,6 +70,8 @@ export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | 
     linkLabel: event.linkLabel ?? "",
     highlights: event.highlights.join("\n"),
     isPublished: event.isPublished,
+    publishAt: windowEndToFormValue(event.publishAt),
+    unpublishAt: windowEndToFormValue(event.unpublishAt),
   };
 }
 

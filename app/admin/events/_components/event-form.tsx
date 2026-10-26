@@ -17,6 +17,7 @@ import {
 } from "@/interface/admin/events/event-form-values";
 
 import { ActionBar, Field, FieldError, FormFeedback, FormSection } from "../../_components/form-parts";
+import { ScheduleFields } from "../../_components/schedule-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
@@ -221,6 +222,10 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
           description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
           {...toggle("isPublished")}
         />
+      </FormSection>
+
+      <FormSection legend="Programación (opcional)" className="@xl:grid-cols-2">
+        <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} subject="el evento" />
       </FormSection>
 
       <ActionBar status={<FormFeedback state={state} />}>

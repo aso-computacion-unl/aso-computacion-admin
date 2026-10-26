@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { updateNewsItem } from "@/interface/admin/news/actions";
 import { getAdminNewsItem } from "@/interface/admin/news/news-admin-read";
+import { windowEndToFormValue } from "@/interface/admin/publication-window-fields";
 
 import { FormFrame } from "../../../_components/page-head";
 import { NewsCoverPanel } from "../../_components/news-cover-panel";
@@ -37,6 +38,8 @@ export default async function EditNewsPage({ params }: EditNewsPageProps) {
           publishedAt: item.publishedAt,
           coverAlt: item.cover?.alt ?? "",
           isPublished: item.isPublished,
+          publishAt: windowEndToFormValue(item.publishAt),
+          unpublishAt: windowEndToFormValue(item.unpublishAt),
         }}
       />
     </FormFrame>

@@ -217,7 +217,7 @@ The code is wired and does nothing until you do this, once, by hand:
 
 What is reported: unhandled errors in server components, route handlers and server actions (`onRequestError`), the unexpected failures the server actions and API handlers already log with `console.error` (one helper, `reportError`), the public API's 503s, and browser render errors. What is not: validation errors and other user mistakes.
 
-What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubber removes request bodies, cookies and `authorization`/`cookie`/`set-cookie` headers, and reduces every URL in breadcrumbs, spans and messages to its origin (the deploy hook URL carries a secret token). The trace sample rate defaults to 0.1.
+What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubber removes request bodies, cookies and `authorization`/`cookie`/`set-cookie` headers, and reduces every URL in breadcrumbs, spans and messages to its origin (the deploy hook URL carries a secret token), redacts the token of `/invitacion/<token>` paths in request URLs, transaction names and breadcrumbs, and drops the `Referer` header. The trace sample rate defaults to 0.1.
 
 ## 8. Operating notes
 

@@ -1,5 +1,6 @@
 import { assertCalendarDate, todayInEcuador } from "./calendar-date";
 import { ValidationError } from "./domain-error";
+import { assertPublicationWindow } from "./publication-window";
 import { assertSlug, slugify } from "./slug";
 import { httpsUrl, requiredText } from "./text";
 
@@ -28,6 +29,10 @@ export interface NewsItemProps {
   readonly publishedAt: string;
   readonly cover: NewsCover | null;
   readonly isPublished: boolean;
+  /** Public from this instant (inclusive) while published; `null` is already open. Not `publishedAt`, the date the landing shows. */
+  readonly publishAt: Date | null;
+  /** Public until this instant (exclusive) while published; `null` never closes. */
+  readonly unpublishAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -42,12 +47,14 @@ interface NewsItemFields {
   publishedAt: string;
   cover: NewsCover | null;
   isPublished: boolean;
+  publishAt: Date | null;
+  unpublishAt: Date | null;
 }
 
 export type CreateNewsItemInput = Pick<NewsItemFields, "title" | "summary" | "body"> &
-  Partial<Pick<NewsItemFields, "slug" | "publishedAt" | "cover" | "isPublished">>;
+  Partial<Pick<NewsItemFields, "slug" | "publishedAt" | "cover" | "isPublished" | "publishAt" | "unpublishAt">>;
 /** `coverAlt` edits the alt of the current cover; it never adds or removes a cover. */
-export type UpdateNewsItemInput = Partial<Pick<NewsItemFields, "title" | "slug" | "summary" | "body" | "publishedAt" | "isPublished">> & {
+export type UpdateNewsItemInput = Partial<Pick<NewsItemFields, "title" | "slug" | "summary" | "body" | "publishedAt" | "isPublished" | "publishAt" | "unpublishAt">> & {
   coverAlt?: string;
 };
 
@@ -74,7 +81,8 @@ function buildCover(cover: NewsCover): NewsCover {
   };
 }
 
-type BuildFields = Omit<NewsItemFields, "slug" | "publishedAt"> & Partial<Pick<NewsItemFields, "slug" | "publishedAt">>;
+type BuildFields = Omit<NewsItemFields, "slug" | "publishedAt" | "publishAt" | "unpublishAt"> &
+  Partial<Pick<NewsItemFields, "slug" | "publishedAt" | "publishAt" | "unpublishAt">>;
 
 function build(base: Pick<NewsItemProps, "id" | "createdAt" | "updatedAt">, fields: BuildFields): NewsItemProps {
   const title = requiredText("title", fields.title, NEWS_TITLE_MAX_LENGTH);
@@ -88,6 +96,7 @@ function build(base: Pick<NewsItemProps, "id" | "createdAt" | "updatedAt">, fiel
     publishedAt: assertCalendarDate("publishedAt", fields.publishedAt ?? todayInEcuador(base.createdAt)),
     cover: fields.cover ? buildCover(fields.cover) : null,
     isPublished: fields.isPublished,
+    ...assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
   };
 }
 

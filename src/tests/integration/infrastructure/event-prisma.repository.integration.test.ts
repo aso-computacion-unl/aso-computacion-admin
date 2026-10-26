@@ -37,6 +37,20 @@ describe("EventPrismaRepository (integration)", () => {
     expect(found?.props).toEqual(event.props);
   });
 
+  it("round-trips the publish window to the millisecond, and an update can clear it", async () => {
+    const publishAt = new Date("2026-11-02T13:00:00.123Z");
+    const unpublishAt = new Date("2026-11-09T13:00:00.000Z");
+    const event = Event.create({ title: "Programado", isPublished: true, publishAt, unpublishAt });
+
+    await repository.create(event);
+
+    expect((await repository.getById(event.props.id))?.props).toMatchObject({ publishAt, unpublishAt });
+
+    await repository.update(event.update({ publishAt: null, unpublishAt: null }));
+
+    expect((await repository.getById(event.props.id))?.props).toMatchObject({ publishAt: null, unpublishAt: null });
+  });
+
   it("stores the date as a plain calendar day regardless of the process time zone", async () => {
     const event = Event.create({ title: "Charla", date: "2026-03-01" });
 

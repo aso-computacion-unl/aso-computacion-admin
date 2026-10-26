@@ -25,6 +25,8 @@ describe("event form values", () => {
       linkLabel: "Inscribirme",
       highlights: ["Apertura", "Retos"],
       isPublished: true,
+      publishAt: null,
+      unpublishAt: null,
     });
 
     expect(values).toEqual({
@@ -64,7 +66,7 @@ describe("event form values", () => {
     const parsed = parseEventFormData(formValuesToFormData(stored));
 
     expect(parsed).toMatchObject({ date: "2026-02-01", datePrecision: "month" });
-    expect(eventToFormValues({ ...stored, slug: "semana", description: null, type: null, commitMessage: null, hora: null, lugar: null, para: null, linkUrl: null, linkLabel: null, highlights: [], isPublished: false }))
+    expect(eventToFormValues({ ...stored, slug: "semana", description: null, type: null, commitMessage: null, hora: null, lugar: null, para: null, linkUrl: null, linkLabel: null, highlights: [], isPublished: false, publishAt: null, unpublishAt: null }))
       .toMatchObject({ date: "2026-02-01", datePrecision: "month" });
   });
 

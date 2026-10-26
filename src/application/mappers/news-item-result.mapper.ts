@@ -14,6 +14,8 @@ export function toNewsItemResult({ props }: NewsItem): NewsItemResult {
     publishedAt: props.publishedAt,
     cover: cover && { url: cover.url, width: cover.width, height: cover.height, alt: cover.alt },
     isPublished: props.isPublished,
+    publishAt: props.publishAt,
+    unpublishAt: props.unpublishAt,
     createdAt: props.createdAt,
     updatedAt: props.updatedAt,
   };

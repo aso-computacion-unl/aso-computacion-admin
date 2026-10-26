@@ -29,10 +29,29 @@ describe("AdminInvitePrismaRepository (integration)", () => {
 
   it("a new invite for the same email revokes the older pending one in the same step", async () => {
     await invites.create(makeInvite({ id: "old", tokenHash: "c".repeat(64), createdAt: new Date("2026-10-25T12:00:00.000Z") }));
-    await invites.create(makeInvite({ id: "new" }));
+    const superseded = await invites.create(makeInvite({ id: "new" }));
 
     expect((await prisma.adminInvite.findUnique({ where: { id: "old" } }))?.revokedAt).toEqual(NOW);
     expect((await invites.listPending(NOW)).map((invite) => invite.id)).toEqual(["new"]);
+    expect(superseded).toEqual(["old"]);
+  });
+
+  it("returns exactly the ids it revoked: not used, revoked or expired invites, nor another email's", async () => {
+    const at = (day: string) => new Date(`2026-10-${day}T12:00:00.000Z`);
+
+    // Inserted directly: `create` would itself revoke the earlier one, and the invariant is one live link per email.
+    await prisma.adminInvite.create({ data: makeInvite({ id: "pending-1", tokenHash: "1".repeat(64), createdAt: at("24") }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "pending-2", tokenHash: "2".repeat(64), createdAt: at("25") }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "pending-3", tokenHash: "7".repeat(64), createdAt: at("25") }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "used", tokenHash: "3".repeat(64), usedAt: at("25"), usedByUserId: "u" }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "revoked", tokenHash: "4".repeat(64), revokedAt: at("25") }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "expired", tokenHash: "5".repeat(64), createdAt: at("01"), expiresAt: at("08") }) });
+    await prisma.adminInvite.create({ data: makeInvite({ id: "other", tokenHash: "6".repeat(64), email: "other@example.org" }) });
+
+    const superseded = await invites.create(makeInvite({ id: "new" }));
+
+    expect([...superseded].sort()).toEqual(["pending-1", "pending-2", "pending-3"]);
+    expect(await invites.create(makeInvite({ id: "alone", tokenHash: "8".repeat(64), email: "alone@example.org" }))).toEqual([]);
   });
 
   it("lists only pending invites, newest first", async () => {

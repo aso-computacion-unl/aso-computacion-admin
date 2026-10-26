@@ -193,10 +193,15 @@ export class InMemoryAdminInviteRepository implements AdminInviteRepository {
   constructor(private readonly users: InMemoryUserRepository) {}
 
   async create(invite: AdminInviteRecord) {
+    const superseded: string[] = [];
     for (const other of this.invites.values()) {
-      if (other.email === invite.email && isPending(other, invite.createdAt)) this.invites.set(other.id, { ...other, revokedAt: invite.createdAt });
+      if (other.email === invite.email && isPending(other, invite.createdAt)) {
+        this.invites.set(other.id, { ...other, revokedAt: invite.createdAt });
+        superseded.push(other.id);
+      }
     }
     this.invites.set(invite.id, invite);
+    return superseded;
   }
 
   async findByTokenHash(tokenHash: string) {

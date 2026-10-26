@@ -40,12 +40,17 @@ export async function createAdminInvite(_prevState: CreateInviteResult | null, f
       return { error: MISSING_ORIGIN_MESSAGE };
     }
 
-    const { invite, token } = await getAuthServices().createInvite.execute({
+    const { invite, token, supersededInviteIds } = await getAuthServices().createInvite.execute({
       email: String(formData.get("email") ?? ""),
       role: parseRole(formData.get("role")),
       createdById: actor.userId,
     });
     await recordAudit(actor, { action: "invite.create", entityType: "invite", entityId: invite.id, summary: `Invitación creada con el rol ${ROLE_LABELS[invite.role]}` });
+
+    for (const supersededId of supersededInviteIds) {
+      await recordAudit(actor, { action: "invite.revoke", entityType: "invite", entityId: supersededId, summary: "Invitación anterior revocada al generar una nueva" });
+    }
+
     revalidatePath(PAGE_PATH);
     return { success: true, link: `${origin}/invitacion/${token}` };
   } catch (error) {

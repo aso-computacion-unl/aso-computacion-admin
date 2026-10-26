@@ -95,6 +95,36 @@ describe("users server actions", () => {
         expect(JSON.stringify(testAuth.audit.entries)).not.toContain(token);
       });
 
+      it("audits invite.revoke for each invite the new one supersedes, with no email or token", async () => {
+        const older = await withPendingInvite({ id: "older", tokenHash: "c".repeat(64), email: "again@example.org" });
+        const result = await actions.createAdminInvite(null, inviteForm({ email: "again@example.org", role: "EDITOR" }));
+        const token = (result as { link: string }).link.split("/invitacion/")[1]!;
+        const created = [...testAuth.invites.invites.values()].find((invite) => invite.id !== older.id)!;
+
+        expect(testAuth.invites.invites.get(older.id)?.revokedAt).toBeInstanceOf(Date);
+        expect(testAuth.audit.entries).toHaveLength(2);
+        expect(testAuth.audit.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ action: "invite.create", entityType: "invite", entityId: created.id }),
+            expect.objectContaining({
+              action: "invite.revoke",
+              entityType: "invite",
+              entityId: older.id,
+              actorUserId: "test-admin",
+              summary: "Invitación anterior revocada al generar una nueva",
+            }),
+          ]),
+        );
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain("@");
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain(token);
+      });
+
+      it("writes no invite.revoke when the invite supersedes nothing", async () => {
+        await actions.createAdminInvite(null, inviteForm({ email: "fresh@example.org", role: "EDITOR" }));
+
+        expect(testAuth.audit.entries.map((entry) => entry.action)).toEqual(["invite.create"]);
+      });
+
       it("says in Spanish, on the field, that an email is taken, malformed, or that the role is not valid, storing nothing", async () => {
         await withTarget();
 

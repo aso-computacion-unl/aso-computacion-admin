@@ -75,10 +75,21 @@ describe("CreateAdminInviteUseCase", () => {
   it("a new invite for the same email revokes the previous pending one: one live link per person", async () => {
     invites.invites.set("old", makeInvite({ id: "old", tokenHash: "c".repeat(64), email: "ben@example.org", createdAt: new Date("2026-10-25T12:00:00.000Z") }));
 
-    await create().execute({ email: "ben@example.org", role: "EDITOR", createdById: "root" });
+    const { supersededInviteIds } = await create().execute({ email: "ben@example.org", role: "EDITOR", createdById: "root" });
 
     expect(invites.invites.get("old")?.revokedAt).toEqual(NOW);
     expect((await invites.listPending(NOW)).map((invite) => invite.id)).toEqual(["invite-1"]);
+    expect(supersededInviteIds).toEqual(["old"]);
+  });
+
+  it("reports only the invites it actually revoked: none when the email had no pending invite", async () => {
+    invites.invites.set("used", makeInvite({ id: "used", tokenHash: "c".repeat(64), usedAt: NOW, usedByUserId: "u" }));
+    invites.invites.set("other", makeInvite({ id: "other", tokenHash: "d".repeat(64), email: "other@example.org" }));
+
+    const { supersededInviteIds } = await create().execute({ email: "ben@example.org", role: "EDITOR", createdById: "root" });
+
+    expect(supersededInviteIds).toEqual([]);
+    expect(invites.invites.get("other")?.revokedAt).toBeNull();
   });
 });
 

@@ -32,11 +32,18 @@ class RedemptionRefused extends Error {
 }
 
 export class AdminInvitePrismaRepository implements AdminInviteRepository {
-  async create(invite: AdminInviteRecord): Promise<void> {
-    await prisma.$transaction([
-      prisma.adminInvite.updateMany({ where: { email: invite.email, ...pendingAt(invite.createdAt) }, data: { revokedAt: invite.createdAt } }),
-      prisma.adminInvite.create({ data: invite }),
-    ]);
+  async create(invite: AdminInviteRecord): Promise<string[]> {
+    return prisma.$transaction(async (tx) => {
+      // RETURNING reports exactly the rows this statement revoked, which `updateMany` (a count) cannot.
+      const revoked = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE "AdminInvite" SET "revokedAt" = ${invite.createdAt}
+        WHERE "email" = ${invite.email} AND "usedAt" IS NULL AND "revokedAt" IS NULL AND "expiresAt" > ${invite.createdAt}
+        RETURNING "id"`;
+
+      await tx.adminInvite.create({ data: invite });
+
+      return revoked.map((row) => row.id);
+    });
   }
 
   async findByTokenHash(tokenHash: string): Promise<AdminInvite | null> {

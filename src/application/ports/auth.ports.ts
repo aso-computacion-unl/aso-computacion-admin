@@ -73,8 +73,11 @@ export interface AdminInviteRecord extends AdminInvite {
 export type InviteRedemption = "ok" | "unavailable" | "email-taken";
 
 export interface AdminInviteRepository {
-  /** Stores the invite and, in the same transaction, revokes the other pending invites of its email: one live link per person. */
-  create(invite: AdminInviteRecord): Promise<void>;
+  /**
+   * Stores the invite and, in the same transaction, revokes the other pending invites of its email: one
+   * live link per person. Resolves with the ids of the invites it revoked, so the caller can audit them.
+   */
+  create(invite: AdminInviteRecord): Promise<string[]>;
   findByTokenHash(tokenHash: string): Promise<AdminInvite | null>;
   /** Not used, not revoked and not expired at `now`, newest first. */
   listPending(now: Date): Promise<AdminInvite[]>;

@@ -113,7 +113,7 @@ An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their e
 
 - The link is **single use**, **expires after 7 days**, and is **bound to that email**: a Google account with a different email, or an unverified one, is refused (the page only says the invitation is not valid, never why).
 - The database keeps only a SHA-256 hash of the token, so a leaked database does not leak working links, and the link cannot be shown again: if it is lost, create another invitation (a new one for the same email revokes the older pending one).
-- Pending invitations are listed with their expiry and can be revoked. Creating, using and revoking an invitation go to the audit log (`invite.create`, `invite.redeem`, `invite.revoke`) with the role and the invitation id, never the email or the token.
+- Pending invitations are listed with their expiry and can be revoked. Creating, using and revoking an invitation go to the audit log (`invite.create`, `invite.redeem`, `invite.revoke`) with the role and the invitation id, never the email or the token. Generating a new invitation for an email revokes its older pending one, and that revocation is audited too.
 - Creating an invitation needs `AUTH_URL` (the link is built from it) and refuses with a message when it is missing. An email that already has a user cannot be invited; `ADMIN_BOOTSTRAP_EMAILS` keeps working as before.
 - Existing users, their roles and the Google login of people already on the list are unchanged. The direct "Agregar usuario" form no longer exists.
 

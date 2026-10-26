@@ -23,8 +23,11 @@ export class CreateAdminInviteUseCase {
     private readonly newId: () => string = () => crypto.randomUUID(),
   ) {}
 
-  /** The token is returned once, for the link; only its hash is stored. */
-  async execute(input: { email: string; role: Role; createdById: string | null }): Promise<{ invite: AdminInvite; token: string }> {
+  /**
+   * The token is returned once, for the link; only its hash is stored. `supersededInviteIds` are the
+   * older pending invites of the same email that this one revoked.
+   */
+  async execute(input: { email: string; role: Role; createdById: string | null }): Promise<{ invite: AdminInvite; token: string; supersededInviteIds: string[] }> {
     const email = normalizeEmail(input.email);
     const role = parseRole(input.role);
 
@@ -47,9 +50,9 @@ export class CreateAdminInviteUseCase {
       revokedAt: null,
     };
 
-    await this.invites.create({ ...invite, tokenHash: this.tokens.hash(token) });
+    const supersededInviteIds = await this.invites.create({ ...invite, tokenHash: this.tokens.hash(token) });
 
-    return { invite, token };
+    return { invite, token, supersededInviteIds };
   }
 }
 

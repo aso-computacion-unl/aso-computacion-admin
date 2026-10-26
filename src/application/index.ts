@@ -157,5 +157,8 @@ export {
   ReplyToForumThreadUseCase,
 } from "./forum/forum-threads.use-cases";
 export type { ForumThreadsPage, ForumThreadView } from "./forum/forum-threads.use-cases";
+export { FORUM_REPORTS_PAGE_SIZE } from "./forum/forum-moderation.use-cases";
+export type { ForumReportsPage } from "./forum/forum-moderation.use-cases";
+export type { ForumReportItemResult } from "./dto/forum-moderation-result.dto";
 export { buildForumServices } from "./forum/forum-services";
 export type { ForumRepositories, ForumServices } from "./forum/forum-services";

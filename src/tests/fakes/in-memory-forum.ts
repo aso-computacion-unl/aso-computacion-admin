@@ -11,8 +11,15 @@ import type {
   ForumSessionRepository,
   ForumThreadRow,
 } from "@/application/ports/forum.ports";
+import type {
+  ForumModerationRepository,
+  ForumModerationStamp,
+  ForumPostTarget,
+  ForumReportQueue,
+  ForumReportRow,
+} from "@/application/ports/forum-moderation.ports";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
-import type { ForumCategory, ForumMember, ForumReply, ForumThread } from "@/domain/forum";
+import type { ForumCategory, ForumMember, ForumReply, ForumReport, ForumThread } from "@/domain/forum";
 
 export function makeForumMember(overrides: Partial<ForumMember> = {}): ForumMember {
   return {
@@ -65,6 +72,22 @@ export function makeForumReply(overrides: Partial<ForumReply> = {}): ForumReply 
   const at = new Date("2026-10-03T00:00:00.000Z");
 
   return { id: "reply-1", threadId: "thread-1", authorId: "member-1", body: "Respuesta", createdAt: at, updatedAt: at, editedAt: null, hiddenAt: null, ...overrides };
+}
+
+export function makeForumReport(overrides: Partial<ForumReport> = {}): ForumReport {
+  return {
+    id: "report-1",
+    reporterId: "member-2",
+    threadId: "thread-1",
+    replyId: null,
+    reason: "Spam",
+    status: "OPEN",
+    createdAt: new Date("2026-10-04T00:00:00.000Z"),
+    resolvedAt: null,
+    resolvedBy: null,
+    resolutionNote: null,
+    ...overrides,
+  };
 }
 
 export class InMemoryForumMemberRepository implements ForumMemberRepository {
@@ -129,11 +152,12 @@ export class InMemoryForumSessionRepository implements ForumSessionRepository {
   }
 }
 
-/** Categories, threads and replies share one store, like the tables they stand for. */
+/** Categories, threads, replies and reports share one store, like the tables they stand for. */
 export class InMemoryForumStore {
   readonly categories = new Map<string, ForumCategory>();
   readonly threads = new Map<string, ForumThread>();
   readonly replies = new Map<string, ForumReply>();
+  readonly reports = new Map<string, ForumReport>();
 
   constructor(readonly members: InMemoryForumMemberRepository) {}
 }
@@ -269,5 +293,115 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     const replies = [...this.store.replies.values()].filter((reply) => reply.authorId === memberId && reply.createdAt >= since);
 
     return threads.length + replies.length;
+  }
+}
+
+/** Keeps the rule the partial unique indexes keep: one OPEN report per reporter per target. */
+export class InMemoryForumModerationRepository implements ForumModerationRepository {
+  constructor(
+    private readonly store: InMemoryForumStore,
+    private readonly sessions: InMemoryForumSessionRepository,
+  ) {}
+
+  async createReport(report: ForumReport) {
+    const duplicate = [...this.store.reports.values()].some(
+      (other) => other.status === "OPEN" && other.reporterId === report.reporterId && other.threadId === report.threadId && other.replyId === report.replyId,
+    );
+
+    if (duplicate) return false;
+    this.store.reports.set(report.id, report);
+    return true;
+  }
+
+  private row(report: ForumReport): ForumReportRow | null {
+    const reply = report.replyId ? this.store.replies.get(report.replyId) : undefined;
+    const thread = this.store.threads.get(report.threadId ?? reply?.threadId ?? "");
+    const post = reply ?? thread;
+    const author = post && this.store.members.members.get(post.authorId);
+    const reporter = this.store.members.members.get(report.reporterId);
+
+    if (!thread || !post || !author || !reporter) return null;
+
+    return {
+      report,
+      reporterName: reporter.displayName,
+      post: {
+        kind: reply ? "reply" : "thread",
+        threadId: thread.id,
+        threadTitle: thread.title,
+        body: post.body,
+        authorId: author.id,
+        authorName: author.displayName,
+        authorSuspended: author.status === "SUSPENDED",
+        hidden: post.hiddenAt !== null,
+        locked: thread.lockedAt !== null,
+      },
+    };
+  }
+
+  async listReports(queue: ForumReportQueue, page: { offset: number; limit: number }) {
+    const wanted = [...this.store.reports.values()]
+      .filter((report) => (queue === "open") === (report.status === "OPEN"))
+      .sort((a, b) => (queue === "open" ? a.createdAt.getTime() - b.createdAt.getTime() : (b.resolvedAt?.getTime() ?? 0) - (a.resolvedAt?.getTime() ?? 0) || b.createdAt.getTime() - a.createdAt.getTime()));
+    const rows = wanted.map((report) => this.row(report)).filter((row): row is ForumReportRow => row !== null);
+
+    return { items: rows.slice(page.offset, page.offset + page.limit), total: rows.length };
+  }
+
+  async closeReport(id: string, change: ForumModerationStamp & { status: "RESOLVED" | "DISMISSED"; note: string | null }) {
+    const report = this.store.reports.get(id);
+
+    if (!report) return "not-found";
+    if (report.status !== "OPEN") return "closed";
+
+    this.store.reports.set(id, { ...report, status: change.status, resolvedAt: change.at, resolvedBy: change.by, resolutionNote: change.note });
+
+    return "ok";
+  }
+
+  async setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp) {
+    if (target.kind === "thread") {
+      const thread = this.store.threads.get(target.id);
+
+      if (!thread) return false;
+      this.store.threads.set(thread.id, { ...thread, hiddenAt: hidden ? (thread.hiddenAt ?? stamp.at) : null });
+
+      return true;
+    }
+
+    const reply = this.store.replies.get(target.id);
+
+    if (!reply) return false;
+    this.store.replies.set(reply.id, { ...reply, hiddenAt: hidden ? (reply.hiddenAt ?? stamp.at) : null });
+
+    const thread = this.store.threads.get(reply.threadId);
+    if (hidden && thread?.bestReplyId === reply.id) this.store.threads.set(thread.id, { ...thread, bestReplyId: null });
+
+    return true;
+  }
+
+  async setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp) {
+    const thread = this.store.threads.get(threadId);
+
+    if (!thread) return false;
+    this.store.threads.set(threadId, { ...thread, lockedAt: locked ? (thread.lockedAt ?? stamp.at) : null });
+
+    return true;
+  }
+
+  async setMemberSuspended(memberId: string, suspended: boolean, stamp: ForumModerationStamp) {
+    const member = this.store.members.members.get(memberId);
+
+    if (!member) return false;
+
+    this.store.members.members.set(memberId, suspended ? { ...member, status: "SUSPENDED", suspendedAt: member.suspendedAt ?? stamp.at } : { ...member, status: "ACTIVE", suspendedAt: null });
+
+    if (suspended) {
+      for (const session of this.sessions.sessions.values()) {
+        if (session.memberId === memberId && !session.revokedAt) this.sessions.sessions.set(session.id, { ...session, revokedAt: stamp.at });
+      }
+    }
+
+    return true;
   }
 }

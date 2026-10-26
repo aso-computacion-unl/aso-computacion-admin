@@ -1,5 +1,5 @@
 import { buildForumServices, type ForumServices } from "@/application";
-import { ForumCategoryPrismaRepository, ForumMemberPrismaRepository, ForumPostPrismaRepository, ForumSessionPrismaRepository } from "@/infrastructure";
+import { ForumCategoryPrismaRepository, ForumMemberPrismaRepository, ForumModerationPrismaRepository, ForumPostPrismaRepository, ForumSessionPrismaRepository } from "@/infrastructure";
 import { forumAllowedDomain } from "@/infrastructure/forum/forum-config";
 
 function createForumServices(): ForumServices {
@@ -9,6 +9,7 @@ function createForumServices(): ForumServices {
       sessions: new ForumSessionPrismaRepository(),
       categories: new ForumCategoryPrismaRepository(),
       posts: new ForumPostPrismaRepository(),
+      moderation: new ForumModerationPrismaRepository(),
     },
     { allowedDomain: forumAllowedDomain() },
   );

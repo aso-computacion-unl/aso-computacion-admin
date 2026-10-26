@@ -70,6 +70,13 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     trashCommand: { role: "EDITOR", audit: "command.trash" },
     moveCommand: { role: "EDITOR", audit: "command.move" },
   },
+  "src/interface/admin/settings/actions.ts": {
+    updateSiteSettings: { role: "ADMIN", audit: "settings.update" },
+  },
+  "src/interface/admin/trash/actions.ts": {
+    restoreTrashed: { role: "EDITOR", audit: "faq.restore" },
+    purgeTrashed: { role: "ADMIN", audit: "faq.purge" },
+  },
 };
 
 export function cookieJar(cookiesMock: Mock, value: string | undefined) {

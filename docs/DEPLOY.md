@@ -60,11 +60,11 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `TEST_DATABASE_URL` | never on Vercel | Disposable database for `npm run test:integration` only. Must match the exact local target written in `.env.example`; never point it at Neon. |
 | `ADMIN_PASSWORD` | yes | The shared **emergency (break-glass) password**. **At least 16 characters**, enforced: shorter, missing or still a placeholder disables the password login and logs an error. Once Google is configured it only works with `BREAK_GLASS_PASSWORD_LOGIN=1` (section 4a). |
 | `ADMIN_SECRET` | yes | Signs the session cookie, the "known device" cookie and the short-lived Google login cookie, and keys the hash of each session's client address. At least 32 characters. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | for Google login | The OAuth client of section 4a. Mark the secret Sensitive. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | for Google login | The OAuth client of section 4a. Mark the secret Sensitive. Set all three Google variables or none: a partial set is a configuration error (section 4a). |
 | `AUTH_URL` | for Google login | Public origin of this admin, `https://…` with no path (plain `http` only for localhost). The OAuth redirect URI is `${AUTH_URL}/auth/google/callback`. |
 | `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
 | `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
-| `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured. Anything else turns it off. |
+| `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when none of the three Google variables is set). |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -112,7 +112,17 @@ The role is checked on the server in every action (and on every page read), agai
 4. **Authorized redirect URIs**: add exactly `https://<your admin domain>/auth/google/callback` (it must match `AUTH_URL` + `/auth/google/callback`, character for character). For local development also `http://localhost:3000/auth/google/callback`. No authorized JavaScript origins are needed.
 5. Copy the client ID and the client secret into Vercel as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (secret: Sensitive), set `AUTH_URL` to `https://<your admin domain>` and `ADMIN_BOOTSTRAP_EMAILS` to the one or two emails that should be the first admins. Redeploy.
 
-If Google login does not appear on `/login`, one of the three variables is missing, still a placeholder, or `AUTH_URL` is not an `https` origin: the page then keeps the password form so nobody is locked out.
+**All three or none.** The three variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`) are one setting:
+
+| Set | Result |
+|-----|--------|
+| None of them (empty or still a `__REPLACE_…__` placeholder) | No Google. The shared-password login is on, as in local development and before the cut-over. |
+| All three, `AUTH_URL` a valid `https` origin (plain `http` only for `localhost`) | Google login on. The password login is off unless `BREAK_GLASS_PASSWORD_LOGIN=1`. |
+| Only some of them, or `AUTH_URL` not a valid `https` origin | **Configuration error.** Google login is unavailable **and the password login stays off** (a typo must not silently re-open the shared password). `/login` shows "Configuración incompleta: el acceso con Google no está disponible…" and the Vercel logs show `Incomplete Google login configuration: <names of the variables to fix>` once per instance (also sent to Sentry; names only, never values). |
+
+To fix it, set the variables the log names (or clear all three to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
+
+If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
 
 ### Cut-over from the shared password
 
@@ -123,7 +133,7 @@ If Google login does not appear on `/login`, one of the three variables is missi
 
 ### Emergency procedure (break-glass)
 
-Use it only when Google login is unavailable (Google outage, a mistyped redirect URI, nobody left who can log in).
+Use it only when Google login is unavailable (Google outage, a mistyped redirect URI, a half-set Google configuration, nobody left who can log in).
 
 1. In Vercel set `BREAK_GLASS_PASSWORD_LOGIN=1` and redeploy. `/login` then shows **Acceso de emergencia**.
 2. Log in with `ADMIN_PASSWORD`. You act as a synthetic admin ("Acceso de emergencia"); a warning banner shows on every page, and the login is written to the audit log.

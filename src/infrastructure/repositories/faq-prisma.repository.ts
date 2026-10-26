@@ -1,16 +1,14 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Faq as PrismaFaq } from "@prisma/client";
 
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
-import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { CommandNameConflictError } from "@/domain/command-name";
 import type { Faq } from "@/domain/faq";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./faq.mapper";
-import { LIVE } from "./publication-filter";
-import { toTrashedItem, TRASH_ORDER, TRASHED } from "./trash";
+import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
 /** The command check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowCommandCollision(error: unknown, faq: Faq): never {
@@ -21,7 +19,18 @@ function rethrowCommandCollision(error: unknown, faq: Faq): never {
   throw error;
 }
 
-export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
+export class FaqPrismaRepository
+  extends PurgeableTrashPrismaRepository<Faq, PrismaFaq>
+  implements OrderedContentRepository<Faq>
+{
+  protected readonly delegate = prisma.faq;
+  protected readonly trashConfig = {
+    notFound: "Faq not found",
+    toDomain,
+    toUpdate: toPrismaUpdate,
+    mapConflict: rethrowCommandCollision,
+  };
+
   async create(faq: Faq): Promise<Faq> {
     try {
       return toDomain(await prisma.faq.create({ data: toPrismaCreate(faq) }));
@@ -57,64 +66,6 @@ export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
     }
 
     return toDomain(record);
-  }
-
-  async delete(id: string): Promise<void> {
-    const { count } = await prisma.faq.deleteMany({ where: { id } });
-
-    if (count === 0) {
-      throw new NotFoundError("Faq not found");
-    }
-  }
-
-  async trash(id: string): Promise<void> {
-    const { count } = await prisma.faq.updateMany({
-      where: { id, ...LIVE },
-      data: { deletedAt: new Date(), isPublished: false },
-    });
-
-    if (count === 0) {
-      throw new NotFoundError("Faq not found");
-    }
-  }
-
-  async getTrashed(id: string): Promise<TrashedItem<Faq> | null> {
-    const record = await prisma.faq.findFirst({ where: { id, ...TRASHED } });
-
-    return record ? toTrashedItem(toDomain(record), record.deletedAt) : null;
-  }
-
-  async listTrashed(): Promise<TrashedItem<Faq>[]> {
-    const records = await prisma.faq.findMany({ where: TRASHED, orderBy: [...TRASH_ORDER] });
-
-    return records.map((record) => toTrashedItem(toDomain(record), record.deletedAt));
-  }
-
-  async restore(faq: Faq): Promise<Faq> {
-    let record;
-
-    try {
-      [record] = await prisma.faq.updateManyAndReturn({
-        where: { id: faq.props.id, ...TRASHED },
-        data: { ...toPrismaUpdate(faq), deletedAt: null },
-      });
-    } catch (error) {
-      return rethrowCommandCollision(error, faq);
-    }
-
-    if (!record) {
-      throw new NotFoundError("Faq not found");
-    }
-
-    return toDomain(record);
-  }
-
-  async purge(id: string): Promise<void> {
-    const { count } = await prisma.faq.deleteMany({ where: { id, ...TRASHED } });
-
-    if (count === 0) {
-      throw new NotFoundError("Faq not found");
-    }
   }
 
   async saveOrder(orderedIds: readonly string[]): Promise<void> {

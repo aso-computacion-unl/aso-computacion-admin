@@ -3,7 +3,6 @@ import {
   CountByStatusUseCase,
   CreateEventUseCase,
   DeactivateEventPhotoUseCase,
-  DeleteEventUseCase,
   GetEventUseCase,
   ListEventsUseCase,
   ReorderEventPhotosUseCase,
@@ -11,6 +10,7 @@ import {
   UpdateEventPhotoAltUseCase,
   UpdateEventUseCase,
   UploadImageUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { EventPhotoPrismaRepository, EventPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
@@ -28,7 +28,7 @@ function createEventUseCases() {
     create: new CreateEventUseCase(events),
     update: new UpdateEventUseCase(events),
     setPublished: new SetEventPublishedUseCase(events),
-    delete: new DeleteEventUseCase(events, storage),
+    trash: new TrashContentUseCase(events, "Event not found"),
     attachPhoto: new AttachEventPhotoUseCase(events, photos, new UploadImageUseCase(storage), storage),
     updatePhotoAlt: new UpdateEventPhotoAltUseCase(photos),
     reorderPhotos: new ReorderEventPhotosUseCase(photos),

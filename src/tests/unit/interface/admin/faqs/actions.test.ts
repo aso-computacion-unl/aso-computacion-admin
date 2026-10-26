@@ -10,7 +10,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     move: { execute: vi.fn() },
   },
 }));
@@ -37,6 +37,7 @@ describe("faq server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createFaq creates the FAQ, refreshes the list and redirects to it", async () => {
@@ -73,15 +74,16 @@ describe("faq server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/faqs");
   });
 
-  it("setFaqPublished, deleteFaq and moveFaq delegate and refresh the list", async () => {
+  it("setFaqPublished, trashFaq and moveFaq delegate and refresh the list", async () => {
     await expect(actions.setFaqPublished("faq-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deleteFaq("faq-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashFaq("faq-1")).resolves.toEqual({ success: true });
     await expect(actions.moveFaq("faq-1", "down")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "faq-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "faq-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "faq-1" });
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "faq-1", direction: "down" });
-    expect(revalidatePathMock).toHaveBeenCalledTimes(3);
+    expect(revalidatePathMock).toHaveBeenCalledTimes(4);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
   });
 
   it("moveFaq rejects a direction that is not up or down", async () => {
@@ -92,8 +94,8 @@ describe("faq server actions", () => {
   });
 
   it("maps NotFoundError to a message that names the FAQ", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("Faq not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("Faq not found"));
 
-    expect((await actions.deleteFaq("gone")).error).toContain("pregunta");
+    expect((await actions.trashFaq("gone")).error).toContain("pregunta");
   });
 });

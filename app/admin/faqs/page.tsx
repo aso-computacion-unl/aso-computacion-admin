@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { deleteFaq, moveFaq, setFaqPublished } from "@/interface/admin/faqs/actions";
+import { trashFaq, moveFaq, setFaqPublished } from "@/interface/admin/faqs/actions";
 import { getAdminFaqs } from "@/interface/admin/faqs/faqs-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 
@@ -64,7 +64,7 @@ export default async function AdminFaqsPage() {
                   action={moveFaq.bind(null, faq.id)}
                 />
               }
-              remove={<DeleteButton label={faq.question} warning="¿Eliminar esta pregunta?" action={deleteFaq.bind(null, faq.id)} />}
+              remove={<DeleteButton label={faq.question} warning="¿Eliminar esta pregunta?" action={trashFaq.bind(null, faq.id)} />}
             >
               <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
                 <Link href={`/admin/faqs/${faq.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

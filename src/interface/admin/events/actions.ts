@@ -8,6 +8,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { TRASH_PATH } from "../trash/paths";
 import { parseEventFormData } from "./event-form-data";
 import { getEventUseCases } from "./events-container";
 
@@ -63,12 +64,18 @@ export async function setEventPublished(id: string, isPublished: boolean): Promi
   }
 }
 
-export async function deleteEvent(id: string): Promise<ActionResult> {
+/** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
+export async function trashEvent(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
-    await getEventUseCases().delete.execute({ id });
-    requestSiteRebuild();
+    const { wasPublished } = await getEventUseCases().trash.execute({ id });
+
+    if (wasPublished) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
+    revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error);

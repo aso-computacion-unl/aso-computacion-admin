@@ -94,7 +94,7 @@ describe("reporting a post", () => {
   it("says in Spanish that the post was already reported, and keeps one open report", async () => {
     await moderation.reportForumThread("t1", null, reasonForm());
 
-    expect(await moderation.reportForumThread("t1", null, reasonForm())).toEqual({ error: "Ya reportó esta publicación. El equipo la revisará." });
+    expect(await moderation.reportForumThread("t1", null, reasonForm())).toEqual({ error: "Ya reportó esta publicación. El equipo la revisará.", alreadyReported: true });
     expect(testForum.store.reports.size).toBe(1);
   });
 

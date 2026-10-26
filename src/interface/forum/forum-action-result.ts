@@ -12,7 +12,8 @@ import { ForumUnauthorizedError } from "./require-forum-member";
  * Result of every student-facing forum server action. `fieldErrors` carries per-field messages, `error`
  * a single message for everything else (never both); `id` is the new thread or reply on success (or the
  * reply marked as the best answer); `retryAfterSeconds` is set when the member is posting too fast;
- * `reacted` and `count` answer a «me sirvió» toggle.
+ * `reacted` and `count` answer a «me sirvió» toggle; `alreadyReported` marks the refusal of a second open
+ * report on the same post, which the UI shows as a state, not as a failure.
  */
 export interface ForumActionResult {
   success?: true;
@@ -22,6 +23,7 @@ export interface ForumActionResult {
   retryAfterSeconds?: number;
   reacted?: boolean;
   count?: number;
+  alreadyReported?: true;
 }
 
 export const FORUM_SESSION_EXPIRED_MESSAGE = "Inicie sesión para participar en el foro.";
@@ -61,7 +63,7 @@ export function mapForumActionError(error: unknown): ForumActionResult {
   }
 
   if (error instanceof ForumAlreadyReportedError) {
-    return { error: "Ya reportó esta publicación. El equipo la revisará." };
+    return { error: "Ya reportó esta publicación. El equipo la revisará.", alreadyReported: true };
   }
 
   if (error instanceof ForumThrottledError) {

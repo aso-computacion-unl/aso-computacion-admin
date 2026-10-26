@@ -168,6 +168,8 @@ Students sign in to the forum with their institutional Google account; there is 
 
 **Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; the screens come with the forum UI.
 
+**Moderation.** Admins **and editors** moderate from `/admin/foro/reportes` (sidebar: "Foro"): students report a thread or a reply (one open report per member per post; once a moderator closes it the same member may report the post again), and the queue lists open reports oldest first, with the closed ones on a second tab. A moderator can hide or show a post, lock or reopen a thread, suspend or reactivate the author, and close the report as resolved or dismissed with a note. A locked thread takes no replies and no edits, not even from its author; a hidden post vanishes for students (and a hidden reply stops being the best answer); suspending a member signs them out of the forum at once (their sessions are revoked in the same transaction) and reactivating does not bring the sessions back. Every one of these actions is written to the audit log ("Registro", filter "Hilo/Respuesta/Cuenta/Reporte del foro") with ids only: never an email, a post, a reason or a note. The admin never sees a student's email in the queue, only their display name.
+
 ## 5. Seeding the landing content
 
 The landing keeps its real content in `src/data/fallback.json` and its images in `src/assets/`. `npm run seed:landing` loads them into the admin through the same use cases the admin UI calls, so every rule applies: board entries carry only name, role and photo (a file with any other key on a board entry is rejected as a whole), photo minimum widths, and a board member needs a photo to be published.
@@ -249,6 +251,13 @@ Purely additive: it creates the seven `Forum*` tables and two enums and touches 
 
 - Deploy order: run the migration first, then deploy the new code.
 - Rollback, only if the forum is abandoned (roll the app back first): `DROP TABLE "ForumReport", "ForumReaction", "ForumReply", "ForumThread", "ForumCategory", "ForumSession", "ForumMember"; DROP TYPE "ForumReportStatus", "ForumMemberStatus"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026140000_add_forum';`, with the **direct** connection string. Every post is lost with it.
+
+### The forum moderation migration (`20261027120000_forum_moderation_rules`)
+
+Additive and safe with `prisma migrate deploy`: it adds no table or column and rewrites no data. It replaces the two "one report per member per post, forever" unique indexes of the forum migration with **partial** unique indexes (`ForumReport_open_thread_key`, `ForumReport_open_reply_key`, only `WHERE "status" = 'OPEN'`; Prisma cannot declare them, so they live in raw SQL), and adds CHECK constraints saying that a moderator id, a lock or hide actor, a suspension actor or a closing note always comes with the time it happened. The previous build keeps working against it.
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback (roll the app back first): drop the two partial indexes, recreate the two full unique indexes `("reporterId", "threadId")` and `("reporterId", "replyId")` exactly as in `20261026140000_add_forum` (this fails if a member has since reported a post twice: close the duplicates first), drop the six CHECK constraints named in the migration, then `DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261027120000_forum_moderation_rules';`, with the **direct** connection string.
 
 ### The soft-delete migration (`20261025130000_add_soft_delete`)
 

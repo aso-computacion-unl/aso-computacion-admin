@@ -15,6 +15,10 @@ describe("ImpactStat.create", () => {
     expect(stat.props.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it("treats an explicitly undefined publish flag as a draft", () => {
+    expect(build({ isPublished: undefined }).props.isPublished).toBe(false);
+  });
+
   it("accepts the longest value and label", () => {
     expect(() => build({ value: "v".repeat(20), label: "l".repeat(60) })).not.toThrow();
   });

@@ -42,7 +42,7 @@ export class ImpactStat {
   static create(input: CreateImpactStatInput): ImpactStat {
     const now = new Date();
 
-    return new ImpactStat(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { isPublished: false, ...input }));
+    return new ImpactStat(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { ...input, isPublished: input.isPublished ?? false }));
   }
 
   /** Rehydrates a stat from trusted persistence data without validation. */

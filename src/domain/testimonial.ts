@@ -64,7 +64,7 @@ export class Testimonial {
   static create(input: CreateTestimonialInput): Testimonial {
     const now = new Date();
 
-    return new Testimonial(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { photo: null, isPublished: false, ...input }));
+    return new Testimonial(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { ...input, photo: input.photo ?? null, isPublished: input.isPublished ?? false }));
   }
 
   /** Rehydrates a testimonial from trusted persistence data without validation. */

@@ -68,7 +68,7 @@ export class Sponsor {
   static create(input: CreateSponsorInput): Sponsor {
     const now = new Date();
 
-    return new Sponsor(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { logo: null, url: null, isPublished: false, ...input }));
+    return new Sponsor(build({ id: crypto.randomUUID(), createdAt: now, updatedAt: now }, { ...input, logo: input.logo ?? null, url: input.url ?? null, isPublished: input.isPublished ?? false }));
   }
 
   /** Rehydrates a sponsor from trusted persistence data without validation. */

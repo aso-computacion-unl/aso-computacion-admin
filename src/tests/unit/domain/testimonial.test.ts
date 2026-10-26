@@ -16,6 +16,10 @@ describe("Testimonial.create", () => {
     expect(testimonial.props).toMatchObject({ quote: "Muy útil", name: "Ana", role: "Egresada", photo: null, sortOrder: 0, isPublished: false });
   });
 
+  it("treats explicitly undefined optional fields as their defaults", () => {
+    expect(build({ photo: undefined, isPublished: undefined }).props).toMatchObject({ photo: null, isPublished: false });
+  });
+
   it("accepts the longest quote, name and role", () => {
     expect(() => build({ quote: "q".repeat(300), name: "n".repeat(60), role: "r".repeat(80) })).not.toThrow();
   });

@@ -14,6 +14,10 @@ describe("Sponsor.create", () => {
     expect(build({ name: " Acme " }).props).toMatchObject({ name: "Acme", logo: null, url: null, sortOrder: 0, isPublished: false });
   });
 
+  it("treats explicitly undefined optional fields as their defaults", () => {
+    expect(build({ logo: undefined, url: undefined, isPublished: undefined }).props).toMatchObject({ logo: null, url: null, isPublished: false });
+  });
+
   it.each([
     ["name", { name: " " }],
     ["name", { name: "n".repeat(61) }],

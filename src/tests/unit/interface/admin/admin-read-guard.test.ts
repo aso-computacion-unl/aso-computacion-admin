@@ -9,11 +9,12 @@ import { find } from "@/tests/support/source-files";
  * client navigation, so a page that read without checking would keep showing data after a revoke.
  */
 const READS = find("src/interface/admin", /-admin-read\.ts$/);
-const GUARD = /^\s*await requirePageSession\((?:"ADMIN")?\);/;
+const ADMIN_ONLY = ["settings-admin-read.ts", "users-admin-read.ts", "audit-admin-read.ts"];
+const GUARD = /^\s*(?:const actor = )?await requirePageSession\((?:"ADMIN")?\);/;
 
 describe("admin page reads", () => {
   it("finds the read modules", () => {
-    expect(READS.length).toBeGreaterThanOrEqual(10);
+    expect(READS.length).toBeGreaterThanOrEqual(11);
   });
 
   it.each(READS)("%s: every exported function starts with the page guard", (path) => {
@@ -28,11 +29,11 @@ describe("admin page reads", () => {
     }
   });
 
-  it("the settings read is admin-only, every other read is editor-level", () => {
+  it("the settings, users and audit reads are admin-only, every other read is editor-level", () => {
     for (const path of READS) {
       const adminOnly = readFileSync(path, "utf8").includes('requirePageSession("ADMIN")');
 
-      expect(adminOnly, path).toBe(path.endsWith("settings-admin-read.ts"));
+      expect(adminOnly, path).toBe(ADMIN_ONLY.some((name) => path.endsWith(name)));
     }
   });
 });

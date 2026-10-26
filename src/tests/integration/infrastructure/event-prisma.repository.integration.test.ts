@@ -102,9 +102,10 @@ describe("EventPrismaRepository (integration)", () => {
     expect(updated.props.createdAt).toEqual(created.props.createdAt);
   });
 
-  it("throws NotFoundError when updating or deleting an unknown event", async () => {
+  it("throws NotFoundError when updating, trashing or purging an unknown event", async () => {
     await expect(repository.update(Event.create({ title: "Fantasma" }))).rejects.toThrow("Event not found");
-    await expect(repository.delete(MISSING_ID)).rejects.toThrow("Event not found");
+    await expect(repository.trash(MISSING_ID)).rejects.toThrow("Event not found");
+    await expect(repository.purge(MISSING_ID)).rejects.toThrow("Event not found");
   });
 
   it("slugExists ignores the excluded event", async () => {
@@ -124,16 +125,17 @@ describe("EventPrismaRepository (integration)", () => {
     });
   });
 
-  it("deleting an event cascades to its photo rows", async () => {
+  it("purging a trashed event cascades to its photo rows", async () => {
     const event = await repository.create(Event.create({ title: "Charla" }));
     await new EventPhotoPrismaRepository().add(photoFor(event.props.id, "a", 0), 12);
+    await repository.trash(event.props.id);
 
-    await repository.delete(event.props.id);
+    await repository.purge(event.props.id);
 
     expect(await prisma.eventPhoto.count()).toBe(0);
   });
 
-  it("delete returns the storage ids of every photo of the event, active or not, and none of another event's", async () => {
+  it("purge returns the storage ids of every photo of the event, active or not, and none of another event's", async () => {
     const photos = new EventPhotoPrismaRepository();
     const event = await repository.create(Event.create({ title: "Charla" }));
     const other = await repository.create(Event.create({ title: "Otra" }));
@@ -142,21 +144,25 @@ describe("EventPrismaRepository (integration)", () => {
     await photos.add(photoFor(event.props.id, "shown", 0), 12);
     await photos.add(photoFor(other.props.id, "foreign", 0), 12);
 
-    const publicIds = await repository.delete(event.props.id);
+    await repository.trash(event.props.id);
+
+    const publicIds = await repository.purge(event.props.id);
 
     expect([...publicIds].sort()).toEqual(["hidden", "shown"]);
     expect(await prisma.eventPhoto.count({ where: { eventId: other.props.id } })).toBe(1);
   });
 
-  it("delete returns an empty list for an event without photos", async () => {
+  it("purge returns an empty list for an event without photos", async () => {
     const event = await repository.create(Event.create({ title: "Sin fotos" }));
+    await repository.trash(event.props.id);
 
-    expect(await repository.delete(event.props.id)).toEqual([]);
+    expect(await repository.purge(event.props.id)).toEqual([]);
   });
 
-  it("delete reports a photo attached by a transaction that already holds the event lock (the gap a read-then-delete left open)", async () => {
+  it("purge reports a photo written by a transaction that already holds the event lock (the gap a read-then-delete left open)", async () => {
     const event = await repository.create(Event.create({ title: "Charla" }));
     const eventId = event.props.id;
+    await repository.trash(eventId);
 
     // The attach holds the event row lock and has not inserted yet. The delete
     // is launched and observed blocked on that lock; only then does the attach
@@ -176,7 +182,7 @@ describe("EventPrismaRepository (integration)", () => {
     );
     await lockTaken;
 
-    const deleting = repository.delete(eventId);
+    const deleting = repository.purge(eventId);
     await waitForLockWaiters(1);
     release();
     await attach;
@@ -185,44 +191,23 @@ describe("EventPrismaRepository (integration)", () => {
     expect(await prisma.eventPhoto.count()).toBe(0);
   });
 
-  it("racing an attach against a delete never leaves a stored photo unreported", async () => {
+  it("an attach racing a purge of a trashed event is refused, so no stored photo goes unreported", async () => {
     const event = await repository.create(Event.create({ title: "Carrera" }));
     const eventId = event.props.id;
     const photos = new EventPhotoPrismaRepository();
+    await repository.trash(eventId);
 
-    // Barrier: both contenders are observed blocked on the event lock before it is released.
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    let locked!: () => void;
-    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
-    const holder = prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${eventId} FOR UPDATE`;
-        locked();
-        await gate;
-      },
-      { timeout: 15_000 },
-    );
-    await lockTaken;
+    const [added, publicIds] = await Promise.all([
+      photos.add(photoFor(eventId, "raced", 0), 12).then(
+        () => ({ ok: true as const }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      repository.purge(eventId),
+    ]);
 
-    const adding = photos.add(photoFor(eventId, "raced", 0), 12).then(
-      () => ({ ok: true as const }),
-      (error: unknown) => ({ ok: false as const, error }),
-    );
-    const deleting = repository.delete(eventId);
-    await waitForLockWaiters(2);
-    release();
-    await holder;
-    const [added, publicIds] = await Promise.all([adding, deleting]);
-
-    if (added.ok) {
-      // The attach won the lock: its photo existed when the delete read the ids.
-      expect(publicIds).toEqual(["raced"]);
-    } else {
-      // The delete won: the attach found no event, so no asset was stored for it.
-      expect(added.error).toMatchObject({ name: "NotFoundError" });
-      expect(publicIds).toEqual([]);
-    }
+    // A photo can only be attached to a live event: the trashed one refuses it, so nothing is stored for it.
+    expect(added).toMatchObject({ ok: false, error: { name: "NotFoundError" } });
+    expect(publicIds).toEqual([]);
     expect(await prisma.eventPhoto.count()).toBe(0);
   });
 });

@@ -25,7 +25,6 @@ export interface OrderedContentRepository<E extends OrderedContent<E>> extends T
   /** Every live item, drafts included, in display order: sortOrder, then oldest first, then id. */
   list(): Promise<E[]>;
   update(entity: E): Promise<E>;
-  delete(id: string): Promise<void>;
   /** Removes a TRASHED row for good. Throws `NotFoundError` unless the row is in the trash. */
   purge(id: string): Promise<void>;
   /** Rewrites sortOrder of the given ids to their index in the list, atomically. */

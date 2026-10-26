@@ -38,12 +38,6 @@ export class InMemoryOrderedRepository<E extends OrderedContent<E>>
     return entity;
   }
 
-  async delete(id: string): Promise<void> {
-    if (!this.items.delete(id)) {
-      throw new NotFoundError("not found");
-    }
-  }
-
   async trash(id: string): Promise<void> {
     const entity = this.items.get(id);
 

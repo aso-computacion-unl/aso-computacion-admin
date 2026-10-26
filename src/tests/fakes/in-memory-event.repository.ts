@@ -13,7 +13,7 @@ export class InMemoryEventRepository implements EventRepository {
   private readonly events = new Map<string, Event>();
   private readonly trashed = new InMemoryTrash<Event>();
 
-  /** Pass the photo fake to mirror the cascade: deleting an event removes its photos and returns their storage ids. */
+  /** Pass the photo fake to mirror the cascade: purging an event removes its photos and returns their storage ids. */
   constructor(private readonly photos?: InMemoryEventPhotoRepository) {}
 
   async create(event: Event): Promise<Event> {
@@ -95,14 +95,6 @@ export class InMemoryEventRepository implements EventRepository {
   /** Photos stay with a trashed event, so they leave with it here (their storage ids are returned). */
   async purge(id: string): Promise<string[]> {
     if (!this.trashed.take(id)) {
-      throw new NotFoundError("Event not found");
-    }
-
-    return this.photos?.removeAllOfEvent(id) ?? [];
-  }
-
-  async delete(id: string): Promise<string[]> {
-    if (!this.events.delete(id)) {
       throw new NotFoundError("Event not found");
     }
 

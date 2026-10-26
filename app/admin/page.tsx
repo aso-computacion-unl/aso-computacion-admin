@@ -10,10 +10,13 @@ import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admi
 import { getAdminCommands } from "@/interface/admin/commands/commands-admin-read";
 import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { getAdminFaqs } from "@/interface/admin/faqs/faqs-admin-read";
+import { getAdminImpactStats } from "@/interface/admin/impact/impact-admin-read";
 import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
+import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read";
+import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonials-admin-read";
 
 import { PageHead } from "./_components/page-head";
 import { MODULE_NAV, visibleTo } from "./_components/nav-items";
@@ -41,7 +44,7 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
     }
   };
 
-  const [events, news, faqs, commands, board, pillars, socials] = await Promise.all([
+  const [events, news, faqs, commands, board, pillars, socials, impact, testimonials, sponsors] = await Promise.all([
     describe(getAdminEvents),
     describe(getAdminNewsItems),
     describe(getAdminFaqs),
@@ -49,6 +52,9 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
     describe(getAdminBoardMembers),
     describe(getAdminPillars),
     describe(getAdminSocialLinks),
+    describe(getAdminImpactStats),
+    describe(getAdminTestimonials),
+    describe(getAdminSponsors),
   ]);
 
   return {
@@ -59,6 +65,9 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
     "/admin/board": board,
     "/admin/pillars": pillars,
     "/admin/socials": socials,
+    "/admin/impact": impact,
+    "/admin/testimonials": testimonials,
+    "/admin/sponsors": sponsors,
     "/admin/settings": { count: null, line: "Lema, descripción y «Acerca de»" },
   };
 }

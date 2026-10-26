@@ -12,8 +12,6 @@ export interface NewsRepository extends PublicationCounter, TrashableRepository<
   /** Every item, drafts included unless `criteria` narrows it: publication date descending, then newest created first. */
   list(criteria?: ListCriteria): Promise<NewsItem[]>;
   update(item: NewsItem): Promise<NewsItem>;
-  /** Throws `NotFoundError` for an unknown item. */
-  delete(id: string): Promise<void>;
   /** Removes a TRASHED item for good. Throws `NotFoundError` unless the item is in the trash. */
   purge(id: string): Promise<void>;
 }

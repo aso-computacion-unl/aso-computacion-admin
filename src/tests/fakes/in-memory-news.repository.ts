@@ -91,10 +91,4 @@ export class InMemoryNewsRepository implements NewsRepository {
       throw new NotFoundError("News item not found");
     }
   }
-
-  async delete(id: string): Promise<void> {
-    if (!this.items.delete(id)) {
-      throw new NotFoundError("News item not found");
-    }
-  }
 }

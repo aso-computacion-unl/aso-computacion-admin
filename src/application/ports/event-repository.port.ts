@@ -13,17 +13,11 @@ export interface EventRepository extends PublicationCounter, TrashableRepository
   list(criteria?: ListCriteria): Promise<Event[]>;
   update(event: Event): Promise<Event>;
   /**
-   * Deletes the event and, by cascade, its photo rows, and returns the storage
-   * ids of every photo row removed with it, active or not. The ids are read in
-   * the same transaction as the delete, under a lock on the event row, so a
-   * photo attached concurrently is either reported here or never stored (its
-   * attach fails with `NotFoundError`). Throws `NotFoundError` for an unknown event.
-   */
-  delete(id: string): Promise<string[]>;
-  /**
-   * Same as `delete`, but only for a TRASHED event: throws `NotFoundError` for
-   * a live or unknown one. Photos stay attached to a trashed event, so this is
-   * the one place they are removed with it.
+   * Removes a TRASHED event and, by cascade, its photo rows, and returns the
+   * storage ids of every photo row removed with it, active or not. The ids are
+   * read in the same transaction as the delete, under a lock on the event row.
+   * Photos stay attached to a trashed event (and a photo cannot be attached to
+   * one), so none can be missed. Throws `NotFoundError` unless the event is in the trash.
    */
   purge(id: string): Promise<string[]>;
 }

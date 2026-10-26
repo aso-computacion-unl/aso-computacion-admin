@@ -45,17 +45,8 @@ export function describeOrderedRepositoryContract<E extends OrderedContent<E>>(
       expect(updated.props.createdAt).toEqual(created.props.createdAt);
     });
 
-    it("throws NotFoundError when updating or deleting an unknown entity", async () => {
+    it("throws NotFoundError when updating an unknown entity", async () => {
       await expect(repository.update(make(0))).rejects.toMatchObject({ name: "NotFoundError" });
-      await expect(repository.delete(MISSING_ID)).rejects.toMatchObject({ name: "NotFoundError" });
-    });
-
-    it("deletes an entity", async () => {
-      const entity = await repository.create(make(0));
-
-      await repository.delete(entity.props.id);
-
-      expect(await repository.getById(entity.props.id)).toBeNull();
     });
 
     it("trash hides a published row from reads, unpublishes it, and lists it newest deletion first", async () => {

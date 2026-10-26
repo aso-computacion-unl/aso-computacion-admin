@@ -77,6 +77,11 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     restoreTrashed: { role: "EDITOR", audit: "faq.restore" },
     purgeTrashed: { role: "ADMIN", audit: "faq.purge" },
   },
+  "src/interface/admin/users/actions.ts": {
+    inviteUser: { role: "ADMIN", audit: "user.invite" },
+    changeUserRole: { role: "ADMIN", audit: "user.role_change" },
+    setUserActive: { role: "ADMIN", audit: "user.deactivate" },
+  },
 };
 
 export function cookieJar(cookiesMock: Mock, value: string | undefined) {

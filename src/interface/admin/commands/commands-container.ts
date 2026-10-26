@@ -1,11 +1,11 @@
 import {
   CreateTerminalCommandUseCase,
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateTerminalCommandUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { toTerminalCommandResult } from "@/application/mappers/terminal-command-result.mapper";
 import { CommandNamePrismaRegistry, TerminalCommandPrismaRepository } from "@/infrastructure";
@@ -22,7 +22,7 @@ function createCommandUseCases() {
     create: new CreateTerminalCommandUseCase(commands, commandNames),
     update: new UpdateTerminalCommandUseCase(commands, commandNames),
     setPublished: new SetOrderedContentPublishedUseCase(commands, toTerminalCommandResult, NOT_FOUND),
-    delete: new DeleteOrderedContentUseCase(commands, NOT_FOUND),
+    trash: new TrashContentUseCase(commands, NOT_FOUND),
     move: new MoveOrderedContentUseCase(commands, NOT_FOUND),
   };
 }

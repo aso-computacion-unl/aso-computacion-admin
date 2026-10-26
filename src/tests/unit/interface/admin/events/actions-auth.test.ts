@@ -6,7 +6,7 @@ const { cookiesMock, getEventUseCasesMock, revalidatePathMock, redirectMock, use
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     attachPhoto: { execute: execute() },
     updatePhotoAlt: { execute: execute() },
     reorderPhotos: { execute: execute() },
@@ -53,7 +53,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createEvent: () => actions.createEvent(null, eventForm()),
   updateEvent: () => actions.updateEvent("event-1", null, eventForm()),
   setEventPublished: () => actions.setEventPublished("event-1", true),
-  deleteEvent: () => actions.deleteEvent("event-1"),
+  trashEvent: () => actions.trashEvent("event-1"),
   uploadEventPhoto: () => actions.uploadEventPhoto("event-1", null, photoForm()),
   updateEventPhotoAlt: () => actions.updateEventPhotoAlt("event-1", "photo-1", null, photoForm()),
   moveEventPhoto: () => actions.moveEventPhoto("event-1", "photo-1", "up"),
@@ -110,9 +110,9 @@ describe("events server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deleteEvent("event-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashEvent("event-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "event-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "event-1" });
   });
 
   it("the guard is the first statement of every action", () => {

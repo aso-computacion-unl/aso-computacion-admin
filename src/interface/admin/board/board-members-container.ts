@@ -1,6 +1,5 @@
 import {
   CreateBoardMemberUseCase,
-  DeleteBoardMemberUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
@@ -9,6 +8,7 @@ import {
   SetOrderedContentPublishedUseCase,
   UpdateBoardMemberUseCase,
   UploadImageUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { toBoardMemberResult } from "@/application/mappers/board-member-result.mapper";
 import { BoardMemberPrismaRepository } from "@/infrastructure";
@@ -27,8 +27,7 @@ function createBoardMemberUseCases() {
     create: new CreateBoardMemberUseCase(members),
     update: new UpdateBoardMemberUseCase(members),
     setPublished: new SetOrderedContentPublishedUseCase(members, toBoardMemberResult, NOT_FOUND),
-    // Not DeleteOrderedContentUseCase: that one retains images, a removed member's photo must go (S4, L22).
-    delete: new DeleteBoardMemberUseCase(members, storage),
+    trash: new TrashContentUseCase(members, NOT_FOUND),
     move: new MoveOrderedContentUseCase(members, NOT_FOUND),
     setPhoto: new SetBoardMemberPhotoUseCase(members, new UploadImageUseCase(storage), storage),
     removePhoto: new RemoveBoardMemberPhotoUseCase(members, storage),

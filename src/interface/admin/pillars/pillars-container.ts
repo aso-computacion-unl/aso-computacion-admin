@@ -1,6 +1,5 @@
 import {
   CreatePillarUseCase,
-  DeletePillarUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
@@ -9,6 +8,7 @@ import {
   SetPillarImageUseCase,
   UpdatePillarUseCase,
   UploadImageUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { toPillarResult } from "@/application/mappers/pillar-result.mapper";
 import { PillarPrismaRepository } from "@/infrastructure";
@@ -27,7 +27,7 @@ function createPillarUseCases() {
     create: new CreatePillarUseCase(pillars),
     update: new UpdatePillarUseCase(pillars),
     setPublished: new SetOrderedContentPublishedUseCase(pillars, toPillarResult, NOT_FOUND),
-    delete: new DeletePillarUseCase(pillars, storage),
+    trash: new TrashContentUseCase(pillars, NOT_FOUND),
     move: new MoveOrderedContentUseCase(pillars, NOT_FOUND),
     setImage: new SetPillarImageUseCase(pillars, new UploadImageUseCase(storage), storage),
     removeImage: new RemovePillarImageUseCase(pillars, storage),

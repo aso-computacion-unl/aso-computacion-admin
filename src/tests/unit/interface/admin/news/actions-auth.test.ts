@@ -6,7 +6,7 @@ const { cookiesMock, getNewsUseCasesMock, revalidatePathMock, redirectMock, requ
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     setCover: { execute: execute() },
     removeCover: { execute: execute() },
   };
@@ -55,7 +55,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createNewsItem: () => actions.createNewsItem(null, newsForm()),
   updateNewsItem: () => actions.updateNewsItem("news-1", null, newsForm()),
   setNewsItemPublished: () => actions.setNewsItemPublished("news-1", true),
-  deleteNewsItem: () => actions.deleteNewsItem("news-1"),
+  trashNewsItem: () => actions.trashNewsItem("news-1"),
   uploadNewsCover: () => actions.uploadNewsCover("news-1", null, coverForm()),
   removeNewsCover: () => actions.removeNewsCover("news-1"),
 };
@@ -97,9 +97,9 @@ describe("news server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deleteNewsItem("news-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashNewsItem("news-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "news-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "news-1" });
   });
 
   it("the guard is the first statement of every action", () => {

@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
 import {
   CommandNameConflictError,
   ImageTooLargeError,
@@ -77,6 +77,14 @@ const COMMAND_CONFLICT_MESSAGES = {
   command: (command: string) => `«${command}» ya lo usa otro comando. Elija otro nombre.`,
 } as const;
 
+// Restoring cannot rename anything, so the message says what to change first.
+const RESTORE_CONFLICT_MESSAGES = {
+  event: (value: string) => `No se puede restaurar: el identificador «${value}» ya lo usa otro evento. Cambie o elimine ese evento y vuelva a intentarlo.`,
+  news: (value: string) => `No se puede restaurar: el identificador «${value}» ya lo usa otra noticia. Cambie o elimine esa noticia y vuelva a intentarlo.`,
+  faq: (value: string) => `No se puede restaurar: «${value}» ya lo usa una pregunta frecuente. Cambie o elimine esa pregunta y vuelva a intentarlo.`,
+  command: (value: string) => `No se puede restaurar: «${value}» ya lo usa otro comando. Cambie o elimine ese comando y vuelva a intentarlo.`,
+} as const;
+
 const UNKNOWN_FIELDS_MESSAGE = "El formulario incluye campos no admitidos.";
 
 function fieldError(field: string, message?: string, overrides?: Record<string, string>): ActionResult {
@@ -106,6 +114,10 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
 
   if (error instanceof CommandNameConflictError) {
     return fieldError(error.field, COMMAND_CONFLICT_MESSAGES[error.conflict](error.command));
+  }
+
+  if (error instanceof RestoreConflictError) {
+    return { error: RESTORE_CONFLICT_MESSAGES[error.owner](error.value) };
   }
 
   if (error instanceof ValidationError) {

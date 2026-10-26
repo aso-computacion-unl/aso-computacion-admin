@@ -16,11 +16,11 @@ import { CreateEventUseCase } from "../use-cases/create-event.use-case";
 import { CreateFaqUseCase } from "../use-cases/create-faq.use-case";
 import { CreatePillarUseCase } from "../use-cases/create-pillar.use-case";
 import { CreateSocialLinkUseCase } from "../use-cases/create-social-link.use-case";
-import { DeleteBoardMemberUseCase } from "../use-cases/delete-board-member.use-case";
-import { DeletePillarUseCase } from "../use-cases/delete-pillar.use-case";
 import { SetOrderedContentPublishedUseCase } from "../use-cases/ordered-content.use-cases";
+import { PurgeBoardMemberUseCase, PurgePillarUseCase } from "../use-cases/purge-content.use-case";
 import { BOARD_PHOTO_MIN_WIDTH, SetBoardMemberPhotoUseCase } from "../use-cases/set-board-member-photo.use-case";
 import { PILLAR_IMAGE_MIN_WIDTH, SetPillarImageUseCase } from "../use-cases/set-pillar-image.use-case";
+import { TrashContentUseCase } from "../use-cases/trash-content.use-case";
 import { UpdateSiteSettingsUseCase } from "../use-cases/update-site-settings.use-case";
 import { UploadImageUseCase } from "../use-cases/upload-image.use-case";
 import {
@@ -131,7 +131,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
  *   a second run creates nothing, and an item that exists is never touched:
  *   admin edits are never overwritten. A seeded item the admin renamed or
  *   deleted is created again on the next run: the key is all the seed knows.
- * - An item whose image step fails is deleted again, so a rerun can finish it.
+ * - An item whose image step fails is removed for good again, so a rerun can finish it.
  * - Event photos are never seeded (L36).
  */
 export class SeedLandingContentUseCase {
@@ -141,11 +141,13 @@ export class SeedLandingContentUseCase {
   private readonly updateSettings: UpdateSiteSettingsUseCase;
   private readonly createPillar: CreatePillarUseCase;
   private readonly setPillarImage: SetPillarImageUseCase;
-  private readonly deletePillar: DeletePillarUseCase;
+  private readonly trashPillar: TrashContentUseCase<Pillar>;
+  private readonly purgePillar: PurgePillarUseCase;
   private readonly createMember: CreateBoardMemberUseCase;
   private readonly setMemberPhoto: SetBoardMemberPhotoUseCase;
   private readonly publishMember: SetOrderedContentPublishedUseCase<BoardMember, ReturnType<typeof toBoardMemberResult>>;
-  private readonly deleteMember: DeleteBoardMemberUseCase;
+  private readonly trashMember: TrashContentUseCase<BoardMember>;
+  private readonly purgeMember: PurgeBoardMemberUseCase;
 
   constructor(private readonly deps: SeedDependencies) {
     const upload = new UploadImageUseCase(deps.storage);
@@ -157,11 +159,13 @@ export class SeedLandingContentUseCase {
     this.updateSettings = new UpdateSiteSettingsUseCase(deps.settings);
     this.createPillar = new CreatePillarUseCase(deps.pillars);
     this.setPillarImage = new SetPillarImageUseCase(deps.pillars, upload, deps.storage);
-    this.deletePillar = new DeletePillarUseCase(deps.pillars, deps.storage);
+    this.trashPillar = new TrashContentUseCase(deps.pillars, "Pillar not found");
+    this.purgePillar = new PurgePillarUseCase(deps.pillars, deps.storage);
     this.createMember = new CreateBoardMemberUseCase(deps.board);
     this.setMemberPhoto = new SetBoardMemberPhotoUseCase(deps.board, upload, deps.storage);
     this.publishMember = new SetOrderedContentPublishedUseCase(deps.board, toBoardMemberResult, "Board member not found");
-    this.deleteMember = new DeleteBoardMemberUseCase(deps.board, deps.storage);
+    this.trashMember = new TrashContentUseCase(deps.board, "Board member not found");
+    this.purgeMember = new PurgeBoardMemberUseCase(deps.board, deps.storage);
   }
 
   /** Read-only. Without `existing`, what is already stored is read from the repositories. */
@@ -313,7 +317,10 @@ export class SeedLandingContentUseCase {
             try {
               await this.setPillarImage.execute({ id: created.id, file: await this.deps.readImage(image.url), alt: image.alt });
             } catch (error) {
-              throw await this.afterRollback(error, "pillar", created.id, () => this.deletePillar.execute({ id: created.id }));
+              throw await this.afterRollback(error, "pillar", created.id, async () => {
+                await this.trashPillar.execute({ id: created.id });
+                await this.purgePillar.execute({ id: created.id });
+              });
             }
           },
         },
@@ -360,7 +367,10 @@ export class SeedLandingContentUseCase {
               await this.setMemberPhoto.execute({ id: created.id, file: await this.deps.readImage(photo.url), alt: photo.alt });
               await this.publishMember.execute({ id: created.id, isPublished: true });
             } catch (error) {
-              throw await this.afterRollback(error, "board member", created.id, () => this.deleteMember.execute({ id: created.id }));
+              throw await this.afterRollback(error, "board member", created.id, async () => {
+                await this.trashMember.execute({ id: created.id });
+                await this.purgeMember.execute({ id: created.id });
+              });
             }
           },
         },
@@ -370,7 +380,7 @@ export class SeedLandingContentUseCase {
     return { steps, warnings };
   }
 
-  /** Undoes a half-created item so the next run starts it again; says so when even that fails. */
+  /** Undoes a half-created item (trashed, then purged: a seed failure must leave nothing behind) so the next run starts it again; says so when even that fails. */
   private async afterRollback(error: unknown, what: string, id: string, rollback: () => Promise<void>): Promise<Error> {
     try {
       await rollback();

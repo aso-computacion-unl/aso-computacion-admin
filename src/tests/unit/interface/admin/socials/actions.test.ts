@@ -10,7 +10,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     move: { execute: vi.fn() },
   },
 }));
@@ -40,6 +40,7 @@ describe("social link server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createSocialLink creates the link, refreshes the list and redirects to it", async () => {
@@ -76,15 +77,16 @@ describe("social link server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/socials");
   });
 
-  it("publish, delete and move delegate and refresh the list", async () => {
+  it("publish, trash and move delegate and refresh the list", async () => {
     await expect(actions.setSocialLinkPublished("social-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deleteSocialLink("social-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashSocialLink("social-1")).resolves.toEqual({ success: true });
     await expect(actions.moveSocialLink("social-1", "down")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "social-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "social-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "social-1" });
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "social-1", direction: "down" });
-    expect(revalidatePathMock).toHaveBeenCalledTimes(3);
+    expect(revalidatePathMock).toHaveBeenCalledTimes(4);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
   });
 
   it("moveSocialLink rejects a direction that is not up or down", async () => {
@@ -93,8 +95,8 @@ describe("social link server actions", () => {
   });
 
   it("maps NotFoundError to a message that names the link", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("Social link not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("Social link not found"));
 
-    expect((await actions.deleteSocialLink("gone")).error).toContain("red social");
+    expect((await actions.trashSocialLink("gone")).error).toContain("red social");
   });
 });

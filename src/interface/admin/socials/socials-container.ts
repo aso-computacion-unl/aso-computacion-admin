@@ -1,11 +1,11 @@
 import {
   CreateSocialLinkUseCase,
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateSocialLinkUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { toSocialLinkResult } from "@/application/mappers/social-link-result.mapper";
 import { SocialLinkPrismaRepository } from "@/infrastructure";
@@ -21,7 +21,7 @@ function createSocialLinkUseCases() {
     create: new CreateSocialLinkUseCase(links),
     update: new UpdateSocialLinkUseCase(links),
     setPublished: new SetOrderedContentPublishedUseCase(links, toSocialLinkResult, NOT_FOUND),
-    delete: new DeleteOrderedContentUseCase(links, NOT_FOUND),
+    trash: new TrashContentUseCase(links, NOT_FOUND),
     move: new MoveOrderedContentUseCase(links, NOT_FOUND),
   };
 }

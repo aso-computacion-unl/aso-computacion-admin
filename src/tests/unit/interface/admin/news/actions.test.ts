@@ -11,7 +11,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, requestSiteRe
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     setCover: { execute: vi.fn() },
     removeCover: { execute: vi.fn() },
   },
@@ -43,6 +43,7 @@ describe("news server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createNewsItem creates, asks for a rebuild, refreshes the list and continues on the edit page (the cover needs an id)", async () => {
@@ -111,18 +112,18 @@ describe("news server actions", () => {
 
   it("publish and delete delegate, rebuild and refresh", async () => {
     await expect(actions.setNewsItemPublished("news-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deleteNewsItem("news-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashNewsItem("news-1")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "news-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "news-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "news-1" });
     expect(requestSiteRebuildMock).toHaveBeenCalledTimes(2);
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/news");
   });
 
   it("maps NotFoundError to a message that names the news item, not an event", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("News item not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("News item not found"));
 
-    const result = await actions.deleteNewsItem("gone");
+    const result = await actions.trashNewsItem("gone");
 
     expect(result.error).toContain("novedad");
     expect(requestSiteRebuildMock).not.toHaveBeenCalled();

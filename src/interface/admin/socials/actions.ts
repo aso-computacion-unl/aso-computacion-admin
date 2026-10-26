@@ -7,6 +7,7 @@ import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { TRASH_PATH } from "../trash/paths";
 import { parseSocialLinkFormData } from "./social-form-data";
 import { getSocialLinkUseCases } from "./socials-container";
 
@@ -52,12 +53,18 @@ export async function setSocialLinkPublished(id: string, isPublished: boolean): 
   }
 }
 
-export async function deleteSocialLink(id: string): Promise<ActionResult> {
+/** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
+export async function trashSocialLink(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
-    await getSocialLinkUseCases().delete.execute({ id });
-    requestSiteRebuild();
+    const { wasPublished } = await getSocialLinkUseCases().trash.execute({ id });
+
+    if (wasPublished) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
+    revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error);

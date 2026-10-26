@@ -9,6 +9,7 @@ import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
 import { useToast } from "./toast";
+import { RESTORED_MESSAGE, undoAction } from "./undo-toast";
 import { resultMessage, useRunAction } from "./use-run-action";
 
 function RowError({ result }: { result: ActionResult | null }) {
@@ -141,20 +142,24 @@ interface DeleteButtonProps {
   note?: string;
   /** Toast shown once the removal went through. */
   successMessage?: string;
+  /** Puts the removal back. When given, the success toast offers "Deshacer", which calls it. */
+  undo?: () => Promise<ActionResult>;
 }
 
 export function DeleteButton({
   label,
   warning,
   action,
-  triggerLabel = "Eliminar",
+  triggerLabel = "Mover a la papelera",
   triggerClassName,
   compactOnMobile = true,
-  confirmLabel = "Sí, eliminar",
-  note = "No se puede deshacer.",
-  successMessage = "Eliminado.",
+  confirmLabel = "Sí, mover",
+  note = "Podrá restaurarlo desde la papelera; volverá como borrador.",
+  successMessage = "Movido a la papelera",
+  undo,
 }: DeleteButtonProps) {
   const { pending, result, run } = useRunAction();
+  const { notify } = useToast();
   const [confirming, setConfirming] = useState(false);
 
   if (!confirming) {
@@ -172,7 +177,7 @@ export function DeleteButton({
         {warning} <span className="text-mist">{note}</span>
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action, undefined, successMessage)}>
+        <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action, undefined, successMessage, undo && undoAction(undo, notify))}>
           {confirmLabel}
         </Button>
         <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>
@@ -181,5 +186,25 @@ export function DeleteButton({
       </div>
       <RowError result={result} />
     </div>
+  );
+}
+
+interface RestoreButtonProps {
+  label: string;
+  action: () => Promise<ActionResult>;
+}
+
+/** Brings a trashed item back as a draft; a refusal (its name is taken again) is shown on the row. */
+export function RestoreButton({ label, action }: RestoreButtonProps) {
+  const { pending, result, run } = useRunAction();
+
+  return (
+    <>
+      <Button variant="line" size="sm" busy={pending} aria-label={`Restaurar: ${label}`} aria-disabled={pending || undefined} onClick={() => !pending && run(action, undefined, RESTORED_MESSAGE)}>
+        <Icon name="undo" className="size-4" />
+        Restaurar
+      </Button>
+      <RowError result={result} />
+    </>
   );
 }

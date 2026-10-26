@@ -10,7 +10,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
     create: { execute: vi.fn() },
     update: { execute: vi.fn() },
     setPublished: { execute: vi.fn() },
-    delete: { execute: vi.fn() },
+    trash: { execute: vi.fn() },
     move: { execute: vi.fn() },
   },
 }));
@@ -37,6 +37,7 @@ describe("command server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   it("createCommand creates the command, refreshes the list and redirects to it", async () => {
@@ -79,15 +80,16 @@ describe("command server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/commands");
   });
 
-  it("setCommandPublished, deleteCommand and moveCommand delegate and refresh the list", async () => {
+  it("setCommandPublished, trashCommand and moveCommand delegate and refresh the list", async () => {
     await expect(actions.setCommandPublished("cmd-1", true)).resolves.toEqual({ success: true });
-    await expect(actions.deleteCommand("cmd-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashCommand("cmd-1")).resolves.toEqual({ success: true });
     await expect(actions.moveCommand("cmd-1", "down")).resolves.toEqual({ success: true });
 
     expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "cmd-1", isPublished: true });
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "cmd-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "cmd-1" });
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "cmd-1", direction: "down" });
-    expect(revalidatePathMock).toHaveBeenCalledTimes(3);
+    expect(revalidatePathMock).toHaveBeenCalledTimes(4);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
   });
 
   it("moveCommand rejects a direction that is not up or down", async () => {
@@ -98,9 +100,9 @@ describe("command server actions", () => {
   });
 
   it("maps NotFoundError to a message that names the command", async () => {
-    useCases.delete.execute.mockRejectedValue(new NotFoundError("Terminal command not found"));
+    useCases.trash.execute.mockRejectedValue(new NotFoundError("Terminal command not found"));
 
-    expect((await actions.deleteCommand("gone")).error).toContain("comando");
+    expect((await actions.trashCommand("gone")).error).toContain("comando");
   });
 
   it("returns a Spanish command-field error naming the conflict, and writes nothing more", async () => {

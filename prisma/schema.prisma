@@ -16,7 +16,9 @@ enum EventType {
 
 model Event {
   id            String       @id
-  slug          String       @unique
+  // Unique among live rows (deletedAt IS NULL): partial index "Event_slug_live_key", raw SQL in the
+  // add_soft_delete migration because Prisma cannot express it. A trashed event keeps its slug.
+  slug          String
   title         String
   description   String?
   // Calendar date without time zone; a future date reads as upcoming on the landing.
@@ -33,6 +35,8 @@ model Event {
   linkLabel     String?
   highlights    String[]     @default([])
   isPublished   Boolean      @default(false)
+  // Set when moved to the trash (never published then); null while live. Its photos stay attached.
+  deletedAt     DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime
   photos        EventPhoto[]
@@ -58,14 +62,17 @@ model EventPhoto {
 }
 
 model Faq {
-  id          String   @id
+  id          String    @id
   question    String
   answer      String
-  /// Optional `git help <command>` topic; unique among FAQs (the application also keeps it apart from free commands).
-  command     String?  @unique
+  /// Optional `git help <command>` topic; unique among live FAQs (partial index "Faq_command_live_key", raw SQL in the
+  /// add_soft_delete migration; the application also keeps it apart from free commands).
+  command     String?
   sortOrder   Int
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isPublished Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
   updatedAt   DateTime
 
   @@index([sortOrder, createdAt])
@@ -73,20 +80,23 @@ model Faq {
 
 /// A free terminal command: `❯ <command>` prints `output` on the landing and is listed in `help` with `description`.
 model TerminalCommand {
-  id          String   @id
-  command     String   @unique
+  id          String    @id
+  // Unique among live rows: partial index "TerminalCommand_command_live_key" (raw SQL, add_soft_delete migration).
+  command     String
   description String
   output      String
   sortOrder   Int
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isPublished Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
   updatedAt   DateTime
 
   @@index([sortOrder, createdAt])
 }
 
 model SocialLink {
-  id          String   @id
+  id          String    @id
   // One of SOCIAL_PLATFORMS; kept as text so adding a platform needs no migration.
   platform    String
   label       String
@@ -95,49 +105,56 @@ model SocialLink {
   note        String?
   blurb       String?
   sortOrder   Int
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isPublished Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
   updatedAt   DateTime
 
   @@index([sortOrder, createdAt])
 }
 
 model Pillar {
-  id            String   @id
+  id            String    @id
   word          String
   title         String
   text          String
   // The five image columns are all set or all null (CHECK in the migration).
   imageUrl      String?
-  imagePublicId String?  @unique
+  imagePublicId String?   @unique
   imageWidth    Int?
   imageHeight   Int?
   imageAlt      String?
   sortOrder     Int
-  isPublished   Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  isPublished   Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
   updatedAt     DateTime
 
   @@index([sortOrder, createdAt])
 }
 
 model NewsItem {
-  id            String   @id
-  slug          String   @unique
+  id            String    @id
+  // Unique among live rows: partial index "NewsItem_slug_live_key" (raw SQL, add_soft_delete migration).
+  slug          String
   title         String
   summary       String
   // Markdown subset, stored as written; the landing renders it safely.
   body          String
   // Calendar date without time zone, shown on the landing; newest first.
-  publishedAt   DateTime @db.Date
+  publishedAt   DateTime  @db.Date
   // The five cover columns are all set or all null (CHECK in the migration).
   coverUrl      String?
-  coverPublicId String?  @unique
+  coverPublicId String?   @unique
   coverWidth    Int?
   coverHeight   Int?
   coverAlt      String?
-  isPublished   Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  isPublished   Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
   updatedAt     DateTime
 
   @@index([publishedAt(sort: Desc), createdAt(sort: Desc)])
@@ -164,18 +181,20 @@ model DeployStatus {
 
 // S4: name, role and photo only. No contact column may be added here.
 model BoardMember {
-  id            String   @id
+  id            String    @id
   name          String
   role          String
   // The five photo columns are all set or all null; a published member needs a photo (CHECKs in the migration).
   photoUrl      String?
-  photoPublicId String?  @unique
+  photoPublicId String?   @unique
   photoWidth    Int?
   photoHeight   Int?
   photoAlt      String?
   sortOrder     Int
-  isPublished   Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  isPublished   Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
   updatedAt     DateTime
 
   @@index([sortOrder, createdAt])

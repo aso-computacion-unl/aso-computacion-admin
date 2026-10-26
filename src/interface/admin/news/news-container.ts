@@ -1,7 +1,6 @@
 import {
   CountByStatusUseCase,
   CreateNewsItemUseCase,
-  DeleteNewsItemUseCase,
   GetNewsItemUseCase,
   ListNewsItemsUseCase,
   RemoveNewsCoverUseCase,
@@ -9,6 +8,7 @@ import {
   SetNewsItemPublishedUseCase,
   UpdateNewsItemUseCase,
   UploadImageUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { NewsPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
@@ -25,7 +25,7 @@ function createNewsUseCases() {
     create: new CreateNewsItemUseCase(news),
     update: new UpdateNewsItemUseCase(news),
     setPublished: new SetNewsItemPublishedUseCase(news),
-    delete: new DeleteNewsItemUseCase(news, storage),
+    trash: new TrashContentUseCase(news, "News item not found"),
     setCover: new SetNewsCoverUseCase(news, new UploadImageUseCase(storage), storage),
     removeCover: new RemoveNewsCoverUseCase(news, storage),
   };

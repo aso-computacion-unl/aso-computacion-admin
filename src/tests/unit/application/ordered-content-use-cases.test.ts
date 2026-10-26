@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
@@ -78,18 +77,6 @@ describe("ordered content use cases", () => {
     });
   });
 
-  describe("DeleteOrderedContentUseCase", () => {
-    it("removes the item and throws NotFoundError when it is gone", async () => {
-      await seed(2);
-      const remove = new DeleteOrderedContentUseCase(repo, "Faq not found");
-
-      await remove.execute({ id: ids[0]! });
-
-      expect(await order()).toEqual([ids[1]]);
-      await expect(remove.execute({ id: ids[0]! })).rejects.toBeInstanceOf(NotFoundError);
-    });
-  });
-
   describe("MoveOrderedContentUseCase", () => {
     it("swaps with the neighbour and renumbers 0..n-1", async () => {
       await seed(3);
@@ -113,9 +100,9 @@ describe("ordered content use cases", () => {
       expect(await order()).toEqual(ids);
     });
 
-    it("moves items that share a sortOrder (a gap left by a delete is renumbered too)", async () => {
+    it("moves items that share a sortOrder (a gap left by a trashed item is renumbered too)", async () => {
       await seed(3);
-      await repo.delete(ids[1]!);
+      await repo.trash(ids[1]!);
 
       await new MoveOrderedContentUseCase(repo, "Faq not found").execute({ id: ids[2]!, direction: "up" });
 

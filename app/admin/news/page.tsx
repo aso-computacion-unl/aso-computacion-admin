@@ -4,10 +4,11 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
-import { deleteNewsItem, setNewsItemPublished } from "@/interface/admin/news/actions";
+import { trashNewsItem, setNewsItemPublished } from "@/interface/admin/news/actions";
 import { getAdminNewsCounts, getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 import { countsSummary } from "@/interface/admin/publication-summary";
 import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { PageHead } from "../_components/page-head";
 import { DeleteButton, PublishedToggle } from "../_components/row-actions";
@@ -86,7 +87,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
                           Editar
                         </Link>
                       </Button>
-                      <DeleteButton label={item.title} warning="¿Eliminar esta noticia y su portada?" action={deleteNewsItem.bind(null, item.id)} />
+                      <DeleteButton label={item.title} warning="¿Mover esta noticia a la papelera?" action={trashNewsItem.bind(null, item.id)} undo={restoreTrashed.bind(null, "news", item.id)} />
                     </div>
                   </div>
                 </TimelineItem>

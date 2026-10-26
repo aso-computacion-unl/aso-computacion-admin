@@ -12,6 +12,7 @@ import { Pillar } from "@/domain/pillar";
 import { SiteSettings } from "@/domain/site-settings";
 import { TerminalCommand } from "@/domain/terminal-command";
 import { SocialLink } from "@/domain/social-link";
+import { prisma } from "@/infrastructure/prisma/client";
 import { BoardMemberPrismaRepository } from "@/infrastructure/repositories/board-member-prisma.repository";
 import { EventPhotoPrismaRepository } from "@/infrastructure/repositories/event-photo-prisma.repository";
 import { EventPrismaRepository } from "@/infrastructure/repositories/event-prisma.repository";
@@ -82,5 +83,32 @@ describe("public content (integration)", () => {
       { slug: "vieja", title: "Vieja", summary: "Resumen", body: "Cuerpo **uno**", publishedAt: "2026-01-10", cover: null },
     ]);
     expect(JSON.stringify(body)).not.toMatch(/publicId|aso\/|createdAt|updatedAt|isPublished/);
+  });
+
+  it("never serves a published item that was moved to the trash, whatever its type", async () => {
+    const event = await events.create(Event.create({ title: "Evento", date: "2026-12-01", isPublished: true }));
+    await eventPhotos.add(EventPhoto.create({ eventId: event.props.id, ...image("evento"), sortOrder: 0 }), 12);
+    const published = [
+      ["Event", event.props.id],
+      ["Faq", (await faqs.create(Faq.create({ question: "Pregunta", answer: "a", sortOrder: 0, isPublished: true, command: "costo" }))).props.id],
+      ["TerminalCommand", (await commands.create(TerminalCommand.create({ command: "libre", description: "d", output: "o", sortOrder: 0, isPublished: true }))).props.id],
+      ["Pillar", (await pillars.create(Pillar.create({ word: "VOZ", title: "Representamos", text: "t", sortOrder: 0, isPublished: true }))).props.id],
+      ["SocialLink", (await socials.create(SocialLink.create({ platform: "instagram", label: "Instagram", handle: "@aso", url: "https://instagram.com/aso", sortOrder: 0, isPublished: true }))).props.id],
+      ["BoardMember", (await board.create(BoardMember.create({ name: "Ana Pérez", role: "Presidenta", sortOrder: 0, photo: image("ana"), isPublished: true }))).props.id],
+      ["NewsItem", (await news.create(NewsItem.create({ title: "Noticia", summary: "r", body: "c", publishedAt: "2026-05-01", isPublished: true }))).props.id],
+    ] as const;
+
+    const before = toPublicContentResponse(await useCase.execute(), new Date());
+
+    expect([before.events, before.faqs, before.commands, before.pillars, before.socials, before.board, before.news].map((items) => items.length)).toEqual([1, 1, 1, 1, 1, 1, 1]);
+
+    for (const [table, id] of published) {
+      await prisma.$executeRawUnsafe(`UPDATE "${table}" SET "deletedAt" = now() WHERE "id" = $1`, id);
+    }
+
+    const body = toPublicContentResponse(await useCase.execute(), new Date());
+
+    expect(body).toMatchObject({ events: [], faqs: [], pillars: [], socials: [], board: [], news: [], commands: [] });
+    expect(JSON.stringify(body)).not.toMatch(/Evento|Pregunta|Representamos|Instagram|Ana Pérez|Noticia|libre|costo/);
   });
 });

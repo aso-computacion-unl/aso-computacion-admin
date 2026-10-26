@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateNewsItemUseCase } from "@/application/use-cases/create-news-item.use-case";
 import { CountByStatusUseCase } from "@/application/use-cases/count-by-status.use-case";
-import { DeleteNewsItemUseCase } from "@/application/use-cases/delete-news-item.use-case";
 import { GetNewsItemUseCase } from "@/application/use-cases/get-news-item.use-case";
 import { ListNewsItemsUseCase } from "@/application/use-cases/list-news-items.use-case";
 import { RemoveNewsCoverUseCase } from "@/application/use-cases/remove-news-cover.use-case";
@@ -278,55 +277,6 @@ describe("news use cases", () => {
     it("is a no-op for an item without a cover and fails for an unknown id", async () => {
       await expect(remove.execute({ id })).resolves.toMatchObject({ cover: null });
       expect(storage.destroyedPublicIds).toEqual([]);
-      await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
-    });
-  });
-
-  describe("DeleteNewsItemUseCase", () => {
-    let id: string;
-    let remove: DeleteNewsItemUseCase;
-
-    beforeEach(async () => {
-      id = (await create.execute(TEXT)).id;
-      remove = new DeleteNewsItemUseCase(news, storage);
-    });
-
-    it("deletes the row, then destroys its stored cover", async () => {
-      await setCover.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-
-      await remove.execute({ id });
-
-      expect(await news.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual(["news/a.jpg"]);
-    });
-
-    it("destroys nothing when the item has no cover", async () => {
-      await remove.execute({ id });
-
-      expect(await news.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual([]);
-    });
-
-    it("keeps the stored cover when the delete itself fails", async () => {
-      await setCover.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      vi.spyOn(news, "delete").mockRejectedValueOnce(new Error("db down"));
-
-      await expect(remove.execute({ id })).rejects.toThrow("db down");
-
-      expect(storage.has("news/a.jpg")).toBe(true);
-    });
-
-    it("logs the leftover publicId and still succeeds when the destroy fails", async () => {
-      await setCover.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      storage.destroyError = new Error("cloudinary down");
-
-      await expect(remove.execute({ id })).resolves.toBeUndefined();
-
-      expect(await news.getById(id)).toBeNull();
-      expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("news/a.jpg"), expect.anything());
-    });
-
-    it("fails for an unknown id", async () => {
       await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
     });
   });

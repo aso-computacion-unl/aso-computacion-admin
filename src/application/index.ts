@@ -32,7 +32,6 @@ export {
 } from "./use-cases/attach-event-photo.use-case";
 export { CreateEventUseCase } from "./use-cases/create-event.use-case";
 export { DeactivateEventPhotoUseCase } from "./use-cases/deactivate-event-photo.use-case";
-export { DeleteEventUseCase } from "./use-cases/delete-event.use-case";
 export { GetEventUseCase } from "./use-cases/get-event.use-case";
 export { ListEventsUseCase } from "./use-cases/list-events.use-case";
 export { ReorderEventPhotosUseCase } from "./use-cases/reorder-event-photos.use-case";
@@ -42,7 +41,6 @@ export { UpdateEventUseCase } from "./use-cases/update-event.use-case";
 export type { FaqResult } from "./dto/faq-result.dto";
 export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
 export {
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
@@ -61,7 +59,6 @@ export { CreateSocialLinkUseCase } from "./use-cases/create-social-link.use-case
 export { UpdateSocialLinkUseCase } from "./use-cases/update-social-link.use-case";
 export type { PillarImageResult, PillarResult } from "./dto/pillar-result.dto";
 export { CreatePillarUseCase } from "./use-cases/create-pillar.use-case";
-export { DeletePillarUseCase } from "./use-cases/delete-pillar.use-case";
 export { RemovePillarImageUseCase } from "./use-cases/remove-pillar-image.use-case";
 export {
   PILLAR_IMAGE_FOLDER,
@@ -75,7 +72,6 @@ export { GetSiteSettingsUseCase } from "./use-cases/get-site-settings.use-case";
 export { UpdateSiteSettingsUseCase } from "./use-cases/update-site-settings.use-case";
 export type { BoardMemberPhotoResult, BoardMemberResult } from "./dto/board-member-result.dto";
 export { CreateBoardMemberUseCase } from "./use-cases/create-board-member.use-case";
-export { DeleteBoardMemberUseCase } from "./use-cases/delete-board-member.use-case";
 export { RemoveBoardMemberPhotoUseCase } from "./use-cases/remove-board-member-photo.use-case";
 export {
   BOARD_PHOTO_FOLDER,
@@ -92,10 +88,32 @@ export type { SeedDependencies, SeedPlan, SeedResult } from "./seed/seed-landing
 export type { NewsCoverResult, NewsItemResult } from "./dto/news-item-result.dto";
 export type { NewsRepository } from "./ports/news-repository.port";
 export { CreateNewsItemUseCase } from "./use-cases/create-news-item.use-case";
-export { DeleteNewsItemUseCase } from "./use-cases/delete-news-item.use-case";
 export { GetNewsItemUseCase } from "./use-cases/get-news-item.use-case";
 export { ListNewsItemsUseCase } from "./use-cases/list-news-items.use-case";
 export { RemoveNewsCoverUseCase } from "./use-cases/remove-news-cover.use-case";
 export { NEWS_COVER_FOLDER, NEWS_COVER_MIN_WIDTH, SetNewsCoverUseCase } from "./use-cases/set-news-cover.use-case";
 export { SetNewsItemPublishedUseCase } from "./use-cases/set-news-item-published.use-case";
 export { UpdateNewsItemUseCase } from "./use-cases/update-news-item.use-case";
+export type { TrashableRepository, TrashedItem } from "./ports/trashable-repository.port";
+export { TRASH_KINDS } from "./dto/trash-result.dto";
+export type { TrashItemResult, TrashKind } from "./dto/trash-result.dto";
+export { ListTrashUseCase } from "./use-cases/list-trash.use-case";
+export type { TrashSources } from "./use-cases/list-trash.use-case";
+export {
+  PurgeBoardMemberUseCase,
+  PurgeContentUseCase,
+  PurgeEventUseCase,
+  PurgeNewsItemUseCase,
+  PurgePillarUseCase,
+} from "./use-cases/purge-content.use-case";
+export {
+  RestoreContentUseCase,
+  RestoreEventUseCase,
+  RestoreFaqUseCase,
+  RestoreNewsItemUseCase,
+  RestoreOrderedContentUseCase,
+  RestoreTerminalCommandUseCase,
+} from "./use-cases/restore-content.use-case";
+export { TrashContentUseCase } from "./use-cases/trash-content.use-case";
+export type { TrashContentResult } from "./use-cases/trash-content.use-case";
+export { RestoreConflictError } from "./use-cases/use-case-error";

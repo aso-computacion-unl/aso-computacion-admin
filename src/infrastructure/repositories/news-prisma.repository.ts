@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, type NewsItem as PrismaNewsItem } from "@prisma/client";
 
 import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";
@@ -9,7 +9,8 @@ import type { NewsItem } from "@/domain/news-item";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./news.mapper";
-import { publicationWhere, toPublicationCounts } from "./publication-filter";
+import { LIVE, publicationWhere, toPublicationCounts } from "./publication-filter";
+import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -20,7 +21,18 @@ function rethrowSlugCollision(error: unknown): never {
   throw error;
 }
 
-export class NewsPrismaRepository implements NewsRepository {
+export class NewsPrismaRepository
+  extends PurgeableTrashPrismaRepository<NewsItem, PrismaNewsItem>
+  implements NewsRepository
+{
+  protected readonly delegate = prisma.newsItem;
+  protected readonly trashConfig = {
+    notFound: "News item not found",
+    toDomain,
+    toUpdate: toPrismaUpdate,
+    mapConflict: rethrowSlugCollision,
+  };
+
   async create(item: NewsItem): Promise<NewsItem> {
     try {
       return toDomain(await prisma.newsItem.create({ data: toPrismaCreate(item) }));
@@ -30,14 +42,14 @@ export class NewsPrismaRepository implements NewsRepository {
   }
 
   async getById(id: string): Promise<NewsItem | null> {
-    const record = await prisma.newsItem.findUnique({ where: { id } });
+    const record = await prisma.newsItem.findUnique({ where: { id, ...LIVE } });
 
     return record ? toDomain(record) : null;
   }
 
   async slugExists(slug: string, excludeId?: string): Promise<boolean> {
     const record = await prisma.newsItem.findFirst({
-      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      where: { slug, ...LIVE, ...(excludeId ? { id: { not: excludeId } } : {}) },
       select: { id: true },
     });
 
@@ -46,7 +58,7 @@ export class NewsPrismaRepository implements NewsRepository {
 
   async countByStatus(): Promise<PublicationCounts> {
     // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
-    const groups = await prisma.newsItem.groupBy({ by: ["isPublished"], _count: { _all: true } });
+    const groups = await prisma.newsItem.groupBy({ by: ["isPublished"], where: LIVE, _count: { _all: true } });
 
     return toPublicationCounts(groups);
   }
@@ -64,7 +76,7 @@ export class NewsPrismaRepository implements NewsRepository {
   async update(item: NewsItem): Promise<NewsItem> {
     try {
       const [record] = await prisma.newsItem.updateManyAndReturn({
-        where: { id: item.props.id },
+        where: { id: item.props.id, ...LIVE },
         data: toPrismaUpdate(item),
       });
 
@@ -75,14 +87,6 @@ export class NewsPrismaRepository implements NewsRepository {
       return toDomain(record);
     } catch (error) {
       return error instanceof NotFoundError ? Promise.reject(error) : rethrowSlugCollision(error);
-    }
-  }
-
-  async delete(id: string): Promise<void> {
-    const { count } = await prisma.newsItem.deleteMany({ where: { id } });
-
-    if (count === 0) {
-      throw new NotFoundError("News item not found");
     }
   }
 }

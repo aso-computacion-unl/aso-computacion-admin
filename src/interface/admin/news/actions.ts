@@ -31,6 +31,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { TRASH_PATH } from "../trash/paths";
 import { parseNewsFormData } from "./news-form-data";
 import { getNewsUseCases } from "./news-container";
 
@@ -97,12 +98,18 @@ export async function setNewsItemPublished(id: string, isPublished: boolean): Pr
   }
 }
 
-export async function deleteNewsItem(id: string): Promise<ActionResult> {
+/** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
+export async function trashNewsItem(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
-    await getNewsUseCases().delete.execute({ id });
-    requestSiteRebuild();
+    const { wasPublished } = await getNewsUseCases().trash.execute({ id });
+
+    if (wasPublished) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
+    revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error);

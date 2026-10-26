@@ -4,13 +4,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { dismissToast, pushToast, type Toast } from "@/interface/admin/toasts";
+import { dismissToast, pushToast, type Toast, type ToastAction } from "@/interface/admin/toasts";
 
 const DISMISS_AFTER_MS = 5000;
 
 interface ToastApi {
-  /** Shows a short success message; it disappears on its own. Errors stay inline where they happened. */
-  notify: (message: string) => void;
+  /**
+   * Shows a short success message; it disappears on its own. Errors stay inline where they happened.
+   * An `action` adds a button (e.g. "Deshacer") that runs once and closes the toast.
+   */
+  notify: (message: string, action?: ToastAction) => void;
 }
 
 // Outside a provider (an isolated render) the call does nothing instead of throwing.
@@ -42,6 +45,18 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
     >
       <Icon name="check" className="size-4 shrink-0 stroke-[2.25] text-sky" />
       <span className="min-w-0 flex-1 wrap-anywhere">{toast.message}</span>
+      {toast.action ? (
+        <Button
+          variant="line"
+          size="sm"
+          onClick={() => {
+            toast.action?.onAction();
+            onDismiss(toast.id);
+          }}
+        >
+          {toast.action.label}
+        </Button>
+      ) : null}
       <Button variant="quiet" size="icon-sm" onClick={() => onDismiss(toast.id)} className="border-transparent">
         <Icon name="x" className="size-4" />
         <span className="sr-only">Cerrar aviso</span>
@@ -54,9 +69,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);
 
-  const notify = useCallback((message: string) => {
+  const notify = useCallback((message: string, action?: ToastAction) => {
     nextId.current += 1;
-    const toast = { id: nextId.current, message };
+    const toast: Toast = { id: nextId.current, message, ...(action && { action }) };
 
     setToasts((previous) => pushToast(previous, toast));
   }, []);

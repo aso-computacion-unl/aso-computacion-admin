@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma, type ForumMember as MemberRow } from "@prisma/client";
 
 import type {
+  ForumModerationChange,
   ForumModerationRepository,
   ForumModerationStamp,
   ForumPostTarget,
@@ -85,6 +86,9 @@ function toRow(row: ReportRecord): ForumReportRow | null {
   return null;
 }
 
+/** The statement matched nothing: the row is either already in the wanted state or not there at all. */
+const unchangedOrMissing = (exists: boolean): ForumModerationChange => (exists ? "unchanged" : "not-found");
+
 export class ForumModerationPrismaRepository implements ForumModerationRepository {
   async createReport(report: ForumReport): Promise<boolean> {
     try {
@@ -125,13 +129,13 @@ export class ForumModerationPrismaRepository implements ForumModerationRepositor
     return (await prisma.forumReport.count({ where: { id } })) > 0 ? "closed" : "not-found";
   }
 
-  async setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp): Promise<boolean> {
+  async setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     const data = hidden ? { hiddenAt: stamp.at, hiddenBy: stamp.by } : { hiddenAt: null, hiddenBy: null };
 
     if (target.kind === "thread") {
       const { count } = await prisma.forumThread.updateMany({ where: { id: target.id, hiddenAt: hidden ? null : { not: null } }, data });
 
-      return count > 0 || (await prisma.forumThread.count({ where: { id: target.id } })) > 0;
+      return count > 0 ? "changed" : unchangedOrMissing((await prisma.forumThread.count({ where: { id: target.id } })) > 0);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -142,18 +146,18 @@ export class ForumModerationPrismaRepository implements ForumModerationRepositor
         await tx.forumThread.updateMany({ where: { bestReplyId: target.id }, data: { bestReplyId: null } });
       }
 
-      return count > 0 || (await tx.forumReply.count({ where: { id: target.id } })) > 0;
+      return count > 0 ? "changed" : unchangedOrMissing((await tx.forumReply.count({ where: { id: target.id } })) > 0);
     });
   }
 
-  async setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp): Promise<boolean> {
+  async setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     const data = locked ? { lockedAt: stamp.at, lockedBy: stamp.by } : { lockedAt: null, lockedBy: null };
     const { count } = await prisma.forumThread.updateMany({ where: { id: threadId, lockedAt: locked ? null : { not: null } }, data });
 
-    return count > 0 || (await prisma.forumThread.count({ where: { id: threadId } })) > 0;
+    return count > 0 ? "changed" : unchangedOrMissing((await prisma.forumThread.count({ where: { id: threadId } })) > 0);
   }
 
-  async setMemberSuspended(memberId: string, suspend: boolean, stamp: ForumModerationStamp): Promise<boolean> {
+  async setMemberSuspended(memberId: string, suspend: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     return prisma.$transaction(async (tx) => {
       const { count } = suspend
         ? await tx.forumMember.updateMany({ where: { id: memberId, status: "ACTIVE" }, data: { status: "SUSPENDED", suspendedAt: stamp.at, suspendedBy: stamp.by } })
@@ -164,7 +168,7 @@ export class ForumModerationPrismaRepository implements ForumModerationRepositor
         await tx.forumSession.updateMany({ where: { memberId, revokedAt: null }, data: { revokedAt: stamp.at } });
       }
 
-      return count > 0 || (await tx.forumMember.count({ where: { id: memberId } })) > 0;
+      return count > 0 ? "changed" : unchangedOrMissing((await tx.forumMember.count({ where: { id: memberId } })) > 0);
     });
   }
 }

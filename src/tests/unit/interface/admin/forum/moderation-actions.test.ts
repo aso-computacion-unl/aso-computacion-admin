@@ -112,6 +112,30 @@ describe("forum moderation server actions", () => {
       ]);
     });
 
+    it("answers 'unchanged' and writes no audit entry when the target is already in the wanted state", async () => {
+      const unchanged = { success: true, unchanged: true };
+
+      expect(await actions.setForumThreadHidden("t1", false)).toEqual(unchanged);
+      expect(await actions.setForumReplyHidden("r1", false)).toEqual(unchanged);
+      expect(await actions.setForumThreadLocked("t1", false)).toEqual(unchanged);
+      expect(await actions.setForumMemberSuspended("m1", false)).toEqual(unchanged);
+      expect(testAuth.audit.entries).toEqual([]);
+
+      expect(await actions.setForumThreadHidden("t1", true)).toEqual({ success: true });
+      expect(await actions.setForumThreadHidden("t1", true)).toEqual(unchanged);
+      expect(await actions.setForumThreadLocked("t1", true)).toEqual({ success: true });
+      expect(await actions.setForumThreadLocked("t1", true)).toEqual(unchanged);
+      expect(await actions.setForumMemberSuspended("m1", true)).toEqual({ success: true });
+      expect(await actions.setForumMemberSuspended("m1", true)).toEqual(unchanged);
+      expect(audit()).toEqual([
+        ["forum.thread.hide", "forum_thread", "t1"],
+        ["forum.thread.lock", "forum_thread", "t1"],
+        ["forum.member.suspend", "forum_member", "m1"],
+      ]);
+      // The page still refreshes, so a moderator who lost the race sees the real state.
+      expect(revalidatePathMock).toHaveBeenCalledTimes(10);
+    });
+
     it("closes a report as resolved or dismissed with the moderator's id, and a second close is refused", async () => {
       expect(await actions.closeForumReport("p1", "RESOLVED", " Ocultado ")).toEqual({ success: true });
       expect(testForum.store.reports.get("p1")).toMatchObject({ status: "RESOLVED", resolvedBy: "test-editor", resolutionNote: "Ocultado" });

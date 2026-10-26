@@ -298,3 +298,24 @@ describe("SetForumMemberSuspendedUseCase", () => {
     await expect(setSuspended().execute({ memberId: "ghost", suspended: true, moderatorId: "u1" })).rejects.toThrow(NotFoundError);
   });
 });
+
+describe("moderation steps that change nothing", () => {
+  it("say whether anything changed, so the caller can skip the audit entry", async () => {
+    expect(await setHidden().execute({ target: THREAD, hidden: false, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setHidden().execute({ target: THREAD, hidden: true, moderatorId: "u1" })).toEqual({ changed: true });
+    expect(await setHidden().execute({ target: THREAD, hidden: true, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setHidden().execute({ target: REPLY, hidden: false, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setLocked().execute({ threadId: "t1", locked: false, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setLocked().execute({ threadId: "t1", locked: true, moderatorId: "u1" })).toEqual({ changed: true });
+    expect(await setLocked().execute({ threadId: "t1", locked: true, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setSuspended().execute({ memberId: "m1", suspended: false, moderatorId: "u1" })).toEqual({ changed: false });
+    expect(await setSuspended().execute({ memberId: "m1", suspended: true, moderatorId: "u1" })).toEqual({ changed: true });
+    expect(await setSuspended().execute({ memberId: "m1", suspended: true, moderatorId: "u1" })).toEqual({ changed: false });
+  });
+
+  it("still refuse an unknown target", async () => {
+    await expect(setHidden().execute({ target: { kind: "thread", id: "ghost" }, hidden: false, moderatorId: "u1" })).rejects.toThrow(NotFoundError);
+    await expect(setLocked().execute({ threadId: "ghost", locked: false, moderatorId: "u1" })).rejects.toThrow(NotFoundError);
+    await expect(setSuspended().execute({ memberId: "ghost", suspended: false, moderatorId: "u1" })).rejects.toThrow(NotFoundError);
+  });
+});

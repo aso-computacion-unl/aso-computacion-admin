@@ -15,6 +15,7 @@ import type {
 import type { ForumReactionRepository, ForumThreadReactions } from "@/application/ports/forum-reactions.ports";
 import type {
   ForumModerationRepository,
+  ForumModerationChange,
   ForumModerationStamp,
   ForumPostTarget,
   ForumReportQueue,
@@ -378,42 +379,49 @@ export class InMemoryForumModerationRepository implements ForumModerationReposit
     return "ok";
   }
 
-  async setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp) {
+  async setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     if (target.kind === "thread") {
       const thread = this.store.threads.get(target.id);
 
-      if (!thread) return false;
-      this.store.threads.set(thread.id, { ...thread, hiddenAt: hidden ? (thread.hiddenAt ?? stamp.at) : null });
+      if (!thread) return "not-found";
+      if ((thread.hiddenAt !== null) === hidden) return "unchanged";
+      this.store.threads.set(thread.id, { ...thread, hiddenAt: hidden ? stamp.at : null });
 
-      return true;
+      return "changed";
     }
 
     const reply = this.store.replies.get(target.id);
 
-    if (!reply) return false;
-    this.store.replies.set(reply.id, { ...reply, hiddenAt: hidden ? (reply.hiddenAt ?? stamp.at) : null });
+    if (!reply) return "not-found";
+    if ((reply.hiddenAt !== null) === hidden) return "unchanged";
+    this.store.replies.set(reply.id, { ...reply, hiddenAt: hidden ? stamp.at : null });
 
     const thread = this.store.threads.get(reply.threadId);
     if (hidden && thread?.bestReplyId === reply.id) this.store.threads.set(thread.id, { ...thread, bestReplyId: null });
 
-    return true;
+    return "changed";
   }
 
-  async setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp) {
+  async setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     const thread = this.store.threads.get(threadId);
 
-    if (!thread) return false;
-    this.store.threads.set(threadId, { ...thread, lockedAt: locked ? (thread.lockedAt ?? stamp.at) : null });
+    if (!thread) return "not-found";
+    if ((thread.lockedAt !== null) === locked) return "unchanged";
+    this.store.threads.set(threadId, { ...thread, lockedAt: locked ? stamp.at : null });
 
-    return true;
+    return "changed";
   }
 
-  async setMemberSuspended(memberId: string, suspended: boolean, stamp: ForumModerationStamp) {
+  async setMemberSuspended(memberId: string, suspended: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange> {
     const member = this.store.members.members.get(memberId);
 
-    if (!member) return false;
+    if (!member) return "not-found";
 
-    this.store.members.members.set(memberId, suspended ? { ...member, status: "SUSPENDED", suspendedAt: member.suspendedAt ?? stamp.at } : { ...member, status: "ACTIVE", suspendedAt: null });
+    const changed = (member.status === "SUSPENDED") !== suspended;
+
+    if (changed) {
+      this.store.members.members.set(memberId, suspended ? { ...member, status: "SUSPENDED", suspendedAt: stamp.at } : { ...member, status: "ACTIVE", suspendedAt: null });
+    }
 
     if (suspended) {
       for (const session of this.sessions.sessions.values()) {
@@ -421,7 +429,7 @@ export class InMemoryForumModerationRepository implements ForumModerationReposit
       }
     }
 
-    return true;
+    return changed ? "changed" : "unchanged";
   }
 }
 

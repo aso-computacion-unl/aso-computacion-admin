@@ -2,7 +2,9 @@
 
 /*
  * Forum moderation ("Reportes del foro"), open to ADMIN and EDITOR. The report queue page binds these;
- * every one answers `ActionResult` and writes an audit entry after the change succeeded.
+ * every one answers `ActionResult` and writes an audit entry after the change succeeded. A hide, lock or
+ * suspension that finds the target already in the wanted state answers `{ success: true, unchanged: true }`
+ * and writes no entry.
  *
  *   setForumThreadHidden(threadId, hidden)         hide a thread from students, or show it again
  *   setForumReplyHidden(replyId, hidden)           same for a reply (a hidden reply stops being the best answer)
@@ -30,6 +32,10 @@ import { mapActionError as mapError, type ActionResult } from "../action-result"
 
 const MODERATION_PATH = "/admin/foro/reportes";
 
+// Asking for the state a post or account already has (a second moderator got there first) is not an error and
+// not an event: the page refreshes to the real state and the audit log stays as it was.
+const NO_CHANGE: ActionResult = { success: true, unchanged: true };
+
 const FIELD_MESSAGES = {
   note: "La nota admite hasta 500 caracteres.",
   outcome: "Elija resolver o descartar el reporte.",
@@ -52,15 +58,19 @@ export async function setForumThreadHidden(threadId: string, hidden: boolean): P
     const actor = await requireSession();
     const hide = hidden === true;
 
-    await getForumServices().setPostHidden.execute({ target: { kind: "thread", id: threadId }, hidden: hide, moderatorId: actor.userId });
-    await recordAudit(actor, {
-      action: hide ? "forum.thread.hide" : "forum.thread.unhide",
-      entityType: "forum_thread",
-      entityId: threadId,
-      summary: hide ? "Hilo del foro oculto" : "Hilo del foro visible de nuevo",
-    });
+    const { changed } = await getForumServices().setPostHidden.execute({ target: { kind: "thread", id: threadId }, hidden: hide, moderatorId: actor.userId });
+
+    if (changed) {
+      await recordAudit(actor, {
+        action: hide ? "forum.thread.hide" : "forum.thread.unhide",
+        entityType: "forum_thread",
+        entityId: threadId,
+        summary: hide ? "Hilo del foro oculto" : "Hilo del foro visible de nuevo",
+      });
+    }
+
     revalidatePath(MODERATION_PATH);
-    return { success: true };
+    return changed ? { success: true } : NO_CHANGE;
   } catch (error) {
     return mapActionError(error);
   }
@@ -71,15 +81,19 @@ export async function setForumReplyHidden(replyId: string, hidden: boolean): Pro
     const actor = await requireSession();
     const hide = hidden === true;
 
-    await getForumServices().setPostHidden.execute({ target: { kind: "reply", id: replyId }, hidden: hide, moderatorId: actor.userId });
-    await recordAudit(actor, {
-      action: hide ? "forum.reply.hide" : "forum.reply.unhide",
-      entityType: "forum_reply",
-      entityId: replyId,
-      summary: hide ? "Respuesta del foro oculta" : "Respuesta del foro visible de nuevo",
-    });
+    const { changed } = await getForumServices().setPostHidden.execute({ target: { kind: "reply", id: replyId }, hidden: hide, moderatorId: actor.userId });
+
+    if (changed) {
+      await recordAudit(actor, {
+        action: hide ? "forum.reply.hide" : "forum.reply.unhide",
+        entityType: "forum_reply",
+        entityId: replyId,
+        summary: hide ? "Respuesta del foro oculta" : "Respuesta del foro visible de nuevo",
+      });
+    }
+
     revalidatePath(MODERATION_PATH);
-    return { success: true };
+    return changed ? { success: true } : NO_CHANGE;
   } catch (error) {
     return mapActionError(error);
   }
@@ -90,15 +104,19 @@ export async function setForumThreadLocked(threadId: string, locked: boolean): P
     const actor = await requireSession();
     const lock = locked === true;
 
-    await getForumServices().setThreadLocked.execute({ threadId, locked: lock, moderatorId: actor.userId });
-    await recordAudit(actor, {
-      action: lock ? "forum.thread.lock" : "forum.thread.unlock",
-      entityType: "forum_thread",
-      entityId: threadId,
-      summary: lock ? "Hilo del foro cerrado" : "Hilo del foro reabierto",
-    });
+    const { changed } = await getForumServices().setThreadLocked.execute({ threadId, locked: lock, moderatorId: actor.userId });
+
+    if (changed) {
+      await recordAudit(actor, {
+        action: lock ? "forum.thread.lock" : "forum.thread.unlock",
+        entityType: "forum_thread",
+        entityId: threadId,
+        summary: lock ? "Hilo del foro cerrado" : "Hilo del foro reabierto",
+      });
+    }
+
     revalidatePath(MODERATION_PATH);
-    return { success: true };
+    return changed ? { success: true } : NO_CHANGE;
   } catch (error) {
     return mapActionError(error);
   }
@@ -109,15 +127,19 @@ export async function setForumMemberSuspended(memberId: string, suspended: boole
     const actor = await requireSession();
     const suspend = suspended === true;
 
-    await getForumServices().setMemberSuspended.execute({ memberId, suspended: suspend, moderatorId: actor.userId });
-    await recordAudit(actor, {
-      action: suspend ? "forum.member.suspend" : "forum.member.reactivate",
-      entityType: "forum_member",
-      entityId: memberId,
-      summary: suspend ? "Cuenta del foro suspendida y sesiones cerradas" : "Cuenta del foro reactivada",
-    });
+    const { changed } = await getForumServices().setMemberSuspended.execute({ memberId, suspended: suspend, moderatorId: actor.userId });
+
+    if (changed) {
+      await recordAudit(actor, {
+        action: suspend ? "forum.member.suspend" : "forum.member.reactivate",
+        entityType: "forum_member",
+        entityId: memberId,
+        summary: suspend ? "Cuenta del foro suspendida y sesiones cerradas" : "Cuenta del foro reactivada",
+      });
+    }
+
     revalidatePath(MODERATION_PATH);
-    return { success: true };
+    return changed ? { success: true } : NO_CHANGE;
   } catch (error) {
     return mapActionError(error);
   }

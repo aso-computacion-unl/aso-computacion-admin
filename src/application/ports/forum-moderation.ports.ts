@@ -34,6 +34,9 @@ export interface ForumModerationStamp {
   by: string | null;
 }
 
+/** What a hide, lock or suspension did: "unchanged" when the post or account was already in the wanted state. */
+export type ForumModerationChange = "changed" | "unchanged" | "not-found";
+
 export interface ForumModerationRepository {
   /** False when the reporter already has an OPEN report on the target (decided by the partial unique index, not a read). */
   createReport(report: ForumReport): Promise<boolean>;
@@ -41,10 +44,10 @@ export interface ForumModerationRepository {
   listReports(queue: ForumReportQueue, page: { offset: number; limit: number }): Promise<{ items: ForumReportRow[]; total: number }>;
   /** "closed" when somebody else got there first (the report was not OPEN any more). */
   closeReport(id: string, change: ForumModerationStamp & { status: "RESOLVED" | "DISMISSED"; note: string | null }): Promise<"ok" | "not-found" | "closed">;
-  /** Hiding keeps the first time. Hiding a reply also clears it as its thread's best answer. False for an unknown post. */
-  setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp): Promise<boolean>;
-  /** Locking keeps the first time. False for an unknown thread. */
-  setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp): Promise<boolean>;
-  /** Suspending also revokes every live session of the member, in the same step. Keeps the first time. False for an unknown member. */
-  setMemberSuspended(memberId: string, suspended: boolean, stamp: ForumModerationStamp): Promise<boolean>;
+  /** Hiding keeps the first time. Hiding a reply also clears it as its thread's best answer. "not-found" for an unknown post. */
+  setPostHidden(target: ForumPostTarget, hidden: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange>;
+  /** Locking keeps the first time. "not-found" for an unknown thread. */
+  setThreadLocked(threadId: string, locked: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange>;
+  /** Suspending also revokes every live session of the member, in the same step. Keeps the first time. "not-found" for an unknown member. */
+  setMemberSuspended(memberId: string, suspended: boolean, stamp: ForumModerationStamp): Promise<ForumModerationChange>;
 }

@@ -7,7 +7,7 @@ import {
 } from "@/domain/forum";
 
 import type { ForumReportItemResult } from "../dto/forum-moderation-result.dto";
-import type { ForumModerationRepository, ForumPostTarget, ForumReportQueue, ForumReportRow } from "../ports/forum-moderation.ports";
+import type { ForumModerationChange, ForumModerationRepository, ForumPostTarget, ForumReportQueue, ForumReportRow } from "../ports/forum-moderation.ports";
 import type { ForumMemberRepository, ForumPostRepository } from "../ports/forum.ports";
 import { NotFoundError } from "../use-cases/use-case-error";
 import { activeMember, assertVisible } from "./forum-guards";
@@ -18,6 +18,19 @@ const EXCERPT_LENGTH = 280;
 type Clock = () => Date;
 
 const POST_NOT_FOUND = "Forum post not found";
+
+/** What a moderation step did: `changed` is false when the target was already in the wanted state, so nothing is worth auditing. */
+export interface ForumModerationOutcome {
+  changed: boolean;
+}
+
+function outcomeOf(change: ForumModerationChange, notFound: string): ForumModerationOutcome {
+  if (change === "not-found") {
+    throw new NotFoundError(notFound);
+  }
+
+  return { changed: change === "changed" };
+}
 
 export class ReportForumPostUseCase {
   constructor(
@@ -128,10 +141,8 @@ export class SetForumPostHiddenUseCase {
     private readonly now: Clock = () => new Date(),
   ) {}
 
-  async execute(input: { target: ForumPostTarget; hidden: boolean; moderatorId: string | null }): Promise<void> {
-    if (!(await this.moderation.setPostHidden(input.target, input.hidden, { at: this.now(), by: input.moderatorId }))) {
-      throw new NotFoundError(POST_NOT_FOUND);
-    }
+  async execute(input: { target: ForumPostTarget; hidden: boolean; moderatorId: string | null }): Promise<ForumModerationOutcome> {
+    return outcomeOf(await this.moderation.setPostHidden(input.target, input.hidden, { at: this.now(), by: input.moderatorId }), POST_NOT_FOUND);
   }
 }
 
@@ -141,10 +152,8 @@ export class SetForumThreadLockedUseCase {
     private readonly now: Clock = () => new Date(),
   ) {}
 
-  async execute(input: { threadId: string; locked: boolean; moderatorId: string | null }): Promise<void> {
-    if (!(await this.moderation.setThreadLocked(input.threadId, input.locked, { at: this.now(), by: input.moderatorId }))) {
-      throw new NotFoundError(POST_NOT_FOUND);
-    }
+  async execute(input: { threadId: string; locked: boolean; moderatorId: string | null }): Promise<ForumModerationOutcome> {
+    return outcomeOf(await this.moderation.setThreadLocked(input.threadId, input.locked, { at: this.now(), by: input.moderatorId }), POST_NOT_FOUND);
   }
 }
 
@@ -154,9 +163,7 @@ export class SetForumMemberSuspendedUseCase {
     private readonly now: Clock = () => new Date(),
   ) {}
 
-  async execute(input: { memberId: string; suspended: boolean; moderatorId: string | null }): Promise<void> {
-    if (!(await this.moderation.setMemberSuspended(input.memberId, input.suspended, { at: this.now(), by: input.moderatorId }))) {
-      throw new NotFoundError("Forum member not found");
-    }
+  async execute(input: { memberId: string; suspended: boolean; moderatorId: string | null }): Promise<ForumModerationOutcome> {
+    return outcomeOf(await this.moderation.setMemberSuspended(input.memberId, input.suspended, { at: this.now(), by: input.moderatorId }), "Forum member not found");
   }
 }

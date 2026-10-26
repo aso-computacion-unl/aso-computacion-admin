@@ -115,18 +115,18 @@ describe("ForumModerationPrismaRepository reports (integration)", () => {
 });
 
 describe("ForumModerationPrismaRepository hide and lock (integration)", () => {
-  it("hides and unhides a thread, keeping the first time and the moderator, and answers false for an unknown one", async () => {
+  it("hides and unhides a thread, keeping the first time and the moderator, and answers not-found for an unknown one", async () => {
     await seed();
 
-    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, true, stamp(0, "u1"))).toBe(true);
-    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, true, stamp(5000, "u2"))).toBe(true);
+    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, true, stamp(0, "u1"))).toBe("changed");
+    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, true, stamp(5000, "u2"))).toBe("unchanged");
     expect(await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).toMatchObject({ hiddenAt: later(0), hiddenBy: "u1" });
     expect((await categories.list())[0]?.threadCount).toBe(0);
 
-    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, false, stamp())).toBe(true);
+    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, false, stamp())).toBe("changed");
     expect(await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).toMatchObject({ hiddenAt: null, hiddenBy: null });
-    expect(await moderation.setPostHidden({ kind: "thread", id: "ghost" }, true, stamp())).toBe(false);
-    expect(await moderation.setPostHidden({ kind: "thread", id: "ghost" }, false, stamp())).toBe(false);
+    expect(await moderation.setPostHidden({ kind: "thread", id: "ghost" }, true, stamp())).toBe("not-found");
+    expect(await moderation.setPostHidden({ kind: "thread", id: "ghost" }, false, stamp())).toBe("not-found");
   });
 
   it("hides a reply from the thread and clears it as the best answer; hiding another reply leaves the mark", async () => {
@@ -134,32 +134,48 @@ describe("ForumModerationPrismaRepository hide and lock (integration)", () => {
     await posts.addReply(makeForumReply({ id: "r2", threadId: "t1", authorId: "ana", createdAt: later(1000) }));
     await prisma.forumThread.update({ where: { id: "t1" }, data: { bestReplyId: "r1" } });
 
-    expect(await moderation.setPostHidden({ kind: "reply", id: "r2" }, true, stamp(0, null))).toBe(true);
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r2" }, true, stamp(0, null))).toBe("changed");
     expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBe("r1");
     expect(await prisma.forumReply.findUniqueOrThrow({ where: { id: "r2" } })).toMatchObject({ hiddenAt: later(0), hiddenBy: null });
 
-    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp(0, "u1"))).toBe(true);
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp(0, "u1"))).toBe("changed");
     expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBeNull();
     expect((await posts.listReplies("t1")).map((row) => row.reply.id)).toEqual([]);
 
-    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, false, stamp())).toBe(true);
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, false, stamp())).toBe("changed");
     expect((await posts.listReplies("t1")).map((row) => row.reply.id)).toEqual(["r1"]);
-    expect(await moderation.setPostHidden({ kind: "reply", id: "ghost" }, true, stamp())).toBe(false);
+    expect(await moderation.setPostHidden({ kind: "reply", id: "ghost" }, true, stamp())).toBe("not-found");
   });
 
   it("locks and unlocks a thread: a lock refuses replies, and the first lock time stays", async () => {
     await seed();
 
-    expect(await moderation.setThreadLocked("t1", true, stamp(0, "u1"))).toBe(true);
-    expect(await moderation.setThreadLocked("t1", true, stamp(9000, "u2"))).toBe(true);
+    expect(await moderation.setThreadLocked("t1", true, stamp(0, "u1"))).toBe("changed");
+    expect(await moderation.setThreadLocked("t1", true, stamp(9000, "u2"))).toBe("unchanged");
     expect(await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).toMatchObject({ lockedAt: later(0), lockedBy: "u1" });
     expect(await posts.addReply(makeForumReply({ id: "r9", threadId: "t1", authorId: "ana" }))).toBe("locked");
 
-    expect(await moderation.setThreadLocked("t1", false, stamp())).toBe(true);
+    expect(await moderation.setThreadLocked("t1", false, stamp())).toBe("changed");
     expect(await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).toMatchObject({ lockedAt: null, lockedBy: null });
     expect(await posts.addReply(makeForumReply({ id: "r9", threadId: "t1", authorId: "ana" }))).toBe("ok");
-    expect(await moderation.setThreadLocked("ghost", true, stamp())).toBe(false);
-    expect(await moderation.setThreadLocked("ghost", false, stamp())).toBe(false);
+    expect(await moderation.setThreadLocked("ghost", true, stamp())).toBe("not-found");
+    expect(await moderation.setThreadLocked("ghost", false, stamp())).toBe("not-found");
+  });
+});
+
+describe("ForumModerationPrismaRepository no-op steps (integration)", () => {
+  it("tells a step that changed nothing from one that did, for hide, lock and suspension", async () => {
+    await seed();
+
+    expect(await moderation.setPostHidden({ kind: "thread", id: "t1" }, false, stamp())).toBe("unchanged");
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, false, stamp())).toBe("unchanged");
+    expect(await moderation.setThreadLocked("t1", false, stamp())).toBe("unchanged");
+    expect(await moderation.setMemberSuspended("ana", false, stamp())).toBe("unchanged");
+
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp())).toBe("changed");
+    expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp())).toBe("unchanged");
+    expect(await moderation.setMemberSuspended("ana", true, stamp())).toBe("changed");
+    expect(await moderation.setMemberSuspended("ana", true, stamp())).toBe("unchanged");
   });
 });
 
@@ -212,7 +228,7 @@ describe("ForumModerationPrismaRepository suspension (integration)", () => {
     await sessions.create(session("s3", "beto"));
     await sessions.revoke("s2", later(-1000));
 
-    expect(await moderation.setMemberSuspended("ana", true, stamp(0, "u1"))).toBe(true);
+    expect(await moderation.setMemberSuspended("ana", true, stamp(0, "u1"))).toBe("changed");
 
     expect(await prisma.forumMember.findUniqueOrThrow({ where: { id: "ana" } })).toMatchObject({ status: "SUSPENDED", suspendedAt: later(0), suspendedBy: "u1" });
     expect((await prisma.forumSession.findMany({ orderBy: { id: "asc" } })).map((row) => [row.id, row.revokedAt])).toEqual([
@@ -223,7 +239,7 @@ describe("ForumModerationPrismaRepository suspension (integration)", () => {
     expect((await sessions.findWithMember("s1"))?.member.status).toBe("SUSPENDED");
   });
 
-  it("keeps the first suspension, reactivates without bringing the sessions back, and answers false for an unknown member", async () => {
+  it("keeps the first suspension, reactivates without bringing the sessions back, and answers not-found for an unknown member", async () => {
     await seed();
     await sessions.create(session("s1", "ana"));
 
@@ -231,10 +247,10 @@ describe("ForumModerationPrismaRepository suspension (integration)", () => {
     await moderation.setMemberSuspended("ana", true, stamp(9000, "u2"));
     expect(await prisma.forumMember.findUniqueOrThrow({ where: { id: "ana" } })).toMatchObject({ suspendedAt: later(0), suspendedBy: "u1" });
 
-    expect(await moderation.setMemberSuspended("ana", false, stamp())).toBe(true);
+    expect(await moderation.setMemberSuspended("ana", false, stamp())).toBe("changed");
     expect(await prisma.forumMember.findUniqueOrThrow({ where: { id: "ana" } })).toMatchObject({ status: "ACTIVE", suspendedAt: null, suspendedBy: null });
     expect((await prisma.forumSession.findUniqueOrThrow({ where: { id: "s1" } })).revokedAt).toEqual(later(0));
-    expect(await moderation.setMemberSuspended("ghost", true, stamp())).toBe(false);
-    expect(await moderation.setMemberSuspended("ghost", false, stamp())).toBe(false);
+    expect(await moderation.setMemberSuspended("ghost", true, stamp())).toBe("not-found");
+    expect(await moderation.setMemberSuspended("ghost", false, stamp())).toBe("not-found");
   });
 });

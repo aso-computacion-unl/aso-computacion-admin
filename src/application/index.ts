@@ -117,6 +117,7 @@ export {
 export { TrashContentUseCase } from "./use-cases/trash-content.use-case";
 export type { TrashContentResult } from "./use-cases/trash-content.use-case";
 export { RestoreConflictError } from "./use-cases/use-case-error";
+export * from "./auth/admin-invite.use-cases";
 export * from "./auth/auth-errors";
 export * from "./auth/list-audit-log.use-case";
 export * from "./auth/resolve-google-login.use-case";

@@ -1,10 +1,13 @@
 import type {
   ActiveSessionView,
+  AdminInviteRecord,
+  AdminInviteRepository,
   AuditEntry,
   AuditEntryInput,
   AuditListCriteria,
   AuditLogReader,
   AuditRecorder,
+  InviteRedemption,
   SessionRecord,
   SessionRepository,
   SessionScope,
@@ -12,6 +15,7 @@ import type {
   UserChangeOutcome,
   UserRepository,
 } from "@/application/ports/auth.ports";
+import type { AdminInvite } from "@/domain/admin-invite";
 import type { Role, User } from "@/domain/user";
 
 export function makeUser(overrides: Partial<User> = {}): User {
@@ -156,5 +160,64 @@ export class InMemoryAuditLog implements AuditRecorder, AuditLogReader {
 
   async entityTypes() {
     return [...new Set(this.entries.map((entry) => entry.entityType))].sort();
+  }
+}
+
+export function makeInvite(overrides: Partial<AdminInviteRecord> = {}): AdminInviteRecord {
+  return {
+    id: "invite-1",
+    tokenHash: "a".repeat(64),
+    email: "ben@example.org",
+    role: "EDITOR",
+    createdById: "root",
+    createdAt: new Date("2026-10-26T12:00:00.000Z"),
+    expiresAt: new Date("2026-11-02T12:00:00.000Z"),
+    usedAt: null,
+    usedByUserId: null,
+    revokedAt: null,
+    ...overrides,
+  };
+}
+
+const isPending = (invite: AdminInviteRecord, now: Date) => !invite.usedAt && !invite.revokedAt && invite.expiresAt.getTime() > now.getTime();
+const withoutHash = ({ tokenHash: _tokenHash, ...invite }: AdminInviteRecord): AdminInvite => invite;
+
+export class InMemoryAdminInviteRepository implements AdminInviteRepository {
+  readonly invites = new Map<string, AdminInviteRecord>();
+
+  constructor(private readonly users: InMemoryUserRepository) {}
+
+  async create(invite: AdminInviteRecord) {
+    for (const other of this.invites.values()) {
+      if (other.email === invite.email && isPending(other, invite.createdAt)) this.invites.set(other.id, { ...other, revokedAt: invite.createdAt });
+    }
+    this.invites.set(invite.id, invite);
+  }
+
+  async findByTokenHash(tokenHash: string) {
+    const invite = [...this.invites.values()].find((candidate) => candidate.tokenHash === tokenHash);
+    return invite ? withoutHash(invite) : null;
+  }
+
+  async listPending(now: Date) {
+    return [...this.invites.values()]
+      .filter((invite) => isPending(invite, now))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(withoutHash);
+  }
+
+  async revoke(id: string, at: Date) {
+    const invite = this.invites.get(id);
+    if (!invite || !isPending(invite, at)) return false;
+    this.invites.set(id, { ...invite, revokedAt: at });
+    return true;
+  }
+
+  async redeem(inviteId: string, user: User): Promise<InviteRedemption> {
+    const invite = this.invites.get(inviteId);
+    if (!invite || !isPending(invite, user.createdAt) || invite.email !== user.email) return "unavailable";
+    if (!(await this.users.create(user))) return "email-taken";
+    this.invites.set(inviteId, { ...invite, usedAt: user.createdAt, usedByUserId: user.id });
+    return "ok";
   }
 }

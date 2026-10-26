@@ -22,4 +22,6 @@ export const INTEGRATION_SUITES: readonly string[] = [
   "src/tests/integration/infrastructure/seed-landing-content.integration.test.ts",
   "src/tests/integration/infrastructure/forum-schema.integration.test.ts",
   "src/tests/integration/infrastructure/forum-prisma.repositories.integration.test.ts",
+  "src/tests/integration/infrastructure/admin-invite-schema.integration.test.ts",
+  "src/tests/integration/infrastructure/admin-invite-prisma.repository.integration.test.ts",
 ];

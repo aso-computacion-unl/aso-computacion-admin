@@ -1,3 +1,4 @@
+import type { AdminInvite } from "@/domain/admin-invite";
 import type { Role, SessionKind, User } from "@/domain/user";
 
 export interface SessionRecord {
@@ -62,6 +63,29 @@ export interface UserRepository {
    */
   applyChange(id: string, change: { role?: Role; active?: boolean }): Promise<UserChangeOutcome>;
   recordLogin(id: string, at: Date): Promise<void>;
+}
+
+/** An invite as stored: the SHA-256 of the link's token, never the token itself. */
+export interface AdminInviteRecord extends AdminInvite {
+  tokenHash: string;
+}
+
+export type InviteRedemption = "ok" | "unavailable" | "email-taken";
+
+export interface AdminInviteRepository {
+  /** Stores the invite and, in the same transaction, revokes the other pending invites of its email: one live link per person. */
+  create(invite: AdminInviteRecord): Promise<void>;
+  findByTokenHash(tokenHash: string): Promise<AdminInvite | null>;
+  /** Not used, not revoked and not expired at `now`, newest first. */
+  listPending(now: Date): Promise<AdminInvite[]>;
+  /** True when the invite was pending at `at` and is now revoked. */
+  revoke(id: string, at: Date): Promise<boolean>;
+  /**
+   * Marks the invite used by `user` and creates `user`, atomically: two redemptions of one link
+   * cannot both win. "unavailable" when the invite is no longer pending at `user.createdAt` or is
+   * bound to another email; "email-taken" when a user with that email exists. Both change nothing.
+   */
+  redeem(inviteId: string, user: User): Promise<InviteRedemption>;
 }
 
 export type AuditActorKind = SessionKind | "system";

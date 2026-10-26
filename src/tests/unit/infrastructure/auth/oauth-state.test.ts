@@ -17,6 +17,18 @@ describe("oauth state cookie", () => {
     expect(await openOAuthState(await sealOAuthState(FLOW))).toEqual(FLOW);
   });
 
+  it("carries an invite token when the login started from an invite link, and refuses a non-string one", async () => {
+    expect(await openOAuthState(await sealOAuthState({ ...FLOW, invite: "invite-token" }))).toEqual({ ...FLOW, invite: "invite-token" });
+
+    const forged = await new SignJWT({ purpose: "oauth-state", ...FLOW, invite: 42 })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(new TextEncoder().encode(SECRET));
+
+    expect(await openOAuthState(forged)).toBeNull();
+  });
+
   it("lives for a few minutes only", async () => {
     expect(OAUTH_STATE_MAX_AGE_SECONDS).toBeLessThanOrEqual(600);
 

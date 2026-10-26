@@ -95,13 +95,28 @@ describe("completeGoogleAuthorization", () => {
   it("exchanges the code with the PKCE verifier and returns the verified identity", async () => {
     const { google, result } = complete(await idToken());
 
-    expect(await result).toEqual({ email: "ana@example.org", emailVerified: true, name: "Ana Pérez" });
+    expect(await result).toEqual({ email: "ana@example.org", emailVerified: true, name: "Ana Pérez", subject: "google-sub" });
     expect(google.validateAuthorizationCode).toHaveBeenCalledWith("auth-code", "verifier");
   });
 
   it("carries Google's hd (hosted domain) claim, and only when it is a string", async () => {
     expect((await complete(await idToken({ claims: { hd: "unl.edu.ec" } })).result).hostedDomain).toBe("unl.edu.ec");
     expect(await complete(await idToken({ claims: { hd: 42 } })).result).not.toHaveProperty("hostedDomain");
+  });
+
+  it("carries Google's stable account id (sub), and leaves it out when the token has none", async () => {
+    expect((await complete(await idToken()).result).subject).toBe("google-sub");
+
+    const now = Math.floor(Date.now() / 1000);
+    const withoutSub = await new SignJWT({ email: "ana@example.org", email_verified: true, nonce: NONCE })
+      .setProtectedHeader({ alg: "RS256", kid: "k1" })
+      .setIssuer("https://accounts.google.com")
+      .setAudience(CONFIG.clientId)
+      .setIssuedAt(now - 10)
+      .setExpirationTime(now + 3600)
+      .sign(signingKey);
+
+    expect(await complete(withoutSub).result).not.toHaveProperty("subject");
   });
 
   it("accepts the legacy issuer without the scheme", async () => {

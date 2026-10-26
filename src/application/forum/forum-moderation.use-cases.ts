@@ -1,17 +1,16 @@
 import {
-  assertCanPost,
   ForumAlreadyReportedError,
   ForumReportAlreadyClosedError,
   parseReportReason,
   parseResolutionNote,
-  type ForumMember,
   type ForumReport,
 } from "@/domain/forum";
 
 import type { ForumReportItemResult } from "../dto/forum-moderation-result.dto";
 import type { ForumModerationRepository, ForumPostTarget, ForumReportQueue, ForumReportRow } from "../ports/forum-moderation.ports";
 import type { ForumMemberRepository, ForumPostRepository } from "../ports/forum.ports";
-import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
+import { NotFoundError } from "../use-cases/use-case-error";
+import { activeMember, assertVisible } from "./forum-guards";
 
 export const FORUM_REPORTS_PAGE_SIZE = 20;
 const EXCERPT_LENGTH = 280;
@@ -19,29 +18,6 @@ const EXCERPT_LENGTH = 280;
 type Clock = () => Date;
 
 const POST_NOT_FOUND = "Forum post not found";
-
-/** The member behind a report: the session was valid, but the account may have changed since. */
-async function activeMember(members: ForumMemberRepository, memberId: string): Promise<ForumMember> {
-  const member = await members.findById(memberId);
-
-  if (!member) {
-    throw new ForbiddenError();
-  }
-
-  assertCanPost(member);
-
-  return member;
-}
-
-/** A post a student can see: not hidden itself and not in a hidden thread. Anything else is as good as gone. */
-async function assertVisible(posts: ForumPostRepository, target: ForumPostTarget): Promise<void> {
-  const reply = target.kind === "reply" ? await posts.findReply(target.id) : null;
-  const thread = await posts.findThread(target.kind === "thread" ? target.id : (reply?.threadId ?? ""));
-
-  if (!thread || thread.thread.hiddenAt || (target.kind === "reply" && (!reply || reply.hiddenAt))) {
-    throw new NotFoundError(POST_NOT_FOUND);
-  }
-}
 
 export class ReportForumPostUseCase {
   constructor(

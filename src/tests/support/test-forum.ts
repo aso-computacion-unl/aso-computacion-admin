@@ -4,6 +4,7 @@ import {
   InMemoryForumMemberRepository,
   InMemoryForumModerationRepository,
   InMemoryForumPostRepository,
+  InMemoryForumReactionRepository,
   InMemoryForumSessionRepository,
   InMemoryForumStore,
   makeForumMember,
@@ -17,6 +18,7 @@ const sessions = new InMemoryForumSessionRepository(members);
 const categories = new InMemoryForumCategoryRepository(store);
 const posts = new InMemoryForumPostRepository(store);
 const moderation = new InMemoryForumModerationRepository(store, sessions);
+const reactions = new InMemoryForumReactionRepository(store);
 
 /**
  * The forum services every unit test sees instead of the Prisma-backed container (installed for all
@@ -29,7 +31,8 @@ export const testForum = {
   categories,
   posts,
   moderation,
-  services: buildForumServices({ members, sessions, categories, posts, moderation }, { allowedDomain: FORUM_TEST_DOMAIN }),
+  reactions,
+  services: buildForumServices({ members, sessions, categories, posts, moderation, reactions }, { allowedDomain: FORUM_TEST_DOMAIN }),
 };
 
 export function resetTestForum(): void {
@@ -40,6 +43,7 @@ export function resetTestForum(): void {
   store.threads.clear();
   store.replies.clear();
   store.reports.clear();
+  store.reactions.clear();
 }
 
 /**

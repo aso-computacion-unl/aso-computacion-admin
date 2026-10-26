@@ -1,5 +1,7 @@
 /** The kinds of content that can be in the trash. */
-export type TrashKind = "event" | "news" | "faq" | "command" | "social" | "pillar" | "board";
+export const TRASH_KINDS = ["event", "news", "faq", "command", "social", "pillar", "board"] as const;
+
+export type TrashKind = (typeof TRASH_KINDS)[number];
 
 /** One row of the trash view: what it was, how to find it again, and when it was deleted. */
 export interface TrashItemResult {

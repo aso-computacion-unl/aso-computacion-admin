@@ -100,6 +100,7 @@ export { NEWS_COVER_FOLDER, NEWS_COVER_MIN_WIDTH, SetNewsCoverUseCase } from "./
 export { SetNewsItemPublishedUseCase } from "./use-cases/set-news-item-published.use-case";
 export { UpdateNewsItemUseCase } from "./use-cases/update-news-item.use-case";
 export type { TrashableRepository, TrashedItem } from "./ports/trashable-repository.port";
+export { TRASH_KINDS } from "./dto/trash-result.dto";
 export type { TrashItemResult, TrashKind } from "./dto/trash-result.dto";
 export { ListTrashUseCase } from "./use-cases/list-trash.use-case";
 export type { TrashSources } from "./use-cases/list-trash.use-case";

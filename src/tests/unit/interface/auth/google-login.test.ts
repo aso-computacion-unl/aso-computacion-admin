@@ -27,9 +27,10 @@ vi.mock("@/infrastructure/auth/google-oauth", async (importOriginal) => ({
 }));
 
 import { GoogleAuthError } from "@/infrastructure/auth/google-oauth";
-import { OAUTH_STATE_COOKIE_NAME, sealOAuthState } from "@/infrastructure/auth/oauth-state";
+import { inviteTokens } from "@/infrastructure/auth/invite-token";
+import { OAUTH_STATE_COOKIE_NAME, openOAuthState, sealOAuthState } from "@/infrastructure/auth/oauth-state";
 import { finishGoogleLogin, startGoogleLogin } from "@/interface/auth/google-login";
-import { makeUser } from "@/tests/fakes/in-memory-auth";
+import { makeInvite, makeUser } from "@/tests/fakes/in-memory-auth";
 import { testAuth } from "@/tests/support/test-auth";
 
 const GOOGLE_ENV = { GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org", ADMIN_SECRET: "s".repeat(40) };
@@ -245,5 +246,147 @@ describe("finishGoogleLogin", () => {
       expect(location(await finishGoogleLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/login");
       expect(completeMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("login from an invite link (S11)", () => {
+  const TOKEN = inviteTokens.generate();
+  const HOUR = 60 * 60 * 1000;
+
+  async function pendingInvite(overrides: Parameters<typeof makeInvite>[0] = {}) {
+    await testAuth.invites.create(
+      makeInvite({ tokenHash: inviteTokens.hash(TOKEN), email: "ben@example.org", role: "ADMIN", createdAt: new Date(Date.now() - HOUR), expiresAt: new Date(Date.now() + HOUR), ...overrides }),
+    );
+  }
+
+  async function arrive(identity: { email: string; emailVerified: boolean; name?: string } = { email: "ben@example.org", emailVerified: true, name: "Ben" }, invite: string | null = TOKEN) {
+    sealedFlow = await sealOAuthState({ ...FLOW, ...(invite ? { invite } : {}) });
+    completeMock.mockResolvedValue(identity);
+
+    return finishGoogleLogin(request("?code=auth-code&state=the-state"));
+  }
+
+  describe("startGoogleLogin", () => {
+    const start = (query: string) => startGoogleLogin(new Request(`https://admin.example.org/auth/google/start${query}`));
+
+    beforeEach(() => startMock.mockReturnValue({ url: new URL("https://accounts.google.com/x"), ...FLOW }));
+
+    it.each([["a value of the wrong shape", "?invite=not-a-token"], ["an empty value", "?invite="], ["a token that is too long", `?invite=${"a".repeat(44)}`]])(
+      "%s: back to the login page with the invite message, no cookie, Google never contacted",
+      async (_label, query) => {
+        const response = await start(query);
+
+        expect(location(response)).toBe("https://admin.example.org/login?error=invite");
+        expect(cookieSetMock).not.toHaveBeenCalled();
+        expect(startMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("seals a well-formed invite token into the flow cookie", async () => {
+      const response = await start(`?invite=${TOKEN}`);
+
+      expect(location(response)).toBe("https://accounts.google.com/x");
+      expect(await openOAuthState((cookieSetMock.mock.calls[0] as [string, string])[1])).toEqual({ ...FLOW, invite: TOKEN });
+    });
+
+    it("a plain start carries no invite", async () => {
+      await start("");
+
+      expect(await openOAuthState((cookieSetMock.mock.calls[0] as [string, string])[1])).toEqual(FLOW);
+    });
+  });
+
+  it("redeems the invite, creating the user with the invited role, and opens a session audited as invite.redeem plus login.success", async () => {
+    await pendingInvite();
+
+    const response = await arrive();
+    const ben = await testAuth.users.findByEmail("ben@example.org");
+
+    expect(location(response)).toBe("https://admin.example.org/admin");
+    expect(ben).toMatchObject({ role: "ADMIN", active: true });
+    expect(openSessionMock).toHaveBeenCalledWith({ kind: "user", userId: ben?.id }, "ADMIN");
+    expect(recordSuccessMock).toHaveBeenCalledWith("203.0.113.5");
+    // The in-memory log lists newest first: the redemption is written before the login.
+    expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.actorKind, entry.actorUserId])).toEqual([
+      ["login.success", "session", "session-1", "user", ben?.id],
+      ["invite.redeem", "invite", "invite-1", "user", ben?.id],
+    ]);
+    expect(JSON.stringify(testAuth.audit.entries)).not.toMatch(/ben@|@/);
+  });
+
+  it("the invite is single use: the second arrival is refused", async () => {
+    await pendingInvite();
+    await arrive();
+    vi.clearAllMocks();
+    openSessionMock.mockResolvedValue({ sessionId: "session-2" });
+    consumeMock.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+    throttleTargetMock.mockResolvedValue({ key: "k", deviceId: undefined });
+    cookieGetMock.mockImplementation((name: string) => ({ name, value: sealedFlow }));
+    testAuth.audit.entries.length = 0;
+
+    expect(location(await finishGoogleLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/login?error=invite");
+    expect(openSessionMock).not.toHaveBeenCalled();
+  });
+
+  describe.each([
+    ["a Google account other than the invited one", () => pendingInvite(), { email: "mallory@example.org", emailVerified: true }],
+    ["an unverified Google email", () => pendingInvite(), { email: "ben@example.org", emailVerified: false }],
+    ["an expired invite", () => pendingInvite({ expiresAt: new Date(Date.now() - 1000) }), { email: "ben@example.org", emailVerified: true }],
+    ["a revoked invite", () => pendingInvite({ revokedAt: new Date() }), { email: "ben@example.org", emailVerified: true }],
+    ["a used invite", () => pendingInvite({ usedAt: new Date(), usedByUserId: "ana" }), { email: "ben@example.org", emailVerified: true }],
+    ["an unknown invite", async () => undefined, { email: "ben@example.org", emailVerified: true }],
+  ])("%s", (_label, setup, identity) => {
+    it("opens no session, creates no user, and redirects with error=invite without saying why", async () => {
+      await setup();
+      const usersBefore = testAuth.users.users.size;
+
+      const response = await arrive(identity);
+
+      expect(location(response)).toBe("https://admin.example.org/login?error=invite");
+      expect(openSessionMock).not.toHaveBeenCalled();
+      expect(testAuth.users.users.size).toBe(usersBefore);
+      expect(recordSuccessMock).not.toHaveBeenCalled();
+      expect(testAuth.audit.entries).toHaveLength(1);
+      expect(testAuth.audit.entries[0]).toMatchObject({ action: "login.failure", actorKind: "system", actorUserId: null, summary: "Invitación rechazada" });
+      expect(JSON.stringify(testAuth.audit.entries)).not.toMatch(/mallory|ben@|@|mismatch|expired|revoked/);
+    });
+  });
+
+  it("an account that is already a user is not logged in through someone else's invite", async () => {
+    await pendingInvite({ email: "ana@example.org" });
+
+    expect(location(await arrive({ email: "ana@example.org", emailVerified: true, name: "Ana" }))).toBe("https://admin.example.org/login?error=invite");
+    expect(openSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("a flow without an invite still goes through the normal login, even when an invite exists for that email", async () => {
+    await pendingInvite({ email: "ana@example.org" });
+    const resolve = vi.spyOn(testAuth.services.resolveGoogleLogin, "execute");
+    const redeem = vi.spyOn(testAuth.services.redeemInvite, "execute");
+
+    const response = await arrive({ email: "ana@example.org", emailVerified: true, name: "Ana" }, null);
+
+    expect(location(response)).toBe("https://admin.example.org/admin");
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(redeem).not.toHaveBeenCalled();
+    expect(openSessionMock).toHaveBeenCalledWith({ kind: "user", userId: "ana" }, "EDITOR");
+  });
+
+  it("an invite flow does not use the normal login path", async () => {
+    await pendingInvite();
+    const resolve = vi.spyOn(testAuth.services.resolveGoogleLogin, "execute");
+
+    await arrive();
+
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("a Google outage during an invite login is the retryable message and leaves the invite pending", async () => {
+    await pendingInvite();
+    completeMock.mockRejectedValue(new GoogleAuthError("unavailable"));
+    sealedFlow = await sealOAuthState({ ...FLOW, invite: TOKEN });
+
+    expect(location(await finishGoogleLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/login?error=verification");
+    expect((await testAuth.invites.findByTokenHash(inviteTokens.hash(TOKEN)))?.usedAt).toBeNull();
   });
 });

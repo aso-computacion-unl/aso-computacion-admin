@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 
 import { googleConfig, type GoogleConfig } from "@/infrastructure/auth/auth-config";
 import { completeGoogleAuthorization, GoogleAuthError, googleClient, startGoogleAuthorization } from "@/infrastructure/auth/google-oauth";
+import { isInviteToken } from "@/infrastructure/auth/invite-token";
 import { consumeLoginAttempt, recordSuccessfulLogin } from "@/infrastructure/auth/login-rate-limiter";
 import { openOAuthState, sealOAuthState, statesMatch } from "@/infrastructure/auth/oauth-state";
 import { clearOAuthStateCookie, readOAuthStateCookie, setOAuthStateCookie } from "@/infrastructure/auth/oauth-state-cookies";
 import { reportError } from "@/infrastructure/observability/report-error";
 
+import type { User } from "@/domain/user";
+
 import { recordAudit, SYSTEM_ACTOR } from "../audit/record-audit";
+import { ROLE_LABELS } from "../admin/role-labels";
 import { getAuthServices } from "./auth-container";
 import { resolveThrottleTarget } from "./login-throttle";
 import type { LoginErrorCode } from "./login-errors";
@@ -37,10 +41,18 @@ export async function startGoogleLogin(request: Request): Promise<NextResponse> 
     return redirectTo(request.url, "/login");
   }
 
+  // An invite link's token rides along in the flow cookie. A value that is not shaped like a token is
+  // refused here, before Google is contacted or any cookie is set.
+  const invite = new URL(request.url).searchParams.get("invite");
+
+  if (invite !== null && !isInviteToken(invite)) {
+    return redirectTo(config.redirectUri, "/login", "invite");
+  }
+
   try {
     const { url, ...flow } = startGoogleAuthorization(config);
 
-    await setOAuthStateCookie(await sealOAuthState(flow));
+    await setOAuthStateCookie(await sealOAuthState(invite === null ? flow : { ...flow, invite }));
 
     const response = NextResponse.redirect(url);
     response.headers.set("Cache-Control", "no-store");
@@ -93,16 +105,32 @@ export async function finishGoogleLogin(request: Request): Promise<NextResponse>
     return redirectTo(config.redirectUri, "/login", "failed");
   }
 
-  return completeLogin(config, throttle.key, { code, codeVerifier: flow.codeVerifier, nonce: flow.nonce });
+  return completeLogin(config, throttle.key, { code, codeVerifier: flow.codeVerifier, nonce: flow.nonce, invite: flow.invite });
 }
 
-async function completeLogin(config: GoogleConfig, throttleKey: string, flow: { code: string; codeVerifier: string; nonce: string }): Promise<NextResponse> {
-  let outcome: Awaited<ReturnType<ReturnType<typeof getAuthServices>["resolveGoogleLogin"]["execute"]>>;
+/** Who got in, and the invite they used, if any. */
+type LoginOutcome = { ok: true; user: User; inviteId?: string } | { ok: false; invite: boolean };
+
+async function completeLogin(
+  config: GoogleConfig,
+  throttleKey: string,
+  flow: { code: string; codeVerifier: string; nonce: string; invite?: string },
+): Promise<NextResponse> {
+  let outcome: LoginOutcome;
 
   try {
-    const identity = await completeGoogleAuthorization({ client: googleClient(config), clientId: config.clientId, ...flow });
+    const { invite, ...exchange } = flow;
+    const identity = await completeGoogleAuthorization({ client: googleClient(config), clientId: config.clientId, ...exchange });
 
-    outcome = await getAuthServices().resolveGoogleLogin.execute(identity);
+    if (invite) {
+      const redeemed = await getAuthServices().redeemInvite.execute({ token: invite, identity });
+
+      outcome = redeemed.ok ? redeemed : { ok: false, invite: true };
+    } else {
+      const resolved = await getAuthServices().resolveGoogleLogin.execute(identity);
+
+      outcome = resolved.ok ? resolved : { ok: false, invite: false };
+    }
   } catch (error) {
     if (error instanceof GoogleAuthError && error.failure === "unavailable") {
       // Google or the network to it is down: not a verdict on the person, so retryable and not a login failure.
@@ -127,8 +155,9 @@ async function completeLogin(config: GoogleConfig, throttleKey: string, flow: { 
   }
 
   if (!outcome.ok) {
-    await loginFailure("Acceso con Google rechazado");
-    return redirectTo(config.redirectUri, "/login", "denied");
+    // The reason (wrong account, used, expired…) stays out of the audit entry and the redirect: it would tell a stranger which emails and links exist.
+    await loginFailure(outcome.invite ? "Invitación rechazada" : "Acceso con Google rechazado");
+    return redirectTo(config.redirectUri, "/login", outcome.invite ? "invite" : "denied");
   }
 
   let sessionId: string;
@@ -147,6 +176,13 @@ async function completeLogin(config: GoogleConfig, throttleKey: string, flow: { 
   } catch {
     // The sign-in was right; a leftover counter only costs a little head room.
     console.error("Could not clear the login throttle after a successful login.");
+  }
+
+  if (outcome.inviteId) {
+    await recordAudit(
+      { kind: "user", userId: outcome.user.id },
+      { action: "invite.redeem", entityType: "invite", entityId: outcome.inviteId, summary: `Invitación aceptada con el rol ${ROLE_LABELS[outcome.user.role]}` },
+    );
   }
 
   await recordAudit(

@@ -1,5 +1,8 @@
 import { beforeEach, vi } from "vitest";
 
+// `server-only` guards the Next bundle, not unit tests; the invite token module test-auth.ts builds on carries it.
+vi.mock("server-only", () => ({}));
+
 // Every unit test gets the in-memory auth services (see test-auth.ts) instead of the Prisma ones.
 // A test that wants its own container mocks the module itself.
 vi.mock("@/interface/auth/auth-container", async () => {

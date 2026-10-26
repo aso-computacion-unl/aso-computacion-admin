@@ -5,7 +5,7 @@ import { CONFIG_INCOMPLETE_MESSAGE, LOGIN_ERROR_MESSAGES, loginErrorMessage } fr
 describe("loginErrorMessage", () => {
   it("words every code the Google routes can send, the refusal without saying why", () => {
     expect(loginErrorMessage("denied")).toBe("Esta cuenta no tiene acceso.");
-    expect(Object.keys(LOGIN_ERROR_MESSAGES).sort()).toEqual(["denied", "failed", "throttled", "unavailable", "verification"]);
+    expect(Object.keys(LOGIN_ERROR_MESSAGES).sort()).toEqual(["denied", "failed", "invite", "throttled", "unavailable", "verification"]);
   });
 
   it("tells a Google outage apart from a refusal, and says to retry", () => {

@@ -24,6 +24,11 @@ export interface ActionResult {
   fieldErrors?: Record<string, string>;
 }
 
+/** The one message of a result, whichever way it was reported: the error, else the first field error. */
+export function resultText(result: ActionResult): string {
+  return result.error ?? Object.values(result.fieldErrors ?? {})[0] ?? "Ocurrió un error inesperado. Intente nuevamente.";
+}
+
 export const SESSION_EXPIRED_MESSAGE = "Su sesión expiró. Inicie sesión de nuevo.";
 export const FORBIDDEN_MESSAGE = "No tiene permiso para realizar esta acción.";
 const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.";

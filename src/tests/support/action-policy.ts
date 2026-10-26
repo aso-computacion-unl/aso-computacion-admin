@@ -74,6 +74,11 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     trashCommand: { role: "EDITOR", audit: "command.trash" },
     moveCommand: { role: "EDITOR", audit: "command.move" },
   },
+  "src/interface/admin/bulk/actions.ts": {
+    // Same level as the single-item actions they repeat: an editor may publish, unpublish and trash. One audit entry per item.
+    bulkSetPublished: { role: "EDITOR", audit: "faq.publish" },
+    bulkTrash: { role: "EDITOR", audit: "faq.trash" },
+  },
   "src/interface/admin/preview/actions.ts": {
     createPreviewToken: { role: "EDITOR", audit: "preview.token_create" },
   },

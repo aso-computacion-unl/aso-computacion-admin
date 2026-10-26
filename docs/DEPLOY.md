@@ -48,7 +48,7 @@ The image URLs the public API returns contain the cloud name and each asset's `p
 
 ### `maxDuration`
 
-`app/admin/layout.tsx` sets `maxDuration = 30` (seconds) for every admin page and action. After an edit, `after()` keeps the invocation open while the landing rebuild debounces: up to 15 s of waiting plus a 5 s timeout on the hook call (`src/infrastructure/deploy/deploy-hook.ts`). If your Vercel plan caps function duration **below 30 s**, the deployment may be rejected or the wait cut short, and the rebuild for that burst of edits is lost. The daily cron rebuild then picks the change up, so nothing breaks permanently. If you hit the cap, lower `maxDuration` and `DEPLOY_HOOK_MAX_WAIT_MS` together. Check your plan's current limit in the Vercel docs; it was not verified here.
+`app/admin/layout.tsx` sets `maxDuration = 30` (seconds) for every admin page and action. After an edit, `after()` keeps the invocation open while the landing rebuild debounces: up to 15 s of waiting, a 5 s timeout on the hook call and a 3 s one on recording its status (`src/infrastructure/deploy/deploy-hook.ts`). If your Vercel plan caps function duration **below 30 s**, the deployment may be rejected or the wait cut short, and the rebuild for that burst of edits is lost. The daily cron rebuild then picks the change up, so nothing breaks permanently. If you hit the cap, lower `maxDuration` and `DEPLOY_HOOK_MAX_WAIT_MS` together. Check your plan's current limit in the Vercel docs; it was not verified here.
 
 ## 4. Environment variables
 

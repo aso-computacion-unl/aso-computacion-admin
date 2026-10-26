@@ -10,6 +10,7 @@ import {
   DEPLOY_HOOK_DEBOUNCE_MS,
   DEPLOY_HOOK_MAX_WAIT_MS,
   DEPLOY_HOOK_TIMEOUT_MS,
+  DEPLOY_STATUS_WRITE_TIMEOUT_MS,
 } from "@/infrastructure/deploy/deploy-hook";
 
 // A fresh module per test: the pending rebuild and the "reported once" latches live in the module.
@@ -330,5 +331,27 @@ describe("deploy outcome recording", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await expect(settled).resolves.toBeUndefined();
+  });
+
+  it("gives up on a status write that never answers: the invocation is released, the timeout is logged and nothing throws", async () => {
+    recordMock.mockReturnValue(new Promise(() => undefined));
+    requestSiteRebuild();
+    const [settled] = afterMock.mock.calls[0] as [Promise<void>];
+    let released = false;
+    void settled.then(() => (released = true));
+
+    await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS + DEPLOY_STATUS_WRITE_TIMEOUT_MS - 1);
+    expect(released).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(released).toBe(true);
+    expect(warn).toHaveBeenCalledWith("Recording the landing deploy status timed out.");
+    expect(logged()).not.toContain("secret-token");
+  });
+
+  it("keeps the status write short enough to fit the admin function with the longest burst", () => {
+    expect(DEPLOY_STATUS_WRITE_TIMEOUT_MS).toBe(3_000);
+    expect(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS + DEPLOY_STATUS_WRITE_TIMEOUT_MS).toBeLessThan(30_000);
   });
 });

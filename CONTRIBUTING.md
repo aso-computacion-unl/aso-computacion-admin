@@ -20,7 +20,8 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
 - Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
 - Cada PR necesita **1 aprobación** de otra persona.
 - No se permite `force push` ni borrar `main`.
-- La CI (GitHub Actions) tiene que pasar en verde para mergear: corre lint, typecheck, tests unitarios, tests de integración con Postgres y build en cada PR. No usa secretos.
+- La CI (GitHub Actions) tiene que pasar en verde para mergear: corre auditoría de dependencias de producción (`npm audit`, falla con avisos altos o críticos), lint, typecheck, tests unitarios con umbral de cobertura, tests de integración con Postgres y build en cada PR. No usa secretos.
+- Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
 
 ## Flujo de trabajo
 
@@ -37,7 +38,7 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
    npm ci
    npm run lint
    npm run typecheck
-   npm test
+   npm run test:coverage      # tests unitarios + umbral de cobertura
    npm run test:integration   # levanta su propio Postgres con Docker
    npm run build
    ```

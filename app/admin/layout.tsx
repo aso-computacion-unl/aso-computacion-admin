@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { BREAK_GLASS_NOTICE, sessionLabel } from "@/interface/admin/role-labels";
 import { logout } from "@/interface/auth/actions";
+import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { BrandIsotype, BrandLogo } from "../_components/brand-mark";
 import { ThemeToggle } from "../_components/theme-toggle";
@@ -11,6 +13,9 @@ import { ThemeToggle } from "../_components/theme-toggle";
 import { SideNav, TabBar } from "./_components/admin-nav";
 import { ToastProvider } from "./_components/toast";
 import "./timeline.css";
+
+// Every admin page checks the session in the database, so none of them can be prerendered.
+export const dynamic = "force-dynamic";
 
 // Server actions run in the page's function. After a mutation `after()` holds it open while the
 // landing rebuild debounces (deploy-hook.ts), so the default 10 s would cut it short.
@@ -20,7 +25,9 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
+export default async function AdminLayout({ children }: AdminLayoutProps) {
+  const actor = await requirePageSession();
+
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       <a
@@ -34,9 +41,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <Link href="/admin" aria-label="ASO Computación, inicio de la administración" className="block px-2 py-1">
           <BrandLogo width={152} className="h-auto w-38" />
         </Link>
-        <SideNav />
+        <SideNav role={actor.role} />
         <div className="mt-auto grid gap-2 border-t border-border pt-4">
-          <p className="px-2 font-mono text-[0.8125rem] text-mist">Sesión: directiva</p>
+          <p className="px-2 font-mono text-[0.8125rem] text-mist">{sessionLabel(actor)}</p>
           <ThemeToggle showLabel className="w-full justify-start" />
           <form action={logout}>
             <Button variant="quiet" type="submit" className="w-full justify-start">
@@ -61,10 +68,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </header>
 
       <main id="main" className="mx-auto w-full max-w-360 px-4 pt-5 pb-[calc(4.25rem+5rem)] lg:px-10 lg:pt-8 lg:pb-24 xl:px-12">
+        {actor.kind === "break_glass" ? (
+          <p role="note" className="mb-5 flex items-start gap-2 border-l-2 border-signal bg-signal/10 px-3 py-2 text-sm">
+            <Icon name="alert" className="mt-px size-4 shrink-0 text-signal" />
+            {BREAK_GLASS_NOTICE}
+          </p>
+        ) : null}
         <ToastProvider>{children}</ToastProvider>
       </main>
 
-      <TabBar />
+      <TabBar role={actor.role} />
     </div>
   );
 }

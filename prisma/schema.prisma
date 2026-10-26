@@ -210,3 +210,66 @@ model LoginAttempt {
 
   @@index([lastAttemptAt])
 }
+
+enum UserRole {
+  ADMIN
+  EDITOR
+}
+
+// Who an audit entry or a session belongs to. "system" is only used by audit entries.
+enum ActorKind {
+  user
+  break_glass
+  system
+}
+
+// S5: people allowed into the admin, managed from the Users page. The email is stored lower-cased
+// (CHECK in the migration) and is the only identity Google login is matched against.
+// Users are deactivated, never deleted: the audit log keeps referring to them by id.
+model User {
+  id          String    @id
+  email       String    @unique
+  name        String
+  role        UserRole
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+  sessions    Session[]
+}
+
+// One row per login, checked by the guard on every action and protected page, so a session can be
+// revoked at once. A break-glass login (shared-password emergency access) has kind "break_glass" and
+// no user (CHECK in the migration). `ipHash` is a salted hash, never the address; `userAgent` is
+// truncated by the app (CHECK keeps it short).
+model Session {
+  id         String    @id
+  kind       ActorKind @default(user)
+  userId     String?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime
+  userAgent  String?
+  ipHash     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+// Append-only record of who changed what. Holds names and ids only: no content bodies, no secrets.
+// `actorUserId` has no foreign key on purpose: the entry must outlive anything that happens to the user.
+model AuditLog {
+  id          String    @id
+  at          DateTime  @default(now())
+  actorUserId String?
+  actorKind   ActorKind
+  action      String
+  entityType  String
+  entityId    String?
+  summary     String
+
+  @@index([at(sort: Desc)])
+  @@index([entityType, at(sort: Desc)])
+  @@index([actorUserId, at(sort: Desc)])
+}

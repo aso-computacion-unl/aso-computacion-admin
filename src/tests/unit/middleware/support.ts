@@ -18,7 +18,8 @@ export function buildRequest(path: string, cookieValue?: string): NextRequest {
 export async function signTestToken(expiresInSeconds: number, secret: string = TEST_SECRET): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
 
-  return new SignJWT({ sub: "admin" })
+  return new SignJWT({ sid: "session-1", kind: "user", role: "EDITOR", uid: "user-1" })
+    .setSubject("user-1")
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(now)
     .setExpirationTime(now + expiresInSeconds)

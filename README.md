@@ -42,7 +42,10 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **Directiva** | Nombre, cargo y foto de cada integrante (nunca datos de contacto) |
 | **Pilares** | Las tarjetas de pilares que presenta el sitio |
 | **Redes** | Enlaces a las redes sociales |
-| **Sitio** | Lema, descripción y texto «Acerca de» |
+| **Sitio** | Lema, descripción y texto «Acerca de» (solo administradores) |
+| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol: editor o administrador |
+| **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
+| **Registro** | Quién cambió qué y cuándo (solo administradores) |
 
 Cada elemento se puede publicar u ocultar cuando se desee, y nada llega al sitio hasta que se publica. Las listas (FAQ, directiva, pilares y redes) también se pueden reordenar.
 

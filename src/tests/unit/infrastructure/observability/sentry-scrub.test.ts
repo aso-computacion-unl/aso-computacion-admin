@@ -13,6 +13,29 @@ describe("scrubSentryEvent", () => {
     expect(event.request).toEqual({ url: "https://admin.test/admin/events", method: "POST" });
   });
 
+  it("reduces the request URL to origin and path, so an OAuth callback never sends code or state", () => {
+    const event = scrubSentryEvent({
+      request: { url: "https://admin.test/api/auth/google/callback?code=4%2Fsecret-code&state=secret-state#frag", method: "GET" },
+    });
+
+    expect(event.request?.url).toBe("https://admin.test/api/auth/google/callback");
+    expect(JSON.stringify(event)).not.toContain("secret");
+  });
+
+  it("drops the query string of the request, in its string and object forms", () => {
+    const asString = scrubSentryEvent({ request: { url: "https://admin.test/cb", query_string: "code=secret-code&state=secret-state" } });
+    const asObject = scrubSentryEvent({ request: { url: "https://admin.test/cb", query_string: { code: "secret-code", state: "secret-state" } } });
+
+    expect(asString.request).toEqual({ url: "https://admin.test/cb" });
+    expect(asObject.request).toEqual({ url: "https://admin.test/cb" });
+  });
+
+  it("does not leak a request URL it cannot parse", () => {
+    const event = scrubSentryEvent({ request: { url: "not a url?code=secret-code" } });
+
+    expect(JSON.stringify(event)).not.toContain("secret-code");
+  });
+
   it("drops authorization and cookie headers whatever their case, keeps the rest", () => {
     const event = scrubSentryEvent({
       request: {

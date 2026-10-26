@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = vi.hoisted(() => ({
-  requireAdminSessionMock: vi.fn(),
+const { requireSessionMock, revalidatePathMock, redirectMock, useCases } = vi.hoisted(() => ({
+  requireSessionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   redirectMock: vi.fn(() => {
     throw new Error("REDIRECT");
@@ -17,9 +17,10 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
-vi.mock("@/interface/auth/require-admin-session", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/interface/auth/require-admin-session")>()),
-  requireAdminSession: requireAdminSessionMock,
+vi.mock("@/interface/auth/require-session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/interface/auth/require-session")>()),
+  requireSession: requireSessionMock,
+  requireRole: requireSessionMock,
 }));
 vi.mock("@/interface/admin/socials/socials-container", () => ({ getSocialLinkUseCases: () => useCases }));
 
@@ -39,7 +40,7 @@ const PARSED = { ...FIELDS, isPublished: false };
 describe("social link server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireAdminSessionMock.mockResolvedValue(undefined);
+    requireSessionMock.mockResolvedValue({ kind: "user", sessionId: "s1", userId: "u1", name: "Ana", role: "ADMIN" });
     useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 

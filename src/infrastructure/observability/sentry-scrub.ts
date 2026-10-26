@@ -3,7 +3,7 @@
  * accepts an error event and a transaction alike.
  */
 interface ScrubbableEvent {
-  request?: { data?: unknown; cookies?: unknown; headers?: Record<string, string> };
+  request?: { url?: string; query_string?: unknown; data?: unknown; cookies?: unknown; headers?: Record<string, string> };
   breadcrumbs?: { message?: string; data?: Record<string, unknown> }[];
   spans?: { description?: string; data?: Record<string, unknown> }[];
   exception?: { values?: { value?: string }[] };
@@ -30,6 +30,17 @@ function redactUrls(text: string): string {
   });
 }
 
+/** Origin and path only: no query string (an OAuth callback carries `code` and `state`) and no fragment. */
+function redactRequestUrl(raw: string): string {
+  try {
+    const { origin, pathname } = new URL(raw);
+
+    return origin !== "null" ? `${origin}${pathname}` : "[url]";
+  } catch {
+    return "[url]";
+  }
+}
+
 function redactData(data: Record<string, unknown> | undefined): void {
   if (!data) {
     return;
@@ -44,7 +55,7 @@ function redactData(data: Record<string, unknown> | undefined): void {
 
 /**
  * `beforeSend` / `beforeSendTransaction` for every runtime: removes what must not leave the server
- * (request bodies, cookies, credential headers) and the secret part of any URL. Mutates and returns the event.
+ * (request bodies, cookies, credential headers, query strings) and the secret part of any URL. Mutates and returns the event.
  */
 export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
   const { request } = event;
@@ -52,6 +63,11 @@ export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
   if (request) {
     delete request.data;
     delete request.cookies;
+    delete request.query_string;
+
+    if (request.url) {
+      request.url = redactRequestUrl(request.url);
+    }
 
     if (request.headers) {
       request.headers = Object.fromEntries(Object.entries(request.headers).filter(([name]) => !SENSITIVE_HEADERS.test(name)));

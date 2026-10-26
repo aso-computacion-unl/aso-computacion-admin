@@ -8,7 +8,9 @@ import { matcherCovers } from "./support";
 const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 
 /** The only routes that may be reachable without a session. Adding one here is a security decision. */
-const PUBLIC_ROUTES = ["/login", "/api/health", "/api/public/content"];
+// The two Google routes are how a session is obtained, so they cannot require one: the callback only
+// opens a session for a verified Google identity that is on the user list, behind the login throttle.
+const PUBLIC_ROUTES = ["/login", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content"];
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

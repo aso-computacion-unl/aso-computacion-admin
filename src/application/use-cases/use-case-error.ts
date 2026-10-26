@@ -27,3 +27,11 @@ export class RestoreConflictError extends Error {
     this.name = "RestoreConflictError";
   }
 }
+
+/** Raised when the actor is known but not allowed to do this (revoking someone else's session as an editor). */
+export class ForbiddenError extends Error {
+  constructor(message = "Forbidden") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}

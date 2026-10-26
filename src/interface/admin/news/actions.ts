@@ -29,14 +29,16 @@ import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
 
-import { requireAdminSession } from "../../auth/require-admin-session";
+import { recordAudit } from "../../audit/record-audit";
+import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { TRASH_PATH } from "../trash/paths";
 import { parseNewsFormData } from "./news-form-data";
 import { getNewsUseCases } from "./news-container";
 
-// Every action starts with `await requireAdminSession()`, before it reads any
-// input or touches a use case (a server action can be POSTed to any page).
+// Every action starts with the session guard, before it reads any input or touches a use case (a
+// server action can be POSTed to any page). This content is editor-level: any signed-in user. The
+// audit entry is written after the mutation succeeded and can never fail the action.
 
 const LIST_PATH = "/admin/news";
 const editPath = (id: string) => `${LIST_PATH}/${id}/edit`;
@@ -60,8 +62,9 @@ export async function createNewsItem(_prevState: ActionResult | null, formData: 
   let id: string;
 
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
     ({ id } = await getNewsUseCases().create.execute(parseNewsFormData(formData)));
+    await recordAudit(actor, { action: "news.create", entityType: "news", entityId: id, summary: "Novedad creada" });
   } catch (error) {
     return mapActionError(error);
   }
@@ -74,8 +77,9 @@ export async function createNewsItem(_prevState: ActionResult | null, formData: 
 
 export async function updateNewsItem(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
     await getNewsUseCases().update.execute({ id, ...parseNewsFormData(formData) });
+    await recordAudit(actor, { action: "news.update", entityType: "news", entityId: id, summary: "Novedad editada" });
     requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
@@ -87,8 +91,14 @@ export async function updateNewsItem(id: string, _prevState: ActionResult | null
 
 export async function setNewsItemPublished(id: string, isPublished: boolean): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
     await getNewsUseCases().setPublished.execute({ id, isPublished: isPublished === true });
+    await recordAudit(actor, {
+      action: isPublished === true ? "news.publish" : "news.unpublish",
+      entityType: "news",
+      entityId: id,
+      summary: isPublished === true ? "Novedad publicada" : "Novedad pasada a borrador",
+    });
     requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
@@ -101,8 +111,9 @@ export async function setNewsItemPublished(id: string, isPublished: boolean): Pr
 /** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
 export async function trashNewsItem(id: string): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
     const { wasPublished } = await getNewsUseCases().trash.execute({ id });
+    await recordAudit(actor, { action: "news.trash", entityType: "news", entityId: id, summary: "Novedad movida a la papelera" });
 
     if (wasPublished) {
       requestSiteRebuild();
@@ -118,7 +129,7 @@ export async function trashNewsItem(id: string): Promise<ActionResult> {
 
 export async function uploadNewsCover(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
 
     // The schema is strict about its keys, so it only sees the file field.
     const fileOnly = new FormData();
@@ -127,6 +138,7 @@ export async function uploadNewsCover(id: string, _prevState: ActionResult | nul
     await assertValidImageSignature(file);
 
     await getNewsUseCases().setCover.execute({ id, file, alt: String(formData.get("coverAlt") ?? "") });
+    await recordAudit(actor, { action: "news.cover_set", entityType: "news", entityId: id, summary: "Portada de una novedad cambiada" });
     requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
@@ -138,8 +150,9 @@ export async function uploadNewsCover(id: string, _prevState: ActionResult | nul
 
 export async function removeNewsCover(id: string): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireSession();
     await getNewsUseCases().removeCover.execute({ id });
+    await recordAudit(actor, { action: "news.cover_remove", entityType: "news", entityId: id, summary: "Portada de una novedad quitada" });
     requestSiteRebuild();
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));

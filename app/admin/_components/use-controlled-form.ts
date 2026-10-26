@@ -43,5 +43,10 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     startTransition(() => formAction(toFormData(values as Record<string, string | boolean>)));
   }
 
-  return { bind, toggle, handleSubmit, state, isPending, errors: state?.fieldErrors ?? {} };
+  /** Back to the initial values, e.g. after a form that adds one more row saved. */
+  function reset() {
+    setValues(initialValues);
+  }
+
+  return { bind, toggle, handleSubmit, reset, state, isPending, errors: state?.fieldErrors ?? {} };
 }

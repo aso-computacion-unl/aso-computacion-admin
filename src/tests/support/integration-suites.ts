@@ -13,6 +13,8 @@ export const INTEGRATION_SUITES: readonly string[] = [
   "src/tests/integration/infrastructure/board-member-prisma.repository.integration.test.ts",
   "src/tests/integration/infrastructure/news-prisma.repository.integration.test.ts",
   "src/tests/integration/infrastructure/deploy-status-prisma.repository.integration.test.ts",
+  "src/tests/integration/infrastructure/auth-schema.integration.test.ts",
+  "src/tests/integration/infrastructure/auth-prisma.repositories.integration.test.ts",
   "src/tests/integration/infrastructure/login-rate-limiter.integration.test.ts",
   "src/tests/integration/infrastructure/login-throttle.integration.test.ts",
   "src/tests/integration/infrastructure/soft-delete.integration.test.ts",

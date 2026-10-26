@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 
-import { NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
+import { LastAdminError, UserEmailTakenError } from "@/application/auth/auth-errors";
+import { ForbiddenError, NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
 import {
   CommandNameConflictError,
   ImageTooLargeError,
@@ -11,7 +12,7 @@ import {
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { reportError } from "@/infrastructure/observability/report-error";
 
-import { UnauthorizedError } from "../auth/require-admin-session";
+import { UnauthorizedError } from "../auth/require-session";
 
 /**
  * Result of every admin server action. `fieldErrors` carries per-field
@@ -24,6 +25,7 @@ export interface ActionResult {
 }
 
 export const SESSION_EXPIRED_MESSAGE = "Su sesión expiró. Inicie sesión de nuevo.";
+export const FORBIDDEN_MESSAGE = "No tiene permiso para realizar esta acción.";
 const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.";
 const IMAGE_FORMAT_MESSAGE = "Elija una imagen JPEG, PNG o WebP de hasta 5 MB.";
 
@@ -59,6 +61,7 @@ const FIELD_MESSAGES: Record<string, string> = {
   photoAlt: "Describa la foto en 1 a 200 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
+  email: "Escriba un correo válido.",
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
 };
 
@@ -69,6 +72,8 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
   "Board member not found": "No se encontró al integrante de la directiva.",
+  "User not found": "No se encontró el usuario.",
+  "Session not found": "La sesión ya no está activa.",
 };
 
 const COMMAND_CONFLICT_MESSAGES = {
@@ -100,6 +105,18 @@ function fieldError(field: string, message?: string, overrides?: Record<string, 
 export function mapActionError(error: unknown, fieldMessages?: Record<string, string>): ActionResult {
   if (error instanceof UnauthorizedError) {
     return { error: SESSION_EXPIRED_MESSAGE };
+  }
+
+  if (error instanceof ForbiddenError) {
+    return { error: FORBIDDEN_MESSAGE };
+  }
+
+  if (error instanceof LastAdminError) {
+    return { error: "No se puede quitar ni degradar al último administrador activo." };
+  }
+
+  if (error instanceof UserEmailTakenError) {
+    return fieldError("email", "Ese correo ya está registrado.");
   }
 
   if (error instanceof ZodError) {

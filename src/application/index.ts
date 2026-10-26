@@ -91,6 +91,11 @@ export {
   TESTIMONIAL_PHOTO_MIN_WIDTH,
 } from "./use-cases/set-testimonial-photo.use-case";
 export { UpdateTestimonialUseCase } from "./use-cases/update-testimonial.use-case";
+export type { SponsorLogoResult, SponsorResult } from "./dto/sponsor-result.dto";
+export { CreateSponsorUseCase } from "./use-cases/create-sponsor.use-case";
+export { RemoveSponsorLogoUseCase } from "./use-cases/remove-sponsor-logo.use-case";
+export { SetSponsorLogoUseCase, SPONSOR_LOGO_FOLDER, SPONSOR_LOGO_MIN_WIDTH } from "./use-cases/set-sponsor-logo.use-case";
+export { UpdateSponsorUseCase } from "./use-cases/update-sponsor.use-case";
 export type { PublicContentSnapshot } from "./dto/public-content.dto";
 export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";
 export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-content";

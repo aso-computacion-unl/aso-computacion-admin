@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -13,25 +13,27 @@ import { FieldError } from "../../_components/form-parts";
 import { DeleteButton } from "../../_components/row-actions";
 import { resultMessage, useRunAction } from "../../_components/use-run-action";
 
+import { choiceFromSelect, shownRole } from "./role-select-state";
+
 export function UserRoleSelect({ id, name, role }: { id: string; name: string; role: Role }) {
   const { pending, result, run } = useRunAction();
-  const [shown, setShown] = useState<Role>(role);
+  const [choice, setChoice] = useState<Role | null>(null);
   const message = resultMessage(result);
-
-  // A refused change (the last admin) puts the select back on what is stored.
-  useEffect(() => {
-    if (message) setShown(role);
-  }, [message, role]);
 
   return (
     <div className="grid gap-1">
       <Select
         aria-label={`Rol de ${name}`}
-        value={shown}
+        value={shownRole({ stored: role, choice, pending })}
         disabled={pending}
         onChange={(event) => {
-          setShown(event.target.value as Role);
-          run(() => changeUserRole(id, event.target.value), undefined, `Rol de «${name}» cambiado.`);
+          const picked = choiceFromSelect(event.target.value);
+
+          if (!picked) return;
+
+          // The pick only shows while the change is in flight; afterwards the select is the stored role again.
+          setChoice(picked);
+          run(() => changeUserRole(id, picked), undefined, `Rol de «${name}» cambiado.`);
         }}
       >
         {ROLES.map((option) => (

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { parseRole } from "@/domain/user";
+import { publicOrigin } from "@/infrastructure/auth/auth-config";
 
 import { recordAudit } from "../../audit/record-audit";
 import { getAuthServices } from "../../auth/auth-container";
@@ -13,7 +14,7 @@ import { ROLE_LABELS } from "../role-labels";
 // Every action starts with the session guard, before it reads any input or touches a use case (a
 // server action can be POSTed to any page). Managing users is ADMIN only. A deactivated user is
 // signed out everywhere, and the last active admin can be neither demoted nor deactivated.
-// Audit summaries carry the role and the user's id, never the email.
+// Audit summaries carry the role and the user's or invite's id, never the email or an invite token.
 
 const PAGE_PATH = "/admin/usuarios";
 
@@ -22,19 +23,46 @@ const USER_FIELD_MESSAGES = {
   name: "El nombre admite hasta 120 caracteres.",
 };
 
-export async function inviteUser(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+/** `link` is the invite's whole secret: it is shown once to the ADMIN and kept nowhere. */
+export interface CreateInviteResult extends ActionResult {
+  link?: string;
+}
+
+const MISSING_ORIGIN_MESSAGE = "No se puede generar el link: falta configurar AUTH_URL con la dirección pública del panel.";
+
+export async function createAdminInvite(_prevState: CreateInviteResult | null, formData: FormData): Promise<CreateInviteResult> {
   try {
     const actor = await requireRole("ADMIN");
-    const user = await getAuthServices().inviteUser.execute({
+    const origin = publicOrigin(process.env.AUTH_URL);
+
+    // Checked before anything is stored: an invite whose link cannot be built would only be an orphan.
+    if (!origin) {
+      return { error: MISSING_ORIGIN_MESSAGE };
+    }
+
+    const { invite, token } = await getAuthServices().createInvite.execute({
       email: String(formData.get("email") ?? ""),
-      name: String(formData.get("name") ?? ""),
       role: parseRole(formData.get("role")),
+      createdById: actor.userId,
     });
-    await recordAudit(actor, { action: "user.invite", entityType: "user", entityId: user.id, summary: `Usuario agregado con el rol ${ROLE_LABELS[user.role]}` });
+    await recordAudit(actor, { action: "invite.create", entityType: "invite", entityId: invite.id, summary: `Invitación creada con el rol ${ROLE_LABELS[invite.role]}` });
+    revalidatePath(PAGE_PATH);
+    return { success: true, link: `${origin}/invitacion/${token}` };
+  } catch (error) {
+    return mapError(error, USER_FIELD_MESSAGES);
+  }
+}
+
+export async function revokeAdminInvite(id: string): Promise<ActionResult> {
+  try {
+    const actor = await requireRole("ADMIN");
+
+    await getAuthServices().revokeInvite.execute(String(id));
+    await recordAudit(actor, { action: "invite.revoke", entityType: "invite", entityId: String(id), summary: "Invitación revocada" });
     revalidatePath(PAGE_PATH);
     return { success: true };
   } catch (error) {
-    return mapError(error, USER_FIELD_MESSAGES);
+    return mapError(error);
   }
 }
 

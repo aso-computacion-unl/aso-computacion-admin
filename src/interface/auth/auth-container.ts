@@ -1,7 +1,6 @@
 import {
   ChangeUserRoleUseCase,
   CreateAdminInviteUseCase,
-  InviteUserUseCase,
   ListActiveSessionsUseCase,
   ListAuditLogUseCase,
   ListPendingInvitesUseCase,
@@ -29,7 +28,6 @@ function createAuthServices() {
 
   return {
     audit,
-    invites,
     startSession: new StartSessionUseCase(sessions, users),
     validateSession: new ValidateSessionUseCase(sessions),
     listSessions: new ListActiveSessionsUseCase(sessions),
@@ -40,7 +38,6 @@ function createAuthServices() {
     listPendingInvites: new ListPendingInvitesUseCase(invites),
     revokeInvite: new RevokeAdminInviteUseCase(invites),
     redeemInvite: new RedeemAdminInviteUseCase(invites, inviteTokens, { allowedDomain: allowedEmailDomain() }),
-    inviteUser: new InviteUserUseCase(users),
     changeUserRole: new ChangeUserRoleUseCase(users),
     setUserActive: new SetUserActiveUseCase(users, sessions),
     listAuditLog: new ListAuditLogUseCase(audit),

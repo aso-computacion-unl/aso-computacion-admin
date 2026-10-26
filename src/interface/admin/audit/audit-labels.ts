@@ -9,6 +9,7 @@ const ENTITY_LABELS: Record<string, string> = {
   settings: "Sitio",
   user: "Usuario",
   session: "Sesión",
+  invite: "Invitación",
 };
 
 export function entityTypeLabel(entityType: string): string {

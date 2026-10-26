@@ -42,7 +42,8 @@ describe("server action policy", () => {
       "settings:updateSiteSettings",
       "trash:purgeTrashed",
       "users:changeUserRole",
-      "users:inviteUser",
+      "users:createAdminInvite",
+      "users:revokeAdminInvite",
       "users:setUserActive",
     ]);
   });

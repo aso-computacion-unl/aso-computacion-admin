@@ -78,7 +78,8 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     purgeTrashed: { role: "ADMIN", audit: "faq.purge" },
   },
   "src/interface/admin/users/actions.ts": {
-    inviteUser: { role: "ADMIN", audit: "user.invite" },
+    createAdminInvite: { role: "ADMIN", audit: "invite.create" },
+    revokeAdminInvite: { role: "ADMIN", audit: "invite.revoke" },
     changeUserRole: { role: "ADMIN", audit: "user.role_change" },
     setUserActive: { role: "ADMIN", audit: "user.deactivate" },
   },

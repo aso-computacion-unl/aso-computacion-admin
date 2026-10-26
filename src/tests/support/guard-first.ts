@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect } from "vitest";
 
-/** `requireSession()` lets any signed-in user through; `requireRole("ADMIN")` only admins. The legacy name goes with the last module that still uses it. */
-const GUARD = /^(?:const actor = )?await (requireSession\(\)|requireRole\("ADMIN"\)|requireAdminSession\(\));/;
+/** `requireSession()` lets any signed-in user through; `requireRole("ADMIN")` only admins. */
+const GUARD = /^(?:const actor = )?await (requireSession\(\)|requireRole\("ADMIN"\));/;
 const UNINITIALISED_LETS = /^(\s*let\s+\w+\s*(:[^=;]+)?;)*/;
 
 /**
@@ -18,7 +18,7 @@ export function expectGuardFirstInEveryAction(path: string): string[] {
   return Object.keys(guardsOfEveryAction(path));
 }
 
-export type GuardCall = "requireSession()" | 'requireRole("ADMIN")' | "requireAdminSession()";
+export type GuardCall = "requireSession()" | 'requireRole("ADMIN")';
 
 /** Same check as `expectGuardFirstInEveryAction`, returning which guard each action starts with. */
 export function guardsOfEveryAction(path: string): Record<string, GuardCall> {

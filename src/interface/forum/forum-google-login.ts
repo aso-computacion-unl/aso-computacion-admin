@@ -9,10 +9,8 @@ import { reportError } from "@/infrastructure/observability/report-error";
 
 import { getForumServices } from "./forum-container";
 import type { ForumLoginErrorCode } from "./forum-login-errors";
+import { FORUM_HOME_PATH } from "./forum-return-path";
 import { openForumSession } from "./forum-session-lifecycle";
-
-/** The forum's landing page: where a sign-in starts from and ends up, with a code when it failed. */
-export const FORUM_HOME_PATH = "/foro";
 
 function redirectTo(base: URL | string, error?: ForumLoginErrorCode): NextResponse {
   const url = new URL(FORUM_HOME_PATH, base);

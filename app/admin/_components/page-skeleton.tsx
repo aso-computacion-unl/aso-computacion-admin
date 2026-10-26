@@ -1,4 +1,10 @@
-/** Placeholder while an admin page reads its data: the page head and a few list cards, in the layout's own spacing. */
+/**
+ * Placeholder while an admin page reads its data: the page head and a few list cards, in the layout's own spacing.
+ *
+ * Deliberately NOT `app/admin/loading.tsx`, nor inside a Suspense boundary around a page: that boundary is revealed
+ * while a server action refreshes the page, and with Next 15.5 / React 19.2 the refresh then never commits
+ * until something else re-renders (a trashed row stayed on screen). Guarded by admin-route-boundaries.test.ts.
+ */
 function SkeletonCard() {
   return (
     <li className="grid gap-3 rounded bg-card p-4 md:px-5 lg:grid-cols-[7.5rem_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
@@ -12,7 +18,7 @@ function SkeletonCard() {
   );
 }
 
-export default function AdminLoading() {
+export function PageSkeleton() {
   return (
     <div role="status" aria-busy="true" className="motion-safe:animate-pulse">
       <span className="sr-only">Cargando…</span>

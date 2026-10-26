@@ -19,7 +19,7 @@ type Env = Record<string, string | undefined>;
 
 export class PreviewSecretError extends Error {
   constructor() {
-    super("PREVIEW_TOKEN_SECRET must be at least 32 characters and different from ADMIN_SECRET and FORUM_SESSION_SECRET.");
+    super("PREVIEW_TOKEN_SECRET must be at least 32 characters and different from ADMIN_SECRET, FORUM_SESSION_SECRET and CRON_SECRET.");
     this.name = "PreviewSecretError";
   }
 }
@@ -38,7 +38,7 @@ function envValue(env: Env, name: string): string | undefined {
  */
 function previewSecret(env: Env): Uint8Array | undefined {
   const secret = envValue(env, "PREVIEW_TOKEN_SECRET");
-  const others = [envValue(env, "ADMIN_SECRET"), envValue(env, "FORUM_SESSION_SECRET")];
+  const others = [envValue(env, "ADMIN_SECRET"), envValue(env, "FORUM_SESSION_SECRET"), envValue(env, "CRON_SECRET")];
 
   return secret && secret.length >= SECRET_MIN_LENGTH && !others.includes(secret) ? new TextEncoder().encode(secret) : undefined;
 }

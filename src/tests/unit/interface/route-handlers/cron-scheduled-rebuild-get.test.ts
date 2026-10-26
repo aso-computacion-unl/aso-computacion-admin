@@ -185,10 +185,7 @@ describe("vercel.json cron", () => {
     expect(() => readFileSync("app/api/cron/scheduled-rebuild/route.ts", "utf8")).not.toThrow();
   });
 
-  it("runs often enough for scheduled content to appear within a quarter of an hour: a valid 5-field schedule firing at least every 15 minutes", () => {
-    const [minute, ...rest] = config.crons[0]!.schedule.split(" ");
-
-    expect(rest).toEqual(["*", "*", "*", "*"]);
-    expect(minute).toMatch(/^\*\/(1|2|3|5|10|15)$/);
+  it("runs once a day at 06:00 Ecuador time (11:00 UTC), the most Vercel Hobby accepts: a deployment asking for more is rejected", () => {
+    expect(config.crons.map((cron) => cron.schedule)).toEqual(["0 11 * * *"]);
   });
 });

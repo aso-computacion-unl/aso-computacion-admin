@@ -25,6 +25,10 @@ export class InMemoryEventRepository implements EventRepository {
     return this.events.get(id) ?? null;
   }
 
+  async findLiveBySlug(slug: string): Promise<Event | null> {
+    return [...this.events.values()].find((event) => event.props.slug === slug) ?? null;
+  }
+
   async slugExists(slug: string, excludeId?: string): Promise<boolean> {
     return [...this.events.values()].some((event) => event.props.slug === slug && event.props.id !== excludeId);
   }

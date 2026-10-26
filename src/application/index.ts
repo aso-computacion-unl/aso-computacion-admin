@@ -162,3 +162,17 @@ export {
 export type { ForumThreadsPage, ForumThreadView } from "./forum/forum-threads.use-cases";
 export { buildForumServices } from "./forum/forum-services";
 export type { ForumRepositories, ForumServices } from "./forum/forum-services";
+export type {
+  EventRegistrationRecord,
+  EventRegistrationRepository,
+  NewEventRegistration,
+  RegisterOutcome,
+} from "./ports/event-registration-repository.port";
+export {
+  DeleteEventRegistrationUseCase,
+  GetEventRegistrationStatusUseCase,
+  ListEventRegistrationsUseCase,
+  RegisterWithOpenFormUseCase,
+  RegisterWithUnlAccountUseCase,
+} from "./event-registration/event-registration.use-cases";
+export type { EventRegistrationStatus, RegistrationState } from "./event-registration/event-registration.use-cases";

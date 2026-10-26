@@ -45,7 +45,7 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `ALLOWED_EMAIL_DOMAIN` | Optional: only Google accounts of this domain can log in |
 | `BREAK_GLASS_PASSWORD_LOGIN` | Exactly `1` keeps the shared-password login after Google is configured, or while its configuration is incomplete; off invalidates open emergency sessions. Implicitly on only when none of the three Google variables is set |
 | `ADMIN_SECRET` | Secret that signs session cookies (at least 32 characters) |
-| `FORUM_ALLOWED_EMAIL_DOMAIN` | Institutional email domain of the student forum. Required: unset or empty disables the forum login (fails closed) |
+| `FORUM_ALLOWED_EMAIL_DOMAIN` | Institutional email domain of the student forum (`unl.edu.ec`). Required: unset or empty disables the forum login (fails closed) |
 | `FORUM_SESSION_SECRET` | Secret that signs the forum cookies (at least 32 characters, different from `ADMIN_SECRET`); invalid disables the forum login |
 | `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | Optional separate Google client for the forum (both or neither); default is the admin's client |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |

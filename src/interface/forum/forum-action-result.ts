@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 import { ForumThrottledError } from "@/application/forum/posting-throttle";
 import { ForbiddenError, NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
-import { ForumMemberSuspendedError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
+import { ForumAlreadyReportedError, ForumMemberSuspendedError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { ForumUnauthorizedError } from "./require-forum-member";
@@ -27,6 +27,7 @@ const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.
 
 const FIELD_MESSAGES: Record<string, string> = {
   title: "El título es obligatorio y admite hasta 120 caracteres.",
+  reason: "Cuéntenos el motivo en hasta 500 caracteres.",
   body: "El texto es obligatorio y admite hasta 10000 caracteres en un hilo y 5000 en una respuesta.",
 };
 
@@ -50,6 +51,10 @@ export function mapForumActionError(error: unknown): ForumActionResult {
 
   if (error instanceof ForumPostNotOwnedError) {
     return { error: "Solo puede editar sus propias publicaciones." };
+  }
+
+  if (error instanceof ForumAlreadyReportedError) {
+    return { error: "Ya reportó esta publicación. El equipo la revisará." };
   }
 
   if (error instanceof ForumThrottledError) {

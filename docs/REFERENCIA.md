@@ -51,6 +51,8 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
+| `PREVIEW_TOKEN_SECRET` | Optional. Signs the draft-preview tokens (at least 32 characters, different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`). Unset or invalid: no token can be generated or accepted. See "Scheduling and preview" |
+| `CRON_SECRET` | Optional. Bearer secret of the scheduled-rebuild cron (at least 32 characters). Vercel sends it by itself. Unset or invalid: `/api/cron/scheduled-rebuild` answers 401 to everyone. See "Scheduling and preview" |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | Optional. Cloudflare Pages deploy hook (`https` only; the token is part of the path, treat it as a secret and it is never logged). POSTed after every successful admin mutation so the landing rebuilds. Unset: one `info` line per process and no rebuilds (the daily cron is then the only trigger). See "Landing rebuilds" |
 | `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Optional. Sentry DSN for the server/edge and the browser. Unset (the default) means error tracking is entirely off. See `docs/DEPLOY.md` "Error tracking" |
@@ -134,7 +136,7 @@ Every content type (events, news, FAQ, free commands, social links, pillars, boa
 
 ## Public read API
 
-`GET /api/public/content` is what the landing fetches at build time: one JSON snapshot of the **published, non-trashed** content in display order. It needs no session (it is outside the middleware matcher on purpose; `route-protection.test.ts` fails if any other route is reachable without a session) and it only reads.
+`GET /api/public/content` is what the landing fetches at build time: one JSON snapshot of the **published, non-trashed** content in display order (events and news also only inside their publish window, see "Scheduling and preview"). It needs no session (it is outside the middleware matcher on purpose; `route-protection.test.ts` fails if any other route is reachable without a session) and it only reads.
 
 ```jsonc
 {
@@ -165,6 +167,34 @@ Every content type (events, news, FAQ, free commands, social links, pillars, boa
 - Errors: any failure answers a generic `503 {"error":"Service unavailable"}` with `Cache-Control: no-store`; the cause is only logged on the server.
 - Image URLs (`photos[].url`, `pillars[].image.url`, `board[].photo`, `news[].cover.url`) are Cloudinary delivery URLs, so they contain the cloud name and the asset's `publicId` in the path. Both are public by design (they are needed to display the image) and neither lets anyone upload, change or delete anything; it is the API key and secret that must stay private. Do not treat these URLs as unguessable: an unpublished image whose URL leaked stays reachable until its asset is destroyed.
 
+## Scheduling and preview
+
+Events and news (the content with an editorial timeline) have an optional **publish window**; the other published entities (FAQ, pillars, socials, board, commands) are unchanged and have none.
+
+**Window.** `publishAt` and `unpublishAt` are nullable instants (UTC, `TIMESTAMP(3)`; a `CHECK` requires `unpublishAt > publishAt` when both are set). `isPublished` stays the master switch: a draft is never public, whatever its window. For a published item:
+
+| Moment `now` | State | On the public API |
+|--------------|-------|-------------------|
+| `now < publishAt` | Programado (scheduled) | hidden |
+| `publishAt <= now < unpublishAt` (a missing end is open) | live | shown |
+| `now >= unpublishAt` | Vencido (expired) | hidden |
+
+`publishAt` is **inclusive** (visible from that exact millisecond) and `unpublishAt` is **exclusive** (hidden from that exact millisecond). The window is judged on every request to `/api/public/content` (`src/domain/publication-window.ts`); an item with no window is served exactly as before, and the response shape is unchanged (no window field is exposed). Not to be confused with `news.publishedAt`, the calendar date the landing shows.
+
+**Forms.** The event and news forms have "Publicar el" and "Retirar el" (`datetime-local`). They are Ecuador time (America/Guayaquil, UTC-5 all year, no daylight saving), converted without using the server's own zone. Blank clears an end; a form that does not send the field leaves it alone. The lists show "Programado" (with the opening time) or "Vencido" (with the closing time) next to a published item that is not on the site right now.
+
+**Preview.** An Editor or Admin generates a code on `/admin/vista-previa` (validity 1 hour, 24 hours or 7 days; the choice is audited as `preview.token_create`, the token is not). It is a stateless HS256 token signed with `PREVIEW_TOKEN_SECRET`, so it cannot be revoked before it expires: rotate the secret to invalidate every token at once. It is shown once and kept nowhere.
+
+`GET /api/public/preview` (a separate path, so no cache ever mixes the two) returns the same document as `/api/public/content` plus `"preview": true`, and includes drafts and scheduled items of every entity (an expired item stays out). It needs the header `X-Preview-Token: <token>`:
+
+- No token, an expired or forged one, or no `PREVIEW_TOKEN_SECRET`: `401 {"error":"Invalid or expired preview token"}`, `Cache-Control: no-store`, and no content is read.
+- A valid token: `200`, `Cache-Control: private, no-store`, no `ETag`, no CORS (it is meant for a server-side preview build of the landing, not for a browser).
+- The token is read from the header only (never the URL or a cookie), never logged, and the Sentry scrubber drops the header. It shares the public rate limit (a guessing client gets `429`).
+
+**Cron.** A static landing only shows scheduled content once it is rebuilt after the boundary, so `vercel.json` calls `GET /api/cron/scheduled-rebuild` every 15 minutes. It reads `DeployStatus.lastSuccessAt` (when the deploy hook last accepted a call, from an edit or from the cron itself; a failed attempt does not overwrite it) and POSTs the deploy hook only if a **published, non-trashed** event or news item opened or closed in `(lastSuccessAt, now]`. Nothing changed: no build (`{"crossed":0,"outcome":"not-needed"}`). It requires `Authorization: Bearer <CRON_SECRET>` (Vercel adds it) and answers 401 otherwise, including while `CRON_SECRET` is unset or shorter than 32 characters (it fails closed). Answers: 200 `triggered` / `not-needed` / `disabled` (no `CLOUDFLARE_DEPLOY_HOOK_URL`), 502 `failed` (the hook refused, so the cron shows red in Vercel), 500 on an unexpected error. Scheduled content therefore appears at most about 15 minutes after its time, plus the landing's build time.
+
+**Contract for the landing (not built yet).** For the normal build nothing changes: keep reading `/api/public/content`. For a preview build, fetch `GET <admin>/api/public/preview` **server-side** with the header `X-Preview-Token` (token in a build secret, never in the page or URL), expect `preview: true` and the same shape and `schemaVersion`, never cache or deploy that build publicly, and treat `401` as "token invalid or expired: stop the build". The landing must not receive or compute windows itself.
+
 ## Landing rebuilds
 
 Every successful admin mutation (events and their photos, news, FAQ, pillars, socials, board, settings) calls `requestSiteRebuild()` after the write, which POSTs `CLOUDFLARE_DEPLOY_HOOK_URL`. It is best effort: it only schedules, never awaits the network and never throws, so it cannot fail or slow the mutation. A failed mutation never fires it (`deploy-hook-actions.test.ts` checks all 39 actions: fired once after the write, not fired on failure or without a session).
@@ -172,6 +202,7 @@ Every successful admin mutation (events and their photos, news, FAQ, pillars, so
 - **Coalescing.** A trailing debounce: each call restarts an 8 s quiet window and the hook is POSTed once, 8 s after the last edit, but never later than 15 s after the first edit of the burst (max wait), so a long editing session cannot keep the invocation open past `maxDuration`. Reordering photos or editing several fields is one build, not one per click. The window is longer than the 5 s edge cache of the public route, so the build reads fresh data. The POST has a 5 s timeout; failures and non-2xx answers are logged as warnings (without the URL).
 - **Why in process, and the Vercel caveat.** No extra table or queue for a handful of editors. But state is per instance, and a serverless instance may be frozen between requests. So the action registers the wait with `after()` (Next 15), which keeps the invocation alive until the window has elapsed and the hook was called; `app/admin/layout.tsx` sets `maxDuration = 30` so an upload plus the longest wait (15 s) and the hook call (5 s timeout) fits. If an instance is still recycled mid-window, or two instances each debounce their own edit (two builds), the cost is a lost or duplicated rebuild, never a wrong page: the daily rebuild cron is the safety net. On a long-lived server (Render, `next start`) the timer simply runs.
 - **Last deploy status.** Each attempt overwrites the single row of `DeployStatus` (id `landing`, enforced by a `CHECK`): when it ran, whether it succeeded, and the HTTP status or a coarse error kind (`timeout`, `network`). The hook URL is a secret and is never stored. The dashboard shows it as "Último despliegue: hace 3 min · OK" or "Último despliegue: Falló (HTTP 500) · hace 2 h" with a hint. **OK means Cloudflare accepted the request, not that the build finished.** Writing the status never fails the content action: a failure is logged (without the error text) and reported to Sentry. The age is computed when the page renders, so reload to refresh it. Nothing is shown if the read fails; "Aún no se solicitó ningún despliegue." appears until the first attempt.
+- **Scheduled content** has its own trigger: the cron in "Scheduling and preview" rebuilds only when an item crossed its window since the last accepted call.
 - An edit of an unpublished draft also asks for a rebuild: the action cannot tell cheaply that nothing public changed, and the debounce makes it harmless.
 
 ## Login throttle

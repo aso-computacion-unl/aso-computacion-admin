@@ -52,6 +52,13 @@ describe("a thread page", () => {
     await expect(render("t1")).rejects.toThrow("REDIRECT /foro");
   });
 
+  it("sends a member suspended since they signed in to the sign-in, where the suspension is explained", async () => {
+    seedThread();
+    testForum.members.members.set(viewerId, makeForumMember({ id: viewerId, email: "dani@unl.edu.ec", googleSub: "sub-dani", displayName: "Daniela P.", status: "SUSPENDED", suspendedAt: new Date() }));
+
+    await expect(render("t1")).rejects.toThrow("REDIRECT /foro");
+  });
+
   it.each([
     ["an unknown thread", () => undefined, "nope"],
     [
@@ -145,6 +152,86 @@ describe("a thread page", () => {
 
     expect(html).toContain("(usted)");
     expect(html).toContain("editado");
+  });
+
+  describe("the controls under each post", () => {
+    const reply = (id: string, authorId: string, createdAt = minutesAgo(60)) => testForum.store.replies.set(id, makeForumReply({ id, threadId: "t1", authorId, body: `Cuerpo ${id}`, createdAt }));
+    const count = (html: string, text: string) => html.split(text).length - 1;
+
+    it("offers «Reportar» on other people's posts and not on the viewer's own", async () => {
+      seedThread();
+      reply("r1", "m2");
+      reply("r2", viewerId, minutesAgo(30));
+
+      const html = await render("t1");
+
+      // The opening post and the reply of m2 are not the viewer's; the viewer's own reply is.
+      expect(count(html, ">Reportar<")).toBe(2);
+    });
+
+    it("shows «Me sirvió» with its count on every reply, pressed when the viewer left one", async () => {
+      seedThread();
+      reply("r1", "m2");
+      reply("r2", "m2", minutesAgo(30));
+      testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r1" });
+      testForum.store.reactions.set("x2", { memberId: viewerId, threadId: null, replyId: "r1" });
+
+      const html = await render("t1");
+
+      expect(count(html, "Me sirvió")).toBe(2);
+      const buttons = html.split("<button").filter((part) => part.includes("Me sirvió"));
+
+      expect(buttons).toHaveLength(2);
+      expect(buttons[0]).toContain('aria-pressed="true"');
+      expect(buttons[0]).toContain(">2</span>");
+      expect(buttons[1]).toContain('aria-pressed="false"');
+      expect(buttons[1]).toContain(">0</span>");
+    });
+
+    it("lets only the thread's author mark a reply as the best answer", async () => {
+      seedThread({ authorId: viewerId });
+      reply("r1", "m2");
+
+      expect(await render("t1")).toContain("Marcar como mejor respuesta");
+
+      testForum.store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m2", createdAt: minutesAgo(120) }));
+
+      expect(await render("t1")).not.toContain("Marcar como mejor respuesta");
+    });
+
+    it("offers to take the mark back on the best answer, and to mark the others", async () => {
+      seedThread({ authorId: viewerId, bestReplyId: "r1" });
+      reply("r1", "m2");
+      reply("r2", "m2", minutesAgo(30));
+
+      const html = await render("t1");
+
+      expect(count(html, "Quitar de mejor respuesta")).toBe(1);
+      expect(count(html, "Marcar como mejor respuesta")).toBe(1);
+    });
+
+    it("keeps reactions and reports but no best-answer button on a locked thread", async () => {
+      seedThread({ authorId: viewerId, lockedAt: new Date() });
+      reply("r1", "m2");
+
+      const html = await render("t1");
+
+      expect(html).not.toContain("mejor respuesta");
+      expect(html).toContain("Me sirvió");
+      expect(html).toContain(">Reportar<");
+      expect(html).not.toContain("Su respuesta");
+    });
+
+    it("never shows who reacted", async () => {
+      seedThread();
+      reply("r1", "m2");
+      testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r1" });
+
+      const html = await render("t1");
+
+      expect(html).not.toContain("Mateo R. le sirvió");
+      expect(html).not.toContain("reaccion");
+    });
   });
 
   it("never prints an email or a member id", async () => {

@@ -6,11 +6,15 @@ import { Icon } from "@/components/icons";
 import { threadStatus } from "@/interface/forum/forum-display";
 import { categoryHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
+import { getForumReactions } from "@/interface/forum/forum-reactions-read";
 import { getForumThread } from "@/interface/forum/forum-read";
 
+import { BestAnswerButton } from "../../_components/best-answer-button";
 import { PostCard } from "../../_components/post-card";
 import { PostTime } from "../../_components/post-time";
+import { ReactionButton } from "../../_components/reaction-button";
 import { ReplyForm } from "../../_components/reply-form";
+import { ReportButton } from "../../_components/report-button";
 
 // The title and the page share one read per request.
 const loadThread = cache((id: string) => orNotFound(getForumThread(id)));
@@ -29,7 +33,8 @@ export async function generateMetadata({ params }: ThreadPageProps): Promise<Met
 export const dynamic = "force-dynamic";
 
 export default async function ThreadPage({ params }: ThreadPageProps) {
-  const { category, thread, replies } = await loadThread((await params).id);
+  const { id } = await params;
+  const [{ category, thread, replies }, reactions] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id))]);
   const now = new Date();
   const status = threadStatus({ hasBestAnswer: thread.bestReplyId !== null, locked: thread.locked });
 
@@ -63,7 +68,13 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
       </header>
 
       <ol className="lane">
-        <PostCard authorName={thread.authorName} mine={thread.mine} tag="Inició el hilo" createdAt={thread.createdAt} editedAt={thread.editedAt} body={thread.body} now={now} />
+        <PostCard authorName={thread.authorName} mine={thread.mine} tag="Inició el hilo"
+          createdAt={thread.createdAt}
+          editedAt={thread.editedAt}
+          body={thread.body}
+          now={now}
+          footer={thread.mine ? null : <ReportButton target={{ kind: "thread", id: thread.id }} />}
+        />
         {replies.map((reply) => (
           <PostCard
             key={reply.id}
@@ -75,6 +86,14 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
             body={reply.body}
             now={now}
             best={reply.isBest}
+            footer={
+              <>
+                {/* Keyed by what the server last said, so a refresh resets the control to it. */}
+                <ReactionButton key={`${reactions.replies[reply.id]?.count ?? 0}:${reactions.replies[reply.id]?.mine ?? false}`} replyId={reply.id} count={reactions.replies[reply.id]?.count ?? 0} mine={reactions.replies[reply.id]?.mine ?? false} />
+                {thread.mine && !thread.locked ? <BestAnswerButton threadId={thread.id} replyId={reply.id} isBest={reply.isBest} /> : null}
+                {reply.mine ? null : <ReportButton target={{ kind: "reply", id: reply.id }} />}
+              </>
+            }
           />
         ))}
         <li>

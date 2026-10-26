@@ -25,6 +25,7 @@ export function useToast(): ToastApi {
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
+  const [acted, setActed] = useState(false);
 
   // Hovering or focusing a toast stops its clock, so there is time to read it.
   useEffect(() => {
@@ -49,7 +50,11 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
         <Button
           variant="line"
           size="sm"
+          disabled={acted}
           onClick={() => {
+            if (acted) return;
+
+            setActed(true);
             toast.action?.onAction();
             onDismiss(toast.id);
           }}

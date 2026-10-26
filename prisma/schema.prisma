@@ -274,6 +274,27 @@ model AuditLog {
   @@index([actorUserId, at(sort: Desc)])
 }
 
+// S11: a single-use link that lets one person into the admin, bound to their email, with the role an
+// ADMIN chose. Only the SHA-256 of the link's token is stored, never the token. The User row is created
+// when the invite is redeemed. Pending means not used, not revoked and not expired; used and revoked
+// are exclusive, and a used invite names the user it created (CHECKs in the migration).
+// `createdById` and `usedByUserId` have no foreign key, like the audit log: the row outlives the users.
+model AdminInvite {
+  id           String    @id
+  tokenHash    String    @unique
+  email        String
+  role         UserRole
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  revokedAt    DateTime?
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 enum ForumMemberStatus {
   ACTIVE
   SUSPENDED

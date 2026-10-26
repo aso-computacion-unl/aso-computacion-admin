@@ -2,6 +2,7 @@ import type { BoardMember } from "@/domain/board-member";
 import type { Faq } from "@/domain/faq";
 import type { Pillar } from "@/domain/pillar";
 import type { SocialLink } from "@/domain/social-link";
+import { isPubliclyVisible } from "@/domain/publication-window";
 import type { TerminalCommand } from "@/domain/terminal-command";
 
 import type { PublicContentSnapshot } from "../dto/public-content.dto";
@@ -19,9 +20,15 @@ import type { NewsRepository } from "../ports/news-repository.port";
 import type { OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import type { SiteSettingsRepository } from "../ports/site-settings-repository.port";
 
+export interface GetPublicContentOptions {
+  /** The moment publish windows are judged at. Defaults to the current time. */
+  now?: Date;
+}
+
 /**
  * Read-only snapshot for the landing build: published items only, in the order
- * the admin set (events: date descending, undated last; news: publication date descending). Read-only by
+ * the admin set (events: date descending, undated last; news: publication date descending). Events and news
+ * also respect their publish window (`publishAt` inclusive, `unpublishAt` exclusive). Read-only by
  * construction: it only calls list/get methods. The sets are small (dozens of
  * rows), so filtering after `list()` beats adding a second published-only
  * query to every port.
@@ -39,7 +46,7 @@ export class GetPublicContentUseCase {
     private readonly commands: OrderedContentRepository<TerminalCommand>,
   ) {}
 
-  async execute(): Promise<PublicContentSnapshot> {
+  async execute({ now = new Date() }: GetPublicContentOptions = {}): Promise<PublicContentSnapshot> {
     const [events, faqs, pillars, socials, board, settings, news, commands] = await Promise.all([
       this.events.list(),
       this.faqs.list(),
@@ -50,7 +57,7 @@ export class GetPublicContentUseCase {
       this.news.list(),
       this.commands.list(),
     ]);
-    const published = events.filter((event) => event.props.isPublished);
+    const published = events.filter((event) => isPubliclyVisible(event.props, now));
     const photos = await this.eventPhotos.listActiveByEventIds(published.map((event) => event.props.id));
     const isPublished = ({ props }: { props: { isPublished: boolean } }) => props.isPublished;
 
@@ -65,7 +72,7 @@ export class GetPublicContentUseCase {
       board: board.filter(isPublished).map(toBoardMemberResult),
       settings: settings && toSiteSettingsResult(settings),
       // `list()` already comes newest publication date first.
-      news: news.filter(isPublished).map(toNewsItemResult),
+      news: news.filter((item) => isPubliclyVisible(item.props, now)).map(toNewsItemResult),
       commands: commands.filter(isPublished).map(toTerminalCommandResult),
     };
   }

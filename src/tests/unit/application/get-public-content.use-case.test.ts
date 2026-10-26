@@ -151,3 +151,79 @@ describe("GetPublicContentUseCase faq commands", () => {
     expect((await useCase.execute()).faqs.map((faq) => [faq.question, faq.command])).toEqual([["A", "costo"], ["B", null]]);
   });
 });
+
+describe("GetPublicContentUseCase publication windows", () => {
+  const OPEN = new Date("2026-11-02T13:00:00.000Z");
+  const CLOSE = new Date("2026-11-09T13:00:00.000Z");
+  const at = (base: Date, offsetMs: number) => new Date(base.getTime() + offsetMs);
+  const text = { summary: "Resumen", body: "Cuerpo" };
+
+  let events: InMemoryEventRepository;
+  let news: InMemoryNewsRepository;
+  let useCase: GetPublicContentUseCase;
+
+  beforeEach(() => {
+    const eventPhotos = new InMemoryEventPhotoRepository();
+    events = new InMemoryEventRepository(eventPhotos);
+    news = new InMemoryNewsRepository();
+    useCase = new GetPublicContentUseCase(
+      events,
+      eventPhotos,
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemoryOrderedRepository(),
+      new InMemorySiteSettingsRepository(),
+      news,
+      new InMemoryOrderedRepository(),
+    );
+  });
+
+  const titlesAt = async (now: Date) => {
+    const result = await useCase.execute({ now });
+
+    return { events: result.events.map((event) => event.title), news: result.news.map((item) => item.title) };
+  };
+
+  it("hides a scheduled item before publishAt and shows it from that exact instant (inclusive start)", async () => {
+    await events.create(Event.create({ title: "Programado", isPublished: true, publishAt: OPEN }));
+    await news.create(NewsItem.create({ ...text, title: "Programada", isPublished: true, publishAt: OPEN }));
+
+    expect(await titlesAt(at(OPEN, -1))).toEqual({ events: [], news: [] });
+    expect(await titlesAt(OPEN)).toEqual({ events: ["Programado"], news: ["Programada"] });
+  });
+
+  it("shows an item up to the millisecond before unpublishAt and hides it from that exact instant (exclusive end)", async () => {
+    await events.create(Event.create({ title: "Vence", isPublished: true, unpublishAt: CLOSE }));
+    await news.create(NewsItem.create({ ...text, title: "Vence", isPublished: true, unpublishAt: CLOSE }));
+
+    expect(await titlesAt(at(CLOSE, -1))).toEqual({ events: ["Vence"], news: ["Vence"] });
+    expect(await titlesAt(CLOSE)).toEqual({ events: [], news: [] });
+  });
+
+  it("keeps a draft hidden even in the middle of its window", async () => {
+    await events.create(Event.create({ title: "Borrador", publishAt: OPEN, unpublishAt: CLOSE }));
+    await news.create(NewsItem.create({ ...text, title: "Borrador", publishAt: OPEN, unpublishAt: CLOSE }));
+
+    expect(await titlesAt(at(OPEN, 1000))).toEqual({ events: [], news: [] });
+  });
+
+  it("serves items without a window exactly as before, at any time", async () => {
+    await events.create(Event.create({ title: "Siempre", isPublished: true }));
+    await news.create(NewsItem.create({ ...text, title: "Siempre", isPublished: true }));
+    await events.create(Event.create({ title: "Borrador" }));
+
+    for (const now of [new Date(0), OPEN, new Date("2999-01-01T00:00:00Z")]) {
+      expect(await titlesAt(now)).toEqual({ events: ["Siempre"], news: ["Siempre"] });
+    }
+    // No argument at all is the current time, the way the route used to call it.
+    expect((await useCase.execute()).events.map((event) => event.title)).toEqual(["Siempre"]);
+  });
+
+  it("only gives scheduled items their photos once they are live", async () => {
+    const { props } = await events.create(Event.create({ title: "Programado", isPublished: true, publishAt: OPEN }));
+
+    expect((await useCase.execute({ now: at(OPEN, -1) })).events).toEqual([]);
+    expect((await useCase.execute({ now: OPEN })).events[0]).toMatchObject({ slug: props.slug, photos: [] });
+  });
+});

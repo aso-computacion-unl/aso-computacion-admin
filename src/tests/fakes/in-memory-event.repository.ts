@@ -16,6 +16,11 @@ export class InMemoryEventRepository implements EventRepository {
   /** Pass the photo fake to mirror the cascade: purging an event removes its photos and returns their storage ids. */
   constructor(private readonly photos?: InMemoryEventPhotoRepository) {}
 
+  /** Empties the repository, for the shared test double. */
+  clear(): void {
+    this.events.clear();
+  }
+
   async create(event: Event): Promise<Event> {
     this.events.set(event.props.id, event);
     return event;

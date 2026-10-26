@@ -14,6 +14,10 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
 
   constructor(private readonly events: InMemoryEventRepository) {}
 
+  clear(): void {
+    this.rows.length = 0;
+  }
+
   all(): EventRegistrationRecord[] {
     return [...this.rows];
   }

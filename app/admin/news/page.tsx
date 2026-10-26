@@ -7,6 +7,7 @@ import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { trashNewsItem, setNewsItemPublished } from "@/interface/admin/news/actions";
 import { getAdminNewsCounts, getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 import { countsSummary } from "@/interface/admin/publication-summary";
+import { windowBadge } from "@/interface/admin/publication-window-badge";
 import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
@@ -14,6 +15,7 @@ import { PageHead } from "../_components/page-head";
 import { TrashButton, PublishedToggle } from "../_components/row-actions";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EmptyState, OrderedList, Stamp, TimelineItem } from "../_components/timeline-parts";
+import { WindowBadge } from "../_components/window-badge";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ const LIST_PATH = "/admin/news";
 export default async function AdminNewsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[] }> }) {
   const filter = parseStatusFilter((await searchParams).estado);
   const [news, counts] = await Promise.all([getAdminNewsItems(statusCriteria(filter)), getAdminNewsCounts()]);
+  const now = new Date();
 
   return (
     <div>
@@ -76,7 +79,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
                           </Link>
                         </h2>
                         <p className="line-clamp-2 text-sm text-mist">{item.summary}</p>
-                        {item.isPublished ? null : <p className="font-mono text-xs text-mist">Borrador: solo lo ve la directiva</p>}
+                        {item.isPublished ? <WindowBadge badge={windowBadge(item, now)} /> : <p className="font-mono text-xs text-mist">Borrador: solo lo ve la directiva</p>}
                       </div>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:mt-0 lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">

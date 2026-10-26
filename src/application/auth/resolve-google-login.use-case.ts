@@ -1,4 +1,4 @@
-import { emailDomain, normalizeEmail, type User } from "@/domain/user";
+import { emailDomain, normalizeEmail, USER_NAME_MAX_LENGTH, type User } from "@/domain/user";
 
 import type { UserRepository } from "../ports/auth.ports";
 
@@ -59,7 +59,8 @@ export class ResolveGoogleLoginUseCase {
     const user: User = {
       id: this.newId(),
       email,
-      name: name?.trim().slice(0, 120) || email.slice(0, email.indexOf("@")),
+      // Capped to the `User_name_length` CHECK, whichever source the name comes from.
+      name: (name?.trim() || email.slice(0, email.indexOf("@"))).slice(0, USER_NAME_MAX_LENGTH),
       role: "ADMIN",
       active: true,
       createdAt: this.now(),

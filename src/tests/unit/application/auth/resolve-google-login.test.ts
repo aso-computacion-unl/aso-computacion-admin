@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ResolveGoogleLoginUseCase } from "@/application/auth/resolve-google-login.use-case";
+import { USER_NAME_MAX_LENGTH } from "@/domain/user";
 import { InMemoryUserRepository, makeUser } from "@/tests/fakes/in-memory-auth";
 
 const NOW = new Date("2026-10-26T12:00:00.000Z");
@@ -114,6 +115,19 @@ describe("ResolveGoogleLoginUseCase", () => {
       const outcome = await resolve({ bootstrapEmails: ["first@example.org"] }).execute({ email: "first@example.org", emailVerified: true });
 
       expect(outcome).toMatchObject({ ok: true, user: { name: "first" } });
+    });
+
+    it("caps a derived name to the name limit, so a long local part never reaches the database constraint", async () => {
+      const local = "a".repeat(200);
+      const outcome = await resolve({ bootstrapEmails: [`${local}@example.org`] }).execute({ email: `${local}@example.org`, emailVerified: true });
+
+      expect(outcome).toMatchObject({ ok: true, user: { name: "a".repeat(USER_NAME_MAX_LENGTH) } });
+    });
+
+    it("caps a name Google sent to the same limit", async () => {
+      const outcome = await resolve({ bootstrapEmails: ["first@example.org"] }).execute({ email: "first@example.org", emailVerified: true, name: "b".repeat(300) });
+
+      expect(outcome).toMatchObject({ ok: true, user: { name: "b".repeat(USER_NAME_MAX_LENGTH) } });
     });
   });
 });

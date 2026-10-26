@@ -3,15 +3,16 @@ import { ZodError } from "zod";
 import { ForumThrottledError } from "@/application/forum/posting-throttle";
 import { ForbiddenError, NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
-import { ForumAlreadyReportedError, ForumMemberSuspendedError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
+import { ForumAlreadyReportedError, ForumMemberSuspendedError, ForumNotThreadAuthorError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { ForumUnauthorizedError } from "./require-forum-member";
 
 /**
  * Result of every student-facing forum server action. `fieldErrors` carries per-field messages, `error`
- * a single message for everything else (never both); `id` is the new thread or reply on success;
- * `retryAfterSeconds` is set when the member is posting too fast.
+ * a single message for everything else (never both); `id` is the new thread or reply on success (or the
+ * reply marked as the best answer); `retryAfterSeconds` is set when the member is posting too fast;
+ * `reacted` and `count` answer a «me sirvió» toggle.
  */
 export interface ForumActionResult {
   success?: true;
@@ -19,6 +20,8 @@ export interface ForumActionResult {
   error?: string;
   fieldErrors?: Record<string, string>;
   retryAfterSeconds?: number;
+  reacted?: boolean;
+  count?: number;
 }
 
 export const FORUM_SESSION_EXPIRED_MESSAGE = "Inicie sesión para participar en el foro.";
@@ -51,6 +54,10 @@ export function mapForumActionError(error: unknown): ForumActionResult {
 
   if (error instanceof ForumPostNotOwnedError) {
     return { error: "Solo puede editar sus propias publicaciones." };
+  }
+
+  if (error instanceof ForumNotThreadAuthorError) {
+    return { error: "Solo quien abrió el hilo puede elegir la mejor respuesta." };
   }
 
   if (error instanceof ForumAlreadyReportedError) {

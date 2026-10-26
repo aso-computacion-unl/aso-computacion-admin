@@ -155,7 +155,7 @@ Safe to apply on the production database with `prisma migrate deploy`; it needs 
 - Deploy order: run the migration first (the old code keeps working on the new schema), then deploy the new code. The reverse order fails, because the new code reads `deletedAt`.
 - After deploying, `/admin/papelera` should be empty and every list unchanged.
 
-**Rollback.** Only needed if the feature must be abandoned; the old code works on the new schema, so prefer rolling back the app alone. If the schema must go back too, first empty the trash (delete its items for good from `/admin/papelera`): dropping the column would turn every trashed row back into a live draft, and two rows with the same slug or command would stop the old unique index from being created. Check for those first, then run the statements in one transaction:
+**Rollback.** Only needed if the feature must be abandoned; the old code works on the new schema, so prefer rolling back the app alone. The previous admin does not know the trash: it lists trashed rows as ordinary drafts. They stay unpublished (moving to the trash unpublished them), so they never reach the public API, but they reappear in the admin lists until the new code is back or the trash is emptied. If the schema must go back too, first empty the trash (delete its items for good from `/admin/papelera`): dropping the column would turn every trashed row back into a live draft, and two rows with the same slug or command would stop the old unique index from being created. Check for those first, then run the statements in one transaction:
 
 ```sql
 SELECT 'Event' AS "table", "slug" AS value FROM "Event" GROUP BY "slug" HAVING count(*) > 1

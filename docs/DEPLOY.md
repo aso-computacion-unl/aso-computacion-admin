@@ -212,9 +212,9 @@ Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content`
 
 Events and news can carry a publish window (`publishAt` / `unpublishAt`, edited in Ecuador time). The landing is static, so scheduled content only shows up after a rebuild that happens after the boundary. `vercel.json` registers a **Vercel Cron** that does this:
 
-1. Set `CRON_SECRET` (≥ 32 random characters, Sensitive) in Vercel Production and redeploy. Vercel then calls `GET /api/cron/scheduled-rebuild` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`.
+1. Set `CRON_SECRET` (≥ 32 random characters, Sensitive) in Vercel Production and redeploy. Vercel then calls `GET /api/cron/scheduled-rebuild` once a day, at 06:00 Ecuador time (`0 11 * * *` UTC), with `Authorization: Bearer <CRON_SECRET>`.
 2. The endpoint asks Cloudflare for a build (`CLOUDFLARE_DEPLOY_HOOK_URL`) **only** when a published event or news item opened or closed since the hook was last accepted; otherwise it does nothing, so an idle site costs no builds. It answers 502 when the hook refuses, which shows as a failed run in Vercel → Cron Jobs.
-3. **Plan limit.** Vercel's free (Hobby) plan only allows cron jobs that run once a day, and rejects a deployment whose `vercel.json` asks for more. On Hobby, change `schedule` in `vercel.json` to a daily one (for example `"0 11 * * *"`, 06:00 in Ecuador) and accept that scheduled content appears up to a day late, or use Pro for the 15-minute schedule.
+3. **Plan limit (Vercel Hobby).** The admin runs on the free Hobby plan, which only allows cron jobs that run once a day and rejects a deployment whose `vercel.json` asks for more; that is why the schedule is daily. Scheduled content can therefore appear up to ~24 h late, unless someone triggers a publish or a rebuild by hand (any admin edit rebuilds the landing, or POST the deploy hook yourself). On Pro, set `schedule` back to `*/15 * * * *` and the delay drops to about 15 minutes.
 4. Check it by hand: `curl -i -H "Authorization: Bearer $CRON_SECRET" https://<your-vercel-domain>/api/cron/scheduled-rebuild` returns `{"crossed":N,"outcome":...}`; without the header it returns 401.
 
 Previews: set `PREVIEW_TOKEN_SECRET` (≥ 32 characters, different from the other secrets, Sensitive). Editors then generate a code on **Vista previa**; it is sent as the `X-Preview-Token` header to `GET /api/public/preview`. See "Scheduling and preview" in [REFERENCIA.md](REFERENCIA.md) for the contract.
@@ -326,6 +326,6 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.
-- [ ] Optional, for scheduled content (section 6a): `CRON_SECRET` set, and `vercel.json`'s schedule matches the Vercel plan (daily on Hobby). Optional, for previews: `PREVIEW_TOKEN_SECRET` set.
+- [ ] Optional, for scheduled content (section 6a): `CRON_SECRET` set, and `vercel.json`'s schedule matches the Vercel plan (daily on Hobby, `*/15 * * * *` only on Pro). Optional, for previews: `PREVIEW_TOKEN_SECRET` set.
 - [ ] Optional: Sentry project created and `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set (section 7).
 - [ ] Plan's `maxDuration` limit checked against the `30` in `app/admin/layout.tsx`.

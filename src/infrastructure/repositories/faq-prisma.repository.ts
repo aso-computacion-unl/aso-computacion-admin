@@ -28,14 +28,14 @@ export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
   }
 
   async getById(id: string): Promise<Faq | null> {
-    const record = await prisma.faq.findUnique({ where: { id } });
+    const record = await prisma.faq.findUnique({ where: { id, deletedAt: null } });
 
     return record ? toDomain(record) : null;
   }
 
   async list(): Promise<Faq[]> {
     // createdAt and id break ties so the list and the move use case agree on the order.
-    const records = await prisma.faq.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
+    const records = await prisma.faq.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
   }
@@ -44,7 +44,7 @@ export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
     let record;
 
     try {
-      [record] = await prisma.faq.updateManyAndReturn({ where: { id: faq.props.id }, data: toPrismaUpdate(faq) });
+      [record] = await prisma.faq.updateManyAndReturn({ where: { id: faq.props.id, deletedAt: null }, data: toPrismaUpdate(faq) });
     } catch (error) {
       return rethrowCommandCollision(error, faq);
     }
@@ -67,7 +67,7 @@ export class FaqPrismaRepository implements OrderedContentRepository<Faq> {
   async saveOrder(orderedIds: readonly string[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
       for (const [sortOrder, id] of orderedIds.entries()) {
-        const { count } = await tx.faq.updateMany({ where: { id }, data: { sortOrder, updatedAt: new Date() } });
+        const { count } = await tx.faq.updateMany({ where: { id, deletedAt: null }, data: { sortOrder, updatedAt: new Date() } });
 
         if (count === 0) {
           throw new NotFoundError("Faq not found");

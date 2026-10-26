@@ -4,13 +4,13 @@ import { publicationWhere, toPublicationCounts } from "@/infrastructure/reposito
 
 describe("publicationWhere", () => {
   it("narrows by the published flag only when a status is asked for", () => {
-    expect(publicationWhere({ status: "published" })).toEqual({ isPublished: true });
-    expect(publicationWhere({ status: "draft" })).toEqual({ isPublished: false });
+    expect(publicationWhere({ status: "published" })).toEqual({ deletedAt: null, isPublished: true });
+    expect(publicationWhere({ status: "draft" })).toEqual({ deletedAt: null, isPublished: false });
   });
 
-  it("adds no condition without a status, so nothing is hidden", () => {
-    expect(publicationWhere({})).toEqual({});
-    expect(publicationWhere()).toEqual({});
+  it("hides trashed rows but adds no status condition without a status, so no live row is hidden", () => {
+    expect(publicationWhere({})).toEqual({ deletedAt: null });
+    expect(publicationWhere()).toEqual({ deletedAt: null });
   });
 });
 

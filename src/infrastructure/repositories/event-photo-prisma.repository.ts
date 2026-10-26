@@ -62,7 +62,7 @@ export class EventPhotoPrismaRepository implements EventPhotoRepository {
       // Locking the event row serialises concurrent adds to the same event, so
       // neither the count nor the next position can go stale before the insert.
       const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "Event" WHERE "id" = ${photo.props.eventId} FOR UPDATE
+        SELECT "id" FROM "Event" WHERE "id" = ${photo.props.eventId} AND "deletedAt" IS NULL FOR UPDATE
       `;
 
       if (locked.length === 0) {

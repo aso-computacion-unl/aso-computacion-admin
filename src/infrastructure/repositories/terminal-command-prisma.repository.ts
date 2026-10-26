@@ -28,14 +28,14 @@ export class TerminalCommandPrismaRepository implements OrderedContentRepository
   }
 
   async getById(id: string): Promise<TerminalCommand | null> {
-    const record = await prisma.terminalCommand.findUnique({ where: { id } });
+    const record = await prisma.terminalCommand.findUnique({ where: { id, deletedAt: null } });
 
     return record ? toDomain(record) : null;
   }
 
   async list(): Promise<TerminalCommand[]> {
     // createdAt and id break ties so the list and the move use case agree on the order.
-    const records = await prisma.terminalCommand.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
+    const records = await prisma.terminalCommand.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
   }
@@ -44,7 +44,7 @@ export class TerminalCommandPrismaRepository implements OrderedContentRepository
     let record;
 
     try {
-      [record] = await prisma.terminalCommand.updateManyAndReturn({ where: { id: command.props.id }, data: toPrismaUpdate(command) });
+      [record] = await prisma.terminalCommand.updateManyAndReturn({ where: { id: command.props.id, deletedAt: null }, data: toPrismaUpdate(command) });
     } catch (error) {
       return rethrowCommandCollision(error, command);
     }
@@ -67,7 +67,7 @@ export class TerminalCommandPrismaRepository implements OrderedContentRepository
   async saveOrder(orderedIds: readonly string[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
       for (const [sortOrder, id] of orderedIds.entries()) {
-        const { count } = await tx.terminalCommand.updateMany({ where: { id }, data: { sortOrder, updatedAt: new Date() } });
+        const { count } = await tx.terminalCommand.updateMany({ where: { id, deletedAt: null }, data: { sortOrder, updatedAt: new Date() } });
 
         if (count === 0) {
           throw new NotFoundError("Terminal command not found");

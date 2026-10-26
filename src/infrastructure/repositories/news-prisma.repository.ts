@@ -9,7 +9,7 @@ import type { NewsItem } from "@/domain/news-item";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./news.mapper";
-import { publicationWhere, toPublicationCounts } from "./publication-filter";
+import { LIVE, publicationWhere, toPublicationCounts } from "./publication-filter";
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -30,14 +30,14 @@ export class NewsPrismaRepository implements NewsRepository {
   }
 
   async getById(id: string): Promise<NewsItem | null> {
-    const record = await prisma.newsItem.findUnique({ where: { id } });
+    const record = await prisma.newsItem.findUnique({ where: { id, ...LIVE } });
 
     return record ? toDomain(record) : null;
   }
 
   async slugExists(slug: string, excludeId?: string): Promise<boolean> {
     const record = await prisma.newsItem.findFirst({
-      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      where: { slug, ...LIVE, ...(excludeId ? { id: { not: excludeId } } : {}) },
       select: { id: true },
     });
 
@@ -46,7 +46,7 @@ export class NewsPrismaRepository implements NewsRepository {
 
   async countByStatus(): Promise<PublicationCounts> {
     // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
-    const groups = await prisma.newsItem.groupBy({ by: ["isPublished"], _count: { _all: true } });
+    const groups = await prisma.newsItem.groupBy({ by: ["isPublished"], where: LIVE, _count: { _all: true } });
 
     return toPublicationCounts(groups);
   }
@@ -64,7 +64,7 @@ export class NewsPrismaRepository implements NewsRepository {
   async update(item: NewsItem): Promise<NewsItem> {
     try {
       const [record] = await prisma.newsItem.updateManyAndReturn({
-        where: { id: item.props.id },
+        where: { id: item.props.id, ...LIVE },
         data: toPrismaUpdate(item),
       });
 

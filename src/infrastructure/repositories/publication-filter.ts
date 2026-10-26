@@ -1,8 +1,11 @@
 import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 
-/** Prisma `where` for a list's criteria: nothing narrows it unless a status is asked for. */
-export function publicationWhere(criteria: ListCriteria = {}): { isPublished?: boolean } {
-  return criteria.status === undefined ? {} : { isPublished: criteria.status === "published" };
+/** Trashed rows (`deletedAt` set) are invisible to every admin read, count and public read. */
+export const LIVE = { deletedAt: null } as const;
+
+/** Prisma `where` for a list's criteria: live rows only, narrowed by status only when one is asked for. */
+export function publicationWhere(criteria: ListCriteria = {}): { deletedAt: null; isPublished?: boolean } {
+  return criteria.status === undefined ? LIVE : { ...LIVE, isPublished: criteria.status === "published" };
 }
 
 /** Folds a `groupBy isPublished` result into the two totals; a state with no rows is zero. */

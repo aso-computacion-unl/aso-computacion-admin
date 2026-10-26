@@ -27,13 +27,13 @@ async function lockActiveMemberAndVisiblePost(tx: Prisma.TransactionClient, memb
   let threadId = target.id;
 
   if (target.kind === "reply") {
-    const reply = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${target.id} AND "hiddenAt" IS NULL FOR SHARE`;
+    const [reply] = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${target.id} AND "hiddenAt" IS NULL FOR SHARE`;
 
-    if (reply.length === 0) {
+    if (!reply) {
       throw new NotFoundError("Forum post not found");
     }
 
-    threadId = reply[0].threadId;
+    threadId = reply.threadId;
   }
 
   const thread = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${threadId} AND "hiddenAt" IS NULL FOR SHARE`;

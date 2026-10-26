@@ -147,11 +147,12 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
       // holds while the hide waits for the thread, a deadlock.
       const found = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${id} AND "authorId" = ${change.authorId} AND "hiddenAt" IS NULL FOR UPDATE`;
 
-      if (found.length === 0) {
+      const threadId = found[0]?.threadId;
+
+      if (threadId === undefined) {
         return "not-found";
       }
 
-      const { threadId } = found[0];
       // A shared row lock on the thread while it is open: a lock or a hide committing first matches
       // nothing here, and one arriving later waits for this transaction.
       const open = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${threadId} AND "lockedAt" IS NULL AND "hiddenAt" IS NULL FOR SHARE`;

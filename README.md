@@ -17,7 +17,7 @@
 
 ## Qué es
 
-Este panel permite que la directiva de ASO Computación mantenga el contenido del [sitio público](https://aso-computacion-landing.pages.dev): eventos con fotos, noticias, preguntas frecuentes, directiva, pilares, redes sociales y textos del sitio. Cada cambio publicado actualiza el sitio en pocos segundos, sin pasar por el código.
+Este panel permite que la directiva de ASO Computación mantenga el contenido del [sitio público](https://aso-computacion-landing.pages.dev): eventos con fotos, noticias, preguntas frecuentes, directiva, pilares, redes sociales, cifras de impacto, testimonios, aliados y textos del sitio. Cada cambio publicado actualiza el sitio en pocos segundos, sin pasar por el código.
 
 <table>
   <tr>
@@ -41,13 +41,16 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **FAQ** | Preguntas y respuestas, con el orden que se desee |
 | **Directiva** | Nombre, cargo y foto de cada integrante (nunca datos de contacto) |
 | **Pilares** | Las tarjetas de pilares que presenta el sitio |
+| **Impacto** | Cifras destacadas, por ejemplo «120+ estudiantes» |
+| **Testimonios** | Una cita con el nombre y el cargo de quien la dijo, y una foto opcional |
+| **Aliados** | Nombre y logo de quienes apoyan a la asociación, con un enlace opcional |
 | **Redes** | Enlaces a las redes sociales |
 | **Sitio** | Lema, descripción y texto «Acerca de» (solo administradores) |
 | **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se suma gente con un link de invitación de un solo uso que vence a los 7 días |
 | **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
 | **Registro** | Quién cambió qué y cuándo (solo administradores) |
 
-Cada elemento se puede publicar u ocultar cuando se desee, y nada llega al sitio hasta que se publica. Las listas (FAQ, directiva, pilares y redes) también se pueden reordenar.
+Cada elemento se puede publicar u ocultar cuando se desee, y nada llega al sitio hasta que se publica. Las listas (FAQ, directiva, pilares, redes, impacto, testimonios y aliados) también se pueden reordenar.
 
 ## Tecnologías
 

@@ -26,7 +26,7 @@ The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login th
 2. **Settings → API Keys**: create or reuse a key. You need the **API key** and the **API secret**.
 3. Nothing else to configure: uploads are signed server-side by the SDK, so no upload preset is needed.
 
-Everything lands under one base folder, `CLOUDINARY_FOLDER` (default `aso-computacion`), with one subfolder per feature: `events`, `pillars`, `board`. Use a different folder per environment if one account serves several (`aso-computacion-staging`).
+Everything lands under one base folder, `CLOUDINARY_FOLDER` (default `aso-computacion`), with one subfolder per feature: `events`, `pillars`, `board`, `testimonials`, `sponsors`. Use a different folder per environment if one account serves several (`aso-computacion-staging`).
 
 The image URLs the public API returns contain the cloud name and each asset's `publicId`; both are public by design (see "Public read API" in [REFERENCIA.md](REFERENCIA.md#public-read-api)). The API **secret** is the only private value.
 

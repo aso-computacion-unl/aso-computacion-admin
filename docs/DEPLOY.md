@@ -113,7 +113,7 @@ CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=... \
 - The script also reads a `.env` in the current directory (without overriding variables already set). Before writing it prints `database: <host>/<name>`, never the credentials. **Check that line** before `--apply`.
 - What it creates is exactly what the fallback shows on the site, published: events, FAQ, pillars, socials and the board with their photos (uploaded to Cloudinary), and the site settings when the file has them. `datePrecision: "month"` is kept. A board entry with no photo is created as a draft. A plan with any problem (unreadable image, a photo narrower than its minimum, a value the domain rejects) writes nothing.
 - **Event photos are not seeded.** The landing has none; upload them in the admin (`/admin/events`).
-- **Idempotent.** Items are matched on a stable key: event slug, FAQ question, pillar word, social platform + URL, board name, the settings singleton (compared ignoring case and extra spaces). Whatever already exists is skipped and never modified, so running twice creates nothing and admin edits survive. The flip side: if you **rename or delete** a seeded item in the admin and run the seed again, it comes back, because the key is all the seed knows. Seed once, then edit in the admin.
+- **Idempotent.** Items are matched on a stable key: event slug, FAQ question, pillar word, social platform + URL, board name, the settings singleton (compared ignoring case and extra spaces). Whatever already exists is skipped and never modified, so running twice creates nothing and admin edits survive. The flip side: if you **rename or delete** a seeded item in the admin (a trashed one counts as deleted) and run the seed again, it comes back, because the key is all the seed knows. Seed once, then edit in the admin.
 - If a run fails midway it stops at the first error, deletes the half-created item and its uploaded image, and exits with code 1. Fix the cause and run it again; it only creates what is missing.
 - The seed does **not** trigger a landing rebuild (that hook lives in the admin's server actions). Run the deploy hook yourself afterwards, or wait for the daily cron.
 
@@ -142,9 +142,49 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 ## 8. Operating notes
 
 - A wrong or missing variable shows up in the Vercel function logs, never on screen: `ADMIN_PASSWORD is not set...`, `ADMIN_SECRET is invalid...`. If nobody can log in right after a deploy, read the logs first.
-- Failed deletes in Cloudinary never fail an admin action; the leftover `publicId`s are logged and can be removed in the Cloudinary console.
+- Failed deletes in Cloudinary never fail an admin action; the leftover `publicId`s are logged and can be removed in the Cloudinary console. Cloudinary assets are destroyed only when an item is deleted for good from the trash, never when it is moved there.
 - The dashboard shows the outcome of the last landing rebuild request ("Último despliegue"). A failure there means the content is saved but the site was not asked to rebuild: wait for the daily cron or save another change. Check `CLOUDFLARE_DEPLOY_HOOK_URL` if it keeps failing. Remember to run `prisma migrate deploy` (the `DeployStatus` table) before the first deploy that includes this.
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances.
+
+### The soft-delete migration (`20261025130000_add_soft_delete`)
+
+Safe to apply on the production database with `prisma migrate deploy`; it needs no downtime and no backup beyond your usual one.
+
+- It adds a nullable `deletedAt` (no default) to `Event`, `Faq`, `TerminalCommand`, `SocialLink`, `Pillar`, `NewsItem` and `BoardMember`. In Postgres that is a catalog-only change: no table rewrite, and every existing row gets `deletedAt = NULL`, i.e. stays live exactly as before. No data is read, moved or deleted.
+- It replaces the unique indexes on `Event.slug`, `NewsItem.slug`, `Faq.command` and `TerminalCommand.command` with partial ones (`WHERE "deletedAt" IS NULL`). Each new index is created **before** the old one is dropped, so the column is never unprotected, and existing data satisfies it because the new rule is weaker than the old one.
+- Deploy order: run the migration first (the old code keeps working on the new schema), then deploy the new code. The reverse order fails, because the new code reads `deletedAt`.
+- After deploying, `/admin/papelera` should be empty and every list unchanged.
+
+**Rollback.** Only needed if the feature must be abandoned; the old code works on the new schema, so prefer rolling back the app alone. If the schema must go back too, first empty the trash (delete its items for good from `/admin/papelera`): dropping the column would turn every trashed row back into a live draft, and two rows with the same slug or command would stop the old unique index from being created. Check for those first, then run the statements in one transaction:
+
+```sql
+SELECT 'Event' AS "table", "slug" AS value FROM "Event" GROUP BY "slug" HAVING count(*) > 1
+UNION ALL SELECT 'NewsItem', "slug" FROM "NewsItem" GROUP BY "slug" HAVING count(*) > 1
+UNION ALL SELECT 'Faq', "command" FROM "Faq" WHERE "command" IS NOT NULL GROUP BY "command" HAVING count(*) > 1
+UNION ALL SELECT 'TerminalCommand', "command" FROM "TerminalCommand" GROUP BY "command" HAVING count(*) > 1;
+-- must return no rows
+
+BEGIN;
+CREATE UNIQUE INDEX "Event_slug_key" ON "Event"("slug");
+CREATE UNIQUE INDEX "NewsItem_slug_key" ON "NewsItem"("slug");
+CREATE UNIQUE INDEX "Faq_command_key" ON "Faq"("command");
+CREATE UNIQUE INDEX "TerminalCommand_command_key" ON "TerminalCommand"("command");
+DROP INDEX "Event_slug_live_key";
+DROP INDEX "NewsItem_slug_live_key";
+DROP INDEX "Faq_command_live_key";
+DROP INDEX "TerminalCommand_command_live_key";
+ALTER TABLE "Event" DROP COLUMN "deletedAt";
+ALTER TABLE "Faq" DROP COLUMN "deletedAt";
+ALTER TABLE "TerminalCommand" DROP COLUMN "deletedAt";
+ALTER TABLE "SocialLink" DROP COLUMN "deletedAt";
+ALTER TABLE "Pillar" DROP COLUMN "deletedAt";
+ALTER TABLE "NewsItem" DROP COLUMN "deletedAt";
+ALTER TABLE "BoardMember" DROP COLUMN "deletedAt";
+DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261025130000_add_soft_delete';
+COMMIT;
+```
+
+Run this with the **direct** connection string. Assets of items already deleted for good are gone from Cloudinary and cannot be recovered by the rollback.
 
 ## 9. First-deploy checklist
 
@@ -156,7 +196,7 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - [ ] Production variables set: `DATABASE_URL` (pooled, `pgbouncer=true`), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
 - [ ] Deployed; `GET /api/health` returns 200; `/admin` redirects to `/login`.
 - [ ] Logged in with the real password; the Vercel logs show no `ADMIN_*` error.
-- [ ] Uploaded one test photo to a draft event and deleted the event (checks Cloudinary and the pooled connection end to end).
+- [ ] Uploaded one test photo to a draft event, moved the event to the trash and deleted it for good from `/admin/papelera` (checks Cloudinary and the pooled connection end to end).
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.

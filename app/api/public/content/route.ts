@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { ifNoneMatchMatches, strongEtag } from "@/infrastructure/http/etag";
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const now = new Date();
     const snapshot = await getPublicContentUseCase().execute({ now });
-    const body = toPublicContentResponse(snapshot, now);
+    const body = toPublicContentResponse(snapshot, now, { adminOrigin: publicOrigin(process.env.AUTH_URL) });
     const etag = strongEtag(JSON.stringify(withoutGeneratedAt(body)));
     // 304 and 200 share these headers: a 304 must repeat the ones that would have been on the 200.
     const headers = { "Cache-Control": PUBLIC_CONTENT_CACHE_CONTROL, ETag: etag };

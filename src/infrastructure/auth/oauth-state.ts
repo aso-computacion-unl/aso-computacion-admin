@@ -55,9 +55,14 @@ export async function openOAuthState(value: string | undefined): Promise<OAuthFl
 
 /** Constant-time comparison of the `state` in the URL with the one in the cookie. */
 export function statesMatch(fromUrl: string | null, fromCookie: string): boolean {
-  if (!fromUrl || !fromCookie || fromUrl.length !== fromCookie.length) {
+  if (!fromUrl || !fromCookie) {
     return false;
   }
 
-  return timingSafeEqual(Buffer.from(fromUrl), Buffer.from(fromCookie));
+  // Equal string lengths can still be different byte lengths (multibyte input), which would make
+  // `timingSafeEqual` throw: encode first, compare the byte lengths, then the bytes.
+  const url = Buffer.from(fromUrl);
+  const cookie = Buffer.from(fromCookie);
+
+  return url.length === cookie.length && timingSafeEqual(url, cookie);
 }

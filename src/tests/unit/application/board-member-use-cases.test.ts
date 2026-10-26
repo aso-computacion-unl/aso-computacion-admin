@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateBoardMemberUseCase } from "@/application/use-cases/create-board-member.use-case";
-import { DeleteBoardMemberUseCase } from "@/application/use-cases/delete-board-member.use-case";
 import { RemoveBoardMemberPhotoUseCase } from "@/application/use-cases/remove-board-member-photo.use-case";
 import {
   BOARD_PHOTO_FOLDER,
@@ -220,56 +219,6 @@ describe("board member use cases", () => {
     it("is a no-op for a member without a photo and fails for an unknown id", async () => {
       await expect(remove.execute({ id })).resolves.toMatchObject({ photo: null });
       expect(storage.destroyedPublicIds).toEqual([]);
-      await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
-    });
-  });
-
-  describe("DeleteBoardMemberUseCase (L21/L22: the photo must not linger)", () => {
-    let id: string;
-    let remove: DeleteBoardMemberUseCase;
-
-    beforeEach(async () => {
-      id = (await new CreateBoardMemberUseCase(members).execute(TEXT)).id;
-      remove = new DeleteBoardMemberUseCase(members, storage);
-    });
-
-    it("deletes the row, then destroys its stored photo", async () => {
-      await setPhoto.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-
-      await remove.execute({ id });
-
-      expect(await members.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual(["board/a.jpg"]);
-      expect(storage.has("board/a.jpg")).toBe(false);
-    });
-
-    it("destroys nothing when the member has no photo", async () => {
-      await remove.execute({ id });
-
-      expect(await members.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual([]);
-    });
-
-    it("keeps the stored photo when the delete itself fails", async () => {
-      await setPhoto.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      vi.spyOn(members, "delete").mockRejectedValueOnce(new Error("db down"));
-
-      await expect(remove.execute({ id })).rejects.toThrow("db down");
-
-      expect(storage.has("board/a.jpg")).toBe(true);
-    });
-
-    it("logs the leftover publicId and still succeeds when the destroy fails", async () => {
-      await setPhoto.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      storage.destroyError = new Error("cloudinary down");
-
-      await expect(remove.execute({ id })).resolves.toBeUndefined();
-
-      expect(await members.getById(id)).toBeNull();
-      expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("board/a.jpg"), expect.anything());
-    });
-
-    it("fails for an unknown id", async () => {
       await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
     });
   });

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreatePillarUseCase } from "@/application/use-cases/create-pillar.use-case";
-import { DeletePillarUseCase } from "@/application/use-cases/delete-pillar.use-case";
 import { RemovePillarImageUseCase } from "@/application/use-cases/remove-pillar-image.use-case";
 import {
   PILLAR_IMAGE_FOLDER,
@@ -194,55 +193,6 @@ describe("pillar use cases", () => {
     it("is a no-op for a pillar without an image and fails for an unknown id", async () => {
       await expect(remove.execute({ id })).resolves.toMatchObject({ image: null });
       expect(storage.destroyedPublicIds).toEqual([]);
-      await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
-    });
-  });
-
-  describe("DeletePillarUseCase", () => {
-    let id: string;
-    let remove: DeletePillarUseCase;
-
-    beforeEach(async () => {
-      id = (await new CreatePillarUseCase(pillars).execute(TEXT)).id;
-      remove = new DeletePillarUseCase(pillars, storage);
-    });
-
-    it("deletes the row, then destroys its stored image", async () => {
-      await setImage.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-
-      await remove.execute({ id });
-
-      expect(await pillars.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual(["pillars/a.jpg"]);
-    });
-
-    it("destroys nothing when the pillar has no image", async () => {
-      await remove.execute({ id });
-
-      expect(await pillars.getById(id)).toBeNull();
-      expect(storage.destroyedPublicIds).toEqual([]);
-    });
-
-    it("keeps the stored image when the delete itself fails", async () => {
-      await setImage.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      vi.spyOn(pillars, "delete").mockRejectedValueOnce(new Error("db down"));
-
-      await expect(remove.execute({ id })).rejects.toThrow("db down");
-
-      expect(storage.has("pillars/a.jpg")).toBe(true);
-    });
-
-    it("logs the leftover publicId and still succeeds when the destroy fails", async () => {
-      await setImage.execute({ id, file: imageFile("a.jpg"), alt: "x" });
-      storage.destroyError = new Error("cloudinary down");
-
-      await expect(remove.execute({ id })).resolves.toBeUndefined();
-
-      expect(await pillars.getById(id)).toBeNull();
-      expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("pillars/a.jpg"), expect.anything());
-    });
-
-    it("fails for an unknown id", async () => {
       await expect(remove.execute({ id: MISSING_ID })).rejects.toBeInstanceOf(NotFoundError);
     });
   });

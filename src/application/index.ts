@@ -41,7 +41,6 @@ export { UpdateEventUseCase } from "./use-cases/update-event.use-case";
 export type { FaqResult } from "./dto/faq-result.dto";
 export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
 export {
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
@@ -60,7 +59,6 @@ export { CreateSocialLinkUseCase } from "./use-cases/create-social-link.use-case
 export { UpdateSocialLinkUseCase } from "./use-cases/update-social-link.use-case";
 export type { PillarImageResult, PillarResult } from "./dto/pillar-result.dto";
 export { CreatePillarUseCase } from "./use-cases/create-pillar.use-case";
-export { DeletePillarUseCase } from "./use-cases/delete-pillar.use-case";
 export { RemovePillarImageUseCase } from "./use-cases/remove-pillar-image.use-case";
 export {
   PILLAR_IMAGE_FOLDER,
@@ -74,7 +72,6 @@ export { GetSiteSettingsUseCase } from "./use-cases/get-site-settings.use-case";
 export { UpdateSiteSettingsUseCase } from "./use-cases/update-site-settings.use-case";
 export type { BoardMemberPhotoResult, BoardMemberResult } from "./dto/board-member-result.dto";
 export { CreateBoardMemberUseCase } from "./use-cases/create-board-member.use-case";
-export { DeleteBoardMemberUseCase } from "./use-cases/delete-board-member.use-case";
 export { RemoveBoardMemberPhotoUseCase } from "./use-cases/remove-board-member-photo.use-case";
 export {
   BOARD_PHOTO_FOLDER,

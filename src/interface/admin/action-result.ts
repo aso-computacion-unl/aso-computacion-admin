@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
+import { ForbiddenError, NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
 import {
   CommandNameConflictError,
   ImageTooLargeError,
@@ -24,6 +24,7 @@ export interface ActionResult {
 }
 
 export const SESSION_EXPIRED_MESSAGE = "Su sesión expiró. Inicie sesión de nuevo.";
+export const FORBIDDEN_MESSAGE = "No tiene permiso para realizar esta acción.";
 const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.";
 const IMAGE_FORMAT_MESSAGE = "Elija una imagen JPEG, PNG o WebP de hasta 5 MB.";
 
@@ -100,6 +101,10 @@ function fieldError(field: string, message?: string, overrides?: Record<string, 
 export function mapActionError(error: unknown, fieldMessages?: Record<string, string>): ActionResult {
   if (error instanceof UnauthorizedError) {
     return { error: SESSION_EXPIRED_MESSAGE };
+  }
+
+  if (error instanceof ForbiddenError) {
+    return { error: FORBIDDEN_MESSAGE };
   }
 
   if (error instanceof ZodError) {

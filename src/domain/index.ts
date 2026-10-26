@@ -60,10 +60,15 @@ export {
   FORUM_MEMBER_NAME_MAX_LENGTH,
   FORUM_MEMBER_STATUSES,
   FORUM_REPLY_BODY_MAX_LENGTH,
+  FORUM_REPORT_NOTE_MAX_LENGTH,
+  FORUM_REPORT_REASON_MAX_LENGTH,
+  FORUM_REPORT_STATUSES,
   FORUM_THREAD_BODY_MAX_LENGTH,
   FORUM_THREAD_TITLE_MAX_LENGTH,
+  ForumAlreadyReportedError,
   ForumMemberSuspendedError,
   ForumPostNotOwnedError,
+  ForumReportAlreadyClosedError,
   ForumThreadLockedError,
   assertCanEditPost,
   assertCanPost,
@@ -72,7 +77,9 @@ export {
   parseCategoryName,
   parseDisplayName,
   parseReplyBody,
+  parseReportReason,
+  parseResolutionNote,
   parseThreadBody,
   parseThreadTitle,
 } from "./forum";
-export type { ForumCategory, ForumMember, ForumMemberStatus, ForumReply, ForumThread } from "./forum";
+export type { ForumCategory, ForumMember, ForumMemberStatus, ForumReply, ForumReport, ForumReportStatus, ForumThread } from "./forum";

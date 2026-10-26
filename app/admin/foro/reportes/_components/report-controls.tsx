@@ -10,16 +10,28 @@ import { closeForumReport, setForumMemberSuspended, setForumReplyHidden, setForu
 
 import { Field, FieldError } from "../../../_components/form-parts";
 import { DeleteButton } from "../../../_components/row-actions";
+import { useToast } from "../../../_components/toast";
 import { resultMessage, useRunAction } from "../../../_components/use-run-action";
+
+export const ALREADY_DONE_MESSAGE = "Sin cambios: otra persona ya lo había hecho.";
 
 /** One moderation step as a button: the server action, the toast on success and the inline error when it fails. */
 function StepButton({ label, run: action, done }: { label: string; run: () => Promise<ActionResult>; done: string }) {
   const { pending, result, run } = useRunAction();
+  const { notify } = useToast();
   const message = resultMessage(result);
+  // A step that found the target already in the wanted state says so instead of claiming it did the work.
+  const report = async () => {
+    const outcome = await action();
+
+    if (outcome.success) notify(outcome.unchanged ? ALREADY_DONE_MESSAGE : done);
+
+    return outcome;
+  };
 
   return (
     <>
-      <Button variant="line" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(action, undefined, done)}>
+      <Button variant="line" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(report)}>
         {label}
       </Button>
       {message ? <FieldError>{message}</FieldError> : null}

@@ -54,7 +54,13 @@ export class StartSessionUseCase {
     });
 
     if (input.subject.kind === "user") {
-      await this.users.recordLogin(input.subject.userId, at);
+      try {
+        await this.users.recordLogin(input.subject.userId, at);
+      } catch (error) {
+        // The caller never learns this session id, so nothing could ever revoke it.
+        await this.sessions.revoke(sessionId, at).catch(() => undefined);
+        throw error;
+      }
     }
 
     return { sessionId, expiresAt };

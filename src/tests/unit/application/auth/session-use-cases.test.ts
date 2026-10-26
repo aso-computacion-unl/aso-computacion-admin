@@ -39,6 +39,14 @@ describe("StartSessionUseCase", () => {
     expect((await users.findById("ana"))?.lastLoginAt).toEqual(NOW);
   });
 
+  it("revokes the row it created when recording the login fails, so no live session is left behind", async () => {
+    vi.spyOn(users, "recordLogin").mockRejectedValue(new Error("database down"));
+
+    await expect(start().execute({ subject: { kind: "user", userId: "ana" } })).rejects.toThrow("database down");
+
+    expect(sessions.sessions.get("s1")?.revokedAt).toEqual(NOW);
+  });
+
   it("opens a break-glass session with no user", async () => {
     await start().execute({ subject: { kind: "break_glass" } });
 

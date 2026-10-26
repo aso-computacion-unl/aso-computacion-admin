@@ -1,11 +1,12 @@
 import { cookies, headers } from "next/headers";
 
-import type { SessionSubject } from "@/application";
+import { NotFoundError, type SessionSubject } from "@/application";
 import type { Role } from "@/domain/user";
 import { hashClientIp } from "@/infrastructure/auth/ip-hash";
 import { clearSessionCookie, setSessionCookie } from "@/infrastructure/auth/session-cookies";
 import { AUTH_COOKIE_NAME, SessionSecretError, signSession, verifySession } from "@/infrastructure/auth/session-jwt";
 import { clientKeyFromHeaders, UNKNOWN_CLIENT_KEY } from "@/infrastructure/http/client-ip";
+import { reportError } from "@/infrastructure/observability/report-error";
 
 import { getAuthServices } from "./auth-container";
 import { UnauthorizedError, requireSession } from "./require-session";
@@ -45,11 +46,28 @@ export async function openSession(subject: SessionSubject, role: Role): Promise<
     replaces,
   });
 
-  await setSessionCookie(
-    await signSession({ sid: sessionId, kind: subject.kind, uid: subject.kind === "user" ? subject.userId : null, role }),
-  );
+  try {
+    await setSessionCookie(
+      await signSession({ sid: sessionId, kind: subject.kind, uid: subject.kind === "user" ? subject.userId : null, role }),
+    );
+  } catch (error) {
+    // No cookie was issued, so nobody holds this session: revoke it rather than leave a live orphan row.
+    await revokeOrphan(sessionId, subject, role);
+    throw error;
+  }
 
   return { sessionId };
+}
+
+async function revokeOrphan(sessionId: string, subject: SessionSubject, role: Role): Promise<void> {
+  const actor = { kind: subject.kind, sessionId, userId: subject.kind === "user" ? subject.userId : null, name: "", role };
+
+  try {
+    await getAuthServices().revokeSession.execute({ actor, sessionId });
+  } catch (error) {
+    console.error("Could not revoke the session left behind by a failed login.");
+    reportError(error, { action: "login-orphan-session" });
+  }
 }
 
 /** Logs out: revokes this browser's session (when it still has a valid one) and clears the cookie. */
@@ -59,11 +77,13 @@ export async function closeSession(): Promise<void> {
 
     await getAuthServices().revokeSession.execute({ actor, sessionId: actor.sessionId });
   } catch (error) {
-    // No valid session means there is nothing to revoke; the cookie is cleared either way.
-    if (!(error instanceof UnauthorizedError)) {
+    // No valid session (or one already revoked) means nothing to revoke; anything else is a real failure.
+    if (!(error instanceof UnauthorizedError || error instanceof NotFoundError)) {
       console.error("Could not revoke the session on logout.");
+      reportError(error, { action: "logout-revoke" });
     }
+  } finally {
+    // Whatever happened, the browser must not keep the cookie.
+    await clearSessionCookie();
   }
-
-  await clearSessionCookie();
 }

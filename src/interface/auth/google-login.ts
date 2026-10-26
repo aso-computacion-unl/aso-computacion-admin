@@ -104,6 +104,14 @@ async function completeLogin(config: GoogleConfig, throttleKey: string, flow: { 
 
     outcome = await getAuthServices().resolveGoogleLogin.execute(identity);
   } catch (error) {
+    if (error instanceof GoogleAuthError && error.failure === "unavailable") {
+      // Google or the network to it is down: not a verdict on the person, so retryable and not a login failure.
+      console.error("The Google sign-in could not be verified (Google unavailable).");
+      reportError(error, { action: "google-login", failure: error.failure });
+
+      return redirectTo(config.redirectUri, "/login", "verification");
+    }
+
     if (error instanceof GoogleAuthError) {
       console.error(`The Google sign-in was rejected (${error.failure}).`);
       reportError(error, { action: "google-login", failure: error.failure });

@@ -17,6 +17,3 @@ export { SiteSettingsPrismaRepository } from "./repositories/site-settings-prism
 export { BoardMemberPrismaRepository } from "./repositories/board-member-prisma.repository";
 export { DeployStatusPrismaRepository } from "./repositories/deploy-status-prisma.repository";
 export { NewsPrismaRepository } from "./repositories/news-prisma.repository";
-export { UserPrismaRepository } from "./repositories/user-prisma.repository";
-export { SessionPrismaRepository } from "./repositories/session-prisma.repository";
-export { AuditLogPrismaRepository } from "./repositories/audit-log-prisma.repository";

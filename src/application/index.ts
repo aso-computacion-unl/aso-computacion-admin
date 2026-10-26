@@ -132,3 +132,16 @@ export {
   ValidateForumSessionUseCase,
 } from "./forum/forum-auth.use-cases";
 export type { ForumActor, ForumGoogleIdentity, ForumLoginConfig, ForumLoginDenial, ForumLoginOutcome } from "./forum/forum-auth.use-cases";
+export type {
+  ForumCategoryResult,
+  ForumReplyResult,
+  ForumThreadListItemResult,
+  ForumThreadResult,
+} from "./dto/forum-result.dto";
+export {
+  CreateForumCategoryUseCase,
+  DeleteForumCategoryUseCase,
+  ForumCategoryNotEmptyError,
+  ListForumCategoriesUseCase,
+  UpdateForumCategoryUseCase,
+} from "./forum/forum-categories.use-cases";

@@ -58,6 +58,71 @@ export function describeOrderedRepositoryContract<E extends OrderedContent<E>>(
       expect(await repository.getById(entity.props.id)).toBeNull();
     });
 
+    it("trash hides a published row from reads, unpublishes it, and lists it newest deletion first", async () => {
+      const first = await repository.create(make(0).withPublished(true));
+      const second = await repository.create(make(1));
+      const kept = await repository.create(make(2));
+
+      await repository.trash(first.props.id);
+      await wait();
+      await repository.trash(second.props.id);
+
+      expect(await idsOf()).toEqual([kept.props.id]);
+      expect(await repository.getById(first.props.id)).toBeNull();
+      const trashed = await repository.listTrashed();
+      expect(trashed.map((item) => item.entity.props.id)).toEqual([second.props.id, first.props.id]);
+      expect(trashed.map((item) => item.entity.props.isPublished)).toEqual([false, false]);
+      expect((await repository.getTrashed(first.props.id))?.deletedAt).toBeInstanceOf(Date);
+      expect(await repository.getTrashed(kept.props.id)).toBeNull();
+    });
+
+    it("trash throws NotFoundError for an unknown or already trashed row and changes nothing", async () => {
+      const entity = await repository.create(make(0));
+      await repository.trash(entity.props.id);
+      const before = await repository.getTrashed(entity.props.id);
+
+      await expect(repository.trash(entity.props.id)).rejects.toMatchObject({ name: "NotFoundError" });
+      await expect(repository.trash(MISSING_ID)).rejects.toMatchObject({ name: "NotFoundError" });
+
+      expect(await repository.getTrashed(entity.props.id)).toEqual(before);
+    });
+
+    it("restore makes a trashed row live again with the state it is given, and leaves the trash", async () => {
+      const [a, b] = [await repository.create(make(0)), await repository.create(make(1))];
+      await repository.trash(a.props.id);
+
+      const restored = await repository.restore(a.withSortOrder(5));
+
+      expect(restored.props).toMatchObject({ id: a.props.id, sortOrder: 5, isPublished: false });
+      expect(await idsOf()).toEqual([b.props.id, a.props.id]);
+      expect(await repository.listTrashed()).toEqual([]);
+    });
+
+    it("restore throws NotFoundError for a live or unknown row and changes nothing", async () => {
+      const live = await repository.create(make(0));
+
+      await expect(repository.restore(live.withSortOrder(9))).rejects.toMatchObject({ name: "NotFoundError" });
+      await expect(repository.restore(make(0))).rejects.toMatchObject({ name: "NotFoundError" });
+
+      expect((await repository.getById(live.props.id))?.props.sortOrder).toBe(0);
+    });
+
+    it("purge removes only a trashed row; a live or unknown one throws NotFoundError and stays", async () => {
+      const live = await repository.create(make(0));
+      const trashed = await repository.create(make(1));
+      await repository.trash(trashed.props.id);
+
+      await expect(repository.purge(live.props.id)).rejects.toMatchObject({ name: "NotFoundError" });
+      await expect(repository.purge(MISSING_ID)).rejects.toMatchObject({ name: "NotFoundError" });
+      expect(await idsOf()).toEqual([live.props.id]);
+
+      await repository.purge(trashed.props.id);
+
+      expect(await repository.getTrashed(trashed.props.id)).toBeNull();
+      expect(await repository.listTrashed()).toEqual([]);
+      await expect(repository.purge(trashed.props.id)).rejects.toMatchObject({ name: "NotFoundError" });
+    });
+
     it("saveOrder rewrites sortOrder to the index in the list", async () => {
       const [a, b, c] = [await repository.create(make(0)), await repository.create(make(0)), await repository.create(make(0))];
 

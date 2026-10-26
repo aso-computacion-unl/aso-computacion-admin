@@ -199,6 +199,24 @@ Students are **not** `User` rows. `ForumMember` / `ForumSession` and the other `
 - Posting is throttled per member in the database (`src/application/forum/posting-throttle.ts`); a reply is written under the thread's row lock so a lock racing a reply cannot lose.
 - Post text uses the Markdown subset (`src/interface/admin/markdown-subset.ts`), with fenced code blocks only when asked for (`{ codeBlocks: true }`); the news grammar the landing renders is unchanged.
 
+## The forum screens
+
+The student UI lives in `app/foro/**` and reads only through `src/interface/forum/forum-read.ts` and writes only through `forum-posting.ts`, so every page and action starts with the forum member guard. Copy is neutral Spanish with *usted*, like the backend messages.
+
+| Route | What it shows |
+|---|---|
+| `/foro` | Visitor: the Google sign-in (and the `?error=` reason of a failed login). Member: the categories with their thread counts |
+| `/foro/c/<slug>?estado=resueltos&pagina=2` | Threads of a category. `estado` is `abiertos` (default) or `resueltos`; `pagina` is clamped by the read |
+| `/foro/c/<slug>/nuevo` | New thread: title, Markdown with toolbar and live preview |
+| `/foro/hilo/<id>` | The thread on the conversation lane, its replies oldest first, the best answer highlighted, and the reply form (or "Hilo cerrado" when locked) |
+
+- Category routes are under `/foro/c/` and threads under `/foro/hilo/` so a category slug can never shadow `auth` or `hilo`.
+- **Abiertos / Resueltos** filters the page the read returned: a thread is *resuelto* when it has a best answer (a locked thread without one stays under Abiertos, with the lock icon). The backend lists by category and page only, so on a category with several pages each page is filtered on its own and the per-tab counts are hidden. A proper filter needs a `solved` option in `ListForumThreadsUseCase` (best answer is T17).
+- Bodies render through `MarkdownBody` (`app/foro/_components/markdown-body.tsx`) from the same `markdown-subset` as news: paragraphs, bold, italic, lists, https links and fenced code. There is **no inline code**: a student's `` `x` `` shows its backticks. Adding it is a change to the shared grammar, which the landing renders too.
+- Forms keep their values in state (`use-forum-form.ts`) and submit through `startTransition`, never `<form action>`, so a refused post is not wiped. A published reply clears the box and calls `router.refresh()`; for that reason `app/foro` has no `loading.tsx` and no `<Suspense>` (`forum-route-states.test.ts` guards it, the same Next 15.5 / React 19.2 issue as the admin).
+- Not built here: editing own posts (the actions `editForumThread` / `editForumReply` exist), reactions, marking the best answer, reporting and moderation (T16, T17).
+- Tests: the pages are rendered over the in-memory forum (`src/tests/unit/app/forum-*.test.ts`), the forms in jsdom (`src/tests/support/dom.ts`), the visitor view in `e2e/forum.spec.ts`. `e2e/forum-member.spec.ts` plants a session and drives the signed-in screens against the real database; it is skipped unless you run `FORUM_SESSION_SECRET=<32+ characters> npm run e2e` (add `FORUM_E2E_SHOTS=<dir>` to keep screenshots).
+
 ## Server actions are guarded individually
 
 The middleware matcher only covers `/` and `/admin/*`, but a server action can be POSTed to any page that bundles it. Every admin server action must therefore call `requireSession()` (any signed-in user) or `requireRole("ADMIN")` (`src/interface/auth/require-session.ts`) as its first statement, must have a row in `src/tests/support/action-policy.ts` (its role and the audit entry it writes), and must have a test proving it rejects without a session and writes nothing (see `src/tests/unit/interface/admin/events/actions-auth.test.ts`, which also registers the role matrix and audit cases). `action-policy-coverage.test.ts` fails when an actions module or an action has no row, so a new action cannot ship without a decision about who may call it. Pages and the reads that feed them use `requirePageSession()` instead (it redirects rather than throws). Any new admin API route must also be added to the middleware matcher.

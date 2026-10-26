@@ -1,6 +1,8 @@
 import type { BoardMember } from "@/domain/board-member";
 import type { NewsItem } from "@/domain/news-item";
 import type { Pillar } from "@/domain/pillar";
+import type { Sponsor } from "@/domain/sponsor";
+import type { Testimonial } from "@/domain/testimonial";
 
 import type { EventRepository } from "../ports/event-repository.port";
 import type { MediaStoragePort } from "../ports/media-storage.port";
@@ -53,6 +55,18 @@ export class PurgePillarUseCase extends PurgeContentUseCase<Pillar> {
 export class PurgeBoardMemberUseCase extends PurgeContentUseCase<BoardMember> {
   constructor(members: OrderedContentRepository<BoardMember>, storage: MediaStoragePort) {
     super(members, "Board member not found", { storage, label: "board member", publicIdsOf: (member) => (member.props.photo ? [member.props.photo.publicId] : []) });
+  }
+}
+
+export class PurgeTestimonialUseCase extends PurgeContentUseCase<Testimonial> {
+  constructor(testimonials: OrderedContentRepository<Testimonial>, storage: MediaStoragePort) {
+    super(testimonials, "Testimonial not found", { storage, label: "testimonial", publicIdsOf: (item) => (item.props.photo ? [item.props.photo.publicId] : []) });
+  }
+}
+
+export class PurgeSponsorUseCase extends PurgeContentUseCase<Sponsor> {
+  constructor(sponsors: OrderedContentRepository<Sponsor>, storage: MediaStoragePort) {
+    super(sponsors, "Sponsor not found", { storage, label: "sponsor", publicIdsOf: (item) => (item.props.logo ? [item.props.logo.publicId] : []) });
   }
 }
 

@@ -10,6 +10,9 @@ export const TRASH_KIND_LABELS: Record<TrashKind, string> = {
   social: "Redes",
   pillar: "Pilares",
   board: "Directiva",
+  impact: "Impacto",
+  testimonial: "Testimonios",
+  sponsor: "Aliados",
 };
 
 // What a permanent delete takes with it: the row, and the stored files it points to.
@@ -21,6 +24,9 @@ const PURGE_SUBJECTS: Record<TrashKind, string> = {
   social: "esta red?",
   pillar: "este pilar? Se borran el pilar y el archivo de su imagen.",
   board: "a este integrante? Se borran sus datos y el archivo de su foto.",
+  impact: "esta cifra de impacto?",
+  testimonial: "este testimonio? Se borran el testimonio y el archivo de su foto, si la tiene.",
+  sponsor: "a este aliado? Se borran sus datos y el archivo de su logo.",
 };
 
 export function purgeWarning(kind: TrashKind): string {

@@ -122,6 +122,8 @@ export {
   PurgeEventUseCase,
   PurgeNewsItemUseCase,
   PurgePillarUseCase,
+  PurgeSponsorUseCase,
+  PurgeTestimonialUseCase,
 } from "./use-cases/purge-content.use-case";
 export {
   RestoreContentUseCase,

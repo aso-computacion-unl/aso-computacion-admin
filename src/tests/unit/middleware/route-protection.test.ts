@@ -19,7 +19,8 @@ const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/cal
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
 const PUBLIC_ROUTES: string[] = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
 // The open-form event registration is public by design: Turnstile, a strict rate limit and the atomic use case are its guards.
-PUBLIC_ROUTES.push("/api/public/events/x/registrations");
+// The `.ics` download is public read-only data of a published event, with no personal data.
+PUBLIC_ROUTES.push("/api/public/events/x/registrations", "/api/public/events/x/calendar.ics");
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

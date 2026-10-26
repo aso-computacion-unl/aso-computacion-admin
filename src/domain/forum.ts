@@ -104,6 +104,14 @@ export class ForumThreadLockedError extends DomainError {
   }
 }
 
+/** Raised when someone but the author of a thread tries to mark or clear its best answer. */
+export class ForumNotThreadAuthorError extends DomainError {
+  constructor() {
+    super("Only the author of the thread can choose its best answer");
+    this.name = "ForumNotThreadAuthorError";
+  }
+}
+
 /** Raised when a member reports a post they already have an open report on. */
 export class ForumAlreadyReportedError extends DomainError {
   constructor() {
@@ -190,5 +198,11 @@ export function assertThreadOpen(thread: Pick<ForumThread, "lockedAt">): void {
 export function assertCanEditPost(post: { authorId: string; hiddenAt: Date | null }, memberId: string): void {
   if (post.authorId !== memberId || post.hiddenAt !== null) {
     throw new ForumPostNotOwnedError();
+  }
+}
+
+export function assertThreadAuthor(thread: Pick<ForumThread, "authorId">, memberId: string): void {
+  if (thread.authorId !== memberId) {
+    throw new ForumNotThreadAuthorError();
   }
 }

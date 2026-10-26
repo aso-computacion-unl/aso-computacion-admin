@@ -66,6 +66,9 @@ export interface ForumReplyRow {
 
 export type ForumAddReplyOutcome = "ok" | "not-found" | "locked";
 
+/** "not-found": the thread is gone or hidden. "invalid-reply": the reply is not a visible reply of this very thread. */
+export type ForumBestAnswerOutcome = "ok" | "not-found" | "locked" | "invalid-reply";
+
 /** "not-found" also covers a hidden post (or one in a hidden thread) and one that is not the author's. */
 export type ForumEditOutcome = "ok" | "not-found" | "locked";
 
@@ -86,6 +89,12 @@ export interface ForumPostRepository {
    * check that the thread exists, is not hidden and is not locked: a lock racing a reply cannot lose.
    */
   addReply(reply: ForumReply): Promise<ForumAddReplyOutcome>;
+  /**
+   * Sets (or, with null, clears) the thread's best answer, atomically with the checks that the thread is
+   * neither hidden nor locked and that the reply belongs to this thread and is not hidden. A hide that
+   * lands after the caller read the reply wins: the foreign key alone cannot tell which thread a reply is in.
+   */
+  setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome>;
   /** Not hidden, oldest first. */
   listReplies(threadId: string): Promise<ForumReplyRow[]>;
   findReply(id: string): Promise<ForumReply | null>;

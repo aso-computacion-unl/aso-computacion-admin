@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ForumReply as ForumReplyRow, ForumThread as ForumThreadRecord } from "@prisma/client";
 
-import type { ForumAddReplyOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow } from "@/application/ports/forum.ports";
+import type { ForumAddReplyOutcome, ForumBestAnswerOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow } from "@/application/ports/forum.ports";
 import type { ForumReply, ForumThread } from "@/domain/forum";
 
 import { prisma } from "../prisma/client";
@@ -95,6 +95,32 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
       await tx.forumReply.create({ data: reply });
 
       return "ok";
+    });
+  }
+
+  async setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome> {
+    return prisma.$transaction(async (tx) => {
+      if (replyId !== null) {
+        // A shared lock on the reply while it is visible and in this thread: a hide committing first matches
+        // nothing here, and one arriving later waits for this transaction and then clears the mark.
+        const found = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumReply" WHERE "id" = ${replyId} AND "threadId" = ${threadId} AND "hiddenAt" IS NULL FOR SHARE`;
+
+        if (found.length === 0) {
+          const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
+
+          return !thread || thread.hiddenAt ? "not-found" : "invalid-reply";
+        }
+      }
+
+      const { count } = await tx.forumThread.updateMany({ where: { id: threadId, hiddenAt: null, lockedAt: null }, data: { bestReplyId: replyId } });
+
+      if (count > 0) {
+        return "ok";
+      }
+
+      const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
+
+      return !thread || thread.hiddenAt ? "not-found" : "locked";
     });
   }
 

@@ -1,5 +1,6 @@
 import type {
   ForumAddReplyOutcome,
+  ForumBestAnswerOutcome,
   ForumCategoryDeleteOutcome,
   ForumCategoryRepository,
   ForumCategoryWithCount,
@@ -11,6 +12,7 @@ import type {
   ForumSessionRepository,
   ForumThreadRow,
 } from "@/application/ports/forum.ports";
+import type { ForumReactionRepository, ForumThreadReactions } from "@/application/ports/forum-reactions.ports";
 import type {
   ForumModerationRepository,
   ForumModerationStamp,
@@ -158,6 +160,8 @@ export class InMemoryForumStore {
   readonly threads = new Map<string, ForumThread>();
   readonly replies = new Map<string, ForumReply>();
   readonly reports = new Map<string, ForumReport>();
+  /** One entry per «me sirvió»: the member and the post it is on. */
+  readonly reactions = new Map<string, { memberId: string; threadId: string | null; replyId: string | null }>();
 
   constructor(readonly members: InMemoryForumMemberRepository) {}
 }
@@ -259,6 +263,21 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
 
     this.store.replies.set(reply.id, reply);
     this.store.threads.set(thread.id, { ...thread, lastActivityAt: reply.createdAt });
+
+    return "ok";
+  }
+
+  async setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome> {
+    const thread = this.store.threads.get(threadId);
+
+    if (!thread || thread.hiddenAt) return "not-found";
+    if (thread.lockedAt) return "locked";
+
+    const reply = replyId === null ? null : this.store.replies.get(replyId);
+
+    if (replyId !== null && (!reply || reply.threadId !== threadId || reply.hiddenAt)) return "invalid-reply";
+
+    this.store.threads.set(threadId, { ...thread, bestReplyId: replyId });
 
     return "ok";
   }
@@ -403,5 +422,42 @@ export class InMemoryForumModerationRepository implements ForumModerationReposit
     }
 
     return true;
+  }
+}
+
+export class InMemoryForumReactionRepository implements ForumReactionRepository {
+  constructor(private readonly store: InMemoryForumStore) {}
+
+  private onTarget(target: ForumPostTarget) {
+    return [...this.store.reactions.entries()].filter(([, reaction]) => (target.kind === "thread" ? reaction.threadId === target.id : reaction.replyId === target.id));
+  }
+
+  async toggle(memberId: string, target: ForumPostTarget, reaction: { id: string; at: Date }) {
+    const mine = this.onTarget(target).find(([, other]) => other.memberId === memberId);
+
+    if (mine) {
+      this.store.reactions.delete(mine[0]);
+    } else {
+      this.store.reactions.set(reaction.id, { memberId, threadId: target.kind === "thread" ? target.id : null, replyId: target.kind === "reply" ? target.id : null });
+    }
+
+    return { reacted: !mine, count: this.onTarget(target).length };
+  }
+
+  async summarize(threadId: string, viewerId: string): Promise<ForumThreadReactions> {
+    const summary = (target: ForumPostTarget) => {
+      const reactions = this.onTarget(target);
+
+      return { count: reactions.length, mine: reactions.some(([, reaction]) => reaction.memberId === viewerId) };
+    };
+    const replies: ForumThreadReactions["replies"] = {};
+
+    for (const reply of this.store.replies.values()) {
+      const entry = summary({ kind: "reply", id: reply.id });
+
+      if (reply.threadId === threadId && !reply.hiddenAt && entry.count > 0) replies[reply.id] = entry;
+    }
+
+    return { thread: summary({ kind: "thread", id: threadId }), replies };
   }
 }

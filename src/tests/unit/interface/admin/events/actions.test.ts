@@ -157,6 +157,22 @@ describe("events server actions", () => {
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events/e1/edit");
     });
 
+    it("passes the registration settings to the use case, and refuses a bad capacity as a field error", async () => {
+      useCases.update.execute.mockResolvedValue({ id: "e1" });
+
+      await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" }));
+
+      expect(useCases.update.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: new Date("2026-11-27T23:00:00.000Z") }),
+      );
+
+      useCases.update.execute.mockClear();
+      const refused = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationCapacity: "-1" }));
+
+      expect(refused.fieldErrors).toHaveProperty("registrationCapacity");
+      expect(useCases.update.execute).not.toHaveBeenCalled();
+    });
+
     it("maps NotFoundError to a Spanish message", async () => {
       useCases.update.execute.mockRejectedValue(new NotFoundError("Event not found"));
 

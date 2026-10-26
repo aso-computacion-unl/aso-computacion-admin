@@ -9,7 +9,7 @@ const INVALID_MESSAGE = "Indique una fecha y hora válidas.";
  * One end of a publish window as a `datetime-local` input sends it (`YYYY-MM-DDTHH:mm`, Ecuador time).
  * Absent key: `undefined`, the use case keeps the current value. Blank: `null`, it clears that end.
  */
-function windowEnd(field: string) {
+export function windowEnd(field: string) {
   return z
     .string()
     .optional()

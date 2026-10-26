@@ -50,6 +50,9 @@ describe("event form values", () => {
       isPublished: true,
       publishAt: "",
       unpublishAt: "",
+      registrationMode: "none",
+      registrationCapacity: "",
+      registrationDeadline: "",
     });
   });
 

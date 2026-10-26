@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect } from "vitest";
 
-const GUARD = "await requireAdminSession();";
+/** `requireSession()` lets any signed-in user through; `requireRole("ADMIN")` only admins. The legacy name goes with the last module that still uses it. */
+const GUARD = /^(?:const actor = )?await (requireSession\(\)|requireRole\("ADMIN"\)|requireAdminSession\(\));/;
 const UNINITIALISED_LETS = /^(\s*let\s+\w+\s*(:[^=;]+)?;)*/;
 
 /**
@@ -14,9 +15,16 @@ const UNINITIALISED_LETS = /^(\s*let\s+\w+\s*(:[^=;]+)?;)*/;
  * Returns the names of the actions it checked.
  */
 export function expectGuardFirstInEveryAction(path: string): string[] {
+  return Object.keys(guardsOfEveryAction(path));
+}
+
+export type GuardCall = "requireSession()" | 'requireRole("ADMIN")' | "requireAdminSession()";
+
+/** Same check as `expectGuardFirstInEveryAction`, returning which guard each action starts with. */
+export function guardsOfEveryAction(path: string): Record<string, GuardCall> {
   const source = readFileSync(path, "utf8");
   const pattern = /export async function (\w+)\s*\(/g;
-  const names: string[] = [];
+  const guards: Record<string, GuardCall> = {};
 
   for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
     const name = match[1]!;
@@ -27,11 +35,13 @@ export function expectGuardFirstInEveryAction(path: string): string[] {
       .replace(/^\s*try\s*\{/, "")
       .trimStart();
 
-    expect(firstStatement.startsWith(GUARD), `${name} must start with ${GUARD}`).toBe(true);
-    names.push(name);
+    const guard = GUARD.exec(firstStatement)?.[1];
+
+    expect(guard, `${name} must start with a session guard (requireSession, requireRole("ADMIN"))`).toBeDefined();
+    guards[name] = guard as GuardCall;
   }
 
-  return names;
+  return guards;
 }
 
 /** Index of the `{` that opens the function body, skipping the parameter list and return type. */

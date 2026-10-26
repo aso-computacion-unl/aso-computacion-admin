@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
+import { expectGuardFirstInEveryAction, guardsOfEveryAction } from "@/tests/support/guard-first";
 
 describe("expectGuardFirstInEveryAction", () => {
   const dirs: string[] = [];
@@ -44,6 +44,38 @@ export async function c(formData: FormData): Promise<ActionResult> {
 `);
 
     expect(expectGuardFirstInEveryAction(path)).toEqual(["a", "b", "c"]);
+  });
+
+  it("accepts the actor-returning guards and reports which one each action uses", () => {
+    const path = sourceFile(`
+export async function editorLevel(): Promise<ActionResult> {
+  try {
+    const actor = await requireSession();
+    return ok(actor);
+  } catch (error) { return fail(error); }
+}
+export async function adminOnly(): Promise<ActionResult> {
+  try {
+    await requireRole("ADMIN");
+    return ok();
+  } catch (error) { return fail(error); }
+}
+`);
+
+    expect(guardsOfEveryAction(path)).toEqual({ editorLevel: "requireSession()", adminOnly: 'requireRole("ADMIN")' });
+  });
+
+  it("does not take a role guard for a role it does not know", () => {
+    const path = sourceFile(`
+export async function odd(): Promise<ActionResult> {
+  try {
+    await requireRole("OWNER");
+    return ok();
+  } catch (error) { return fail(error); }
+}
+`);
+
+    expect(() => expectGuardFirstInEveryAction(path)).toThrow(/odd must start with/);
   });
 
   it("rejects a statement before the guard even when it is not awaited", () => {

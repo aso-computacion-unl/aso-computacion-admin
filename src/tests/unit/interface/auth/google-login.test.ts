@@ -198,6 +198,17 @@ describe("finishGoogleLogin", () => {
       expect(testAuth.audit.entries.map((entry) => entry.action)).toEqual(["login.failure"]);
     });
 
+    it("an outage on Google's side is a retryable message, reported, and not written as a refused login", async () => {
+      const failure = new GoogleAuthError("unavailable");
+      completeMock.mockRejectedValue(failure);
+
+      expect(location(await finishGoogleLogin(request("?code=secret-code&state=the-state")))).toBe("https://admin.example.org/login?error=verification");
+
+      expect(reportErrorMock).toHaveBeenCalledWith(failure, { action: "google-login", failure: "unavailable" });
+      expect(openSessionMock).not.toHaveBeenCalled();
+      expect(testAuth.audit.entries).toEqual([]);
+    });
+
     it("a throttled client is stopped before anything is exchanged", async () => {
       consumeMock.mockResolvedValue({ allowed: false, retryAfterSeconds: 60 });
 

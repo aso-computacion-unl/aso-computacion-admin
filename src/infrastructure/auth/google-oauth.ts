@@ -1,7 +1,7 @@
 import "server-only";
 
-import { Google, generateCodeVerifier, generateState } from "arctic";
-import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
+import { ArcticFetchError, UnexpectedResponseError, generateCodeVerifier, generateState, Google } from "arctic";
+import { createRemoteJWKSet, errors, jwtVerify, type JWTVerifyGetKey } from "jose";
 
 import type { GoogleConfig } from "./auth-config";
 
@@ -25,14 +25,33 @@ function googleJwks(): JWTVerifyGetKey {
   return remoteJwks;
 }
 
-/** Why a sign-in failed, as a fixed code: the message never carries the code, a token or a secret. */
-export type GoogleAuthFailure = "exchange" | "token" | "claims";
+/**
+ * Why a sign-in failed, as a fixed code: the message never carries the code, a token or a secret.
+ * `unavailable` is Google (or the network to it) being down: nothing about the person was judged, so
+ * it is the one failure worth retrying.
+ */
+export type GoogleAuthFailure = "exchange" | "token" | "claims" | "unavailable";
 
 export class GoogleAuthError extends Error {
   constructor(public readonly failure: GoogleAuthFailure) {
     super(`Google sign-in failed (${failure})`);
     this.name = "GoogleAuthError";
   }
+}
+
+/** The token endpoint unreachable, or answering 5xx. Other answers (a bad or reused code) are the person's. */
+function isTokenEndpointOutage(error: unknown): boolean {
+  return error instanceof ArcticFetchError || (error instanceof UnexpectedResponseError && error.status >= 500);
+}
+
+const KEY_SET_OUTAGE_CODES: ReadonlySet<string> = new Set([errors.JOSEError.code, errors.JWKSTimeout.code, errors.JWKSInvalid.code]);
+
+/**
+ * Fetching Google's keys failed (network error, timeout, non-200, unusable key set). A bad token
+ * always fails with a specific `jose` error (signature, claims, malformed), never with these.
+ */
+function isKeySetOutage(error: unknown): boolean {
+  return !(error instanceof errors.JOSEError) || KEY_SET_OUTAGE_CODES.has(error.code);
 }
 
 export interface OAuthStart {
@@ -86,8 +105,8 @@ export async function completeGoogleAuthorization(input: CompleteGoogleAuthoriza
 
   try {
     token = (await input.client.validateAuthorizationCode(input.code, input.codeVerifier)).idToken();
-  } catch {
-    throw new GoogleAuthError("exchange");
+  } catch (error) {
+    throw new GoogleAuthError(isTokenEndpointOutage(error) ? "unavailable" : "exchange");
   }
 
   let payload: Record<string, unknown>;
@@ -100,8 +119,8 @@ export async function completeGoogleAuthorization(input: CompleteGoogleAuthoriza
       clockTolerance: 5,
       requiredClaims: ["exp", "iat"],
     }));
-  } catch {
-    throw new GoogleAuthError("token");
+  } catch (error) {
+    throw new GoogleAuthError(isKeySetOutage(error) ? "unavailable" : "token");
   }
 
   if (typeof payload.nonce !== "string" || payload.nonce !== input.nonce || typeof payload.email !== "string" || payload.email === "") {

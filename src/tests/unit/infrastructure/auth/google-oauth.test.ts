@@ -1,4 +1,5 @@
-import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWK } from "jose";
+import { ArcticFetchError, OAuth2RequestError, UnexpectedResponseError } from "arctic";
+import { SignJWT, createLocalJWKSet, errors, exportJWK, generateKeyPair, type JWK } from "jose";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -157,3 +158,44 @@ describe("completeGoogleAuthorization", () => {
     await expect(completeGoogleAuthorization({ client: google, jwks, clientId: CONFIG.clientId, code: "c", codeVerifier: "v", nonce: NONCE })).rejects.toBeInstanceOf(GoogleAuthError);
   });
 });
+
+describe("an outage on Google's side is not a refusal", () => {
+  const failureOf = async (promise: Promise<unknown>) => ((await promise.catch((caught: unknown) => caught)) as GoogleAuthError).failure;
+
+  it.each([
+    ["the token endpoint cannot be reached", new ArcticFetchError(new TypeError("fetch failed"))],
+    ["the token endpoint answers 500", new UnexpectedResponseError(500)],
+    ["the token endpoint answers 503", new UnexpectedResponseError(503)],
+  ])("marks %s as unavailable", async (_label, error) => {
+    expect(await failureOf(complete(error).result)).toBe("unavailable");
+  });
+
+  it.each([
+    ["an OAuth error answer (bad or reused code)", new OAuth2RequestError("invalid_grant", "Bad code", null, null)],
+    ["a 404 from the token endpoint", new UnexpectedResponseError(404)],
+    ["any other error", new Error("whatever")],
+  ])("keeps %s as a failed exchange", async (_label, error) => {
+    expect(await failureOf(complete(error).result)).toBe("exchange");
+  });
+
+  it.each([
+    ["a network error fetching the keys", new TypeError("fetch failed")],
+    ["a timeout fetching the keys", new errors.JWKSTimeout()],
+    ["a non-200 answer for the keys", new errors.JOSEError("Expected 200 OK from the JSON Web Key Set HTTP response")],
+    ["an unusable key set", new errors.JWKSInvalid("JSON Web Key Set malformed")],
+  ])("marks %s as unavailable", async (_label, error) => {
+    const failing = async () => {
+      throw error;
+    };
+    const google = fakeGoogle(await idToken());
+
+    const result = completeGoogleAuthorization({ client: google.client, jwks: failing as never, clientId: CONFIG.clientId, code: "c", codeVerifier: "v", nonce: NONCE });
+
+    expect(await failureOf(result)).toBe("unavailable");
+  });
+
+  it("still calls a bad signature a rejected token", async () => {
+    expect(await failureOf(complete(await idToken({ key: () => otherKey })).result)).toBe("token");
+  });
+});
+

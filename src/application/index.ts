@@ -124,3 +124,11 @@ export * from "./auth/session.use-cases";
 export * from "./auth/user.use-cases";
 export type * from "./ports/auth.ports";
 export { ForbiddenError } from "./use-cases/use-case-error";
+export {
+  CloseForumSessionUseCase,
+  FORUM_SESSION_TTL_MS,
+  OpenForumSessionUseCase,
+  ResolveForumLoginUseCase,
+  ValidateForumSessionUseCase,
+} from "./forum/forum-auth.use-cases";
+export type { ForumActor, ForumGoogleIdentity, ForumLoginConfig, ForumLoginDenial, ForumLoginOutcome } from "./forum/forum-auth.use-cases";

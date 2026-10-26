@@ -23,6 +23,14 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     moveEventPhoto: { role: "EDITOR", audit: "event.photo_move" },
     deactivateEventPhoto: { role: "EDITOR", audit: "event.photo_remove" },
   },
+  "src/interface/admin/news/actions.ts": {
+    createNewsItem: { role: "EDITOR", audit: "news.create" },
+    updateNewsItem: { role: "EDITOR", audit: "news.update" },
+    setNewsItemPublished: { role: "EDITOR", audit: "news.publish" },
+    trashNewsItem: { role: "EDITOR", audit: "news.trash" },
+    uploadNewsCover: { role: "EDITOR", audit: "news.cover_set" },
+    removeNewsCover: { role: "EDITOR", audit: "news.cover_remove" },
+  },
 };
 
 export function cookieJar(cookiesMock: Mock, value: string | undefined) {

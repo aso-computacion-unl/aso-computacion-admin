@@ -3,6 +3,7 @@ import type {
   ForumCategoryDeleteOutcome,
   ForumCategoryRepository,
   ForumCategoryWithCount,
+  ForumEditOutcome,
   ForumMemberRepository,
   ForumPostRepository,
   ForumReplyRow,
@@ -215,9 +216,15 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     return { items, total: visible.length };
   }
 
-  async updateThread(id: string, change: { title: string; body: string; at: Date }) {
+  async updateThread(id: string, change: { title: string; body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {
     const thread = this.store.threads.get(id);
-    if (thread) this.store.threads.set(id, { ...thread, title: change.title, body: change.body, editedAt: change.at, updatedAt: change.at });
+
+    if (!thread || thread.hiddenAt || thread.authorId !== change.authorId) return "not-found";
+    if (thread.lockedAt) return "locked";
+
+    this.store.threads.set(id, { ...thread, title: change.title, body: change.body, editedAt: change.at, updatedAt: change.at });
+
+    return "ok";
   }
 
   async addReply(reply: ForumReply): Promise<ForumAddReplyOutcome> {
@@ -244,9 +251,17 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     return this.store.replies.get(id) ?? null;
   }
 
-  async updateReply(id: string, change: { body: string; at: Date }) {
+  async updateReply(id: string, change: { body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {
     const reply = this.store.replies.get(id);
-    if (reply) this.store.replies.set(id, { ...reply, body: change.body, editedAt: change.at, updatedAt: change.at });
+    const thread = reply && this.store.threads.get(reply.threadId);
+
+    if (!reply || !thread || reply.hiddenAt || thread.hiddenAt || reply.authorId !== change.authorId) return "not-found";
+    if (thread.lockedAt) return "locked";
+
+    this.store.replies.set(id, { ...reply, body: change.body, editedAt: change.at, updatedAt: change.at });
+    if (thread.bestReplyId === id) this.store.threads.set(thread.id, { ...thread, bestReplyId: null });
+
+    return "ok";
   }
 
   async countPostsSince(memberId: string, since: Date) {

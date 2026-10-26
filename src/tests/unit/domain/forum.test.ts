@@ -4,7 +4,7 @@ import { ValidationError } from "@/domain/domain-error";
 import {
   assertCanEditPost,
   assertCanPost,
-  assertThreadAcceptsReplies,
+  assertThreadOpen,
   FORUM_MEMBER_NAME_MAX_LENGTH,
   ForumMemberSuspendedError,
   ForumPostNotOwnedError,
@@ -105,9 +105,9 @@ describe("what a member may do", () => {
     expect(() => assertCanPost(member({ status: "SUSPENDED", suspendedAt: new Date() }))).toThrow(ForumMemberSuspendedError);
   });
 
-  it("refuses replies to a locked thread, ", () => {
-    expect(() => assertThreadAcceptsReplies(thread())).not.toThrow();
-    expect(() => assertThreadAcceptsReplies(thread({ lockedAt: new Date() }))).toThrow(ForumThreadLockedError);
+  it("refuses replies and edits in a locked thread", () => {
+    expect(() => assertThreadOpen(thread())).not.toThrow();
+    expect(() => assertThreadOpen(thread({ lockedAt: new Date() }))).toThrow(ForumThreadLockedError);
   });
 
   it("lets only the author edit, and nobody edit a hidden post (it is out of the author's hands)", () => {

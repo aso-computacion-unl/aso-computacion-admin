@@ -66,14 +66,21 @@ export interface ForumReplyRow {
 
 export type ForumAddReplyOutcome = "ok" | "not-found" | "locked";
 
+/** "not-found" also covers a hidden post (or one in a hidden thread) and one that is not the author's. */
+export type ForumEditOutcome = "ok" | "not-found" | "locked";
+
 export interface ForumPostRepository {
   create(thread: ForumThread): Promise<void>;
   /** Hidden threads included: whether a student may see one is the use case's decision. */
   findThread(id: string): Promise<ForumThreadRow | null>;
   /** Not hidden, most recent activity first. */
   listThreads(categoryId: string, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; total: number }>;
-  /** Sets the title and body and stamps `editedAt` and `updatedAt` with `at`. */
-  updateThread(id: string, change: { title: string; body: string; at: Date }): Promise<void>;
+  /**
+   * Sets the title and body and stamps `editedAt` and `updatedAt` with `at`, atomically with the check that
+   * the thread is the author's, not hidden and not locked: a moderator's lock or hide that landed after
+   * the caller read the thread wins.
+   */
+  updateThread(id: string, change: { title: string; body: string; at: Date; authorId: string }): Promise<ForumEditOutcome>;
   /**
    * Adds the reply and moves the thread's `lastActivityAt` to the reply's time, atomically with the
    * check that the thread exists, is not hidden and is not locked: a lock racing a reply cannot lose.
@@ -82,7 +89,12 @@ export interface ForumPostRepository {
   /** Not hidden, oldest first. */
   listReplies(threadId: string): Promise<ForumReplyRow[]>;
   findReply(id: string): Promise<ForumReply | null>;
-  updateReply(id: string, change: { body: string; at: Date }): Promise<void>;
+  /**
+   * Same re-check for a reply (the author's, not hidden, in a thread that is neither hidden nor locked). An
+   * edited reply stops being the thread's best answer in the same step, so the mark never vouches for text
+   * the thread author did not read.
+   */
+  updateReply(id: string, change: { body: string; at: Date; authorId: string }): Promise<ForumEditOutcome>;
   /** Threads plus replies written by the member since `since`: what the posting throttle counts. */
   countPostsSince(memberId: string, since: Date): Promise<number>;
 }

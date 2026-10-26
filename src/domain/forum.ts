@@ -73,7 +73,7 @@ export class ForumMemberSuspendedError extends DomainError {
   }
 }
 
-/** Raised when a reply is posted to a locked thread. */
+/** Raised when a reply is posted to, or a post is edited in, a locked thread. */
 export class ForumThreadLockedError extends DomainError {
   constructor() {
     super("The thread is locked");
@@ -132,7 +132,8 @@ export function assertCanPost(member: Pick<ForumMember, "status">): void {
   }
 }
 
-export function assertThreadAcceptsReplies(thread: Pick<ForumThread, "lockedAt">): void {
+/** A locked thread is read-only for students: no new replies and no edits, not even of their own posts. */
+export function assertThreadOpen(thread: Pick<ForumThread, "lockedAt">): void {
   if (thread.lockedAt !== null) {
     throw new ForumThreadLockedError();
   }

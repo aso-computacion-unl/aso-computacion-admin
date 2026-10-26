@@ -67,7 +67,7 @@ export {
   ForumThreadLockedError,
   assertCanEditPost,
   assertCanPost,
-  assertThreadAcceptsReplies,
+  assertThreadOpen,
   parseCategoryDescription,
   parseCategoryName,
   parseDisplayName,

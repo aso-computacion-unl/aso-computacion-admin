@@ -45,7 +45,7 @@ export function mapForumActionError(error: unknown): ForumActionResult {
   }
 
   if (error instanceof ForumThreadLockedError) {
-    return { error: "Este hilo está cerrado y no admite más respuestas." };
+    return { error: "Este hilo está cerrado: no admite respuestas ni cambios." };
   }
 
   if (error instanceof ForumPostNotOwnedError) {

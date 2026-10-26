@@ -1,7 +1,7 @@
 import {
   assertCanEditPost,
   assertCanPost,
-  assertThreadAcceptsReplies,
+  assertThreadOpen,
   ForumThreadLockedError,
   parseReplyBody,
   parseThreadBody,
@@ -12,7 +12,7 @@ import {
 } from "@/domain/forum";
 
 import type { ForumReplyResult, ForumThreadListItemResult, ForumThreadResult } from "../dto/forum-result.dto";
-import type { ForumCategoryRepository, ForumMemberRepository, ForumPostRepository, ForumReplyRow, ForumThreadRow } from "../ports/forum.ports";
+import type { ForumCategoryRepository, ForumEditOutcome, ForumMemberRepository, ForumPostRepository, ForumReplyRow, ForumThreadRow } from "../ports/forum.ports";
 import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
 import type { PostingThrottle } from "./posting-throttle";
 
@@ -71,6 +71,17 @@ async function visibleThread(posts: ForumPostRepository, threadId: string): Prom
   }
 
   return row;
+}
+
+/** The write re-checks under the thread's row lock: a lock or a hide that landed after the read above wins. */
+function throwUnlessEdited(outcome: ForumEditOutcome): void {
+  if (outcome === "locked") {
+    throw new ForumThreadLockedError();
+  }
+
+  if (outcome === "not-found") {
+    throw new NotFoundError(THREAD_NOT_FOUND);
+  }
 }
 
 export interface ForumThreadsPage {
@@ -207,7 +218,7 @@ export class ReplyToForumThreadUseCase {
     const body = parseReplyBody(input.body);
     const { thread } = await visibleThread(this.posts, input.threadId);
 
-    assertThreadAcceptsReplies(thread);
+    assertThreadOpen(thread);
     await this.throttle.assertAllowed(member.id);
 
     const at = this.now();
@@ -243,12 +254,13 @@ export class EditForumThreadUseCase {
     }
 
     assertCanEditPost(row.thread, member.id);
+    assertThreadOpen(row.thread);
 
     const title = parseThreadTitle(input.title);
     const body = parseThreadBody(input.body);
     const at = this.now();
 
-    await this.posts.updateThread(row.thread.id, { title, body, at });
+    throwUnlessEdited(await this.posts.updateThread(row.thread.id, { title, body, at, authorId: member.id }));
 
     return toThreadResult({ ...row, thread: { ...row.thread, title, body, editedAt: at, updatedAt: at } }, member.id);
   }
@@ -270,12 +282,12 @@ export class EditForumReplyUseCase {
     }
 
     assertCanEditPost(reply, member.id);
-    await visibleThread(this.posts, reply.threadId);
+    assertThreadOpen((await visibleThread(this.posts, reply.threadId)).thread);
 
     const body = parseReplyBody(input.body);
     const at = this.now();
 
-    await this.posts.updateReply(reply.id, { body, at });
+    throwUnlessEdited(await this.posts.updateReply(reply.id, { body, at, authorId: member.id }));
 
     return toReplyResult({ reply: { ...reply, body, editedAt: at, updatedAt: at }, authorName: member.displayName }, member.id, null);
   }

@@ -6,7 +6,7 @@ const { cookiesMock, getFaqUseCasesMock, revalidatePathMock, redirectMock, useCa
     create: { execute: execute() },
     update: { execute: execute() },
     setPublished: { execute: execute() },
-    delete: { execute: execute() },
+    trash: { execute: execute() },
     move: { execute: execute() },
   };
 
@@ -44,7 +44,7 @@ const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createFaq: () => actions.createFaq(null, faqForm()),
   updateFaq: () => actions.updateFaq("faq-1", null, faqForm()),
   setFaqPublished: () => actions.setFaqPublished("faq-1", true),
-  deleteFaq: () => actions.deleteFaq("faq-1"),
+  trashFaq: () => actions.trashFaq("faq-1"),
   moveFaq: () => actions.moveFaq("faq-1", "up"),
 };
 
@@ -84,9 +84,9 @@ describe("faq server actions require an admin session (L9)", () => {
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(await signSession());
 
-    await expect(actions.deleteFaq("faq-1")).resolves.toEqual({ success: true });
+    await expect(actions.trashFaq("faq-1")).resolves.toEqual({ success: true });
 
-    expect(useCases.delete.execute).toHaveBeenCalledWith({ id: "faq-1" });
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "faq-1" });
   });
 
   it("the guard is the first statement of every action", () => {

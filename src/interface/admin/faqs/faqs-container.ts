@@ -1,11 +1,11 @@
 import {
   CreateFaqUseCase,
-  DeleteOrderedContentUseCase,
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateFaqUseCase,
+  TrashContentUseCase,
 } from "@/application";
 import { toFaqResult } from "@/application/mappers/faq-result.mapper";
 import { CommandNamePrismaRegistry, FaqPrismaRepository } from "@/infrastructure";
@@ -22,7 +22,7 @@ function createFaqUseCases() {
     create: new CreateFaqUseCase(faqs, commandNames),
     update: new UpdateFaqUseCase(faqs, commandNames),
     setPublished: new SetOrderedContentPublishedUseCase(faqs, toFaqResult, NOT_FOUND),
-    delete: new DeleteOrderedContentUseCase(faqs, NOT_FOUND),
+    trash: new TrashContentUseCase(faqs, NOT_FOUND),
     move: new MoveOrderedContentUseCase(faqs, NOT_FOUND),
   };
 }

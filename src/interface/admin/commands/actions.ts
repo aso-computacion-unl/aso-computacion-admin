@@ -7,6 +7,7 @@ import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { TRASH_PATH } from "../trash/paths";
 import { parseCommandFormData } from "./command-form-data";
 import { getCommandUseCases } from "./commands-container";
 
@@ -58,12 +59,18 @@ export async function setCommandPublished(id: string, isPublished: boolean): Pro
   }
 }
 
-export async function deleteCommand(id: string): Promise<ActionResult> {
+/** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
+export async function trashCommand(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
-    await getCommandUseCases().delete.execute({ id });
-    requestSiteRebuild();
+    const { wasPublished } = await getCommandUseCases().trash.execute({ id });
+
+    if (wasPublished) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
+    revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error, FIELD_MESSAGES);

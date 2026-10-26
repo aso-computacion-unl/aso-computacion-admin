@@ -4,7 +4,7 @@ const { cookiesMock, requestSiteRebuildMock, executeMock, order, containers } = 
   const order: string[] = [];
   const executeMock = vi.fn(async () => {
     order.push("write");
-    return { id: "item-1" };
+    return { id: "item-1", wasPublished: true };
   });
   // Every use case of every module is the same recording stub: this suite is about when the hook fires, not what the use cases do.
   const useCases = new Proxy({}, { get: () => ({ execute: executeMock }) });
@@ -74,7 +74,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createEvent: () => events.createEvent(null, eventForm()),
       updateEvent: () => events.updateEvent("e", null, eventForm()),
       setEventPublished: () => events.setEventPublished("e", true),
-      deleteEvent: () => events.deleteEvent("e"),
+      trashEvent: () => events.trashEvent("e"),
       uploadEventPhoto: () => events.uploadEventPhoto("e", null, form({ alt: "Equipo" }, true)),
       updateEventPhotoAlt: () => events.updateEventPhotoAlt("e", "p", null, form({ alt: "Equipo" })),
       moveEventPhoto: () => events.moveEventPhoto("e", "p", "up"),
@@ -89,7 +89,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createFaq: () => faqs.createFaq(null, faqForm()),
       updateFaq: () => faqs.updateFaq("f", null, faqForm()),
       setFaqPublished: () => faqs.setFaqPublished("f", true),
-      deleteFaq: () => faqs.deleteFaq("f"),
+      trashFaq: () => faqs.trashFaq("f"),
       moveFaq: () => faqs.moveFaq("f", "up"),
     },
   },
@@ -101,7 +101,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createCommand: () => commands.createCommand(null, commandForm()),
       updateCommand: () => commands.updateCommand("c", null, commandForm()),
       setCommandPublished: () => commands.setCommandPublished("c", true),
-      deleteCommand: () => commands.deleteCommand("c"),
+      trashCommand: () => commands.trashCommand("c"),
       moveCommand: () => commands.moveCommand("c", "up"),
     },
   },
@@ -113,7 +113,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
       createNewsItem: () => news.createNewsItem(null, newsForm()),
       updateNewsItem: () => news.updateNewsItem("n", null, newsForm()),
       setNewsItemPublished: () => news.setNewsItemPublished("n", true),
-      deleteNewsItem: () => news.deleteNewsItem("n"),
+      trashNewsItem: () => news.trashNewsItem("n"),
       uploadNewsCover: () => news.uploadNewsCover("n", null, form({ coverAlt: "Taller" }, true)),
       removeNewsCover: () => news.removeNewsCover("n"),
     },

@@ -13,7 +13,7 @@ const { requireAdminSessionMock, revalidatePathMock, redirectMock, useCases } = 
       create: { execute: execute() },
       update: { execute: execute() },
       setPublished: { execute: execute() },
-      delete: { execute: execute() },
+      trash: { execute: execute() },
       attachPhoto: { execute: execute() },
       updatePhotoAlt: { execute: execute() },
       reorderPhotos: { execute: execute() },
@@ -52,6 +52,7 @@ describe("events server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminSessionMock.mockResolvedValue(undefined);
+    useCases.trash.execute.mockResolvedValue({ wasPublished: true });
   });
 
   describe("createEvent", () => {
@@ -164,7 +165,7 @@ describe("events server actions", () => {
     });
   });
 
-  describe("setEventPublished / deleteEvent", () => {
+  describe("setEventPublished / trashEvent", () => {
     it("publishes and unpublishes", async () => {
       useCases.setPublished.execute.mockResolvedValue({});
 
@@ -174,11 +175,12 @@ describe("events server actions", () => {
       expect(useCases.setPublished.execute).toHaveBeenLastCalledWith({ id: "e1", isPublished: false });
     });
 
-    it("deletes and revalidates the list", async () => {
-      useCases.delete.execute.mockResolvedValue(undefined);
+    it("moves to the trash and revalidates the list and the trash", async () => {
+      useCases.trash.execute.mockResolvedValue({ wasPublished: false });
 
-      expect(await actions.deleteEvent("e1")).toEqual({ success: true });
+      expect(await actions.trashEvent("e1")).toEqual({ success: true });
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
     });
   });
 

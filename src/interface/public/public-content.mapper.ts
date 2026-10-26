@@ -2,7 +2,12 @@ import type { PublicContentSnapshot } from "@/application/dto/public-content.dto
 
 import type { PublicContentResponse, PublicImage } from "./public-content.dto";
 
-export const PUBLIC_CONTENT_VERSION = 1;
+/**
+ * Version of the public JSON contract (`schemaVersion`, and its older alias `version`). It is bumped only on a
+ * BREAKING change (a field removed, renamed or retyped); additions never bump it. The landing validates the
+ * document against the version it understands. See "Public read API" in docs/REFERENCIA.md.
+ */
+export const PUBLIC_CONTENT_SCHEMA_VERSION = 1;
 
 // Every object below is built key by key, never spread: a field added to an
 // entity later stays private until someone adds it here on purpose.
@@ -10,7 +15,8 @@ const toPublicImage = ({ url, width, height, alt }: PublicImage): PublicImage =>
 
 export function toPublicContentResponse(snapshot: PublicContentSnapshot, generatedAt: Date): PublicContentResponse {
   return {
-    version: PUBLIC_CONTENT_VERSION,
+    version: PUBLIC_CONTENT_SCHEMA_VERSION,
+    schemaVersion: PUBLIC_CONTENT_SCHEMA_VERSION,
     generatedAt: generatedAt.toISOString(),
     events: snapshot.events.map((event) => ({
       slug: event.slug,

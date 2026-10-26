@@ -152,6 +152,16 @@ model SiteSettings {
   updatedAt   DateTime
 }
 
+// Singleton: the outcome of the LAST landing deploy-hook attempt, id "landing" (CHECK in the migration).
+// Never stores the hook URL (it carries a secret token): only the time, the result and a coarse reason.
+model DeployStatus {
+  id          String   @id
+  attemptedAt DateTime
+  ok          Boolean
+  httpStatus  Int?
+  errorKind   String?
+}
+
 // S4: name, role and photo only. No contact column may be added here.
 model BoardMember {
   id            String   @id

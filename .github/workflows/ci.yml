@@ -55,3 +55,28 @@ jobs:
       # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
       - run: npm run postinstall
       - run: npm run test:integration
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # Test-only values for a throwaway database and a throwaway admin; none of them is a secret.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/aso_computacion_admin_test?schema=public
+      ADMIN_PASSWORD: e2e-only-admin-password-0123456789
+      ADMIN_SECRET: e2e-only-session-secret-0123456789-abcdefghij
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
+      - run: npm run postinstall
+      # Chromium only, with the system libraries it needs, through the Playwright CLI pinned by the lockfile
+      # (never an on-demand npx download).
+      - run: npm run e2e:browsers
+      # Starts the disposable Postgres, migrates it, builds the app, runs Playwright against `next start`, tears down.
+      - run: npm run e2e

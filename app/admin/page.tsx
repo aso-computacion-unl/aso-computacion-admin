@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { getLastDeployStatus } from "@/interface/admin/deploy-status-admin-read";
+import { describeDeployStatus } from "@/interface/admin/deploy-status-label";
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { getAdminCommands } from "@/interface/admin/commands/commands-admin-read";
 import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
@@ -60,7 +62,8 @@ async function summaries(): Promise<Record<Summary, ModuleSummary>> {
 }
 
 export default async function AdminHomePage() {
-  const lines = await summaries();
+  const [lines, deployStatus] = await Promise.all([summaries(), getLastDeployStatus()]);
+  const deploy = deployStatus === undefined ? undefined : describeDeployStatus(deployStatus, new Date());
 
   return (
     <div>
@@ -76,6 +79,13 @@ export default async function AdminHomePage() {
           </Button>
         }
       />
+
+      {deploy ? (
+        <p role="status" className="mt-4 font-mono text-[0.8125rem] text-mist">
+          <span className={deploy.tone === "failed" ? "text-error" : undefined}>{deploy.text}</span>
+          {deploy.hint ? <span className="block">{deploy.hint}</span> : null}
+        </p>
+      ) : null}
 
       {/* A list on a phone; from sm up one card per module: its count, its state and its main action. */}
       <nav aria-label="Contenido del sitio" className="mt-8">

@@ -2,12 +2,18 @@
 // public, and the guard would force every action test to mock it.
 import { after } from "next/server";
 
+import { recordDeployOutcome, type DeployOutcome } from "./deploy-status";
+
 export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
 
 /**
  * Quiet time after the LAST mutation before the landing is rebuilt. Longer than
  * the 5 s edge cache of `/api/public/content` (so the build never reads a stale
  * snapshot), and short enough to fit a serverless invocation (see below).
+ *
+ * COUPLING: this must stay strictly greater than the `s-maxage` of
+ * `PUBLIC_CONTENT_CACHE_CONTROL` in app/api/public/content/route.ts. Raise
+ * that TTL and you must raise this one (and check the max wait below).
  */
 export const DEPLOY_HOOK_DEBOUNCE_MS = 8_000;
 /**
@@ -81,16 +87,27 @@ async function postHook(url: string): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEPLOY_HOOK_TIMEOUT_MS);
 
+  let outcome: DeployOutcome;
+
   try {
     const response = await fetch(url, { method: "POST", signal: controller.signal });
 
     if (!response.ok) {
       console.warn(`Landing deploy hook answered ${response.status}; the daily rebuild will pick the change up.`);
     }
+
+    outcome = response.ok ? { ok: true, httpStatus: response.status } : { ok: false, httpStatus: response.status };
   } catch (error) {
     console.warn(`Landing deploy hook failed (${describeFailure(error)}); the daily rebuild will pick the change up.`);
+    outcome = { ok: false, errorKind: error instanceof Error && error.name === "AbortError" ? "timeout" : "network" };
   } finally {
     clearTimeout(timeout);
+  }
+
+  try {
+    await recordDeployOutcome(outcome);
+  } catch {
+    // The recorder swallows its own failures; this keeps a misbehaving one from ever blocking the release of the invocation.
   }
 }
 

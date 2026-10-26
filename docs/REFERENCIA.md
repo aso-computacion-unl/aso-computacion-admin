@@ -12,7 +12,7 @@ Content admin for the ASO Computación student association. It manages the conte
 - Hexagonal layers: `src/domain`, `src/application`, `src/infrastructure`, `src/interface` (boundaries enforced by `architecture-boundaries.test.ts`)
 - Prisma 6 + PostgreSQL
 - Cloudinary for images (SDK confined to `src/infrastructure/storage`)
-- Vitest 3 for unit and Prisma integration tests
+- Vitest 3 for unit and Prisma integration tests; Playwright (Chromium) for end-to-end
 - Deployed on Vercel
 
 ## Scripts
@@ -27,6 +27,8 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run test:coverage` | Unit tests with the coverage thresholds in `vitest.config.ts` (what CI runs) |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
+| `npm run e2e` | Playwright end-to-end tests: starts the disposable Docker Postgres, migrates it, runs `next build`, then the tests against `next start` on port 3100, and tears everything down. Needs Docker and Chromium once (`npm run e2e:browsers`). Uses test-only admin credentials unless `ADMIN_PASSWORD`/`ADMIN_SECRET` are set; `TEST_DATABASE_URL` defaults to the canonical test URL |
+| `npm run e2e:browsers` | Installs Chromium (with system libraries) through the Playwright version pinned in the lockfile; what CI runs before `npm run e2e` |
 
 Requires Node `>=22.12.0` (see `.nvmrc`).
 
@@ -45,6 +47,9 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | Optional. Cloudflare Pages deploy hook (`https` only; the token is part of the path, treat it as a secret and it is never logged). POSTed after every successful admin mutation so the landing rebuilds. Unset: one `info` line per process and no rebuilds (the daily cron is then the only trigger). See "Landing rebuilds" |
 | `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |
+| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Optional. Sentry DSN for the server/edge and the browser. Unset (the default) means error tracking is entirely off. See `docs/DEPLOY.md` "Error tracking" |
+| `SENTRY_TRACES_SAMPLE_RATE`, `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | Optional, 0 to 1, default `0.1` |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Optional. Source maps are uploaded at build time only when the token is set |
 | `CLOUDINARY_FOLDER` | Optional base folder for uploads; defaults to `aso-computacion`. Each feature uploads into its own subfolder (e.g. `aso-computacion/events`) |
 
 ## Image uploads
@@ -113,7 +118,8 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 
 ```jsonc
 {
-  "version": 1,                       // shape version of this document
+  "version": 1,                       // older name of schemaVersion, same value
+  "schemaVersion": 1,                 // version of this contract, see below
   "generatedAt": "2026-10-22T16:00:00.000Z",
   "events":   [{ "slug", "title", "description", "date", "datePrecision", "type", "commitMessage", "hora", "lugar", "para", "featured", "linkUrl", "linkLabel", "highlights", "photos": [{ "url", "width", "height", "alt" }] }],
   "faqs":     [{ "question", "answer" }],
@@ -125,14 +131,17 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 }
 ```
 
+- `schemaVersion` (constant `PUBLIC_CONTENT_SCHEMA_VERSION`, `src/interface/public/public-content.mapper.ts`) is an integer that starts at 1 and is bumped **only on a breaking change** (a field removed, renamed or retyped). Adding fields never bumps it, so a consumer can refuse a version it does not know. `version` is the older name of the same value and is kept so existing consumers keep working.
 - `datePrecision` is `"day"` or `"month"`. `date` is always a full `YYYY-MM-DD`; a month-only event emits the first of its month (`2026-02-01`) with `"month"`. `YYYY-MM` is never emitted (the landing rejects it). Additive to `version` 1.
 - `news` is additive to `version` 1 (a landing built against an admin without it treats it as `[]`): only published items, newest `publishedAt` first. `publishedAt` is a `YYYY-MM-DD` calendar date, `body` is the Markdown subset described in "News" (the landing must never render raw HTML from it), and `cover` is `null` when the item has none.
 - Image URLs are the Cloudinary `secure_url` as stored (`https://res.cloudinary.com/<cloud>/image/upload/v<n>/aso-computacion/events/<id>.<ext>`), which is the shape the landing accepts; `cloudinary-media-storage.test.ts` pins that contract.
 - Events come newest date first (undated last) with only their active photos in gallery order; news comes newest `publishedAt` first; every other list is in the order set in the admin. Order is the array order, so there is no `sortOrder`.
 - Nothing internal leaves: no ids (the event `slug` is the landing's stable id), storage `publicId`s, timestamps or publish flags. The board exposes **only name, role and photo** (S4). News exposes only its slug, texts, date and cover. The mapper builds each object key by key and `public-content.mapper.test.ts` pins every key set.
 - `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`: the edge may collapse a burst of reads for 5 s but never serves a stale copy, because the landing rebuilds right after an edit and must see it.
+- `ETag`: a strong validator (quoted SHA-256 of the serialized body). `generatedAt` changes on every read, so it is **left out of the hash**: the ETag changes exactly when the content does. A request with a matching `If-None-Match` (weak comparison, list or `*`) gets `304 Not Modified` with no body and the same `ETag`, `Cache-Control`, `Vary` and CORS headers.
+- The 5 s `s-maxage` must stay **below** the deploy-hook debounce (`DEPLOY_HOOK_DEBOUNCE_MS`, 8 s): otherwise a build fired by the hook could read a copy from before the edit. Both constants carry a comment about it and a test pins it.
 - CORS: `PUBLIC_CORS_ORIGINS` is an allowlist of exact origins (`https://host[:port]`; plain `http` only for `localhost`/`127.0.0.1`). The request's origin is echoed only when listed, never `*`, always with `Vary: Origin`; an entry with a path, wildcard or trailing slash is ignored and logged once. `OPTIONS` answers the preflight. No credentials are ever allowed.
-- Rate limit: 60 requests per minute per client (in memory, per instance), 429 beyond that. The map of clients is bounded (swept once per window, at most 10 000 tracked, oldest evicted first).
+- Rate limit: 60 requests per minute per client, 429 beyond that. **Best effort only**: the counters live in the memory of one serverless instance, so they are not shared between instances and reset when one is recycled. It stops a single client hammering a single warm instance and nothing more. The real protection is the CDN cache (`s-maxage`): repeated reads are answered at the edge and never reach Postgres. The map of clients is bounded (swept once per window, at most 10 000 tracked, oldest evicted first).
 - Errors: any failure answers a generic `503 {"error":"Service unavailable"}` with `Cache-Control: no-store`; the cause is only logged on the server.
 - Image URLs (`photos[].url`, `pillars[].image.url`, `board[].photo`, `news[].cover.url`) are Cloudinary delivery URLs, so they contain the cloud name and the asset's `publicId` in the path. Both are public by design (they are needed to display the image) and neither lets anyone upload, change or delete anything; it is the API key and secret that must stay private. Do not treat these URLs as unguessable: an unpublished image whose URL leaked stays reachable until its asset is destroyed.
 
@@ -142,6 +151,7 @@ Every successful admin mutation (events and their photos, news, FAQ, pillars, so
 
 - **Coalescing.** A trailing debounce: each call restarts an 8 s quiet window and the hook is POSTed once, 8 s after the last edit, but never later than 15 s after the first edit of the burst (max wait), so a long editing session cannot keep the invocation open past `maxDuration`. Reordering photos or editing several fields is one build, not one per click. The window is longer than the 5 s edge cache of the public route, so the build reads fresh data. The POST has a 5 s timeout; failures and non-2xx answers are logged as warnings (without the URL).
 - **Why in process, and the Vercel caveat.** No extra table or queue for a handful of editors. But state is per instance, and a serverless instance may be frozen between requests. So the action registers the wait with `after()` (Next 15), which keeps the invocation alive until the window has elapsed and the hook was called; `app/admin/layout.tsx` sets `maxDuration = 30` so an upload plus the longest wait (15 s) and the hook call (5 s timeout) fits. If an instance is still recycled mid-window, or two instances each debounce their own edit (two builds), the cost is a lost or duplicated rebuild, never a wrong page: the daily rebuild cron is the safety net. On a long-lived server (Render, `next start`) the timer simply runs.
+- **Last deploy status.** Each attempt overwrites the single row of `DeployStatus` (id `landing`, enforced by a `CHECK`): when it ran, whether it succeeded, and the HTTP status or a coarse error kind (`timeout`, `network`). The hook URL is a secret and is never stored. The dashboard shows it as "Último despliegue: hace 3 min · OK" or "Último despliegue: Falló (HTTP 500) · hace 2 h" with a hint. **OK means Cloudflare accepted the request, not that the build finished.** Writing the status never fails the content action: a failure is logged (without the error text) and reported to Sentry. The age is computed when the page renders, so reload to refresh it. Nothing is shown if the read fails; "Aún no se solicitó ningún despliegue." appears until the first attempt.
 - An edit of an unpublished draft also asks for a rebuild: the action cannot tell cheaply that nothing public changed, and the debounce makes it harmless.
 
 ## Login throttle

@@ -146,7 +146,8 @@ describe("deadline, capacity and duplicates", () => {
 });
 
 describe("registration status", () => {
-  const status = (email?: string) => new GetEventRegistrationStatusUseCase(events, registrations).execute({ slug: "taller-de-git", now: NOW, email });
+  const status = (email?: string, memberId?: string) =>
+    new GetEventRegistrationStatusUseCase(events, registrations, members).execute({ slug: "taller-de-git", now: NOW, email, memberId });
 
   it("is null without registration or for an event that is not public", async () => {
     await addEvent({ registrationMode: "none" });
@@ -164,6 +165,8 @@ describe("registration status", () => {
 
     expect(await status("ana@unl.edu.ec")).toMatchObject({ state: "full", alreadyRegistered: true });
     expect(await status("luis@unl.edu.ec")).toMatchObject({ state: "full", alreadyRegistered: false });
+    expect(await status(undefined, "m1")).toMatchObject({ alreadyRegistered: true });
+    expect(await status(undefined, "ghost")).toMatchObject({ alreadyRegistered: false });
     expect(await new GetEventRegistrationStatusUseCase(events, registrations).execute({ slug: "taller-de-git", now: new Date("2026-12-01T12:00:00.000Z") })).toMatchObject({ state: "closed" });
   });
 });

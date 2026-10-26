@@ -33,9 +33,11 @@ export class GetEventRegistrationStatusUseCase {
   constructor(
     private readonly events: EventRepository,
     private readonly registrations: EventRegistrationRepository,
+    private readonly members?: ForumMemberRepository,
   ) {}
 
-  async execute({ slug, now, email }: { slug: string; now: Date; email?: string }): Promise<EventRegistrationStatus | null> {
+  /** `memberId` (a forum member) is a way to say "this person" without handing their email to the caller. */
+  async execute({ slug, now, email, memberId }: { slug: string; now: Date; email?: string; memberId?: string }): Promise<EventRegistrationStatus | null> {
     const found = await this.events.findLiveBySlug(slug);
     const mode = found?.props.registrationMode;
 
@@ -44,9 +46,10 @@ export class GetEventRegistrationStatusUseCase {
     }
 
     const event = found.props;
+    const person = email ?? (memberId ? (await this.members?.findById(memberId))?.email : undefined);
     const [registered, alreadyRegistered] = await Promise.all([
       this.registrations.count(event.id),
-      email ? this.registrations.exists(event.id, email.trim().toLowerCase()) : false,
+      person ? this.registrations.exists(event.id, person.trim().toLowerCase()) : false,
     ]);
     const refusal = registrationRefusal({ event, mode, registered, alreadyRegistered: false, now });
 

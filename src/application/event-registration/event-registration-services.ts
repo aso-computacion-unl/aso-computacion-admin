@@ -20,7 +20,7 @@ export interface EventRegistrationRepositories {
 /** Wires every registration use case over the given repositories: the container passes Prisma ones, tests pass in-memory ones. */
 export function buildEventRegistrationServices({ events, registrations, members }: EventRegistrationRepositories, unl: UnlRegistrationConfig) {
   return {
-    status: new GetEventRegistrationStatusUseCase(events, registrations),
+    status: new GetEventRegistrationStatusUseCase(events, registrations, members),
     registerOpen: new RegisterWithOpenFormUseCase(events, registrations),
     registerUnl: new RegisterWithUnlAccountUseCase(events, registrations, members, unl),
     list: new ListEventRegistrationsUseCase(events, registrations),

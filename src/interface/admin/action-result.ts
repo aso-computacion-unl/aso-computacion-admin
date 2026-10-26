@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 
+import { LastAdminError, UserEmailTakenError } from "@/application/auth/auth-errors";
 import { ForbiddenError, NotFoundError, RestoreConflictError } from "@/application/use-cases/use-case-error";
 import {
   CommandNameConflictError,
@@ -60,6 +61,7 @@ const FIELD_MESSAGES: Record<string, string> = {
   photoAlt: "Describa la foto en 1 a 200 caracteres.",
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
+  email: "Escriba un correo válido.",
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
 };
 
@@ -70,6 +72,8 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
   "Board member not found": "No se encontró al integrante de la directiva.",
+  "User not found": "No se encontró el usuario.",
+  "Session not found": "La sesión ya no está activa.",
 };
 
 const COMMAND_CONFLICT_MESSAGES = {
@@ -105,6 +109,14 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
 
   if (error instanceof ForbiddenError) {
     return { error: FORBIDDEN_MESSAGE };
+  }
+
+  if (error instanceof LastAdminError) {
+    return { error: "No se puede quitar ni degradar al último administrador activo." };
+  }
+
+  if (error instanceof UserEmailTakenError) {
+    return fieldError("email", "Ese correo ya está registrado.");
   }
 
   if (error instanceof ZodError) {

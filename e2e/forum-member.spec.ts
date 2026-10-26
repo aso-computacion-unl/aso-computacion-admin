@@ -39,6 +39,8 @@ test.beforeAll(async () => {
   await prisma.forumThread.update({ where: { id: "t-solved" }, data: { bestReplyId: "r-best" } });
   await thread("t-open", "¿Cómo configuro WSL2?");
   await thread("t-locked", "Ideas para el hackatón", { lockedAt: ago(5) });
+  await thread("t-mine", "Mi duda sobre punteros", { authorId: "m1" });
+  await prisma.forumReply.create({ data: { id: "r-help", threadId: "t-mine", authorId: "m2", body: "Revise el **orden** de los `free`.", createdAt: ago(30), updatedAt: ago(30) } });
 
   await prisma.forumSession.create({ data: { id: "s1", memberId: "m1", expiresAt: new Date(now.getTime() + 3_600_000), lastSeenAt: now } });
   const issued = Math.floor(Date.now() / 1000);
@@ -88,6 +90,55 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
   await page.goto("/foro/hilo/t-locked");
   await expect(page.getByText("Hilo cerrado por la moderación")).toBeVisible();
   await expect(page.getByLabel("Su respuesta")).toHaveCount(0);
+
+  await context.close();
+});
+
+test("a member reacts to a reply, marks the best answer of their thread and reports someone else's post", async ({ browser }) => {
+  const context = await memberContext(browser);
+  const page = await context.newPage();
+
+  // «Me sirvió» is a toggle that survives a reload.
+  await page.goto("/foro/hilo/t-mine");
+  const helpful = page.getByRole("button", { name: /Me sirvió/ });
+  await expect(helpful).toHaveAttribute("aria-pressed", "false");
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "true");
+  await expect(helpful).toContainText("1");
+  // The button answers before the server does: wait for the row before leaving the page.
+  await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(1);
+  await page.reload();
+  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: /Me sirvió/ }).click();
+  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(0);
+
+  // The author of the thread marks the best answer and takes the mark back. Their own post has no «Reportar».
+  await expect(page.getByRole("button", { name: "Reportar" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Marcar como mejor respuesta" }).click();
+  await expect(page.getByRole("link", { name: "Resuelto" })).toBeVisible();
+  await expect(page.getByText("Mejor respuesta", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Quitar de mejor respuesta" }).click();
+  await expect(page.getByRole("button", { name: "Marcar como mejor respuesta" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Resuelto" })).toHaveCount(0);
+
+  // Reporting someone else's thread: a reason, a note, a confirmation; a second report is told as already sent.
+  await page.goto("/foro/hilo/t-open");
+  await expect(page.getByRole("button", { name: "Marcar como mejor respuesta" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Reportar" }).click();
+  await page.getByLabel("Motivo").selectOption({ label: "Fuera de tema" });
+  await page.getByLabel("Nota (opcional)").fill("No tiene que ver con programación");
+  await page.getByRole("button", { name: "Enviar reporte" }).click();
+  await expect(page.getByText("Reporte enviado. La moderación lo revisará.")).toBeVisible();
+  expect(await prisma.forumReport.findMany({ where: { threadId: "t-open" }, select: { reporterId: true, reason: true, status: true } })).toEqual([
+    { reporterId: "m1", reason: "Fuera de tema: No tiene que ver con programación", status: "OPEN" },
+  ]);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Reportar" }).click();
+  await page.getByRole("button", { name: "Enviar reporte" }).click();
+  await expect(page.getByText("Ya reportó esta publicación. La moderación la revisará.")).toBeVisible();
+  expect(await prisma.forumReport.count({ where: { threadId: "t-open" } })).toBe(1);
 
   await context.close();
 });

@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import type { ForumThreadListItemResult } from "@/application";
-import { formatAbsoluteTime, formatRelativeTime, threadStatus } from "@/interface/forum/forum-display";
+import { threadStatus } from "@/interface/forum/forum-display";
 
+import { PostTime } from "./post-time";
 import { ThreadStatusIcon } from "./thread-status-icon";
 
 /** One thread of a category list: the whole row is the link, like an issue in a tracker. */
@@ -27,7 +28,7 @@ export function ThreadRow({ thread, now }: { thread: ForumThreadListItemResult; 
         </span>
         <span className="col-start-2 text-[0.8125rem] text-mist">
           {thread.authorName}
-          {thread.mine ? " (usted)" : null} · actividad <time dateTime={thread.lastActivityAt.toISOString()} title={formatAbsoluteTime(thread.lastActivityAt)}>{formatRelativeTime(thread.lastActivityAt, now)}</time>
+          {thread.mine ? " (usted)" : null} · actividad <PostTime date={thread.lastActivityAt} now={now} />
           {status === "solved" ? " · resuelto" : null}
           {thread.locked ? " · cerrado por la moderación" : null}
         </span>

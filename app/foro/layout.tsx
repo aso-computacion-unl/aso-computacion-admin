@@ -9,6 +9,7 @@ import { BrandIsotype } from "../_components/brand-mark";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import { SignOutButton } from "./_components/sign-out-button";
+import "./forum.css";
 
 export const metadata: Metadata = {
   title: { default: "Foro — ASO Computación", template: "%s — Foro ASO" },

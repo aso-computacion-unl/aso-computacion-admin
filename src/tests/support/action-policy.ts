@@ -82,6 +82,10 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     changeUserRole: { role: "ADMIN", audit: "user.role_change" },
     setUserActive: { role: "ADMIN", audit: "user.deactivate" },
   },
+  "src/interface/admin/sessions/actions.ts": {
+    // Anyone may revoke their own sessions; revoking someone else's takes ADMIN (checked by the use case).
+    revokeSession: { role: "EDITOR", audit: "session.revoke" },
+  },
 };
 
 export function cookieJar(cookiesMock: Mock, value: string | undefined) {

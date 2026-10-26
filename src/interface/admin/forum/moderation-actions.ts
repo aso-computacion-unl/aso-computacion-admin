@@ -28,7 +28,7 @@ import { mapActionError as mapError, type ActionResult } from "../action-result"
 // action can be POSTed to any page). Moderating is editor-level: any signed-in user. Audit summaries carry
 // ids only, never a post, a reason, a note or an email.
 
-export const MODERATION_PATH = "/admin/foro/reportes";
+const MODERATION_PATH = "/admin/foro/reportes";
 
 const FIELD_MESSAGES = {
   note: "La nota admite hasta 500 caracteres.",

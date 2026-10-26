@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma, type Event as PrismaEvent } from "@prisma/client";
 
 import type { EventRepository } from "@/application/ports/event-repository.port";
-import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
+import { fetchPage, type ListCriteria, type Page, type PageRequest, type PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
@@ -11,6 +11,10 @@ import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./event.mapper";
 import { LIVE, publicationWhere, toPublicationCounts } from "./publication-filter";
 import { TrashablePrismaRepository } from "./trashable-prisma.repository";
+
+const SEARCH_FIELDS = ["title", "description", "commitMessage", "lugar"] as const;
+// id breaks the last tie so the order is total: a row can neither repeat nor vanish between pages.
+const LIST_ORDER = [{ date: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }, { id: "asc" }] satisfies Prisma.EventOrderByWithRelationInput[];
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -70,12 +74,19 @@ export class EventPrismaRepository
   }
 
   async list(criteria?: ListCriteria): Promise<Event[]> {
-    const records = await prisma.event.findMany({
-      where: publicationWhere(criteria),
-      orderBy: [{ date: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-    });
+    const records = await prisma.event.findMany({ where: publicationWhere(criteria, SEARCH_FIELDS), orderBy: LIST_ORDER });
 
     return records.map(toDomain);
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Event>> {
+    const where = publicationWhere(criteria, SEARCH_FIELDS);
+
+    return fetchPage(
+      request,
+      () => prisma.event.count({ where }),
+      async (take, skip) => (await prisma.event.findMany({ where, orderBy: LIST_ORDER, take, skip })).map(toDomain),
+    );
   }
 
   async update(event: Event): Promise<Event> {

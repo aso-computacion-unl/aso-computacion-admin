@@ -1,3 +1,4 @@
+import type { ListCriteria, Page, PageableRepository, PageRequest } from "../ports/list-criteria";
 import type { OrderedContent, OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { NotFoundError } from "./use-case-error";
 
@@ -19,6 +20,20 @@ export class ListOrderedContentUseCase<E extends OrderedContent<E>, R> {
 
   async execute(): Promise<R[]> {
     return (await this.repository.list()).map(this.toResult);
+  }
+}
+
+/** Admin listing in pages, optionally narrowed by a search: display order, drafts included. */
+export class ListOrderedContentPageUseCase<E extends OrderedContent<E>, R> {
+  constructor(
+    private readonly repository: OrderedContentRepository<E> & PageableRepository<E>,
+    private readonly toResult: (entity: E) => R,
+  ) {}
+
+  async execute(criteria: ListCriteria, request: PageRequest): Promise<Page<R>> {
+    const page = await this.repository.listPage(criteria, request);
+
+    return { ...page, items: page.items.map(this.toResult) };
   }
 }
 

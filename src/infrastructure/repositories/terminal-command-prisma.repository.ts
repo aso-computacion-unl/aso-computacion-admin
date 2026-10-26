@@ -1,12 +1,14 @@
 import "server-only";
 import { Prisma, type TerminalCommand as PrismaTerminalCommand } from "@prisma/client";
 
+import { fetchPage, type ListCriteria, type Page, type PageableRepository, type PageRequest } from "@/application/ports/list-criteria";
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { CommandNameConflictError } from "@/domain/command-name";
 import type { TerminalCommand } from "@/domain/terminal-command";
 
 import { prisma } from "../prisma/client";
+import { LIVE, searchWhere } from "./publication-filter";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./terminal-command.mapper";
 import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
@@ -19,9 +21,13 @@ function rethrowCommandCollision(error: unknown, command: TerminalCommand): neve
   throw error;
 }
 
+const SEARCH_FIELDS = ["command", "description", "output"] as const;
+// createdAt and id break ties so the list, the pages and the move use case agree on one total order.
+const LIST_ORDER = [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] as const;
+
 export class TerminalCommandPrismaRepository
   extends PurgeableTrashPrismaRepository<TerminalCommand, PrismaTerminalCommand>
-  implements OrderedContentRepository<TerminalCommand>
+  implements OrderedContentRepository<TerminalCommand>, PageableRepository<TerminalCommand>
 {
   protected readonly delegate = prisma.terminalCommand;
   protected readonly trashConfig = {
@@ -50,6 +56,16 @@ export class TerminalCommandPrismaRepository
     const records = await prisma.terminalCommand.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<TerminalCommand>> {
+    const where = { ...LIVE, ...searchWhere(criteria.search, SEARCH_FIELDS) };
+
+    return fetchPage(
+      request,
+      () => prisma.terminalCommand.count({ where }),
+      async (take, skip) => (await prisma.terminalCommand.findMany({ where, orderBy: [...LIST_ORDER], take, skip })).map(toDomain),
+    );
   }
 
   async update(command: TerminalCommand): Promise<TerminalCommand> {

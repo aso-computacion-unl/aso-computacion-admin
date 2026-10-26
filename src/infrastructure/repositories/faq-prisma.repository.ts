@@ -1,12 +1,14 @@
 import "server-only";
 import { Prisma, type Faq as PrismaFaq } from "@prisma/client";
 
+import { fetchPage, type ListCriteria, type Page, type PageableRepository, type PageRequest } from "@/application/ports/list-criteria";
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { CommandNameConflictError } from "@/domain/command-name";
 import type { Faq } from "@/domain/faq";
 
 import { prisma } from "../prisma/client";
+import { LIVE, searchWhere } from "./publication-filter";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./faq.mapper";
 import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
 
@@ -19,9 +21,13 @@ function rethrowCommandCollision(error: unknown, faq: Faq): never {
   throw error;
 }
 
+const SEARCH_FIELDS = ["question", "answer", "command"] as const;
+// createdAt and id break ties so the list, the pages and the move use case agree on one total order.
+const LIST_ORDER = [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] as const;
+
 export class FaqPrismaRepository
   extends PurgeableTrashPrismaRepository<Faq, PrismaFaq>
-  implements OrderedContentRepository<Faq>
+  implements OrderedContentRepository<Faq>, PageableRepository<Faq>
 {
   protected readonly delegate = prisma.faq;
   protected readonly trashConfig = {
@@ -50,6 +56,16 @@ export class FaqPrismaRepository
     const records = await prisma.faq.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Faq>> {
+    const where = { ...LIVE, ...searchWhere(criteria.search, SEARCH_FIELDS) };
+
+    return fetchPage(
+      request,
+      () => prisma.faq.count({ where }),
+      async (take, skip) => (await prisma.faq.findMany({ where, orderBy: [...LIST_ORDER], take, skip })).map(toDomain),
+    );
   }
 
   async update(faq: Faq): Promise<Faq> {

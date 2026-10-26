@@ -1,15 +1,20 @@
+import type { ListCriteria, Page, PageableRepository, PageRequest } from "@/application/ports/list-criteria";
 import type { OrderedContent, OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 
+import { matchesSearch, pageOf } from "./in-memory-page";
 import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `OrderedContentRepository`; `list()` mirrors the Prisma ordering (sortOrder, createdAt, id). */
 export class InMemoryOrderedRepository<E extends OrderedContent<E>>
-  implements OrderedContentRepository<E>
+  implements OrderedContentRepository<E>, PageableRepository<E>
 {
   private readonly items = new Map<string, E>();
   private readonly trashed = new InMemoryTrash<E>();
+
+  /** `searchTexts` names the text columns a search looks at; without it a search matches nothing. */
+  constructor(private readonly searchTexts: (entity: E) => readonly (string | null | undefined)[] = () => []) {}
 
   async create(entity: E): Promise<E> {
     this.items.set(entity.props.id, entity);
@@ -27,6 +32,12 @@ export class InMemoryOrderedRepository<E extends OrderedContent<E>>
         a.props.createdAt.getTime() - b.props.createdAt.getTime() ||
         a.props.id.localeCompare(b.props.id),
     );
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<E>> {
+    const matching = (await this.list()).filter((entity) => matchesSearch(criteria.search, this.searchTexts(entity)));
+
+    return pageOf(matching, request);
   }
 
   async update(entity: E): Promise<E> {

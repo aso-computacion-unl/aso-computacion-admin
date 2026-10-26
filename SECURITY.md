@@ -14,7 +14,7 @@ Solo la directiva y quien mantiene el proyecto ven el reporte. Respondemos en cu
 
 - Credenciales, tokens o datos personales expuestos en el código, en el panel o en la API pública.
 - Formas de alterar el contenido publicado sin pasar por el panel de administración.
-- Cualquier fallo del panel de administración (login, sesiones, subida de imágenes).
+- Cualquier fallo del panel de administración (acceso con Google, roles y permisos, sesiones, el acceso de emergencia con contraseña, subida de imágenes).
 
 ## Qué no hacer
 

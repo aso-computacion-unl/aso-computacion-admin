@@ -17,13 +17,12 @@ import {
 import { readKnownDeviceToken, setKnownDeviceCookie } from "@/infrastructure/auth/known-device-cookies";
 import { comparePassword, getAdminPassword, reportAdminPasswordMisconfiguration } from "@/infrastructure/auth/password";
 import { clientKeyFromHeaders, UNKNOWN_CLIENT_KEY } from "@/infrastructure/http/client-ip";
-import { clearSessionCookie, setSessionCookie } from "@/infrastructure/auth/session-cookies";
+import { isBreakGlassEnabled } from "@/infrastructure/auth/auth-config";
 import { reportError } from "@/infrastructure/observability/report-error";
-import {
-  reportSessionSecretMisconfiguration,
-  SessionSecretError,
-  signSession,
-} from "@/infrastructure/auth/session-jwt";
+import { reportSessionSecretMisconfiguration, SessionSecretError } from "@/infrastructure/auth/session-jwt";
+
+import { recordAudit, SYSTEM_ACTOR } from "../audit/record-audit";
+import { closeSession, openSession } from "./session-lifecycle";
 
 export interface LoginResult {
   error?: string;
@@ -34,6 +33,7 @@ export interface LoginResult {
 const INVALID_CREDENTIALS_ERROR = "Contraseña incorrecta.";
 const AUTH_SERVICE_UNAVAILABLE_ERROR = "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.";
 const TOO_MANY_ATTEMPTS_ERROR = "Demasiados intentos. Intente de nuevo más tarde.";
+const PASSWORD_LOGIN_DISABLED_ERROR = "El acceso con contraseña no está habilitado. Use el acceso con Google.";
 
 /**
  * Best-effort per-client identifier for throttling. Uses the shared client IP
@@ -82,7 +82,16 @@ async function rememberDevice(deviceId: string): Promise<void> {
   }
 }
 
+/**
+ * Break-glass: the shared-password emergency login. It exists only while `isBreakGlassEnabled()`
+ * (Google not configured, or `BREAK_GLASS_PASSWORD_LOGIN=1`); it opens a session of the synthetic
+ * ADMIN actor `break_glass`, which is listed in "Sesiones activas", can be revoked, and is audited.
+ */
 export async function login(prevState: LoginResult | null, formData: FormData): Promise<LoginResult> {
+  if (!isBreakGlassEnabled()) {
+    return { error: PASSWORD_LOGIN_DISABLED_ERROR };
+  }
+
   // Fail closed and say why in the logs, before spending a throttle attempt on a login that cannot succeed.
   let adminPassword: string;
 
@@ -113,11 +122,8 @@ export async function login(prevState: LoginResult | null, formData: FormData): 
 
   const password = formData.get("password");
 
-  if (typeof password !== "string" || password.length === 0) {
-    return { error: INVALID_CREDENTIALS_ERROR, field: "password" };
-  }
-
-  if (!comparePassword(password, adminPassword)) {
+  if (typeof password !== "string" || password.length === 0 || !comparePassword(password, adminPassword)) {
+    await recordAudit(SYSTEM_ACTOR, { action: "login.failure", entityType: "session", summary: "Contraseña de emergencia rechazada" });
     return { error: INVALID_CREDENTIALS_ERROR, field: "password" };
   }
 
@@ -128,25 +134,30 @@ export async function login(prevState: LoginResult | null, formData: FormData): 
     console.error("Could not clear the login throttle after a successful login.", error);
   }
 
-  let token: string;
+  let sessionId: string;
 
   try {
-    token = await signSession();
+    ({ sessionId } = await openSession({ kind: "break_glass" }, "ADMIN"));
   } catch (error) {
     if (error instanceof SessionSecretError) {
       reportSessionSecretMisconfiguration();
-      return { error: AUTH_SERVICE_UNAVAILABLE_ERROR };
+    } else {
+      console.error("Could not open the break-glass session; login is unavailable.");
+      reportError(error, { action: "login-session" });
     }
 
-    throw error;
+    return { error: AUTH_SERVICE_UNAVAILABLE_ERROR };
   }
 
-  await setSessionCookie(token);
+  await recordAudit(
+    { kind: "break_glass", userId: null },
+    { action: "login.success", entityType: "session", entityId: sessionId, summary: "Acceso de emergencia con contraseña" },
+  );
   await rememberDevice(deviceId ?? newDeviceId());
   redirect("/admin");
 }
 
 export async function logout(): Promise<never> {
-  await clearSessionCookie();
+  await closeSession();
   redirect("/login");
 }

@@ -4,9 +4,8 @@ const {
   redirectMock,
   comparePasswordMock,
   getAdminPasswordMock,
-  signSessionMock,
-  setSessionCookieMock,
-  clearSessionCookieMock,
+  openSessionMock,
+  closeSessionMock,
   SessionSecretErrorMock,
   reportSessionSecretMisconfigurationMock,
   headersGetMock,
@@ -25,9 +24,8 @@ const {
   }),
   comparePasswordMock: vi.fn(),
   getAdminPasswordMock: vi.fn(),
-  signSessionMock: vi.fn(),
-  setSessionCookieMock: vi.fn(),
-  clearSessionCookieMock: vi.fn(),
+  openSessionMock: vi.fn(),
+  closeSessionMock: vi.fn(),
   SessionSecretErrorMock: class SessionSecretError extends Error {},
   reportSessionSecretMisconfigurationMock: vi.fn(),
   headersGetMock: vi.fn(),
@@ -66,8 +64,12 @@ vi.mock("@/infrastructure/auth/password", () => ({
   reportAdminPasswordMisconfiguration: reportAdminPasswordMisconfigurationMock,
 }));
 
+vi.mock("@/interface/auth/session-lifecycle", () => ({
+  openSession: openSessionMock,
+  closeSession: closeSessionMock,
+}));
+
 vi.mock("@/infrastructure/auth/session-jwt", () => ({
-  signSession: signSessionMock,
   SessionSecretError: SessionSecretErrorMock,
   reportSessionSecretMisconfiguration: reportSessionSecretMisconfigurationMock,
 }));
@@ -84,11 +86,7 @@ vi.mock("@/infrastructure/auth/known-device-cookies", () => ({
   setKnownDeviceCookie: setKnownDeviceCookieMock,
 }));
 
-vi.mock("@/infrastructure/auth/session-cookies", () => ({
-  setSessionCookie: setSessionCookieMock,
-  clearSessionCookie: clearSessionCookieMock,
-}));
-
+import { testAuth } from "@/tests/support/test-auth";
 import { login, logout } from "@/interface/auth/actions";
 
 function formDataWith(password: string | null): FormData {
@@ -117,13 +115,12 @@ describe("auth actions", () => {
 
   it("ACTION-001: login correcto firma sesión, setea cookie y redirige al dashboard /admin", async () => {
     comparePasswordMock.mockReturnValue(true);
-    signSessionMock.mockResolvedValue("token");
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
 
     await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
     expect(comparePasswordMock).toHaveBeenCalledWith("correct-password", "correct-password");
-    expect(signSessionMock).toHaveBeenCalled();
-    expect(setSessionCookieMock).toHaveBeenCalledWith("token");
+    expect(openSessionMock).toHaveBeenCalledWith({ kind: "break_glass" }, "ADMIN");
     expect(redirectMock).toHaveBeenCalledWith("/admin");
   });
 
@@ -133,7 +130,7 @@ describe("auth actions", () => {
     const result = await login(null, formDataWith("wrong-password"));
 
     expect(result).toEqual({ error: "Contraseña incorrecta.", field: "password" });
-    expect(signSessionMock).not.toHaveBeenCalled();
+    expect(openSessionMock).not.toHaveBeenCalled();
   });
 
   it("ACTION-003: login con campo vacío retorna error genérico", async () => {
@@ -145,7 +142,7 @@ describe("auth actions", () => {
   it("ACTION-004: logout limpia cookie y redirige a /login", async () => {
     await expect(logout()).rejects.toThrow("REDIRECT");
 
-    expect(clearSessionCookieMock).toHaveBeenCalled();
+    expect(closeSessionMock).toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith("/login");
   });
 
@@ -160,8 +157,7 @@ describe("auth actions", () => {
     expect(reportAdminPasswordMisconfigurationMock).toHaveBeenCalledTimes(1);
     expect(consumeLoginAttemptMock).not.toHaveBeenCalled();
     expect(comparePasswordMock).not.toHaveBeenCalled();
-    expect(signSessionMock).not.toHaveBeenCalled();
-    expect(setSessionCookieMock).not.toHaveBeenCalled();
+    expect(openSessionMock).not.toHaveBeenCalled();
   });
 
   it("ACTION-006: formData.get('password') null retorna error genérico", async () => {
@@ -172,12 +168,11 @@ describe("auth actions", () => {
 
   it("returns a service-unavailable error when ADMIN_SECRET is invalid", async () => {
     comparePasswordMock.mockReturnValue(true);
-    signSessionMock.mockRejectedValue(new SessionSecretErrorMock("invalid secret"));
+    openSessionMock.mockRejectedValue(new SessionSecretErrorMock("invalid secret"));
 
     const result = await login(null, formDataWith("correct-password"));
 
     expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
-    expect(setSessionCookieMock).not.toHaveBeenCalled();
     expect(reportSessionSecretMisconfigurationMock).toHaveBeenCalledTimes(1);
   });
 
@@ -188,7 +183,7 @@ describe("auth actions", () => {
 
     expect(result).toEqual({ error: "Demasiados intentos. Intente de nuevo más tarde." });
     expect(comparePasswordMock).not.toHaveBeenCalled();
-    expect(signSessionMock).not.toHaveBeenCalled();
+    expect(openSessionMock).not.toHaveBeenCalled();
     expect(recordSuccessfulLoginMock).not.toHaveBeenCalled();
   });
 
@@ -213,7 +208,7 @@ describe("auth actions", () => {
 
   it("ACTION-009: clears the throttle for the client IP on a successful login", async () => {
     comparePasswordMock.mockReturnValue(true);
-    signSessionMock.mockResolvedValue("token");
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
 
     await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
@@ -267,23 +262,101 @@ describe("auth actions", () => {
 
     expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
     expect(comparePasswordMock).not.toHaveBeenCalled();
-    expect(signSessionMock).not.toHaveBeenCalled();
-    expect(setSessionCookieMock).not.toHaveBeenCalled();
+    expect(openSessionMock).not.toHaveBeenCalled();
     expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("login throttle"), expect.any(Error));
     errorLog.mockRestore();
   });
 
   it("ACTION-015: a throttle failure while clearing it after a good login does not block the login", async () => {
     comparePasswordMock.mockReturnValue(true);
-    signSessionMock.mockResolvedValue("token");
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
     recordSuccessfulLoginMock.mockRejectedValue(new Error("connection refused"));
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
-    expect(setSessionCookieMock).toHaveBeenCalledWith("token");
+    expect(openSessionMock).toHaveBeenCalledTimes(1);
     errorLog.mockRestore();
   });
+
+  it("BREAKGLASS-001: with the emergency login switched off (Google configured) it refuses before spending a throttle attempt", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "id");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "secret");
+    vi.stubEnv("AUTH_URL", "https://admin.example.org");
+
+    const result = await login(null, formDataWith("correct-password"));
+
+    expect(result).toEqual({ error: "El acceso con contraseña no está habilitado. Use el acceso con Google." });
+    expect(consumeLoginAttemptMock).not.toHaveBeenCalled();
+    expect(comparePasswordMock).not.toHaveBeenCalled();
+    expect(openSessionMock).not.toHaveBeenCalled();
+
+    vi.stubEnv("BREAK_GLASS_PASSWORD_LOGIN", "1");
+    comparePasswordMock.mockReturnValue(true);
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
+
+    await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+    vi.unstubAllEnvs();
+  });
+
+  it("BREAKGLASS-002: a successful emergency login is audited as break_glass, with the session id and no password", async () => {
+    comparePasswordMock.mockReturnValue(true);
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
+
+    await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+
+    expect(testAuth.audit.entries).toEqual([
+      expect.objectContaining({ actorKind: "break_glass", actorUserId: null, action: "login.success", entityType: "session", entityId: "session-1" }),
+    ]);
+    expect(JSON.stringify(testAuth.audit.entries)).not.toContain("correct-password");
+  });
+
+  it("BREAKGLASS-003: a wrong or empty password is audited as a system failure without what was typed", async () => {
+    comparePasswordMock.mockReturnValue(false);
+
+    await login(null, formDataWith("wrong-password"));
+    await login(null, formDataWith(""));
+
+    expect(testAuth.audit.entries.map((entry) => [entry.actorKind, entry.action, entry.entityId])).toEqual([
+      ["system", "login.failure", null],
+      ["system", "login.failure", null],
+    ]);
+    expect(JSON.stringify(testAuth.audit.entries)).not.toContain("wrong-password");
+  });
+
+  it("BREAKGLASS-004: a throttled attempt writes no audit entry (an attacker cannot flood the log)", async () => {
+    consumeLoginAttemptMock.mockResolvedValue({ allowed: false, retryAfterSeconds: 30 });
+
+    await login(null, formDataWith("anything"));
+
+    expect(testAuth.audit.entries).toEqual([]);
+  });
+
+  it("BREAKGLASS-005: an audit failure does not fail a correct login", async () => {
+    comparePasswordMock.mockReturnValue(true);
+    openSessionMock.mockResolvedValue({ sessionId: "session-1" });
+    testAuth.audit.failWith = new Error("db down");
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/admin");
+    errorLog.mockRestore();
+  });
+
+  it("BREAKGLASS-006: a failure opening the session (database down) is a service-unavailable error, not a crash", async () => {
+    comparePasswordMock.mockReturnValue(true);
+    openSessionMock.mockRejectedValue(new Error("db down"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await login(null, formDataWith("correct-password"));
+
+    expect(result).toEqual({ error: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos." });
+    expect(testAuth.audit.entries).toEqual([]);
+    expect(setKnownDeviceCookieMock).not.toHaveBeenCalled();
+    errorLog.mockRestore();
+  });
+
   describe("known-device throttle bucket", () => {
     beforeEach(() => {
       readKnownDeviceTokenMock.mockResolvedValue("device-cookie");
@@ -341,7 +414,7 @@ describe("auth actions", () => {
 
     it("DEVICE-006: a good login clears the bucket it spent (the device one) and renews the cookie with the same device id", async () => {
       comparePasswordMock.mockReturnValue(true);
-      signSessionMock.mockResolvedValue("token");
+      openSessionMock.mockResolvedValue({ sessionId: "session-1" });
 
       await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
@@ -355,7 +428,7 @@ describe("auth actions", () => {
     it("DEVICE-007: a good login without a device cookie mints a fresh device id and clears the IP bucket", async () => {
       readKnownDeviceTokenMock.mockResolvedValue(undefined);
       comparePasswordMock.mockReturnValue(true);
-      signSessionMock.mockResolvedValue("token");
+      openSessionMock.mockResolvedValue({ sessionId: "session-1" });
 
       await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
@@ -375,7 +448,7 @@ describe("auth actions", () => {
 
     it("DEVICE-009: no device cookie is issued when the session cannot be signed", async () => {
       comparePasswordMock.mockReturnValue(true);
-      signSessionMock.mockRejectedValue(new SessionSecretErrorMock("invalid secret"));
+      openSessionMock.mockRejectedValue(new SessionSecretErrorMock("invalid secret"));
 
       await login(null, formDataWith("correct-password"));
 
@@ -384,13 +457,13 @@ describe("auth actions", () => {
 
     it("DEVICE-010: failing to set the device cookie never blocks a correct login", async () => {
       comparePasswordMock.mockReturnValue(true);
-      signSessionMock.mockResolvedValue("token");
+      openSessionMock.mockResolvedValue({ sessionId: "session-1" });
       signKnownDeviceMock.mockRejectedValue(new Error("boom"));
       const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
       await expect(login(null, formDataWith("correct-password"))).rejects.toThrow("REDIRECT");
 
-      expect(setSessionCookieMock).toHaveBeenCalledWith("token");
+      expect(openSessionMock).toHaveBeenCalledTimes(1);
       expect(redirectMock).toHaveBeenCalledWith("/admin");
       errorLog.mockRestore();
     });

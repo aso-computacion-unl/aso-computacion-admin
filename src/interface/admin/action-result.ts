@@ -11,7 +11,7 @@ import {
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { reportError } from "@/infrastructure/observability/report-error";
 
-import { UnauthorizedError } from "../auth/require-admin-session";
+import { UnauthorizedError } from "../auth/require-session";
 
 /**
  * Result of every admin server action. `fieldErrors` carries per-field

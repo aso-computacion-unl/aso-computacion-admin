@@ -28,7 +28,8 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/interface/admin/pillars/pillars-container", () => ({ getPillarUseCases: getPillarUseCasesMock }));
 
-import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
+import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/pillars/actions";
 import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
@@ -94,7 +95,7 @@ describe("pillar server actions require an admin session (L9)", () => {
   });
 
   it("positive control: a valid session reaches the use cases", async () => {
-    cookieJar(await signSession());
+    cookieJar(await signInAs("ADMIN"));
 
     await expect(actions.trashPillar("pillar-1")).resolves.toEqual({ success: true });
 

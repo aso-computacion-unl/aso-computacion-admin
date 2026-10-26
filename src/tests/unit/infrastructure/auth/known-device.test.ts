@@ -13,7 +13,8 @@ import {
   signKnownDevice,
   verifyKnownDevice,
 } from "@/infrastructure/auth/known-device";
-import { AUTH_COOKIE_NAME, signSession, verifySession } from "@/infrastructure/auth/session-jwt";
+import { AUTH_COOKIE_NAME, verifySession } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 
 const SECRET = "z".repeat(32);
 const PASSWORD_A = "correct horse battery staple";
@@ -165,7 +166,7 @@ describe("known-device token", () => {
   });
 
   it("a session token is not a device token", async () => {
-    expect(await verifyKnownDevice(await signSession())).toEqual({ valid: false });
+    expect(await verifyKnownDevice(await signInAs("ADMIN"))).toEqual({ valid: false });
   });
 
   it("a device token is never a session, even sent as the session cookie", async () => {

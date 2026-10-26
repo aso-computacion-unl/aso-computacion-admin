@@ -22,7 +22,7 @@ vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("@/interface/admin/trash/trash-container", () => ({ getTrashUseCases: getTrashUseCasesMock }));
 
-import { signSession } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/trash/actions";
 import { cookieJar, registerAdminActionAuthCases } from "@/tests/support/admin-action-auth";
 
@@ -39,7 +39,7 @@ describe("trash server actions require an admin session (L9)", () => {
   });
 
   it("positive control: a valid session reaches the use cases", async () => {
-    cookieJar(cookiesMock, await signSession());
+    cookieJar(cookiesMock, await signInAs("ADMIN"));
 
     await expect(actions.restoreTrashed("faq", "faq-1")).resolves.toEqual({ success: true });
     await expect(actions.purgeTrashed("faq", "faq-1")).resolves.toEqual({ success: true });

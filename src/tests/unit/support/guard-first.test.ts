@@ -25,18 +25,18 @@ describe("expectGuardFirstInEveryAction", () => {
     const path = sourceFile(`
 export async function a(id: string, data: FormData): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    await requireSession();
     return ok();
   } catch (error) { return fail(error); }
 }
 export async function b(): Promise<void> {
-  await requireAdminSession();
+  await requireSession();
 }
 export async function c(formData: FormData): Promise<ActionResult> {
   let id: string;
 
   try {
-    await requireAdminSession();
+    await requireSession();
     ({ id } = await create(formData));
   } catch (error) { return fail(error); }
   redirect(id);
@@ -83,7 +83,7 @@ export async function odd(): Promise<ActionResult> {
 export async function leaky(formData: FormData): Promise<ActionResult> {
   try {
     const input = parse(formData);
-    await requireAdminSession();
+    await requireSession();
     return save(input);
   } catch (error) { return fail(error); }
 }
@@ -97,7 +97,7 @@ export async function leaky(formData: FormData): Promise<ActionResult> {
 export async function eager(formData: FormData): Promise<ActionResult> {
   let input: Input = parse(formData);
   try {
-    await requireAdminSession();
+    await requireSession();
     return save(input);
   } catch (error) { return fail(error); }
 }

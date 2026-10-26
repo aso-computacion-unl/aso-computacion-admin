@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { allowedEmailDomain, bootstrapEmails, googleConfig, isBreakGlassEnabled, isGoogleConfigured } from "@/infrastructure/auth/auth-config";
+import {
+  allowedEmailDomain,
+  bootstrapEmails,
+  googleConfig,
+  googleConfigProblems,
+  isBreakGlassEnabled,
+  isGoogleConfigured,
+  loginAvailability,
+} from "@/infrastructure/auth/auth-config";
 
 const GOOGLE = { GOOGLE_CLIENT_ID: "id.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET: "secret", AUTH_URL: "https://admin.example.org" };
 
@@ -43,6 +51,57 @@ describe("isBreakGlassEnabled", () => {
     expect(isBreakGlassEnabled({ ...GOOGLE, BREAK_GLASS_PASSWORD_LOGIN: "1" })).toBe(true);
     expect(isBreakGlassEnabled({ ...GOOGLE, BREAK_GLASS_PASSWORD_LOGIN: "true" })).toBe(false);
     expect(isBreakGlassEnabled({ ...GOOGLE, BREAK_GLASS_PASSWORD_LOGIN: "0" })).toBe(false);
+  });
+});
+
+describe("a half-set Google configuration is an error, not 'not configured'", () => {
+  const partial = [
+    ["only the client id", { GOOGLE_CLIENT_ID: GOOGLE.GOOGLE_CLIENT_ID }, ["GOOGLE_CLIENT_SECRET", "AUTH_URL"]],
+    ["only the client secret", { GOOGLE_CLIENT_SECRET: GOOGLE.GOOGLE_CLIENT_SECRET }, ["GOOGLE_CLIENT_ID", "AUTH_URL"]],
+    ["only AUTH_URL", { AUTH_URL: GOOGLE.AUTH_URL }, ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]],
+    ["id and secret, no AUTH_URL", { ...GOOGLE, AUTH_URL: undefined }, ["AUTH_URL"]],
+    ["all three, AUTH_URL not a URL", { ...GOOGLE, AUTH_URL: "not a url" }, ["AUTH_URL"]],
+    ["all three, AUTH_URL plain http", { ...GOOGLE, AUTH_URL: "http://admin.example.org" }, ["AUTH_URL"]],
+  ] as const;
+
+  it.each(partial)("names the variables to fix when %s is set", (_label, env, problems) => {
+    expect(googleConfigProblems(env)).toEqual(problems);
+    expect(isGoogleConfigured(env)).toBe(false);
+  });
+
+  it.each(partial)("keeps the password login off when %s is set", (_label, env) => {
+    expect(isBreakGlassEnabled(env)).toBe(false);
+    expect(isBreakGlassEnabled({ ...env, BREAK_GLASS_PASSWORD_LOGIN: "1" })).toBe(true);
+  });
+
+  it("is no problem when none of the three is set, or when all are valid", () => {
+    expect(googleConfigProblems({})).toEqual([]);
+    expect(googleConfigProblems(GOOGLE)).toEqual([]);
+  });
+
+  it("counts a placeholder or blank value as not set", () => {
+    expect(googleConfigProblems({ GOOGLE_CLIENT_ID: "__REPLACE_GOOGLE_CLIENT_ID__", GOOGLE_CLIENT_SECRET: " ", AUTH_URL: "" })).toEqual([]);
+    expect(isBreakGlassEnabled({ GOOGLE_CLIENT_ID: "__REPLACE_GOOGLE_CLIENT_ID__" })).toBe(true);
+  });
+
+  it("never puts a value in the problem list", () => {
+    expect(JSON.stringify(googleConfigProblems({ GOOGLE_CLIENT_SECRET: "super-secret" }))).not.toContain("super-secret");
+  });
+});
+
+describe("loginAvailability", () => {
+  it("offers only the password while nothing is set", () => {
+    expect(loginAvailability({})).toEqual({ google: false, emergency: true, problems: [] });
+  });
+
+  it("offers Google, and the password only on the explicit flag, when fully configured", () => {
+    expect(loginAvailability(GOOGLE)).toEqual({ google: true, emergency: false, problems: [] });
+    expect(loginAvailability({ ...GOOGLE, BREAK_GLASS_PASSWORD_LOGIN: "1" })).toEqual({ google: true, emergency: true, problems: [] });
+  });
+
+  it("offers nothing but the error when half-set, and the password only on the explicit flag", () => {
+    expect(loginAvailability({ GOOGLE_CLIENT_ID: "x" })).toEqual({ google: false, emergency: false, problems: ["GOOGLE_CLIENT_SECRET", "AUTH_URL"] });
+    expect(loginAvailability({ AUTH_URL: "nope", BREAK_GLASS_PASSWORD_LOGIN: "1" })).toMatchObject({ google: false, emergency: true });
   });
 });
 

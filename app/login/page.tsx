@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { isBreakGlassEnabled, isGoogleConfigured } from "@/infrastructure/auth/auth-config";
+import { loginAvailability } from "@/infrastructure/auth/auth-config";
 import { login } from "@/interface/auth/actions";
-import { loginErrorMessage } from "@/interface/auth/login-errors";
+import { CONFIG_INCOMPLETE_MESSAGE, loginErrorMessage } from "@/interface/auth/login-errors";
+import { reportAuthConfigProblems } from "@/interface/auth/report-auth-config";
 
 import { BrandLogo } from "../_components/brand-mark";
 import { ThemeToggle } from "../_components/theme-toggle";
@@ -20,9 +21,11 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
-  const google = isGoogleConfigured();
-  const emergency = isBreakGlassEnabled();
-  const error = loginErrorMessage((await searchParams).error);
+  const { google, emergency, problems } = loginAvailability();
+  const misconfigured = problems.length > 0;
+  const error = misconfigured ? CONFIG_INCOMPLETE_MESSAGE : loginErrorMessage((await searchParams).error);
+
+  reportAuthConfigProblems(problems);
 
   return (
     <main className="relative grid min-h-screen place-items-center px-6 py-10">
@@ -42,7 +45,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <p className="mt-2 mb-6 text-mist">
             {google
               ? "Entre con su cuenta de Google para editar el sitio de ASO Computación."
-              : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
+              : misconfigured && !emergency
+                ? "El acceso no está disponible hasta corregir la configuración."
+                : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
           </p>
           {error ? (
             <p role="alert" className="mb-4 flex items-start gap-2 border-l-2 border-error bg-error/10 px-3 py-2 text-sm">
@@ -56,6 +61,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <a href="/auth/google/start">Entrar con Google</a>
             </Button>
           ) : null}
+          {misconfigured && emergency ? <LoginForm action={login} /> : null}
           {google && emergency ? (
             <details className="mt-8 border-t border-border pt-4">
               <summary className="cursor-pointer font-semibold text-mist">Acceso de emergencia</summary>
@@ -63,7 +69,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <LoginForm action={login} />
             </details>
           ) : null}
-          {google ? null : <LoginForm action={login} />}
+          {google || misconfigured ? null : <LoginForm action={login} />}
         </section>
       </div>
     </main>

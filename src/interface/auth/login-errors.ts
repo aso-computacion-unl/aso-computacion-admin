@@ -12,3 +12,6 @@ export type LoginErrorCode = keyof typeof LOGIN_ERROR_MESSAGES;
 export function loginErrorMessage(code: string | string[] | undefined): string | undefined {
   return typeof code === "string" && Object.hasOwn(LOGIN_ERROR_MESSAGES, code) ? LOGIN_ERROR_MESSAGES[code as LoginErrorCode] : undefined;
 }
+
+/** Shown on `/login` when the Google variables are half set. It names no variable: the operator reads the logs. */
+export const CONFIG_INCOMPLETE_MESSAGE = "Configuración incompleta: el acceso con Google no está disponible. Avise a quien administra el sitio.";

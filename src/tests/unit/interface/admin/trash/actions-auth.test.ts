@@ -25,9 +25,9 @@ vi.mock("@/interface/admin/trash/trash-container", () => ({ getTrashUseCases: ge
 import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/trash/actions";
 import { cookieJar, registerAdminActionAuthCases } from "@/tests/support/admin-action-auth";
+import { registerPolicyCases } from "@/tests/support/action-policy";
 
-describe("trash server actions require an admin session (L9)", () => {
-  registerAdminActionAuthCases({
+const SUITE = {
     actionsPath: "src/interface/admin/trash/actions.ts",
     actions,
     actionCalls: {
@@ -36,7 +36,10 @@ describe("trash server actions require an admin session (L9)", () => {
     },
     cookiesMock,
     untouchedMocks: [getTrashUseCasesMock, revalidatePathMock],
-  });
+};
+
+describe("trash server actions require an admin session (L9)", () => {
+  registerAdminActionAuthCases(SUITE);
 
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(cookiesMock, await signInAs("ADMIN"));
@@ -46,5 +49,9 @@ describe("trash server actions require an admin session (L9)", () => {
 
     expect(useCases.restore.faq?.execute).toHaveBeenCalledWith({ id: "faq-1" });
     expect(useCases.purge.faq?.execute).toHaveBeenCalledWith({ id: "faq-1" });
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases(SUITE);
   });
 });

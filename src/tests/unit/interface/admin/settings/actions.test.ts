@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireAdminSessionMock, revalidatePathMock, useCases } = vi.hoisted(() => ({
-  requireAdminSessionMock: vi.fn(),
+const { requireSessionMock, revalidatePathMock, useCases } = vi.hoisted(() => ({
+  requireSessionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   useCases: { update: { execute: vi.fn() } },
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
-vi.mock("@/interface/auth/require-admin-session", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/interface/auth/require-admin-session")>()),
-  requireAdminSession: requireAdminSessionMock,
+vi.mock("@/interface/auth/require-session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/interface/auth/require-session")>()),
+  requireSession: requireSessionMock,
+  requireRole: requireSessionMock,
 }));
 vi.mock("@/interface/admin/settings/settings-container", () => ({ getSiteSettingsUseCases: () => useCases }));
 
@@ -27,7 +28,7 @@ const FIELDS = { tagline: "Lema", description: "Descripción", about: "Acerca" }
 describe("updateSiteSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireAdminSessionMock.mockResolvedValue(undefined);
+    requireSessionMock.mockResolvedValue({ kind: "user", sessionId: "s1", userId: "u1", name: "Ana", role: "ADMIN" });
   });
 
   it("saves the settings and refreshes the page", async () => {

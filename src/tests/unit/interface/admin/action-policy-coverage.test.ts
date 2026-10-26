@@ -35,6 +35,15 @@ describe("server action policy", () => {
         .map(([name]) => `${path.split("/").slice(-2, -1)[0]}:${name}`),
     );
 
-    expect(adminOnly.sort()).toEqual(["settings:updateSiteSettings", "trash:purgeTrashed", "users:changeUserRole", "users:inviteUser", "users:setUserActive"]);
+    expect(adminOnly.sort()).toEqual([
+      "forum:createForumCategory",
+      "forum:deleteForumCategory",
+      "forum:updateForumCategory",
+      "settings:updateSiteSettings",
+      "trash:purgeTrashed",
+      "users:changeUserRole",
+      "users:inviteUser",
+      "users:setUserActive",
+    ]);
   });
 });

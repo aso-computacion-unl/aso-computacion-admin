@@ -99,3 +99,25 @@ export { RemoveNewsCoverUseCase } from "./use-cases/remove-news-cover.use-case";
 export { NEWS_COVER_FOLDER, NEWS_COVER_MIN_WIDTH, SetNewsCoverUseCase } from "./use-cases/set-news-cover.use-case";
 export { SetNewsItemPublishedUseCase } from "./use-cases/set-news-item-published.use-case";
 export { UpdateNewsItemUseCase } from "./use-cases/update-news-item.use-case";
+export type { TrashableRepository, TrashedItem } from "./ports/trashable-repository.port";
+export type { TrashItemResult, TrashKind } from "./dto/trash-result.dto";
+export { ListTrashUseCase } from "./use-cases/list-trash.use-case";
+export type { TrashSources } from "./use-cases/list-trash.use-case";
+export {
+  PurgeBoardMemberUseCase,
+  PurgeContentUseCase,
+  PurgeEventUseCase,
+  PurgeNewsItemUseCase,
+  PurgePillarUseCase,
+} from "./use-cases/purge-content.use-case";
+export {
+  RestoreContentUseCase,
+  RestoreEventUseCase,
+  RestoreFaqUseCase,
+  RestoreNewsItemUseCase,
+  RestoreOrderedContentUseCase,
+  RestoreTerminalCommandUseCase,
+} from "./use-cases/restore-content.use-case";
+export { TrashContentUseCase } from "./use-cases/trash-content.use-case";
+export type { TrashContentResult } from "./use-cases/trash-content.use-case";
+export { RestoreConflictError } from "./use-cases/use-case-error";

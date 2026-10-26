@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   CreateAdminInviteUseCase,
   ListPendingInvitesUseCase,
+  LookupPendingInviteUseCase,
   RedeemAdminInviteUseCase,
   RevokeAdminInviteUseCase,
   type InviteTokens,
@@ -199,5 +200,29 @@ describe("RedeemAdminInviteUseCase", () => {
 
     expect(await redeem().execute({ token: "the-token", identity: identity() })).toEqual({ ok: false, reason: "taken" });
     expect(snapshot()).toBe(before);
+  });
+});
+
+describe("LookupPendingInviteUseCase", () => {
+  const lookup = () => new LookupPendingInviteUseCase(invites, tokens, () => clock);
+
+  it("finds a pending invite by its token, without the hash", async () => {
+    await invites.create(makeInvite({ tokenHash: HASH }));
+
+    const found = await lookup().execute("the-token");
+
+    expect(found).toMatchObject({ id: "invite-1", email: "ben@example.org", role: "EDITOR" });
+    expect(found).not.toHaveProperty("tokenHash");
+  });
+
+  it.each([
+    ["an unknown token", "other-token", {}],
+    ["a used invite", "the-token", { usedAt: NOW, usedByUserId: "x" }],
+    ["a revoked invite", "the-token", { revokedAt: NOW }],
+    ["an expired invite", "the-token", { expiresAt: new Date(NOW.getTime() - 1) }],
+  ])("finds nothing for %s", async (_label, token, overrides) => {
+    await invites.create(makeInvite({ tokenHash: HASH, ...overrides }));
+
+    expect(await lookup().execute(token)).toBeNull();
   });
 });

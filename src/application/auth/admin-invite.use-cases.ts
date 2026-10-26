@@ -64,6 +64,21 @@ export class ListPendingInvitesUseCase {
   }
 }
 
+export class LookupPendingInviteUseCase {
+  constructor(
+    private readonly invites: AdminInviteRepository,
+    private readonly tokens: InviteTokens,
+    private readonly now: Clock = () => new Date(),
+  ) {}
+
+  /** What the invitation page shows: the invite behind a link, only while it can still be used. */
+  async execute(token: string): Promise<AdminInvite | null> {
+    const invite = await this.invites.findByTokenHash(this.tokens.hash(token));
+
+    return invite && adminInviteState(invite, this.now()) === "pending" ? invite : null;
+  }
+}
+
 export class RevokeAdminInviteUseCase {
   constructor(
     private readonly invites: AdminInviteRepository,

@@ -187,6 +187,26 @@ test("an editor cannot open the admin-only pages, and an action refused for thei
   expect(anonymous.status()).toBe(307);
 });
 
+test("the users page invites by link instead of adding people, and the public invitation page reveals nothing for an unknown link", async ({ page, request }) => {
+  await logInAsAdmin(page);
+  await page.goto("/admin/usuarios");
+  await expect(page.getByRole("heading", { name: "Invitar a una persona" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agregar usuario" })).toHaveCount(0);
+
+  // This server has no public address configured (AUTH_URL), so there is no link to build and nothing is stored.
+  await page.getByLabel("Correo").fill("invitee@example.org");
+  await page.getByRole("button", { name: "Crear invitación" }).click();
+  await expect(page.getByText(/falta configurar AUTH_URL/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Invitaciones pendientes" })).toHaveCount(0);
+
+  // Anyone may open an invitation link; an unknown one only says it is not valid, and is never indexed.
+  const response = await request.get(`/invitacion/${"a".repeat(43)}`);
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain("Invitación no disponible");
+  expect(await response.text()).not.toContain("invitee@example.org");
+  expect(await response.text()).toContain("noindex");
+});
+
 test("a session revoked in Sesiones activas stops working at once", async ({ page, browser }) => {
   // The editor's second session works...
   const editorContext = await browser.newContext({ baseURL: BASE_URL });

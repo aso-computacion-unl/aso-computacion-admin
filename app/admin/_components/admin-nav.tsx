@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
-import { HOME_NAV, MODULE_NAV, MORE_NAV, TAB_NAV, type NavItem } from "./nav-items";
+import { HOME_NAV, MODULE_NAV, MORE_NAV, TAB_NAV, TRASH_NAV, type NavItem } from "./nav-items";
 
 function isCurrent(pathname: string, item: NavItem): boolean {
   return item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -20,7 +20,7 @@ export function SideNav() {
   return (
     <nav aria-label="Secciones">
       <ul className="grid gap-1">
-        {[HOME_NAV, ...MODULE_NAV].map((item) => {
+        {[HOME_NAV, ...MODULE_NAV, TRASH_NAV].map((item) => {
           const current = isCurrent(pathname, item);
 
           return (

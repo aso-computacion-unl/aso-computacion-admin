@@ -22,10 +22,13 @@ export const MODULE_NAV: readonly NavItem[] = [
 
 export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home" };
 
+/** Where deleted content waits for a restore. Not a content module: it has no card on the home. */
+export const TRASH_NAV: NavItem = { href: "/admin/papelera", label: "Papelera", icon: "trash" };
+
 /** The modules on the phone's tab bar, in tab order: the ones the board uses after every event. */
 const TAB_HREFS = ["/admin/events", "/admin/news", "/admin/board", "/admin/faqs"];
 
 export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NAV.filter((item) => item.href === href));
 
 /** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */
-export const MORE_NAV: readonly NavItem[] = [HOME_NAV, ...MODULE_NAV.filter((item) => !TAB_HREFS.includes(item.href))];
+export const MORE_NAV: readonly NavItem[] = [HOME_NAV, ...MODULE_NAV.filter((item) => !TAB_HREFS.includes(item.href)), TRASH_NAV];

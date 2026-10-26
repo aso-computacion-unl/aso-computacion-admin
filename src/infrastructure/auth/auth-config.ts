@@ -47,13 +47,34 @@ export function isGoogleConfigured(env: Env = process.env): boolean {
   return googleConfig(env) !== null;
 }
 
+const GOOGLE_VARIABLES = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "AUTH_URL"] as const;
+
 /**
- * The shared-password emergency login. On while Google is not configured (local development, and
- * production until Google is set up), then only with the explicit flag. Turning it off also makes
- * the guard reject every break-glass session that is still open.
+ * The variables to fix when the Google setup is half done: none of the three set is a deliberate
+ * "no Google" (empty list), any of them set without the whole being valid is a mistake. Only names,
+ * never values.
+ */
+export function googleConfigProblems(env: Env = process.env): string[] {
+  if (GOOGLE_VARIABLES.every((name) => value(env, name) === undefined) || googleConfig(env)) {
+    return [];
+  }
+
+  return GOOGLE_VARIABLES.filter((name) => (name === "AUTH_URL" ? !publicOrigin(value(env, name)) : value(env, name) === undefined));
+}
+
+/**
+ * The shared-password emergency login. Implicitly on only when none of the Google variables is set
+ * (local development, and production until Google is set up). Once Google is configured, or half
+ * configured (an error that must not silently re-open the password), only the explicit flag turns it
+ * on. Turning it off also makes the guard reject every break-glass session that is still open.
  */
 export function isBreakGlassEnabled(env: Env = process.env): boolean {
-  return env.BREAK_GLASS_PASSWORD_LOGIN === "1" || !isGoogleConfigured(env);
+  return env.BREAK_GLASS_PASSWORD_LOGIN === "1" || (!isGoogleConfigured(env) && googleConfigProblems(env).length === 0);
+}
+
+/** What `/login` offers: Google, the password form, and the configuration problems to tell the operator about. */
+export function loginAvailability(env: Env = process.env): { google: boolean; emergency: boolean; problems: string[] } {
+  return { google: isGoogleConfigured(env), emergency: isBreakGlassEnabled(env), problems: googleConfigProblems(env) };
 }
 
 export function bootstrapEmails(env: Env = process.env): string[] {

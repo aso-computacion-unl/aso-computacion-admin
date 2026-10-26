@@ -51,7 +51,7 @@ Copy `.env.example` to `.env` and replace every `__REPLACE_*__` value.
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-side only) |
-| `PREVIEW_TOKEN_SECRET` | Optional. Signs the draft-preview tokens (at least 32 characters, different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`). Unset or invalid: no token can be generated or accepted. See "Scheduling and preview" |
+| `PREVIEW_TOKEN_SECRET` | Optional. Signs the draft-preview tokens (at least 32 characters, different from `ADMIN_SECRET`, `FORUM_SESSION_SECRET` and `CRON_SECRET`). Unset or invalid: no token can be generated or accepted. See "Scheduling and preview" |
 | `CRON_SECRET` | Optional. Bearer secret of the scheduled-rebuild cron (at least 32 characters). Vercel sends it by itself. Unset or invalid: `/api/cron/scheduled-rebuild` answers 401 to everyone. See "Scheduling and preview" |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | Optional. Cloudflare Pages deploy hook (`https` only; the token is part of the path, treat it as a secret and it is never logged). POSTed after every successful admin mutation so the landing rebuilds. Unset: one `info` line per process and no rebuilds (the daily cron is then the only trigger). See "Landing rebuilds" |
 | `PUBLIC_CORS_ORIGINS` | Optional. Comma-separated exact origins allowed to read `/api/public/content` from a browser (e.g. `https://aso-computacion.pages.dev`). Unset means no browser origin is granted; the landing's build-time fetch (Node, no CORS) works either way. See "Public read API" |

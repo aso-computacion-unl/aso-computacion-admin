@@ -7,7 +7,7 @@ vi.mock("react", async (importOriginal) => ({ ...(await importOriginal<typeof im
 vi.mock("../../../../app/_components/brand-mark", () => ({ BrandLogo: () => null }));
 
 import AdminError from "../../../../app/admin/error";
-import AdminLoading from "../../../../app/admin/loading";
+import { PageSkeleton } from "../../../../app/admin/_components/page-skeleton";
 import AdminNotFound from "../../../../app/admin/not-found";
 import NotFound from "../../../../app/not-found";
 
@@ -84,9 +84,9 @@ function search(node: unknown): Element | undefined {
   return element.props.onClick ? element : search(element.props.children);
 }
 
-describe("admin loading state", () => {
+describe("page skeleton", () => {
   it("is a busy status that screen readers announce, with the skeleton hidden from them", () => {
-    const html = renderToStaticMarkup(createElement(AdminLoading));
+    const html = renderToStaticMarkup(createElement(PageSkeleton));
 
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-busy="true"');

@@ -18,13 +18,13 @@ import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
 import * as bestAnswer from "@/interface/forum/forum-best-answer";
-import * as reactions from "@/interface/forum/forum-reactions";
+import * as reactions from "@/interface/forum/forum-helpful";
 import { getForumReactions } from "@/interface/forum/forum-reactions-read";
 import { makeForumCategory, makeForumMember, makeForumReply, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { signInAs } from "@/tests/support/test-auth";
 import { signInToForumAs, testForum } from "@/tests/support/test-forum";
 
-const MODULES = { "src/interface/forum/forum-reactions.ts": reactions, "src/interface/forum/forum-best-answer.ts": bestAnswer };
+const MODULES = { "src/interface/forum/forum-helpful.ts": reactions, "src/interface/forum/forum-best-answer.ts": bestAnswer };
 
 function jar(cookies: Record<string, string | undefined>): void {
   cookiesMock.mockResolvedValue({ get: (name: string) => (cookies[name] === undefined ? undefined : { name, value: cookies[name] }), set: cookieSetMock });

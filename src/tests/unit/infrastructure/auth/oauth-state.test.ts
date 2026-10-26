@@ -74,4 +74,17 @@ describe("statesMatch", () => {
     expect(statesMatch(null, "abc")).toBe(false);
     expect(statesMatch("", "")).toBe(false);
   });
+
+  it("never throws on multibyte input: strings of equal length can differ in byte length", () => {
+    expect(statesMatch("é", "a")).toBe(false);
+    expect(statesMatch("a", "é")).toBe(false);
+    expect(statesMatch("日本", "ab")).toBe(false);
+    expect(statesMatch("😀", "ab")).toBe(false);
+  });
+
+  it("matches identical multibyte values and refuses near misses", () => {
+    expect(statesMatch("estado-ñandú-日本", "estado-ñandú-日本")).toBe(true);
+    expect(statesMatch("estado-ñandú-日本", "estado-ñandú-日木")).toBe(false);
+    expect(statesMatch("abc", "ab\u00e7")).toBe(false);
+  });
 });

@@ -29,6 +29,7 @@ vi.mock("@/interface/admin/faqs/faqs-container", () => ({ getFaqUseCases: getFaq
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/faqs/actions";
+import { registerPolicyCases } from "@/tests/support/action-policy";
 import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
 const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
@@ -92,5 +93,14 @@ describe("faq server actions require an admin session (L9)", () => {
 
   it("the guard is the first statement of every action", () => {
     expect(expectGuardFirstInEveryAction("src/interface/admin/faqs/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases({
+      actionsPath: "src/interface/admin/faqs/actions.ts",
+      actionCalls: ACTION_CALLS,
+      cookiesMock,
+      untouchedMocks: [getFaqUseCasesMock, revalidatePathMock, redirectMock],
+    });
   });
 });

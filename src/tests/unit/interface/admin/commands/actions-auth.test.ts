@@ -29,6 +29,7 @@ vi.mock("@/interface/admin/commands/commands-container", () => ({ getCommandUseC
 import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/commands/actions";
 import { cookieJar, registerAdminActionAuthCases } from "@/tests/support/admin-action-auth";
+import { registerPolicyCases } from "@/tests/support/action-policy";
 
 function commandForm(): FormData {
   const form = new FormData();
@@ -38,8 +39,7 @@ function commandForm(): FormData {
   return form;
 }
 
-describe("command server actions require an admin session (L9)", () => {
-  registerAdminActionAuthCases({
+const SUITE = {
     actionsPath: "src/interface/admin/commands/actions.ts",
     actions,
     actionCalls: {
@@ -51,7 +51,10 @@ describe("command server actions require an admin session (L9)", () => {
     },
     cookiesMock,
     untouchedMocks: [getCommandUseCasesMock, ...Object.values(useCases).map((useCase) => useCase.execute), revalidatePathMock, redirectMock],
-  });
+};
+
+describe("command server actions require an admin session (L9)", () => {
+  registerAdminActionAuthCases(SUITE);
 
   it("positive control: a valid session reaches the use cases", async () => {
     cookieJar(cookiesMock, await signInAs("ADMIN"));
@@ -59,5 +62,9 @@ describe("command server actions require an admin session (L9)", () => {
     await expect(actions.trashCommand("cmd-1")).resolves.toEqual({ success: true });
 
     expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "cmd-1" });
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases(SUITE);
   });
 });

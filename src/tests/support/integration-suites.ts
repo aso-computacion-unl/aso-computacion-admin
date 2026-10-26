@@ -15,6 +15,7 @@ export const INTEGRATION_SUITES: readonly string[] = [
   "src/tests/integration/infrastructure/deploy-status-prisma.repository.integration.test.ts",
   "src/tests/integration/infrastructure/login-rate-limiter.integration.test.ts",
   "src/tests/integration/infrastructure/login-throttle.integration.test.ts",
+  "src/tests/integration/infrastructure/soft-delete.integration.test.ts",
   "src/tests/integration/infrastructure/public-content.integration.test.ts",
   "src/tests/integration/infrastructure/seed-landing-content.integration.test.ts",
 ];

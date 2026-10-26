@@ -13,20 +13,20 @@ export class PillarPrismaRepository implements OrderedContentRepository<Pillar> 
   }
 
   async getById(id: string): Promise<Pillar | null> {
-    const record = await prisma.pillar.findUnique({ where: { id } });
+    const record = await prisma.pillar.findUnique({ where: { id, deletedAt: null } });
 
     return record ? toDomain(record) : null;
   }
 
   async list(): Promise<Pillar[]> {
     // createdAt and id break ties so the list and the move use case agree on the order.
-    const records = await prisma.pillar.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
+    const records = await prisma.pillar.findMany({ where: { deletedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }] });
 
     return records.map(toDomain);
   }
 
   async update(pillar: Pillar): Promise<Pillar> {
-    const [record] = await prisma.pillar.updateManyAndReturn({ where: { id: pillar.props.id }, data: toPrismaUpdate(pillar) });
+    const [record] = await prisma.pillar.updateManyAndReturn({ where: { id: pillar.props.id, deletedAt: null }, data: toPrismaUpdate(pillar) });
 
     if (!record) {
       throw new NotFoundError("Pillar not found");
@@ -46,7 +46,7 @@ export class PillarPrismaRepository implements OrderedContentRepository<Pillar> 
   async saveOrder(orderedIds: readonly string[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
       for (const [sortOrder, id] of orderedIds.entries()) {
-        const { count } = await tx.pillar.updateMany({ where: { id }, data: { sortOrder, updatedAt: new Date() } });
+        const { count } = await tx.pillar.updateMany({ where: { id, deletedAt: null }, data: { sortOrder, updatedAt: new Date() } });
 
         if (count === 0) {
           throw new NotFoundError("Pillar not found");

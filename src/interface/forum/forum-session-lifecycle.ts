@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { clearForumSessionCookie, readForumSessionCookie, setForumSessionCookie } from "@/infrastructure/forum/forum-cookies";
 import { hashForumClientIp } from "@/infrastructure/forum/forum-ip-hash";
 import { ForumSecretError, signForumSession, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
@@ -64,8 +65,9 @@ export async function closeForumSession(): Promise<void> {
       await getForumServices().closeSession.execute({ sessionId });
     }
   } catch (error) {
-    // Without a usable secret no cookie can be verified, so there is nothing to revoke; anything else is a real failure.
-    if (!(error instanceof ForumSecretError)) {
+    // Without a usable secret no cookie can be verified, and a session that is already gone has nothing left
+    // to revoke: both are a normal logout. Anything else is a real failure.
+    if (!(error instanceof ForumSecretError) && !(error instanceof NotFoundError)) {
       console.error("Could not revoke the forum session on logout.");
       reportError(error, { action: "forum-logout-revoke" });
     }

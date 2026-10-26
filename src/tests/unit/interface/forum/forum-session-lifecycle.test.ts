@@ -14,6 +14,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 
+import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { FORUM_COOKIE_NAME, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
 import { closeForumSession, openForumSession } from "@/interface/forum/forum-session-lifecycle";
 import { makeForumMember } from "@/tests/fakes/in-memory-forum";
@@ -115,6 +116,24 @@ describe("closeForumSession", () => {
 
     expect(reportErrorMock).toHaveBeenCalledWith(expect.any(Error), { action: "forum-logout-revoke" });
     expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ maxAge: 0 }));
+  });
+
+  it("treats a session that is already gone or already revoked as a normal logout, not an error", async () => {
+    const { cookie, sessionId } = await signInToForumAs({ id: "member-1" });
+    cookieGetMock.mockImplementation((name: string) => (name === FORUM_COOKIE_NAME ? { name, value: cookie } : undefined));
+
+    await testForum.sessions.revoke(sessionId, new Date());
+    await closeForumSession();
+
+    testForum.sessions.sessions.delete(sessionId);
+    await closeForumSession();
+
+    vi.spyOn(testForum.sessions, "revoke").mockRejectedValueOnce(new NotFoundError("Forum session not found"));
+    await closeForumSession();
+
+    expect(reportErrorMock).not.toHaveBeenCalled();
+    expect(cookieSetMock).toHaveBeenCalledTimes(3);
+    expect(cookieSetMock).toHaveBeenLastCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ maxAge: 0 }));
   });
 
   it("clears the cookie even when there was no valid session, without reporting an error", async () => {

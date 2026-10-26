@@ -1,4 +1,5 @@
 import { ValidationError } from "./domain-error";
+import { assertRegistrationSettings, type EventRegistrationMode } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
 import { assertSlug, slugify } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
@@ -43,6 +44,12 @@ export interface EventProps {
   readonly publishAt: Date | null;
   /** Public until this instant (exclusive) while published; `null` never closes. */
   readonly unpublishAt: Date | null;
+  /** How a person signs up (S8). `none`: no registration; capacity and deadline are then always null. */
+  readonly registrationMode: EventRegistrationMode;
+  /** Seats; `null` is unlimited. */
+  readonly registrationCapacity: number | null;
+  /** Registration closes at this instant (exclusive); `null`: it closes with the event day. */
+  readonly registrationDeadline: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -66,6 +73,9 @@ export interface EventFields {
   isPublished: boolean;
   publishAt: Date | null;
   unpublishAt: Date | null;
+  registrationMode: string;
+  registrationCapacity: number | null;
+  registrationDeadline: Date | null;
 }
 
 export type CreateEventInput = Pick<EventFields, "title"> & Partial<Omit<EventFields, "title">>;
@@ -147,6 +157,16 @@ function validateLink(url: string | null | undefined, label: string | null | und
   return { linkUrl, linkLabel };
 }
 
+function registrationFields(fields: Partial<EventFields>) {
+  const { mode, capacity, deadline } = assertRegistrationSettings(
+    fields.registrationMode,
+    fields.registrationCapacity,
+    fields.registrationDeadline,
+  );
+
+  return { registrationMode: mode, registrationCapacity: capacity, registrationDeadline: deadline };
+}
+
 function build(
   base: Pick<EventProps, "id" | "createdAt" | "updatedAt">,
   fields: Partial<EventFields> & Pick<EventFields, "title">,
@@ -170,6 +190,7 @@ function build(
     highlights: validateHighlights(fields.highlights),
     isPublished: fields.isPublished ?? false,
     ...assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
+    ...registrationFields(fields),
   };
 }
 

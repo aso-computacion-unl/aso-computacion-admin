@@ -1,4 +1,5 @@
 import type { EventDatePrecision, EventType } from "@/domain/event";
+import type { EventRegistrationMode } from "@/domain/event-registration";
 
 /** Plain shape returned by event use cases; mirrors `EventProps` without exposing the entity. */
 export interface EventResult {
@@ -24,6 +25,12 @@ export interface EventResult {
   publishAt: Date | null;
   /** Public until this instant (exclusive) while published; `null` never closes. */
   unpublishAt: Date | null;
+  /** How a person signs up; `none` when the event takes no registration. */
+  registrationMode: EventRegistrationMode;
+  /** Seats; `null` is unlimited. */
+  registrationCapacity: number | null;
+  /** Registration closes at this instant (exclusive); `null`: it closes with the event day. */
+  registrationDeadline: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

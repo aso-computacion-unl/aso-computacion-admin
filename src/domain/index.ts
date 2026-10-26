@@ -55,6 +55,8 @@ export { ImpactStat } from "./impact-stat";
 export type { CreateImpactStatInput, ImpactStatProps, UpdateImpactStatInput } from "./impact-stat";
 export { Testimonial } from "./testimonial";
 export type { CreateTestimonialInput, TestimonialPhoto, TestimonialProps, UpdateTestimonialInput } from "./testimonial";
+export { Sponsor } from "./sponsor";
+export type { CreateSponsorInput, SponsorLogo, SponsorProps, UpdateSponsorInput } from "./sponsor";
 export { todayInEcuador } from "./calendar-date";
 export { NewsItem } from "./news-item";
 export type { CreateNewsItemInput, NewsCover, NewsItemProps, UpdateNewsItemInput } from "./news-item";

@@ -42,7 +42,7 @@ Si no sabés por dónde empezar, abrí un issue y lo vemos juntos.
    npm run test:integration   # levanta su propio Postgres con Docker
    npm run build
    ```
-   El flujo crítico de punta a punta (login, publicar un evento, verlo en la API pública) vive en `e2e/`: `npx playwright install chromium` una vez y luego `npm run e2e` (también usa Docker; la CI lo corre como el job `e2e`).
+   El flujo crítico de punta a punta (login, publicar un evento, verlo en la API pública) vive en `e2e/`: `npm run e2e:browsers` una vez y luego `npm run e2e` (también usa Docker; la CI lo corre como el job `e2e`).
    Si cambiaste algo visual, revisalo con `npm run dev` en celular (390 px) y escritorio.
 6. **Abrí el PR** contra `main`, completá la plantilla y enlazá el issue (`Closes #12`).
 7. **Revisión.** Respondé los comentarios con commits nuevos en la misma rama; no reescribas la historia de una rama que ya está en revisión.

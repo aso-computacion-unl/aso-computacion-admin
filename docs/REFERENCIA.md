@@ -27,7 +27,8 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run test:coverage` | Unit tests with the coverage thresholds in `vitest.config.ts` (what CI runs) |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
-| `npm run e2e` | Playwright end-to-end tests: starts the disposable Docker Postgres, migrates it, runs `next build`, then the tests against `next start` on port 3100, and tears everything down. Needs Docker and Chromium once (`npx playwright install chromium`). Uses test-only admin credentials unless `ADMIN_PASSWORD`/`ADMIN_SECRET` are set; `TEST_DATABASE_URL` defaults to the canonical test URL |
+| `npm run e2e` | Playwright end-to-end tests: starts the disposable Docker Postgres, migrates it, runs `next build`, then the tests against `next start` on port 3100, and tears everything down. Needs Docker and Chromium once (`npm run e2e:browsers`). Uses test-only admin credentials unless `ADMIN_PASSWORD`/`ADMIN_SECRET` are set; `TEST_DATABASE_URL` defaults to the canonical test URL |
+| `npm run e2e:browsers` | Installs Chromium (with system libraries) through the Playwright version pinned in the lockfile; what CI runs before `npm run e2e` |
 
 Requires Node `>=22.12.0` (see `.nvmrc`).
 

@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",
     "e2e": "node scripts/run-e2e.mjs",
+    "e2e:browsers": "playwright install --with-deps chromium",
     "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --"
   },
   "dependencies": {

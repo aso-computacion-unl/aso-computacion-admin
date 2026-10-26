@@ -22,7 +22,8 @@ export type {
   EventResult,
 } from "./dto/event-result.dto";
 export type { EventPhotoRepository } from "./ports/event-photo-repository.port";
-export type { ListCriteria, PublicationCounts, PublicationStatus } from "./ports/list-criteria";
+export type { ListCriteria, Page, PageableRepository, PageRequest, PublicationCounts, PublicationStatus } from "./ports/list-criteria";
+export { fetchPage } from "./ports/list-criteria";
 export { CountByStatusUseCase } from "./use-cases/count-by-status.use-case";
 export type { EventRepository } from "./ports/event-repository.port";
 export {
@@ -42,6 +43,7 @@ export type { FaqResult } from "./dto/faq-result.dto";
 export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
 export {
   GetOrderedContentUseCase,
+  ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,

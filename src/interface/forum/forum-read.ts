@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getForumServices } from "./forum-container";
+import type { ThreadFilter } from "./forum-display";
 import { requireForumPageMember } from "./require-forum-page-member";
 
 // Reads that feed the forum pages (T15b). Every one checks the member itself: a layout is not re-rendered
@@ -18,6 +19,12 @@ export async function getForumCategories(returnTo?: string) {
 export async function getForumThreads(categorySlug: string, page: number, returnTo?: string) {
   const member = await requireForumPageMember(returnTo);
   return getForumServices().listThreads.execute({ categorySlug, page, viewerId: member.memberId });
+}
+
+/** One page of the home list: the open or solved threads of every category, or of one. `page` out of range is clamped. */
+export async function getForumFeed(options: { categorySlug?: string; state: ThreadFilter; page: number }, returnTo?: string) {
+  const member = await requireForumPageMember(returnTo);
+  return getForumServices().listFeed.execute({ ...options, viewerId: member.memberId });
 }
 
 /** A visible thread with its visible replies, oldest first. */

@@ -11,6 +11,7 @@ import { getForumThreads } from "@/interface/forum/forum-read";
 
 import { Pagination } from "../../_components/pagination";
 import { ThreadFilterTabs } from "../../_components/thread-filter-tabs";
+import { ThreadListEmpty } from "../../_components/thread-list-empty";
 import { ThreadRow } from "../../_components/thread-row";
 
 // The title and the page share one read per request.
@@ -45,7 +46,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     <>
       <Link href="/foro" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
         <Icon name="left" className="size-4" />
-        Categorías
+        Todos los hilos
       </Link>
       <div className="mt-1 mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -62,18 +63,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
       <div className="overflow-hidden rounded-xl border border-border bg-muted">
         <div className="border-b border-border px-2 py-1.5">
-          <ThreadFilterTabs slug={category.slug} active={filter} counts={counts} />
+          <ThreadFilterTabs active={filter} hrefFor={(target) => categoryHref(category.slug, { filter: target })} counts={counts} />
         </div>
         {total === 0 ? (
-          <div className="px-4 py-10 text-center text-mist">
-            <strong className="mb-1 block text-foreground">Todavía no hay hilos en esta categoría.</strong>
-            Sea la primera persona en abrir uno.
-          </div>
+          <ThreadListEmpty title="Todavía no hay hilos en esta categoría.">Sea la primera persona en abrir uno.</ThreadListEmpty>
         ) : shown.length === 0 ? (
-          <div className="px-4 py-10 text-center text-mist">
-            <strong className="mb-1 block text-foreground">{filter === "solved" ? "No hay hilos resueltos" : "No hay hilos abiertos"}{pageCount > 1 ? " en esta página" : ""}.</strong>
+          <ThreadListEmpty title={`${filter === "solved" ? "No hay hilos resueltos" : "No hay hilos abiertos"}${pageCount > 1 ? " en esta página" : ""}.`}>
             {filter === "solved" ? "Un hilo queda resuelto cuando se marca su mejor respuesta." : "Todos los hilos de esta categoría ya están resueltos."}
-          </div>
+          </ThreadListEmpty>
         ) : (
           <ul className="divide-y divide-border/50">
             {shown.map((thread) => (

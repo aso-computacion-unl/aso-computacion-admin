@@ -68,6 +68,8 @@ export function startGoogleAuthorization(config: GoogleConfig): OAuthStart {
   const url = new Google(config.clientId, config.clientSecret, config.redirectUri).createAuthorizationURL(state, codeVerifier, SCOPES);
 
   url.searchParams.set("nonce", nonce);
+  // Without it Google reuses the browser's current account, often a personal one the guard then rejects.
+  url.searchParams.set("prompt", "select_account");
 
   return { url, state, codeVerifier, nonce };
 }

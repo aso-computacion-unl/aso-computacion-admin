@@ -60,6 +60,10 @@ const complete = (token: string | Error, overrides: { nonce?: string } = {}) => 
 };
 
 describe("startGoogleAuthorization", () => {
+  it("always shows Google's account chooser, so a browser signed in to a personal account can pick the institutional one", () => {
+    expect(startGoogleAuthorization(CONFIG).url.searchParams.get("prompt")).toBe("select_account");
+  });
+
   it("builds an authorization-code request with PKCE (S256), state and nonce, and no secret in the URL", () => {
     const { url, state, codeVerifier, nonce } = startGoogleAuthorization(CONFIG);
 

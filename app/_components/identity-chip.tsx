@@ -8,6 +8,17 @@ import { cn } from "@/lib/utils";
 
 import { ThemeToggle } from "./theme-toggle";
 
+/**
+ * The name the top bar shows. A four-part name (two given names, two surnames, the usual form in Ecuador)
+ * becomes the first given name and the first surname; a shorter one stays whole, because three parts could
+ * be either two given names or two surnames. The full name is in the menu.
+ */
+export function chipName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+
+  return parts.length >= 4 ? `${parts[0]} ${parts[2]}` : parts.join(" ");
+}
+
 interface IdentityChipProps {
   /** The signed-in person's name; absent for the emergency session, which has no account. */
   name?: string;
@@ -81,7 +92,9 @@ export function IdentityChip({ name, roleLabel, emergency = false, notice, signO
           <span className={cn(PILL, "hidden bg-destructive text-destructive-foreground sm:inline")}>{roleLabel}</span>
         ) : (
           <>
-            <span className="hidden max-w-44 truncate text-sm font-semibold sm:inline">{name}</span>
+            <span title={name} className="hidden max-w-48 truncate text-sm font-semibold sm:inline">
+              {chipName(name ?? "")}
+            </span>
             <span className={cn(PILL, "hidden border border-border text-mist sm:inline")}>{roleLabel}</span>
           </>
         )}
@@ -100,8 +113,8 @@ export function IdentityChip({ name, roleLabel, emergency = false, notice, signO
               {notice ? <p className="text-sm leading-snug text-mist">{notice}</p> : null}
             </>
           ) : (
-            <div className="grid gap-1 sm:hidden">
-              <span className="truncate text-sm font-semibold">{name}</span>
+            <div className="grid gap-1">
+              <span className="text-sm font-semibold wrap-anywhere">{name}</span>
               <span className={cn(PILL, "w-fit border border-border text-mist")}>{roleLabel}</span>
             </div>
           )}

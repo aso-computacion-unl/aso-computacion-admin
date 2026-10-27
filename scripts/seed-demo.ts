@@ -61,6 +61,13 @@ const PEOPLE = [
   "samples/people/jazz.jpg",
 ];
 
+/** `list[index]`, or a clear error: the demo data below is fixed, so a miss is a bug in this script. */
+function at<T>(list: readonly T[], index: number): T {
+  const item = list[index];
+  if (item === undefined) throw new Error(`Demo data is missing entry ${index}.`);
+  return item;
+}
+
 const ordered = <T extends object>(rows: T[]) =>
   rows.map((row, index) => ({ id: randomUUID(), sortOrder: index, isPublished: true, updatedAt: now, ...row }));
 
@@ -221,7 +228,7 @@ async function seed(prisma: Db) {
         { name: "Marco Chiliguano", role: "Alterno de Vicepresidente" },
         { name: "Alejandro Padilla", role: "Alterno de Tesorero" },
         { name: "Melissa Contento", role: "Alterna de Secretaria" },
-      ].map((member, index) => ({ ...member, ...demoImage("photo", PEOPLE[index], `Foto de demostración de ${member.name}`) })),
+      ].map((member, index) => ({ ...member, ...demoImage("photo", at(PEOPLE, index), `Foto de demostración de ${member.name}`) })),
     ),
   });
 
@@ -257,9 +264,11 @@ async function seedForum(prisma: Db) {
     { slug: "general", name: "General", description: "Preguntas y conversaciones de la carrera." },
     { slug: "materias", name: "Materias", description: "Dudas sobre clases, tareas y exámenes." },
     { slug: "propuestas", name: "Propuestas", description: "Ideas de talleres y eventos para la asociación." },
-  ]).map(({ isPublished: _published, ...category }) => category);
+  ]).map(({ isPublished, ...category }) => (void isPublished, category));
   await prisma.forumCategory.createMany({ data: categories });
-  const [general, materias, propuestas] = categories;
+  const general = at(categories, 0);
+  const materias = at(categories, 1);
+  const propuestas = at(categories, 2);
 
   const members = ["Daniela Ríos", "Kevin Torres", "Andrea Maldonado", "Luis Ochoa"].map((displayName, index) => ({
     id: randomUUID(),
@@ -269,7 +278,10 @@ async function seedForum(prisma: Db) {
     lastLoginAt: daysFromNow(-index),
   }));
   await prisma.forumMember.createMany({ data: members });
-  const [daniela, kevin, andrea, luis] = members;
+  const daniela = at(members, 0);
+  const kevin = at(members, 1);
+  const andrea = at(members, 2);
+  const luis = at(members, 3);
 
   const thread = (categoryId: string, authorId: string, title: string, body: string, daysAgo: number) => ({
     id: randomUUID(),
@@ -288,7 +300,9 @@ async function seedForum(prisma: Db) {
     thread(general.id, daniela.id, "Recomendaciones de laptop para la carrera", "Entro a 6.º ciclo y necesito cambiar de laptop. ¿Qué me recomiendan con un presupuesto medio?", 1),
   ];
   await prisma.forumThread.createMany({ data: threads });
-  const [avl, docker, hackathon] = threads;
+  const avl = at(threads, 0);
+  const docker = at(threads, 1);
+  const hackathon = at(threads, 2);
 
   const reply = (threadId: string, authorId: string, body: string, hoursAfter: number, base: Date) => ({
     id: randomUUID(),
@@ -311,14 +325,14 @@ async function seedForum(prisma: Db) {
     [docker.id, replies.slice(2, 3)],
     [hackathon.id, replies.slice(3, 4)],
   ] as const) {
-    await prisma.forumThread.update({ where: { id: threadId }, data: { lastActivityAt: replyList[replyList.length - 1].createdAt } });
+    await prisma.forumThread.update({ where: { id: threadId }, data: { lastActivityAt: at(replyList, replyList.length - 1).createdAt } });
   }
-  await prisma.forumThread.update({ where: { id: avl.id }, data: { bestReplyId: replies[0].id } });
+  await prisma.forumThread.update({ where: { id: avl.id }, data: { bestReplyId: at(replies, 0).id } });
 
   await prisma.forumReaction.createMany({
     data: [
-      { id: randomUUID(), memberId: kevin.id, replyId: replies[0].id },
-      { id: randomUUID(), memberId: luis.id, replyId: replies[0].id },
+      { id: randomUUID(), memberId: kevin.id, replyId: at(replies, 0).id },
+      { id: randomUUID(), memberId: luis.id, replyId: at(replies, 0).id },
       { id: randomUUID(), memberId: daniela.id, threadId: docker.id },
       { id: randomUUID(), memberId: kevin.id, threadId: docker.id },
     ],

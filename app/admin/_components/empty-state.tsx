@@ -11,10 +11,13 @@ interface EmptyStateProps {
   action?: ReactNode;
 }
 
-/** What a page says when it has nothing to list: an icon, one sentence and the single next step. */
+/**
+ * What a page says when it has nothing to list: an icon, one sentence and the single next step. It fills the width of
+ * its container and centers its content, so the page stays symmetric whatever the width.
+ */
 export function EmptyState({ icon, children, action }: EmptyStateProps) {
   return (
-    <div role="status" data-slot="empty-state" className="mt-8 grid max-w-xl justify-items-start gap-4 rounded bg-card p-5 md:p-6">
+    <div role="status" data-slot="empty-state" className="mt-8 grid w-full justify-items-center gap-4 rounded bg-card p-6 text-center md:p-8">
       <span aria-hidden="true" className="grid size-11 place-items-center rounded-xs bg-muted text-sky">
         <Icon name={icon} />
       </span>

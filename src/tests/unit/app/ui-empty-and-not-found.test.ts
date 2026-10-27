@@ -34,6 +34,13 @@ describe("EmptyState", () => {
     expect(html).toContain('role="status"');
   });
 
+  it("fills the width of its container and centers its content, so a page with nothing to list stays symmetric", () => {
+    expect(html).toContain("w-full");
+    expect(html).toContain("justify-items-center");
+    expect(html).toContain("text-center");
+    expect(html).not.toContain("max-w-xl");
+  });
+
   it("is not the dashed block with a coloured left border", () => {
     expect(html).not.toContain("border-l-2");
     expect(html).not.toContain("border-dashed");
@@ -49,6 +56,14 @@ describe("NotFoundState", () => {
     expect(html).toContain('href="/admin"');
     expect(html).toContain("Volver al inicio");
     expect(html).toContain('data-slot="not-found-state"');
+  });
+
+  it("is centered in the shell it is rendered in", () => {
+    const html = renderToStaticMarkup(withChildren(NotFoundState, { title: "A", href: "/", actionLabel: "B" }, "C"));
+
+    expect(html).toContain("mx-auto");
+    expect(html).toContain("justify-items-center");
+    expect(html).toContain("text-center");
   });
 
   it("uses the display face in the admin and the forum's own face when asked", () => {

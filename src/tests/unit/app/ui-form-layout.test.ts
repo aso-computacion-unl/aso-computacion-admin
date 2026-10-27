@@ -58,11 +58,27 @@ describe("FormLayout", () => {
     expect(html.indexOf("form")).toBeLessThan(html.indexOf("foto"));
   });
 
-  it("keeps the form the same width with or without a side column", () => {
-    const widthOf = (html: string) => html.match(/data-slot="form-column"[^>]*class="[^"]*(max-w-[^ "]+)/)?.[1];
+  it("frames a form with no side column at the form's own width, header included, centered in the page", () => {
+    const html = render({});
+    const frame = html.match(/<div[^>]*data-slot="page-frame"[^>]*>/)?.[0] ?? "";
 
-    expect(widthOf(render({}))).toBeDefined();
-    expect(widthOf(render({}))).toBe(widthOf(render({ aside: createElement("p", null, "foto") })));
+    expect(frame).toContain('data-width="narrow"');
+    expect(frame).toContain("mx-auto");
+    expect(frame).toContain("max-w-166");
+    // The header lives inside the frame, so the title and the form share one left edge.
+    expect(html.indexOf('data-slot="page-frame"')).toBeLessThan(html.indexOf('data-slot="page-header"'));
+  });
+
+  it("lets a form with a side column fill the page: a flexible form column beside a fixed side column", () => {
+    const html = render({ aside: createElement("p", null, "foto") });
+    const frame = html.match(/<div[^>]*data-slot="page-frame"[^>]*>/)?.[0] ?? "";
+    const formColumn = html.match(/<div[^>]*data-slot="form-column"[^>]*>/)?.[0] ?? "";
+    const columns = html.match(/<div[^>]*data-layout="split"[^>]*>/)?.[0] ?? "";
+
+    expect(frame).toContain('data-width="fill"');
+    expect(frame).not.toContain("max-w");
+    expect(formColumn).not.toContain("max-w");
+    expect(columns).toContain("xl:grid-cols-[minmax(0,1fr)_26rem]");
   });
 });
 

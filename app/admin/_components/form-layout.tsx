@@ -31,6 +31,27 @@ export function FormHeader({ backHref, backLabel, title, status, description }: 
   return <PageHeader back={{ href: backHref, label: backLabel }} title={title} status={status} description={description} />;
 }
 
+interface PageFrameProps {
+  /** A page that is one column of controls, with nothing beside it: the frame shrinks to the form's width. */
+  narrow?: boolean;
+  children: ReactNode;
+}
+
+/**
+ * The one width rule of the admin. A page is a frame whose left and right margins inside the content area are
+ * equal, header and body together. The frame fills the content area (the layout's `main`, already centered)
+ * unless the page is a lone form column: then it is that column's width (41.5rem) and centered, header
+ * included, so the title and the fields share one left edge and no side of the screen is left blank.
+ * Lists, dashboards and forms with a side column fill; empty states and not-found states center themselves.
+ */
+export function PageFrame({ narrow = false, children }: PageFrameProps) {
+  return (
+    <div data-slot="page-frame" data-width={narrow ? "narrow" : "fill"} className={cn(narrow && "mx-auto w-full max-w-166")}>
+      {children}
+    </div>
+  );
+}
+
 interface FormColumnsProps {
   /** Media, a gallery or a live preview, beside the form on lg+ and under it on a phone. Never a note: a note is the description. */
   aside?: ReactNode;
@@ -40,17 +61,18 @@ interface FormColumnsProps {
 }
 
 /**
- * The form column, and beside it the side column when there is something to put there. The form is the same
- * width (41.5rem at xl) with or without a side column, so a small form is a narrow column of its own and never
- * stretches across the screen or reserves an empty one.
+ * The form column, and beside it the side column when there is something to put there. With a side column the
+ * form takes the rest of the frame and the side column keeps its fixed width (26rem at xl), so the pair always
+ * spans the frame. Without one the column takes the frame, which `FormLayout` has already narrowed to 41.5rem:
+ * a small form never stretches across the screen and never reserves an empty column.
  */
 export function FormColumns({ aside, stickyAside = false, children }: FormColumnsProps) {
   return (
     <div
       data-layout={aside ? "split" : "single"}
-      className={cn("mt-6 grid items-start gap-6", aside && "lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,41.5rem)_26rem]")}
+      className={cn("mt-6 grid items-start gap-6", aside && "lg:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] xl:grid-cols-[minmax(0,1fr)_26rem]")}
     >
-      <div data-slot="form-column" className="grid min-w-0 max-w-166 gap-6">
+      <div data-slot="form-column" className="grid min-w-0 gap-6">
         {children}
       </div>
       {aside ? (
@@ -75,9 +97,9 @@ interface FormLayoutProps extends FormHeaderProps {
 /** The frame of every create/edit page: the head, then the form column and its optional side column. */
 export function FormLayout({ aside, children, ...header }: FormLayoutProps) {
   return (
-    <div>
+    <PageFrame narrow={!aside}>
       <FormHeader {...header} />
       <FormColumns aside={aside}>{children}</FormColumns>
-    </div>
+    </PageFrame>
   );
 }

@@ -287,6 +287,24 @@ describe("CloudinaryMediaStorage", () => {
   });
 });
 
+describe("CloudinaryMediaStorage.destroy result", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ["not found", { result: "not found" }],
+    ["an error result", { result: "error" }],
+    ["no result", {}],
+    ["nothing at all", undefined],
+  ])("fails when the provider answers %s: the file was not deleted", async (_label, answer) => {
+    stubCloudinaryEnvironment();
+    cloudinaryMocks.destroy.mockResolvedValue(answer);
+
+    await expect(new CloudinaryMediaStorage().destroy("aso-computacion/events/photo")).rejects.toThrow("aso-computacion/events/photo");
+  });
+});
+
 describe("Cloudinary configuration", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

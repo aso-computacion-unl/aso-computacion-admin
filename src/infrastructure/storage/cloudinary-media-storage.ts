@@ -102,6 +102,11 @@ export class CloudinaryMediaStorage implements MediaStoragePort {
   }
 
   async destroy(publicId: string): Promise<void> {
-    await cloudinary.uploader.destroy(publicId, CLOUDINARY_DESTROY_OPTIONS);
+    const outcome = (await cloudinary.uploader.destroy(publicId, CLOUDINARY_DESTROY_OPTIONS)) as { result?: unknown } | undefined;
+
+    // The provider answers 200 with `{ result: "not found" }` and the like: only "ok" means the file is gone.
+    if (outcome?.result !== "ok") {
+      throw new Error(`Cloudinary did not delete ${publicId}.`);
+    }
   }
 }

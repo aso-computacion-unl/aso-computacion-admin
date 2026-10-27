@@ -1,3 +1,7 @@
+"use client";
+
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -5,6 +9,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 import { BulkCheckbox } from "./bulk-selection";
+import { useReorderable } from "./reorderable-list";
 import { Stamp, TimelineItem } from "./timeline-parts";
 
 interface OrderedRowProps {
@@ -19,44 +24,79 @@ interface OrderedRowProps {
   /** A thumbnail or avatar, left of the text. */
   media?: ReactNode;
   /** What the row says: its title and a line of detail. */
-  children: ReactNode;
+  children?: ReactNode;
   toggle: ReactNode;
   /** Absent while the list is searched: moving a row past neighbours that are hidden would be a guess. */
   move?: ReactNode;
   remove: ReactNode;
 }
 
+function RowBody({ id, position, label, editHref, media, children, toggle, move, remove, handle }: OrderedRowProps & { handle?: ReactNode }) {
+  return (
+    <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
+      <div className="flex items-center justify-between gap-3 lg:contents">
+        <div className="flex items-center gap-2 lg:order-1">
+          {handle}
+          <BulkCheckbox id={id} label={label} />
+          <Stamp>{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>
+        </div>
+        <div className="lg:order-3">{move}</div>
+      </div>
+      <div className="flex min-w-0 items-start gap-4 lg:order-2 lg:items-center">
+        {media}
+        <div className="grid min-w-0 flex-1 gap-1">{children}</div>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:order-4 lg:mt-0 lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+        {toggle}
+        <Button asChild variant="line" size="sm" className="ml-auto">
+          <Link href={editHref} aria-label={`Editar: ${label}`}>
+            <Icon name="edit" className="size-4" />
+            Editar
+          </Link>
+        </Button>
+        {remove}
+      </div>
+    </div>
+  );
+}
+
+/** The grip of a draggable row: the only part that starts a drag, so links and buttons in the row keep working. */
+function SortableRow(props: OrderedRowProps) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: props.id });
+  const handle = (
+    <button
+      ref={setActivatorNodeRef}
+      type="button"
+      {...attributes}
+      {...listeners}
+      aria-roledescription="elemento reordenable"
+      aria-label={`Arrastrar para reordenar: ${props.label}`}
+      className="inline-flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-xs text-mist hover:text-foreground active:cursor-grabbing"
+    >
+      <Icon name="grip" />
+    </button>
+  );
+
+  return (
+    <TimelineItem published={props.published} lane="trunk" itemRef={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} dragging={isDragging}>
+      <RowBody {...props} handle={handle} />
+    </TimelineItem>
+  );
+}
+
 /**
  * One commit of an ordered list (FAQ, pillars, socials, board, news): content on top, the four
  * things you can do below. On lg+ the same four parts sit in one row (number, content, move,
- * actions) so a wide card is not a tall one.
+ * actions) so a wide card is not a tall one. Inside a `ReorderableList` it also has a drag handle.
  */
-export function OrderedRow({ id, published, position, label, editHref, media, children, toggle, move, remove }: OrderedRowProps) {
+export function OrderedRow(props: OrderedRowProps) {
+  const reorderable = useReorderable();
+
+  if (reorderable) return <SortableRow {...props} />;
+
   return (
-    <TimelineItem published={published} lane="trunk">
-      <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
-        <div className="flex items-center justify-between gap-3 lg:contents">
-          <div className="flex items-center gap-2 lg:order-1">
-            <BulkCheckbox id={id} label={label} />
-            <Stamp>{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>
-          </div>
-          <div className="lg:order-3">{move}</div>
-        </div>
-        <div className="flex min-w-0 items-start gap-4 lg:order-2 lg:items-center">
-          {media}
-          <div className="grid min-w-0 flex-1 gap-1">{children}</div>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:order-4 lg:mt-0 lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          {toggle}
-          <Button asChild variant="line" size="sm" className="ml-auto">
-            <Link href={editHref} aria-label={`Editar: ${label}`}>
-              <Icon name="edit" className="size-4" />
-              Editar
-            </Link>
-          </Button>
-          {remove}
-        </div>
-      </div>
+    <TimelineItem published={props.published} lane="trunk">
+      <RowBody {...props} />
     </TimelineItem>
   );
 }

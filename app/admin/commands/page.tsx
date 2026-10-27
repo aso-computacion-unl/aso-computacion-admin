@@ -12,10 +12,11 @@ import { ListSearch } from "../_components/list-search";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { Pager } from "../_components/pager";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { FilterEmpty } from "../_components/status-filter";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -66,7 +67,7 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
           {commands.length === 0 ? <FilterEmpty path={LIST_PATH} filter="todos" noun="comandos" search={search} /> : null}
           {commands.length > 0 ? (
             <BulkSelection kind="command" items={commands.map((item) => ({ id: item.id, label: item.command }))}>
-              <OrderedList label="Comandos, en el orden en que se muestran">
+              <ReorderableList kind="command" items={commands.map((item) => ({ id: item.id, label: item.command }))} offset={offset} total={page.total} enabled={!searching} label="Comandos, en el orden en que se muestran">
                 {commands.map((item, index) => (
                   <OrderedRow
                     key={item.id}
@@ -98,7 +99,7 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
                     <p className="line-clamp-2 text-sm text-mist">{item.description}</p>
                   </OrderedRow>
                 ))}
-              </OrderedList>
+              </ReorderableList>
             </BulkSelection>
           ) : null}
           <Pager path={LIST_PATH} filter="todos" search={search} page={page} />

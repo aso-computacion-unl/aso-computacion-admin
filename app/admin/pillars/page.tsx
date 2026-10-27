@@ -11,8 +11,9 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function AdminPillarsPage() {
         </EmptyState>
       ) : (
         <BulkSelection kind="pillar" items={pillars.map((pillar) => ({ id: pillar.id, label: pillar.title }))}>
-          <OrderedList label="Pilares, en el orden en que se muestran">
+          <ReorderableList kind="pillar" items={pillars.map((pillar) => ({ id: pillar.id, label: pillar.title }))} offset={0} total={pillars.length} enabled={true} label="Pilares, en el orden en que se muestran">
             {pillars.map((pillar, index) => (
               <OrderedRow
                 key={pillar.id}
@@ -89,7 +90,7 @@ export default async function AdminPillarsPage() {
                 <p className="line-clamp-2 text-sm text-mist">{pillar.image ? pillar.text : `${pillar.text} · Sin imagen`}</p>
               </OrderedRow>
             ))}
-          </OrderedList>
+          </ReorderableList>
         </BulkSelection>
       )}
     </div>

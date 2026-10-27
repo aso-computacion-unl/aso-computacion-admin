@@ -11,8 +11,9 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function AdminBoardPage() {
         </EmptyState>
       ) : (
         <BulkSelection kind="board" items={members.map((member) => ({ id: member.id, label: member.name }))}>
-          <OrderedList label="Integrantes de la directiva, en el orden en que se muestran">
+          <ReorderableList kind="board" items={members.map((member) => ({ id: member.id, label: member.name }))} offset={0} total={members.length} enabled={true} label="Integrantes de la directiva, en el orden en que se muestran">
             {members.map((member, index) => (
               <OrderedRow
                 key={member.id}
@@ -93,7 +94,7 @@ export default async function AdminBoardPage() {
                 {member.photo ? null : <p className="font-mono text-xs text-mist">Sin foto: no se puede publicar</p>}
               </OrderedRow>
             ))}
-          </OrderedList>
+          </ReorderableList>
         </BulkSelection>
       )}
     </div>

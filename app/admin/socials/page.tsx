@@ -11,8 +11,9 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function AdminSocialLinksPage() {
         </EmptyState>
       ) : (
         <BulkSelection kind="social" items={links.map((link) => ({ id: link.id, label: link.label }))}>
-          <OrderedList label="Redes sociales, en el orden en que se muestran">
+          <ReorderableList kind="social" items={links.map((link) => ({ id: link.id, label: link.label }))} offset={0} total={links.length} enabled={true} label="Redes sociales, en el orden en que se muestran">
             {links.map((link, index) => (
               <OrderedRow
                 key={link.id}
@@ -80,7 +81,7 @@ export default async function AdminSocialLinksPage() {
                 {link.label === socialPlatformLabel(link.platform) ? null : <p className="text-sm text-mist">{socialPlatformLabel(link.platform)}</p>}
               </OrderedRow>
             ))}
-          </OrderedList>
+          </ReorderableList>
         </BulkSelection>
       )}
     </div>

@@ -68,3 +68,52 @@ test("a list can be searched, and the rows selected on it can be unpublished and
   await page.goto("/admin/papelera");
   for (const question of questions) await expect(page.getByText(question).first()).toBeVisible();
 });
+
+test("an ordered list can be reordered by dragging a row's handle or with the keyboard, and the order sticks", async ({ page, request }) => {
+  const stamp = Date.now();
+  const questions = [`Uno ${stamp}`, `Dos ${stamp}`, `Tres ${stamp}`];
+  const shownOrder = () => page.getByRole("list", { name: "Preguntas frecuentes, en el orden en que se muestran" }).getByRole("heading", { level: 2 }).allTextContents();
+  const mine = async () => (await shownOrder()).filter((question) => question.endsWith(String(stamp)));
+  const publicOrder = async () =>
+    ((await (await request.get("/api/public/content")).json()).faqs as { question: string }[]).map((faq) => faq.question).filter((question) => question.endsWith(String(stamp)));
+
+  await logInAsAdmin(page);
+  for (const question of questions) await createFaq(page, question);
+  await expect.poll(mine).toEqual(questions);
+
+  // Drag the first row down onto the last one.
+  const handle = (question: string) => page.getByRole("button", { name: `Arrastrar para reordenar: ${question}` });
+  const from = (await handle(questions[0]!).boundingBox())!;
+  const to = (await handle(questions[2]!).boundingBox())!;
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 10, { steps: 5 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 4, { steps: 15 });
+  await page.mouse.up();
+
+  await expect(page.getByRole("status").getByText(`${questions[0]}: posición 3 de`)).toBeVisible();
+  await expect.poll(mine).toEqual([questions[1], questions[2], questions[0]]);
+  expect(await publicOrder()).toEqual([questions[1], questions[2], questions[0]]);
+  await page.reload();
+  await expect.poll(mine).toEqual([questions[1], questions[2], questions[0]]);
+
+  // The same with the keyboard: pick the last row up, one place up, drop it (once the page has hydrated, or the keys go nowhere).
+  await page.waitForLoadState("networkidle");
+  await handle(questions[0]!).focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByText(`«${questions[0]}» está sobre la posición 3`)).toBeAttached();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByText(`«${questions[0]}» está sobre la posición 2`)).toBeAttached();
+  await page.keyboard.press("Space");
+
+  await expect.poll(mine).toEqual([questions[1], questions[0], questions[2]]);
+  await page.reload();
+  await expect.poll(mine).toEqual([questions[1], questions[0], questions[2]]);
+  expect(await publicOrder()).toEqual([questions[1], questions[0], questions[2]]);
+
+  // Searching hides the handles: a place in the whole list is not known for a subset.
+  await page.goto(`/admin/faqs?q=${stamp}`);
+  await expect(page.getByRole("link", { name: questions[0]! }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Arrastrar para reordenar/ })).toHaveCount(0);
+});

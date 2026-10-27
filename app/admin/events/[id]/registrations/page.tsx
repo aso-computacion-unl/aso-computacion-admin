@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Icon } from "@/components/icons";
@@ -8,8 +7,8 @@ import { pluralize } from "@/interface/admin/publication-summary";
 
 import { PageHeader } from "../../../_components/page-header";
 import { Panel } from "../../../_components/form-layout";
-import { EmptyState } from "../../../_components/empty-state";
 import { RegistrationDeleteButton } from "./_components/registration-delete-button";
+import { RegistrationsEmptyState } from "./_components/registrations-empty-state";
 
 // Personal data that changes with every registration: never prerendered.
 export const dynamic = "force-dynamic";
@@ -23,7 +22,7 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
 
   if (!page) notFound();
 
-  const { event, registrations, canManage } = page;
+  const { event, registrations, canManage, adminOrigin } = page;
   const seats = event.registrationCapacity === null ? "sin límite de cupos" : `${registrations.length} de ${pluralize(event.registrationCapacity, "cupo", "cupos")}`;
 
   return (
@@ -46,9 +45,7 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
       />
 
       {registrations.length === 0 ? (
-        <EmptyState icon="board" action={<Link href={`/admin/events/${id}/edit`} className="font-semibold underline underline-offset-4">Editar el evento</Link>}>
-          Todavía no hay inscripciones.
-        </EmptyState>
+        <RegistrationsEmptyState eventId={id} slug={event.slug} mode={event.registrationMode} isPublished={event.isPublished} adminOrigin={adminOrigin} />
       ) : (
         <Panel className="mt-6 overflow-x-auto" aria-label="Lista de inscripciones">
           <table className="w-full min-w-176 border-collapse text-left text-sm">

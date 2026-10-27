@@ -46,6 +46,16 @@ describe("getAdminEventRegistrations", () => {
     expect(page?.registrations.map((registration) => registration.email)).toEqual(["ana@example.com"]);
   });
 
+  it.each([
+    ["http://localhost:3000/", "http://localhost:3000"],
+    ["", undefined],
+  ])("hands the page the public origin of the admin (AUTH_URL %j -> %j) to build the forum link", async (authUrl, origin) => {
+    vi.stubEnv("AUTH_URL", authUrl);
+    cookieJar(cookiesMock, await signInAs("ADMIN"));
+
+    expect((await getAdminEventRegistrations(eventId))?.adminOrigin).toBe(origin);
+  });
+
   it("is null for an unknown event", async () => {
     cookieJar(cookiesMock, await signInAs("ADMIN"));
 

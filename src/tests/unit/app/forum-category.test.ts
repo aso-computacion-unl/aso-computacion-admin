@@ -123,6 +123,7 @@ describe("a category page", () => {
     expect(html).toContain("Kevin L.");
     expect(html).toContain("hace 1 h");
     expect(html).toContain("· cerrado por la moderación");
+    expect(html).toContain("· abierto");
     expect(html).toContain('<span class="sr-only">Abierto</span>');
     expect(html).toContain('<span class="sr-only">Cerrado</span>');
     expect(html).toMatch(/0<span class="sr-only"> respuestas<\/span>/);

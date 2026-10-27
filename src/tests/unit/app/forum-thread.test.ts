@@ -115,6 +115,17 @@ describe("a thread page", () => {
     expect(html).toContain("Mejor respuesta");
   });
 
+  it("labels an open thread Abierto, in words, and a solved one only Resuelto", async () => {
+    seedThread();
+
+    expect(await render("t1")).toMatch(/<span[^>]*>(?:<svg[^>]*>.*?<\/svg>)?Abierto<\/span>/);
+
+    seedThread({ bestReplyId: "r1" });
+    testForum.store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2", body: "Guarde el siguiente antes de liberar" }));
+
+    expect(await render("t1")).not.toMatch(/>Abierto</);
+  });
+
   it("does not claim a solution for a thread without a best answer", async () => {
     seedThread();
 

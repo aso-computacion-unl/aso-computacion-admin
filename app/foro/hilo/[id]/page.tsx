@@ -51,6 +51,12 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
       <header className="mt-1 mb-8">
         <h1 className="mb-3 text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight wrap-anywhere">{thread.title}</h1>
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-mist">
+          {status === "open" ? (
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-ok/60 bg-ok/10 px-3 font-bold text-ok">
+              <Icon name="dot" className="size-4" />
+              Abierto
+            </span>
+          ) : null}
           {status === "solved" ? (
             <a href="#mejor" className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-sky px-3 font-bold text-primary-foreground no-underline hover:bg-sky-bright">
               <Icon name="merge" className="size-4" />

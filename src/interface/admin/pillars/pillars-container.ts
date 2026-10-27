@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   RemovePillarImageUseCase,
   SetOrderedContentPublishedUseCase,
   SetPillarImageUseCase,
@@ -29,6 +30,7 @@ function createPillarUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(pillars, toPillarResult, NOT_FOUND),
     trash: new TrashContentUseCase(pillars, NOT_FOUND),
     move: new MoveOrderedContentUseCase(pillars, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(pillars, NOT_FOUND),
     setImage: new SetPillarImageUseCase(pillars, new UploadImageUseCase(storage), storage),
     removeImage: new RemovePillarImageUseCase(pillars, storage),
   };

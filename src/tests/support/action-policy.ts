@@ -79,6 +79,10 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     bulkSetPublished: { role: "EDITOR", audit: "faq.publish" },
     bulkTrash: { role: "EDITOR", audit: "faq.trash" },
   },
+  "src/interface/admin/reorder/actions.ts": {
+    // Drag and drop is the single-step move with a destination: an editor may reorder, audited as `<kind>.move`.
+    reorderContent: { role: "EDITOR", audit: "faq.move" },
+  },
   "src/interface/admin/preview/actions.ts": {
     createPreviewToken: { role: "EDITOR", audit: "preview.token_create" },
   },

@@ -5,6 +5,7 @@ import {
   ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateFaqUseCase,
   TrashContentUseCase,
@@ -28,6 +29,7 @@ function createFaqUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(faqs, toFaqResult, NOT_FOUND),
     trash: new TrashContentUseCase(faqs, NOT_FOUND),
     move: new MoveOrderedContentUseCase(faqs, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(faqs, NOT_FOUND),
   };
 }
 

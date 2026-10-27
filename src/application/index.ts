@@ -46,6 +46,7 @@ export {
   ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   nextSortOrder,
 } from "./use-cases/ordered-content.use-cases";

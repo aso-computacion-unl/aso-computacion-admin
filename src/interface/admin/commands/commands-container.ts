@@ -5,6 +5,7 @@ import {
   ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateTerminalCommandUseCase,
   TrashContentUseCase,
@@ -28,6 +29,7 @@ function createCommandUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(commands, toTerminalCommandResult, NOT_FOUND),
     trash: new TrashContentUseCase(commands, NOT_FOUND),
     move: new MoveOrderedContentUseCase(commands, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(commands, NOT_FOUND),
   };
 }
 

@@ -1,3 +1,4 @@
+import { formatStamp } from "@/interface/admin/day-groups";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-read";
 import { describeUserAgent } from "@/interface/admin/sessions/user-agent";
@@ -9,11 +10,10 @@ import { RevokeSessionButton } from "./_components/revoke-session-button";
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
-const WHEN = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Guayaquil" });
-
 export default async function AdminSessionsPage() {
   const { actor, sessions } = await getActiveSessions();
   const isAdmin = actor.role === "ADMIN";
+  const now = new Date();
 
   return (
     <div>
@@ -46,9 +46,20 @@ export default async function AdminSessionsPage() {
                       {session.kind === "break_glass" ? "Acceso de emergencia con contraseña" : `${session.userName} · ${session.userEmail}`}
                     </p>
                   ) : null}
-                  <p className="font-mono text-[0.8125rem] text-mist">
-                    Iniciada: {WHEN.format(session.createdAt)} · Última actividad: {WHEN.format(session.lastSeenAt)} · Vence: {WHEN.format(session.expiresAt)}
-                  </p>
+                  <dl className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.8125rem] text-mist">
+                    {(
+                      [
+                        ["Última actividad", session.lastSeenAt],
+                        ["Iniciada", session.createdAt],
+                        ["Vence", session.expiresAt],
+                      ] as const
+                    ).map(([label, at]) => (
+                      <div key={label} className="flex gap-1.5 whitespace-nowrap">
+                        <dt>{label}</dt>
+                        <dd className="text-foreground tabular-nums">{formatStamp(at, now)}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
                 <RevokeSessionButton sessionId={session.id} label={device} isCurrent={session.isCurrent} />
               </li>

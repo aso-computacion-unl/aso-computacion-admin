@@ -5,14 +5,12 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { selectAll, settle, toggle } from "@/interface/admin/bulk/bulk-selection";
 import { deleteOrphanImages } from "@/interface/admin/media/actions";
-import type { OrphanDeleteResult } from "@/interface/admin/media/media-input";
 import { formatBytes } from "@/interface/admin/media/media-labels";
+import { deleteInBatches } from "@/interface/admin/media/orphan-batches";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
 import { useToast } from "../../../_components/toast";
-
-const UNEXPECTED_ERROR = "Ocurrió un error inesperado. Intente nuevamente.";
 
 export interface OrphanItem {
   publicId: string;
@@ -48,26 +46,15 @@ export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
     setProblem(null);
     setFailures([]);
     startTransition(async () => {
-      let result: OrphanDeleteResult;
-
-      try {
-        result = await deleteOrphanImages(chosen);
-      } catch {
-        result = { error: UNEXPECTED_ERROR };
-      }
+      // A long selection goes as several requests (each has its own time limit); what finished is kept.
+      const { results, problem: stopped } = await deleteInBatches(chosen, deleteOrphanImages);
+      const outcome = settle(selected, results);
 
       setConfirming(false);
-
-      if (result.error !== undefined) {
-        setProblem(result.error);
-        return;
-      }
-
-      const outcome = settle(selected, result.results);
-
+      setProblem(stopped);
       setSelected(outcome.remaining);
       setFailures(outcome.failures);
-      setRemoved((previous) => new Set([...previous, ...result.results.filter((item) => item.ok).map((item) => item.id)]));
+      setRemoved((previous) => new Set([...previous, ...results.filter((item) => item.ok).map((item) => item.id)]));
       if (outcome.okCount > 0) notify(`${pluralize(outcome.okCount, "imagen eliminada", "imágenes eliminadas")}.`);
     });
   }

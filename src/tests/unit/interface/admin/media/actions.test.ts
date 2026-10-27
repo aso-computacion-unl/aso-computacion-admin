@@ -20,13 +20,17 @@ describe("deleteOrphanImages", () => {
   });
 
   it("reports every image, audits only the files destroyed and refreshes the pages", async () => {
-    deletion.execute.mockResolvedValue([
-      { publicId: "aso/a", outcome: "deleted" },
-      { publicId: "aso/b", outcome: "in_use" },
-      { publicId: "aso/c", outcome: "too_recent" },
-      { publicId: "aso/d", outcome: "not_found" },
-      { publicId: "aso/e", outcome: "failed" },
-    ]);
+    deletion.execute.mockImplementation(async ({ onDeleted }: { onDeleted: (id: string) => Promise<void> }) => {
+      await onDeleted("aso/a");
+
+      return [
+        { publicId: "aso/a", outcome: "deleted" },
+        { publicId: "aso/b", outcome: "in_use" },
+        { publicId: "aso/c", outcome: "too_recent" },
+        { publicId: "aso/d", outcome: "not_found" },
+        { publicId: "aso/e", outcome: "failed" },
+      ];
+    });
 
     const result = await deleteOrphanImages(["aso/a", "aso/b", "aso/c", "aso/d", "aso/e"]);
 
@@ -43,6 +47,26 @@ describe("deleteOrphanImages", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/medios");
   });
 
+  it("writes the audit entry as each file is destroyed, so a request cut short never leaves a deleted file unaudited", async () => {
+    const seen: number[] = [];
+
+    deletion.execute.mockImplementation(async ({ onDeleted }: { onDeleted: (id: string) => Promise<void> }) => {
+      await onDeleted("aso/a");
+      seen.push(testAuth.audit.entries.length);
+      await onDeleted("aso/b");
+      seen.push(testAuth.audit.entries.length);
+      throw new Error("the platform killed the function");
+    });
+
+    await deleteOrphanImages(["aso/a", "aso/b", "aso/c"]);
+
+    expect(seen).toEqual([1, 2]);
+    expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityId]).sort()).toEqual([
+      ["media.delete_orphan", "aso/a"],
+      ["media.delete_orphan", "aso/b"],
+    ]);
+  });
+
   it("writes no audit entry and refreshes nothing when no file was destroyed", async () => {
     deletion.execute.mockResolvedValue([{ publicId: "aso/b", outcome: "in_use" }]);
 
@@ -57,7 +81,7 @@ describe("deleteOrphanImages", () => {
 
     await deleteOrphanImages(["aso/a", "aso/b", "aso/a"]);
 
-    expect(deletion.execute).toHaveBeenCalledWith({ publicIds: ["aso/a", "aso/b"] });
+    expect(deletion.execute).toHaveBeenCalledWith({ publicIds: ["aso/a", "aso/b"], onDeleted: expect.any(Function) });
   });
 
   it.each([

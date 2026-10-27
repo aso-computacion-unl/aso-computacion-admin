@@ -11,8 +11,19 @@ export const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 /** How many stored images one cleanup scan looks at (one call to the provider). */
 export const ORPHAN_SCAN_PAGE_SIZE = 100;
 
+// The cap on one deletion request is worked out from the time the request has, not picked. The admin
+// functions run for at most 30 s (`maxDuration` in app/admin/layout.tsx; a test pins it). Of that,
+// 10 s are kept for what is not the images: a cold start, the session and role lookup, the usage
+// queries, revalidating the pages. Each image is two provider calls that cannot overlap: the lookup
+// (Admin API `resource`) and then the destroy (Upload API); in a slow spell each can take 2 s, so an
+// image costs 4 s in the worst case: (30 - 10) / 4 = 5 images. The screen sends a longer selection
+// as several requests of this size, one after the other, each with its own 30 s.
+const REQUEST_SECONDS = 30;
+const RESERVED_SECONDS = 10;
+const WORST_SECONDS_PER_IMAGE = 2 * 2;
+
 /** The most images one deletion request may name. */
-export const ORPHAN_DELETE_MAX = 50;
+export const ORPHAN_DELETE_MAX = Math.floor((REQUEST_SECONDS - RESERVED_SECONDS) / WORST_SECONDS_PER_IMAGE);
 
 export interface OrphanCandidate extends StoredAsset {
   /** Old enough to delete. A younger one is listed so the person sees it, but cannot be chosen. */
@@ -74,14 +85,31 @@ export class DeleteOrphanImagesUseCase {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async execute({ publicIds }: { publicIds: readonly string[] }): Promise<OrphanDeletion[]> {
+  /**
+   * `onDeleted` runs right after each file is destroyed, before the next image is touched, so a
+   * request that is cut short never leaves a destroyed file without its record. It cannot undo or
+   * change the outcome: if it throws, the image still counts as deleted and the error is logged.
+   */
+  async execute({ publicIds, onDeleted }: { publicIds: readonly string[]; onDeleted?: (publicId: string) => Promise<void> }): Promise<OrphanDeletion[]> {
     const results: OrphanDeletion[] = [];
 
     for (const publicId of publicIds) {
-      results.push({ publicId, outcome: await this.deleteOne(publicId) });
+      const outcome = await this.deleteOne(publicId);
+
+      if (outcome === "deleted") await this.announce(publicId, onDeleted);
+
+      results.push({ publicId, outcome });
     }
 
     return results;
+  }
+
+  private async announce(publicId: string, onDeleted: ((publicId: string) => Promise<void>) | undefined): Promise<void> {
+    try {
+      await onDeleted?.(publicId);
+    } catch (error) {
+      console.error(`The unused image ${publicId} was deleted, but its follow-up step failed.`, error);
+    }
   }
 
   private async deleteOne(publicId: string): Promise<OrphanOutcome> {

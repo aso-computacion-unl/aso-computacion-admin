@@ -21,13 +21,10 @@ export async function deleteOrphanImages(publicIds: string[]): Promise<OrphanDel
 
     if (!ids) return { error: ORPHAN_IDS_MESSAGE };
 
-    const deletions = await getOrphanDeletion().execute({ publicIds: ids });
-
-    for (const { publicId, outcome } of deletions) {
-      if (outcome === "deleted") {
-        await recordAudit(actor, { action: "media.delete_orphan", entityType: "media", entityId: publicId, summary: "Imagen sin uso eliminada" });
-      }
-    }
+    const deletions = await getOrphanDeletion().execute({
+      publicIds: ids,
+      onDeleted: (publicId) => recordAudit(actor, { action: "media.delete_orphan", entityType: "media", entityId: publicId, summary: "Imagen sin uso eliminada" }),
+    });
 
     if (deletions.some(({ outcome }) => outcome === "deleted")) {
       revalidatePath(LIBRARY_PATH);

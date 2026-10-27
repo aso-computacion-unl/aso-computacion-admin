@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MediaLibraryPort, MediaUsage, MediaUsageReader, StoredAsset } from "@/application/ports/media-library.port";
 import type { MediaStoragePort } from "@/application/ports/media-storage.port";
 import { MANAGED_MEDIA_FOLDERS } from "@/application/media-owners";
-import { DeleteOrphanImagesUseCase, FindOrphanImagesUseCase, ORPHAN_MIN_AGE_MS, ORPHAN_SCAN_PAGE_SIZE } from "@/application/use-cases/media-orphans.use-cases";
+import { DeleteOrphanImagesUseCase, FindOrphanImagesUseCase, ORPHAN_DELETE_MAX, ORPHAN_MIN_AGE_MS, ORPHAN_SCAN_PAGE_SIZE } from "@/application/use-cases/media-orphans.use-cases";
 
 const NOW = new Date("2026-10-26T12:00:00Z");
 const OLD = new Date(NOW.getTime() - ORPHAN_MIN_AGE_MS - 1000);
@@ -102,6 +102,48 @@ describe("DeleteOrphanImagesUseCase", () => {
     expect(await remove.execute({ publicIds: ["posted"] })).toEqual([{ publicId: "posted", outcome: "not_managed" }]);
     expect(storage.destroy).not.toHaveBeenCalled();
     expect(usage.usagesOf).not.toHaveBeenCalled();
+  });
+
+  describe("onDeleted", () => {
+    it("runs right after each destroy and before the next image is even looked up", async () => {
+      const { remove, library, storage } = build([asset("a"), asset("b")]);
+      const order: string[] = [];
+
+      vi.mocked(storage.destroy).mockImplementation(async (id) => void order.push(`destroy ${id}`));
+      vi.mocked(library.getAsset).mockImplementation(async (id) => {
+        order.push(`lookup ${id}`);
+        return asset(id);
+      });
+
+      await remove.execute({ publicIds: ["a", "b"], onDeleted: async (id) => void order.push(`audit ${id}`) });
+
+      expect(order).toEqual(["lookup a", "destroy a", "audit a", "lookup b", "destroy b", "audit b"]);
+    });
+
+    it("is not called for an image that was kept or whose destroy failed", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const onDeleted = vi.fn();
+      const { remove, storage } = build([asset("fails"), asset("young", YOUNG), asset("used")], ["used"]);
+      vi.mocked(storage.destroy).mockRejectedValueOnce(new Error("storage down"));
+
+      await remove.execute({ publicIds: ["fails", "young", "used", "missing"], onDeleted });
+
+      expect(onDeleted).not.toHaveBeenCalled();
+    });
+
+    it("never turns a deleted image into a failed one when the callback throws", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const { remove } = build([asset("a"), asset("b")]);
+
+      expect(await remove.execute({ publicIds: ["a", "b"], onDeleted: async () => Promise.reject(new Error("audit down")) })).toEqual([
+        { publicId: "a", outcome: "deleted" },
+        { publicId: "b", outcome: "deleted" },
+      ]);
+    });
+  });
+
+  it("caps a request so its worst case (two sequential provider calls per image) fits the 30 s the admin allows", () => {
+    expect(ORPHAN_DELETE_MAX).toBe(5);
   });
 
   it("reports each image and keeps going when one fails", async () => {

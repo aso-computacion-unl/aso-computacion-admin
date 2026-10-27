@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { cookiesMock, getOrphanDeletionMock, revalidatePathMock, deletion } = vi.hoisted(() => {
-  const deletion = { execute: vi.fn(async ({ publicIds }: { publicIds: string[] }) => publicIds.map((publicId) => ({ publicId, outcome: "deleted" as const }))) };
+  const deletion = {
+    execute: vi.fn(async ({ publicIds, onDeleted }: { publicIds: string[]; onDeleted: (publicId: string) => Promise<void> }) => {
+      for (const publicId of publicIds) await onDeleted(publicId);
+
+      return publicIds.map((publicId) => ({ publicId, outcome: "deleted" as const }));
+    }),
+  };
 
   return { cookiesMock: vi.fn(), getOrphanDeletionMock: vi.fn(() => deletion), revalidatePathMock: vi.fn(), deletion };
 });

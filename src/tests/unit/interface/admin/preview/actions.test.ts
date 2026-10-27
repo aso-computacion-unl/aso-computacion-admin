@@ -90,7 +90,7 @@ describe("preview token server action", () => {
     const { token } = (await actions.createPreviewToken(null, form("7d"))) as actions.PreviewTokenResult;
 
     expect(testAuth.audit.entries).toHaveLength(1);
-    expect(testAuth.audit.entries[0]).toMatchObject({ action: "preview.token_create", entityType: "preview", summary: "Código de vista previa generado (7 días)" });
+    expect(testAuth.audit.entries[0]).toMatchObject({ action: "preview.token_create", entityType: "preview", entityId: "7d", summary: "Código de vista previa generado (7 días)" });
     expect(JSON.stringify(testAuth.audit.entries)).not.toContain(token!);
   });
 

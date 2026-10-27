@@ -8,7 +8,7 @@ import { actorLabel, auditQuery, entityTypeLabel } from "@/interface/admin/audit
 import { pluralize } from "@/interface/admin/publication-summary";
 
 import { PageHead } from "../_components/page-head";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -65,7 +65,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
       </form>
 
       {items.length === 0 ? (
-        <EmptyState>{filtered ? "Ninguna entrada coincide con el filtro." : "Todavía no hay entradas en el registro."}</EmptyState>
+        <EmptyState icon="list">{filtered ? "Ninguna entrada coincide con el filtro." : "Todavía no hay entradas en el registro."}</EmptyState>
       ) : (
         <ol className="mt-6 grid gap-2" aria-label="Entradas del registro">
           {items.map((entry) => (

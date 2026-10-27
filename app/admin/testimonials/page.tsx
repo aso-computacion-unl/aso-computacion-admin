@@ -13,7 +13,7 @@ import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function AdminTestimonialsPage() {
         }
       />
       {testimonials.length === 0 ? (
-        <EmptyState
+        <EmptyState icon="news"
           action={
             <Button asChild>
               <Link href="/admin/testimonials/new">

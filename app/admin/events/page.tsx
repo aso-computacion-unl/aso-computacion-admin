@@ -10,7 +10,8 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { listCriteria, parseListParams } from "@/interface/admin/list-params";
 import { parseStatusFilter } from "@/interface/admin/status-filter";
 
-import { EmptyState, Stamp, TimelineItem } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
+import { Stamp, TimelineItem } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
 import { PageHead } from "../_components/page-head";
 import { BulkCheckbox, BulkSelection } from "../_components/bulk-selection";
@@ -211,7 +212,7 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
       />
 
       {counts.published + counts.draft === 0 ? (
-        <EmptyState
+        <EmptyState icon="events"
           action={
             <Button asChild>
               <Link href="/admin/events/new">

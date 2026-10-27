@@ -8,7 +8,8 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
 import { Panel, PageHead } from "../../_components/page-head";
-import { EmptyState, Stamp } from "../../_components/timeline-parts";
+import { EmptyState } from "../../_components/empty-state";
+import { Stamp } from "../../_components/timeline-parts";
 import { CloseReportForm, PostControls } from "./_components/report-controls";
 
 // Reads mutable data on every request.
@@ -97,7 +98,7 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
       </nav>
 
       {items.length === 0 ? (
-        <EmptyState>{status === "open" ? "No hay reportes abiertos. Cuando un estudiante reporte una publicación, aparecerá aquí." : "Todavía no se cerró ningún reporte."}</EmptyState>
+        <EmptyState icon="alert">{status === "open" ? "No hay reportes abiertos. Cuando un estudiante reporte una publicación, aparecerá aquí." : "Todavía no se cerró ningún reporte."}</EmptyState>
       ) : (
         <ul className="mt-6 grid gap-4" aria-label={status === "open" ? "Reportes abiertos" : "Reportes cerrados"}>
           {items.map((report) => (

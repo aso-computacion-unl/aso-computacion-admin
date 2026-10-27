@@ -18,7 +18,8 @@ import { BulkCheckbox, BulkSelection } from "../_components/bulk-selection";
 import { ListSearch } from "../_components/list-search";
 import { Pager } from "../_components/pager";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
-import { EmptyState, OrderedList, Stamp, TimelineItem } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
+import { OrderedList, Stamp, TimelineItem } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
 
 // Reads mutable data on every request.
@@ -49,7 +50,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
         }
       />
       {counts.published + counts.draft === 0 ? (
-        <EmptyState
+        <EmptyState icon="news"
           action={
             <Button asChild>
               <Link href="/admin/news/new">

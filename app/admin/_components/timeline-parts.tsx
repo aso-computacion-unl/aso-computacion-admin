@@ -51,13 +51,3 @@ export function OrderedList({ label, children }: { label: string; children: Reac
     </div>
   );
 }
-
-/** The empty state says what the list is for and offers the one next step. */
-export function EmptyState({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div role="status" className="mt-8 grid max-w-xl justify-items-start gap-4 border-l-2 border-dashed border-sky pl-5">
-      <p className="text-mist">{children}</p>
-      {action}
-    </div>
-  );
-}

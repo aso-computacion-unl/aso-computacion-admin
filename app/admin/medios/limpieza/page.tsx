@@ -5,7 +5,7 @@ import { parseMediaCursor } from "@/interface/admin/media/media-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 
 import { BackLink, PageHead } from "../../_components/page-head";
-import { EmptyState } from "../../_components/timeline-parts";
+import { EmptyState } from "../../_components/empty-state";
 import { OrphanCleanup } from "./_components/orphan-cleanup";
 
 // Reads mutable data on every request.
@@ -36,8 +36,8 @@ export default async function AdminMediaCleanupPage({ searchParams }: { searchPa
           pantalla.
         </p>
       ) : null}
-      {scan.status === "unavailable" ? <EmptyState>El almacén de imágenes no está configurado en este entorno.</EmptyState> : null}
-      {scan.status === "error" ? <EmptyState>No se pudo consultar el almacén de imágenes. Intente nuevamente en unos minutos.</EmptyState> : null}
+      {scan.status === "unavailable" ? <EmptyState icon="image">El almacén de imágenes no está configurado en este entorno.</EmptyState> : null}
+      {scan.status === "error" ? <EmptyState icon="image">No se pudo consultar el almacén de imágenes. Intente nuevamente en unos minutos.</EmptyState> : null}
       {scan.status === "ok" ? (
         <>
           {/* Keyed by the page: a new page starts with a clean selection. */}

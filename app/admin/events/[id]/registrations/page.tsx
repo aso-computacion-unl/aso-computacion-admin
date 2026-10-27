@@ -7,7 +7,7 @@ import { getAdminEventRegistrations } from "@/interface/admin/event-registration
 import { pluralize } from "@/interface/admin/publication-summary";
 
 import { BackLink, PageHead, Panel } from "../../../_components/page-head";
-import { EmptyState } from "../../../_components/timeline-parts";
+import { EmptyState } from "../../../_components/empty-state";
 import { RegistrationDeleteButton } from "./_components/registration-delete-button";
 
 // Personal data that changes with every registration: never prerendered.
@@ -48,7 +48,7 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
       </p>
 
       {registrations.length === 0 ? (
-        <EmptyState action={<Link href={`/admin/events/${id}/edit`} className="font-semibold underline underline-offset-4">Editar el evento</Link>}>
+        <EmptyState icon="board" action={<Link href={`/admin/events/${id}/edit`} className="font-semibold underline underline-offset-4">Editar el evento</Link>}>
           Todavía no hay inscripciones.
         </EmptyState>
       ) : (

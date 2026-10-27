@@ -3,7 +3,7 @@ import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-rea
 import { describeUserAgent } from "@/interface/admin/sessions/user-agent";
 
 import { PageHead } from "../_components/page-head";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 import { RevokeSessionButton } from "./_components/revoke-session-button";
 
 // Reads mutable data on every request.
@@ -24,7 +24,7 @@ export default async function AdminSessionsPage() {
           : "Los dispositivos donde su cuenta tiene la sesión abierta. Cierre los que no reconozca."}
       </p>
       {sessions.length === 0 ? (
-        <EmptyState>No hay sesiones abiertas.</EmptyState>
+        <EmptyState icon="lock">No hay sesiones abiertas.</EmptyState>
       ) : (
         <ul className="mt-6 grid gap-3" aria-label="Sesiones activas">
           {sessions.map((session) => {

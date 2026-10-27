@@ -16,7 +16,7 @@ import { ReorderableList } from "../_components/reorderable-list";
 import { Pager } from "../_components/pager";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { FilterEmpty } from "../_components/status-filter";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
         }
       />
       {listTotal === 0 ? (
-        <EmptyState
+        <EmptyState icon="merge"
           action={
             <Button asChild>
               <Link href="/admin/commands/new">

@@ -13,7 +13,7 @@ import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function AdminSocialLinksPage() {
         }
       />
       {links.length === 0 ? (
-        <EmptyState
+        <EmptyState icon="share"
           action={
             <Button asChild>
               <Link href="/admin/socials/new">

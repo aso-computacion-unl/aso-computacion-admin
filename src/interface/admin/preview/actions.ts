@@ -5,13 +5,13 @@ import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { isPreviewConfigured, signPreviewToken } from "@/infrastructure/preview/preview-token";
 
 import { recordAudit } from "../../audit/record-audit";
-import { requireSession } from "../../auth/require-session";
+import { requireRole } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { PREVIEW_ENDPOINT_PATH } from "./preview-paths";
 import { parsePreviewLifetime, previewLifetimeLabel } from "./preview-lifetimes";
 
-// The guard comes first, before any input is read (a server action can be POSTed to any page). Any signed-in
-// user may generate a token: it only shows what the editors themselves can already see in this panel.
+// The guard comes first, before any input is read (a server action can be POSTed to any page). An Editor
+// (or an Admin) may generate a token: it only shows what the editors themselves can already see in this panel.
 // The token is a bearer secret: it is returned once to the caller, never stored, never audited, never logged.
 
 /** `token` is shown once; `expiresAt` is Ecuador wall-clock time (`YYYY-MM-DDTHH:mm`). */
@@ -25,7 +25,7 @@ const NOT_CONFIGURED_MESSAGE = "La vista previa no está configurada: falta PREV
 
 export async function createPreviewToken(_prevState: PreviewTokenResult | null, formData: FormData): Promise<PreviewTokenResult> {
   try {
-    const actor = await requireSession();
+    const actor = await requireRole("EDITOR");
     const lifetime = parsePreviewLifetime(formData.get("lifetime"));
 
     if (!lifetime) {

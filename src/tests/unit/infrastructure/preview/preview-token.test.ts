@@ -43,8 +43,9 @@ describe("signPreviewToken", () => {
 
   it("fails closed without a usable PREVIEW_TOKEN_SECRET: missing, placeholder, short, or shared with another secret", async () => {
     vi.stubEnv("FORUM_SESSION_SECRET", "f".repeat(40));
+    vi.stubEnv("CRON_SECRET", "c".repeat(40));
 
-    for (const bad of [undefined, "", "short", "__REPLACE_PREVIEW_TOKEN_SECRET__", ADMIN_SECRET, "f".repeat(40)]) {
+    for (const bad of [undefined, "", "short", "__REPLACE_PREVIEW_TOKEN_SECRET__", ADMIN_SECRET, "f".repeat(40), "c".repeat(40)]) {
       vi.stubEnv("PREVIEW_TOKEN_SECRET", bad as string);
 
       await expect(signPreviewToken("1h", NOW)).rejects.toThrow(PreviewSecretError);

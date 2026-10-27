@@ -7,6 +7,7 @@ import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { checkRegistrationRateLimit } from "@/infrastructure/http/registration-rate-limiter";
 import { verifyTurnstile } from "@/infrastructure/http/turnstile";
 import { reportError } from "@/infrastructure/observability/report-error";
+import { describeError, toSafeError } from "@/infrastructure/observability/safe-error";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 import { readJsonObject } from "@/interface/public/read-json-body";
 
@@ -83,9 +84,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return answer(request, { error: "validation", field: error.field }, 400);
     }
 
-    // Anything else is the server's fault: never echo it.
-    console.error("Open event registration failed", error);
-    reportError(error, { route: "public-event-registration" });
+    // Anything else is the server's fault: never echo it. A database error can repeat the submitted name and
+    // email, so neither the log nor the report gets the error itself, only its class and code.
+    console.error("Open event registration failed", describeError(error));
+    reportError(toSafeError(error), { route: "public-event-registration" });
 
     return answer(request, { error: "unavailable" }, 503);
   }

@@ -20,6 +20,7 @@ test("a visitor at /foro sees the sign-in and none of the forum, on a phone too"
   await expect(signIn).toBeVisible();
   await expect(signIn).toHaveAttribute("href", "/foro/auth/google/start");
   await expect(page.getByRole("link", { name: "Cerrar sesión" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Menú de cuenta/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Categorías" })).toHaveCount(0);
   await expectNoHorizontalScroll(page);
 });

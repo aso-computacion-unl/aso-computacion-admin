@@ -7,7 +7,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { signOutOfForum } from "@/interface/forum/forum-posting";
 
-/** Ends the forum session on the server, then shows the landing as a visitor. */
+/** The identity menu's sign-out row: ends the forum session on the server, then shows the landing as a visitor. */
 export function SignOutButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -21,9 +21,9 @@ export function SignOutButton() {
   }
 
   return (
-    <Button variant="quiet" size="sm" busy={pending} onClick={signOut} aria-label="Cerrar sesión">
-      <Icon name="out" className="size-4.5" />
-      <span className="hidden sm:inline">Cerrar sesión</span>
+    <Button variant="quiet" busy={pending} onClick={signOut} className="w-full justify-start">
+      <Icon name="out" />
+      Cerrar sesión
     </Button>
   );
 }

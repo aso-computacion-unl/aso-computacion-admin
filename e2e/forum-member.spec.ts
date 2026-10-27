@@ -164,6 +164,7 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await page.getByRole("button", { name: "Responder" }).click();
   await expect(page.getByLabel("Su respuesta")).toHaveAttribute("aria-invalid", "true");
 
+  await page.getByRole("button", { name: /^Menú de cuenta: Daniela P\./ }).click();
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 

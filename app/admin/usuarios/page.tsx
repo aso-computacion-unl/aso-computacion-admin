@@ -6,6 +6,7 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { PageHeader } from "../_components/page-header";
 import { Panel } from "../_components/form-layout";
+import { EmptyState } from "../_components/empty-state";
 import { CreateInviteForm } from "./_components/create-invite-form";
 import { RevokeInviteButton } from "./_components/revoke-invite-button";
 import { UserActiveControl, UserRoleSelect } from "./_components/user-row-controls";
@@ -20,6 +21,7 @@ export default async function AdminUsersPage() {
   const actor = await requirePageSession("ADMIN");
   const [users, invites] = await Promise.all([getAdminUsers(), getPendingInvites()]);
   const active = users.filter((user) => user.active).length;
+  const nobodyElse = users.every((user) => user.id === actor.userId);
 
   return (
     <div>
@@ -55,6 +57,12 @@ export default async function AdminUsersPage() {
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {nobodyElse ? (
+        <EmptyState icon="board">
+          {users.length === 0 ? "Todavía nadie tiene acceso con Google." : "Por ahora solo usted tiene acceso."} Las personas que invite aparecen aquí cuando aceptan su invitación.
+        </EmptyState>
       ) : null}
 
       <h2 className="sr-only">Usuarios con acceso</h2>

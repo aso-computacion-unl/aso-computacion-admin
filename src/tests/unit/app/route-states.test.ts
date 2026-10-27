@@ -119,8 +119,17 @@ describe("the trash page", () => {
     const admin = await render("ADMIN");
     const editor = await render("EDITOR");
 
-    expect(admin).toContain("nada se publica por sí solo. Eliminar definitivamente borra");
-    expect(editor).toContain("nada se publica por sí solo. Solo un administrador puede eliminar definitivamente.");
+    expect(admin).toContain("vuelve como borrador. Eliminar definitivamente borra");
+    expect(editor).toContain("vuelve como borrador. Solo un administrador puede eliminar definitivamente.");
+  });
+
+  it("says it in two lines of the header column (about 180 characters), not three", async () => {
+    for (const role of ["ADMIN", "EDITOR"] as const) {
+      const intro = (await render(role)).match(/<p class="mt-3 max-w-3xl text-mist">(.*?)<\/p>/)?.[1] ?? "";
+
+      expect(intro.length).toBeGreaterThan(0);
+      expect(intro.length).toBeLessThanOrEqual(180);
+    }
   });
 });
 

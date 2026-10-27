@@ -25,8 +25,8 @@ export default async function AdminTrashPage() {
         status={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`}
         description={
           <>
-            Lo que se mueve a la papelera deja de mostrarse en el sitio. Al restaurarlo vuelve como borrador: nada se publica por sí solo.{" "}
-            {canPurge ? "Eliminar definitivamente borra el elemento y sus archivos, y no se puede deshacer." : "Solo un administrador puede eliminar definitivamente."}
+            Lo que está aquí no se muestra en el sitio y, al restaurarlo, vuelve como borrador.{" "}
+            {canPurge ? "Eliminar definitivamente borra también sus archivos y no se puede deshacer." : "Solo un administrador puede eliminar definitivamente."}
           </>
         }
       />

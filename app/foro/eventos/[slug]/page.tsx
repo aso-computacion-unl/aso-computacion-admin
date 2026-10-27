@@ -33,9 +33,9 @@ export default async function EventRegistrationPage({ params }: { params: Promis
     { label: "Fecha", value: event.date ? formatEventDate(event.date, event.datePrecision) : null },
     { label: "Hora", value: event.hora },
     { label: "Lugar", value: event.lugar },
-    { label: "Cupos", value: status.capacity === null ? null : String(status.capacity) },
     { label: "Inscripciones hasta", value: status.deadline && status.state === "open" ? `${DEADLINE.format(status.deadline)} (hora de Ecuador)` : null },
   ].filter((detail): detail is { label: string; value: string } => Boolean(detail.value));
+  const seatsLeft = status.capacity === null ? null : Math.max(0, status.capacity - status.registered);
   const signIn = `/foro/auth/google/start?next=${encodeURIComponent(`/foro/eventos/${slug}`)}`;
 
   return (
@@ -53,6 +53,17 @@ export default async function EventRegistrationPage({ params }: { params: Promis
           <h1 id="event-title" className="text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight text-balance wrap-anywhere">
             {event.title}
           </h1>
+          {event.description ? (
+            <p data-slot="event-description" className="whitespace-pre-line wrap-anywhere">
+              {event.description}
+            </p>
+          ) : null}
+          {seatsLeft !== null && status.capacity !== null ? (
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Icon name="board" className="size-4 text-sky" />
+              {seatsLeft === 1 ? "Queda" : "Quedan"} {seatsLeft} de {status.capacity} cupos
+            </p>
+          ) : null}
           {details.length > 0 ? (
             <dl className="grid overflow-hidden rounded-lg border border-border sm:grid-cols-2">
               {details.map(({ label, value }) => (

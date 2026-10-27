@@ -14,8 +14,8 @@ vi.mock("next/navigation", () => ({
 import EventRegistrationPage from "../../../../app/foro/eventos/[slug]/page";
 import EventNotFound from "../../../../app/foro/eventos/[slug]/not-found";
 
-const event = { slug: "taller-docker", title: "Taller de Docker", date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
-const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, deadline: null, ...over });
+const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
+const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, registered: 0, deadline: null, ...over });
 const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
 
 const render = async () => renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }) }));
@@ -57,15 +57,15 @@ describe("the forum event registration page", () => {
     expect(html).not.toContain("vuelva a abrir este enlace");
   });
 
-  it("lays out the event facts as labelled details, with the seats when there is a limit", async () => {
+  it("lays out the event facts as labelled details", async () => {
     pageMock.mockResolvedValue({ member: null, status: status({ deadline: new Date("2026-11-18T23:00:00Z") }) });
 
     const html = await render();
 
     expect(html).toContain("<dl");
-    for (const label of ["Fecha", "Hora", "Lugar", "Cupos", "Inscripciones hasta"]) expect(html).toMatch(new RegExp(`<dt[^>]*>${label}</dt>`));
+    for (const label of ["Fecha", "Hora", "Lugar", "Inscripciones hasta"]) expect(html).toMatch(new RegExp(`<dt[^>]*>${label}</dt>`));
     expect(html).toMatch(/<dt[^>]*>Lugar<\/dt><dd[^>]*>Laboratorio 2<\/dd>/);
-    expect(html).toMatch(/<dt[^>]*>Cupos<\/dt><dd[^>]*>30<\/dd>/);
+    expect(html).not.toContain(">Cupos<");
     expect(html).toMatch(/<dt[^>]*>Inscripciones hasta<\/dt>/);
   });
 
@@ -76,8 +76,35 @@ describe("the forum event registration page", () => {
 
     expect(html).not.toContain(">Lugar<");
     expect(html).not.toContain(">Hora<");
-    expect(html).not.toContain(">Cupos<");
+    expect(html).not.toContain("cupos");
     expect(html).toContain(">Fecha<");
+  });
+
+  it("shows the event description under the title, and nothing when there is none", async () => {
+    pageMock.mockResolvedValue({ member: null, status: { ...status(), event: { ...event, description: "Aprenda a empaquetar su app.\nTraiga su laptop." } } });
+
+    const html = await render();
+
+    expect(html).toMatch(/<p[^>]*data-slot="event-description"[^>]*>Aprenda a empaquetar su app\.\nTraiga su laptop\.<\/p>/);
+    expect(html.indexOf("Aprenda a empaquetar")).toBeGreaterThan(html.indexOf("Taller de Docker"));
+    expect(html.indexOf("Aprenda a empaquetar")).toBeLessThan(html.indexOf("<dl"));
+
+    pageMock.mockResolvedValue({ member: null, status: status() });
+    expect(await render()).not.toContain("event-description");
+  });
+
+  it("says how many seats are left of the total, and nothing when the event has no limit", async () => {
+    pageMock.mockResolvedValue({ member: null, status: status({ capacity: 60, registered: 48 }) });
+    expect(await render()).toContain("Quedan 12 de 60 cupos");
+
+    pageMock.mockResolvedValue({ member: null, status: status({ capacity: 60, registered: 59 }) });
+    expect(await render()).toContain("Queda 1 de 60 cupos");
+
+    pageMock.mockResolvedValue({ member: null, status: status({ capacity: 60, registered: 60, state: "full" }) });
+    expect(await render()).toContain("Quedan 0 de 60 cupos");
+
+    pageMock.mockResolvedValue({ member: null, status: status({ capacity: null, registered: 48 }) });
+    expect(await render()).not.toMatch(/Quedan?\b/);
   });
 
   it("offers the registration to a signed-in member", async () => {

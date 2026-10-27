@@ -155,6 +155,17 @@ describe("registration status", () => {
     expect(await status()).toBeNull();
   });
 
+  it("carries the description and how many people are registered, for the seats left", async () => {
+    await addEvent({ registrationMode: "unl", registrationCapacity: 2, description: "Traiga su laptop." });
+    members.members.set("m1", makeForumMember({ id: "m1" }));
+
+    expect(await status()).toMatchObject({ registered: 0, event: { description: "Traiga su laptop." } });
+
+    await unlAccount().execute({ slug: "taller-de-git", memberId: "m1", now: NOW });
+
+    expect(await status()).toMatchObject({ registered: 1, state: "open" });
+  });
+
   it("reports open, full and closed, and whether this person is already in", async () => {
     await addEvent({ registrationMode: "unl", registrationCapacity: 1 });
 

@@ -1,7 +1,8 @@
 import { Icon } from "@/components/icons";
 import { FORUM_LOGIN_ERROR_MESSAGES, type ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
 
-import { GoogleMark } from "./google-mark";
+import { CategoryChip } from "./category-chip";
+import { GoogleButton } from "./google-button";
 import { ThreadStatusIcon } from "./thread-status-icon";
 
 // The guard answers the same for a visitor, an expired session and a suspended member, so the one place a
@@ -20,12 +21,12 @@ interface SignInGateProps {
  * preview never comes from the database.
  */
 const SAMPLE_THREADS = [
-  { status: "open", title: "¿Cómo preparo el examen de Estructuras de Datos?", category: "materias", meta: "hace 2 h", replies: 6 },
-  { status: "solved", title: "Error al conectar Postgres desde Docker en el laboratorio", category: "materias", meta: "hace 5 h", replies: 9 },
-  { status: "open", title: "Propuesta: taller de Docker para primeros ciclos", category: "propuestas", meta: "ayer", replies: 14 },
-  { status: "open", title: "Busco equipo para el hackathon (backend con Node)", category: "general", meta: "ayer", replies: 3 },
-  { status: "solved", title: "¿Qué electivas recomiendan para 7.º ciclo?", category: "general", meta: "hace 3 días", replies: 21 },
-  { status: "locked", title: "Horario del laboratorio abierto los sábados", category: "general", meta: "hace 1 semana", replies: 4 },
+  { status: "open", title: "¿Cómo preparo el examen de Estructuras de Datos?", category: { slug: "materias", name: "Materias" }, meta: "hace 2 h", replies: 6 },
+  { status: "solved", title: "Error al conectar Postgres desde Docker en el laboratorio", category: { slug: "materias", name: "Materias" }, meta: "hace 5 h", replies: 9 },
+  { status: "open", title: "Propuesta: taller de Docker para primeros ciclos", category: { slug: "propuestas", name: "Propuestas" }, meta: "ayer", replies: 14 },
+  { status: "open", title: "Busco equipo para el hackathon (backend con Node)", category: { slug: "general", name: "General" }, meta: "ayer", replies: 3 },
+  { status: "solved", title: "¿Qué electivas recomiendan para 7.º ciclo?", category: { slug: "general", name: "General" }, meta: "hace 3 días", replies: 21 },
+  { status: "locked", title: "Horario del laboratorio abierto los sábados", category: { slug: "general", name: "General" }, meta: "hace 1 semana", replies: 4 },
 ] as const;
 
 /** What a visitor sees at /foro: what the forum is, a look inside, and the only way in. */
@@ -33,7 +34,7 @@ export function SignInGate({ problem, next }: SignInGateProps) {
   return (
     <div className="grid items-center gap-10 lg:min-h-[calc(100dvh-11rem)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-14">
       <section aria-labelledby="gate-title" className="grid gap-6">
-        <h1 id="gate-title" className="font-display text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.05] tracking-[0.005em] text-balance">
+        <h1 id="gate-title" className="text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.1] font-bold font-stretch-[106%] tracking-tight text-balance">
           {problem ? "No pudimos entrar" : "El foro de Computación"}
         </h1>
 
@@ -52,14 +53,7 @@ export function SignInGate({ problem, next }: SignInGateProps) {
         )}
 
         <div className="grid gap-3">
-          {/* A plain link, not next/link: it starts a redirect flow and must not be prefetched. */}
-          <a
-            href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}
-            className="inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded border border-white bg-white px-6 font-bold text-[#1f1f1f] shadow-[0_6px_20px_-8px_rgb(0_0_0/0.45)] transition-colors hover:bg-[#e9eef5]"
-          >
-            <GoogleMark className="size-5" />
-            {problem ? "Entrar de nuevo con Google" : "Entrar con Google"}
-          </a>
+          <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}>{problem ? "Entrar de nuevo con Google" : "Entrar con Google"}</GoogleButton>
           <p className="text-sm text-mist">
             Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
           </p>
@@ -96,7 +90,7 @@ function ForumPreview() {
               <div className="grid min-w-0 flex-1 gap-1">
                 <p className="truncate font-semibold">{thread.title}</p>
                 <p className="flex items-center gap-2 text-xs text-mist">
-                  <span className="rounded-full border border-sky/40 px-2 py-px font-mono text-[0.6875rem] text-sky-bright">{thread.category}</span>
+                  <CategoryChip category={thread.category} />
                   {thread.meta}
                 </p>
               </div>

@@ -108,4 +108,44 @@
 		background: color-mix(in srgb, var(--hue) 26%, var(--color-navy));
 		font-weight: 700;
 	}
+
+	/*
+	 * The Google button: Google's white button with its dark ink, in both themes, so it reads as Google's and
+	 * not as one of ours. The light theme gives it Google's grey outline, because a white fill on the pale page
+	 * has no edge of its own. Every Google button in the forum is `GoogleButton`, which carries this class.
+	 */
+	.google-button {
+		--google-button-bg: #ffffff;
+		--google-button-ink: #1f1f1f;
+		--google-button-hover: #e9eef5;
+		--google-button-border: #ffffff;
+		--google-button-shadow: rgb(0 0 0 / 0.45);
+		border: 1px solid var(--google-button-border);
+		background: var(--google-button-bg);
+		color: var(--google-button-ink);
+		box-shadow: 0 6px 20px -8px var(--google-button-shadow);
+		transition: background-color 0.15s ease-out;
+	}
+
+	.google-button:hover {
+		background: var(--google-button-hover);
+	}
+
+	:root[data-theme="light"] .google-button {
+		--google-button-border: #747775;
+		--google-button-shadow: rgb(11 36 71 / 0.28);
+	}
+}
+
+/*
+ * Light theme surfaces. Out of the box a card (`muted`) is the pale blue-grey #e4ebf4 on the #f4f7fb page
+ * with a sky hairline: it barely separates and reads darker than the page, not as a surface. Inside the
+ * forum's column the roles are swapped: cards, lists and forms are white, the bands and hovers inside them
+ * take the pale blue-grey, and the border is navy ink at low strength, a visible edge in either direction.
+ * Dark keeps the brand's layers untouched.
+ */
+:root[data-theme="light"] #main {
+	--color-muted: #ffffff;
+	--color-card: var(--color-navy-deep);
+	--color-border: color-mix(in srgb, var(--color-foreground) 24%, transparent);
 }

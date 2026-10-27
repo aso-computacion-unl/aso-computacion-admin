@@ -87,6 +87,19 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
   await expect(page.getByRole("link", { name: /Segmentation fault/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /¿Cómo configuro WSL2\?/ })).toHaveCount(0);
 
+  // The home is the same list across categories, with the same tabs.
+  await page.goto("/foro");
+  await expect(page.getByRole("heading", { level: 1, name: "Hilos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /¿Cómo configuro WSL2\?/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Segmentation fault/ })).toHaveCount(0);
+  await page.getByRole("link", { name: /Resueltos/ }).click();
+  await expect(page).toHaveURL(/\/foro\?estado=resueltos$/);
+  await expect(page.getByRole("link", { name: /Segmentation fault/ })).toBeVisible();
+
+  // An open thread says so in words, like a solved one.
+  await page.goto("/foro/hilo/t-open");
+  await expect(page.getByText("Abierto", { exact: true })).toBeVisible();
+
   await page.goto("/foro/hilo/t-locked");
   await expect(page.getByText("Hilo cerrado por la moderación")).toBeVisible();
   await expect(page.getByLabel("Su respuesta")).toHaveCount(0);

@@ -56,6 +56,18 @@ describe("/foro as a visitor", () => {
     expect(html).not.toContain('role="alert"');
   });
 
+  it("draws the Google button from the shared style, not from colours of its own, and the title in the forum's title face", async () => {
+    const html = await renderHome();
+    const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start"[^>]*>/)?.[0] ?? "";
+    const title = html.match(/<h1[^>]*id="gate-title"[^>]*>/)?.[0] ?? "";
+
+    expect(button).toContain('class="google-button');
+    expect(button).not.toMatch(/#[0-9a-f]{3,6}|bg-white|border-white|rgb\(/i);
+    expect(title).not.toContain("font-display");
+    expect(title).toContain("font-bold");
+    expect(html).toMatch(/<h1[^>]*>El foro de Computación<\/h1>/);
+  });
+
   it("passes the path the visitor came for to the sign-in as next", async () => {
     const html = await renderHome(undefined, "/foro/hilo/abc?x=1");
 

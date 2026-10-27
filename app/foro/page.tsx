@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { getOpenRegistrationEvents } from "@/interface/forum/event-registration-read";
 import { parseForumLoginError } from "@/interface/forum/forum-login-errors";
 import { parsePageParam, parseThreadFilter } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
@@ -10,6 +11,7 @@ import { getForumMember } from "@/interface/forum/require-forum-member";
 
 import { CategoryFilter } from "./_components/category-filter";
 import { NewThreadMenu } from "./_components/new-thread-menu";
+import { OpenRegistrationsAside } from "./_components/open-registrations-aside";
 import { Pagination } from "./_components/pagination";
 import { SignInGate } from "./_components/sign-in-gate";
 import { ThreadFilterTabs } from "./_components/thread-filter-tabs";
@@ -37,7 +39,7 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   const filter = parseThreadFilter(estado);
   const categorySlug = typeof categoria === "string" && categoria !== "" ? categoria : undefined;
-  const feed = await orNotFound(getForumFeed({ categorySlug, state: filter, page: parsePageParam(pagina) }));
+  const [feed, openEvents] = await Promise.all([orNotFound(getForumFeed({ categorySlug, state: filter, page: parsePageParam(pagina) })), getOpenRegistrationEvents()]);
   const { categories, category, items, counts, page, pageCount } = feed;
   const now = new Date();
 
@@ -53,35 +55,38 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
           <ThreadListEmpty title="Todavía no hay categorías.">La directiva las irá creando. Vuelva pronto.</ThreadListEmpty>
         </div>
       ) : (
-        <>
-          <div className="overflow-hidden rounded-xl border border-border bg-muted">
-            <div className="border-b border-border px-2 py-1.5">
-              <ThreadFilterTabs active={filter} hrefFor={(target) => feedHref({ category: category?.slug, filter: target })} counts={counts} />
-            </div>
-            {categories.length > 1 ? (
-              <div className="border-b border-border px-3 py-2.5 sm:px-4">
-                <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
+        <div className={openEvents.length > 0 ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]" : undefined}>
+          <div className="min-w-0">
+            <div className="overflow-hidden rounded-xl border border-border bg-muted">
+              <div className="border-b border-border px-2 py-1.5">
+                <ThreadFilterTabs active={filter} hrefFor={(target) => feedHref({ category: category?.slug, filter: target })} counts={counts} />
               </div>
-            ) : null}
-            {category?.description ? (
-              <p data-slot="category-description" className="border-b border-border px-3 py-2.5 text-sm text-mist wrap-anywhere sm:px-4">
-                {category.description}
-              </p>
-            ) : null}
-            {items.length === 0 ? (
-              <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
-                {emptyHint(filter, counts.open + counts.solved)}
-              </ThreadListEmpty>
-            ) : (
-              <ul className="divide-y divide-border/50">
-                {items.map((thread) => (
-                  <ThreadRow key={thread.id} thread={thread} now={now} category={category ? null : thread.category} />
-                ))}
-              </ul>
-            )}
+              {categories.length > 1 ? (
+                <div className="border-b border-border px-3 py-2.5 sm:px-4">
+                  <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
+                </div>
+              ) : null}
+              {category?.description ? (
+                <p data-slot="category-description" className="border-b border-border px-3 py-2.5 text-sm text-mist wrap-anywhere sm:px-4">
+                  {category.description}
+                </p>
+              ) : null}
+              {items.length === 0 ? (
+                <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
+                  {emptyHint(filter, counts.open + counts.solved)}
+                </ThreadListEmpty>
+              ) : (
+                <ul className="divide-y divide-border/50">
+                  {items.map((thread) => (
+                    <ThreadRow key={thread.id} thread={thread} now={now} category={category ? null : thread.category} />
+                  ))}
+                </ul>
+              )}
+            </div>
+            <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
           </div>
-          <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
-        </>
+          {openEvents.length > 0 ? <OpenRegistrationsAside events={openEvents} /> : null}
+        </div>
       )}
     </>
   );

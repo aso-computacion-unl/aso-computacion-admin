@@ -27,6 +27,7 @@ import { FORUM_THREADS_PAGE_SIZE } from "@/application/forum/forum-threads.use-c
 import { makeForumCategory, makeForumMember, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { cookieJar, forumMemberJar, stubForumSecrets } from "@/tests/support/forum-page";
 import { signInAs } from "@/tests/support/test-auth";
+import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { testForum } from "@/tests/support/test-forum";
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 
@@ -273,6 +274,35 @@ describe("/foro as a member", () => {
     expect(first).toContain('href="/foro?categoria=propuestas&amp;pagina=2"');
     expect(last).toContain("Página 2 de 2");
     expect(last).toContain('href="/foro?categoria=propuestas"');
+  });
+
+  it("lists the events open for UNL registration in an aside, each linking to its page with date and seats", async () => {
+    seedForum();
+    const taller = await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", registrationCapacity: 60, date: "2099-11-28" });
+    testEventRegistration.registrations.seed({ id: "r1", eventId: taller.id, mode: "unl", name: "Ana", email: "ana@unl.edu.ec", career: null, semester: null, createdAt: new Date() });
+    await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
+    await addTestEvent({ title: "Taller que ya pasó", registrationMode: "unl", date: "2020-01-10" });
+
+    const html = await renderQuery({});
+    const aside = html.match(/<aside[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+    expect(aside).toContain("Inscripciones abiertas");
+    expect(aside).toContain('href="/foro/eventos/taller-de-docker"');
+    expect(aside).toContain("Taller de Docker");
+    expect(aside).toContain("28 nov 2099");
+    expect(aside).toContain("Quedan 59 cupos");
+    expect(aside).not.toContain("Charla abierta");
+    expect(aside).not.toContain("ya pasó");
+  });
+
+  it("renders no aside at all while no event is open for registration", async () => {
+    seedForum();
+    await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
+
+    const html = await renderQuery({});
+
+    expect(html).not.toContain("<aside");
+    expect(html).not.toContain("Inscripciones abiertas");
   });
 
   it("falls back to the sign-in when the session was revoked", async () => {

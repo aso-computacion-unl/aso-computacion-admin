@@ -179,7 +179,7 @@ async function seed(prisma: Db) {
 
   await prisma.faq.createMany({
     data: ordered([
-      { question: "¿Quién puede participar en los eventos?", answer: "Cualquier estudiante de la carrera. Algunos eventos también están abiertos al público.", command: "aso events --open" },
+      { question: "¿Quién puede participar en los eventos?", answer: "Cualquier estudiante de la carrera. Algunos eventos también están abiertos al público.", command: "eventos" },
       { question: "¿Cómo me inscribo a un evento?", answer: "Desde la tarjeta del evento en esta página, con el botón de inscripción." },
       { question: "¿Cómo puedo proponer un taller?", answer: "Escríbenos por Instagram o en el foro, en la categoría Propuestas." },
       { question: "¿La asociación cobra alguna cuota?", answer: "No. Todas las actividades son gratuitas para los estudiantes." },
@@ -188,9 +188,9 @@ async function seed(prisma: Db) {
 
   await prisma.terminalCommand.createMany({
     data: ordered([
-      { command: "aso --about", description: "Quiénes somos", output: "Asociación de estudiantes de Computación · UNL" },
-      { command: "aso events --next", description: "Próximo evento", output: "Charla: IA en la industria local" },
-      { command: "aso join", description: "Cómo participar", output: "Inscríbete en cualquier evento o escríbenos en el foro." },
+      { command: "nosotros", description: "Quiénes somos", output: "Asociación de estudiantes de Computación · UNL" },
+      { command: "proximo-evento", description: "Próximo evento", output: "Charla: IA en la industria local" },
+      { command: "participar", description: "Cómo participar", output: "Inscríbete en cualquier evento o escríbenos en el foro." },
     ]),
   });
 

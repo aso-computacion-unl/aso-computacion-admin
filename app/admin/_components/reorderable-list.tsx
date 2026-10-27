@@ -13,7 +13,7 @@ import {
   type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Children, createContext, isValidElement, useContext, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useContext, useId, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import { dropResult, placeMessage } from "@/interface/admin/reorder/reorder-drag";
 import { reorderContent } from "@/interface/admin/reorder/actions";
@@ -68,6 +68,8 @@ export function ReorderableList({ kind, items, offset, total, enabled, label, ch
   const [problem, setProblem] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { notify } = useToast();
+  // dnd-kit numbers its aria ids with a module-level counter: the server keeps counting across requests and the browser starts at zero.
+  const dndId = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: DRAG_DISTANCE },
@@ -129,6 +131,7 @@ export function ReorderableList({ kind, items, offset, total, enabled, label, ch
       ) : null}
       <div className="tl mt-6">
         <DndContext
+          id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
           modifiers={[verticalOnly]}

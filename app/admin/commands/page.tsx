@@ -11,7 +11,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 import { ListSearch } from "../_components/list-search";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { Pager } from "../_components/pager";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
@@ -36,11 +36,11 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Comandos"
-        meta={`main · ${countsSummary(counts)}`}
+        status={`main · ${countsSummary(counts)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/commands/new">
               <Icon name="plus" />
               Nuevo comando

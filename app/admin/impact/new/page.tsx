@@ -9,7 +9,8 @@ export default function NewImpactStatPage() {
       backHref="/admin/impact"
       backLabel="Volver al impacto"
       title="Nueva cifra de impacto"
-      meta="Se agrega al final de la lista. Solo se publica si usted la marca como publicada."
+      status="sin guardar"
+      description="Se agrega al final de la lista. Solo se publica si usted la marca como publicada."
     >
       <Panel>
         <ImpactStatForm action={createImpactStat} submitLabel="Crear cifra" />

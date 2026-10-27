@@ -7,6 +7,7 @@ import { updateEvent } from "@/interface/admin/events/actions";
 import { eventToFormValues } from "@/interface/admin/events/event-form-values";
 import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
 
+import { recordStatus } from "../../../_components/page-header";
 import { FormPage, Panel } from "../../../_components/page-head";
 import { EventForm } from "../../_components/event-form";
 import { PhotoGallery } from "../../_components/photo-gallery";
@@ -28,7 +29,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       backHref="/admin/events"
       backLabel="Volver a eventos"
       title="Editar evento"
-      meta={`${event.slug} · ${event.isPublished ? "publicado" : "borrador"}`}
+      status={recordStatus(event.slug, event.isPublished, "m")}
       aside={
         <PhotoGallery
           eventId={id}

@@ -10,7 +10,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
@@ -23,11 +23,11 @@ export default async function AdminBoardPage() {
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Directiva"
-        meta={`main · ${publicationSummary(members)}`}
+        status={`main · ${publicationSummary(members)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/board/new">
               <Icon name="plus" />
               Agregar integrante

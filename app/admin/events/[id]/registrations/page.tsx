@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { getAdminEventRegistrations } from "@/interface/admin/event-registrations/registrations-admin-read";
 import { pluralize } from "@/interface/admin/publication-summary";
 
-import { BackLink, PageHead, Panel } from "../../../_components/page-head";
+import { PageHeader } from "../../../_components/page-header";
+import { Panel } from "../../../_components/page-head";
 import { EmptyState } from "../../../_components/empty-state";
 import { RegistrationDeleteButton } from "./_components/registration-delete-button";
 
@@ -27,10 +28,11 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
 
   return (
     <div>
-      <BackLink href={`/admin/events/${id}/edit`}>Volver al evento</BackLink>
-      <PageHead
+      <PageHeader
         title="Inscripciones"
-        meta={`${event.title} · ${MODE_LABELS[event.registrationMode]} · ${pluralize(registrations.length, "inscrito", "inscritos")} · ${seats}`}
+        status={`${event.title} · ${MODE_LABELS[event.registrationMode]} · ${pluralize(registrations.length, "inscrito", "inscritos")} · ${seats}`}
+        description={`Estos son datos personales: úselos solo para organizar el evento.${canManage ? "" : " Solo un administrador puede exportar o eliminar inscripciones."}`}
+        back={{ href: `/admin/events/${id}/edit`, label: "Volver al evento" }}
         action={
           canManage ? (
             <Button asChild variant="line">
@@ -42,10 +44,6 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
           ) : undefined
         }
       />
-      <p className="mt-4 max-w-2xl text-mist">
-        Estos son datos personales: úselos solo para organizar el evento.
-        {canManage ? "" : " Solo un administrador puede exportar o eliminar inscripciones."}
-      </p>
 
       {registrations.length === 0 ? (
         <EmptyState icon="board" action={<Link href={`/admin/events/${id}/edit`} className="font-semibold underline underline-offset-4">Editar el evento</Link>}>

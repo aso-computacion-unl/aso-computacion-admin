@@ -9,7 +9,8 @@ export default function NewPillarPage() {
       backHref="/admin/pillars"
       backLabel="Volver a pilares"
       title="Nuevo pilar"
-      meta="Se agrega al final de la lista. La imagen se sube en el paso siguiente."
+      status="sin guardar"
+      description="Se agrega al final de la lista. La imagen se sube en el paso siguiente."
       aside={<AsideNote title="Imagen">Opcional. Se agrega al guardar el pilar, en la pantalla de edición.</AsideNote>}
     >
       <Panel>

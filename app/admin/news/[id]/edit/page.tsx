@@ -4,6 +4,7 @@ import { updateNewsItem } from "@/interface/admin/news/actions";
 import { getAdminNewsItem } from "@/interface/admin/news/news-admin-read";
 import { windowEndToFormValue } from "@/interface/admin/publication-window-fields";
 
+import { recordStatus } from "../../../_components/page-header";
 import { FormFrame } from "../../../_components/page-head";
 import { NewsCoverPanel } from "../../_components/news-cover-panel";
 import { NewsForm } from "../../_components/news-form";
@@ -21,7 +22,12 @@ export default async function EditNewsPage({ params }: EditNewsPageProps) {
   if (!item) notFound();
 
   return (
-    <FormFrame backHref="/admin/news" backLabel="Volver a novedades" title="Editar noticia" meta={`${item.slug} · ${item.isPublished ? "publicada" : "borrador"}`}>
+    <FormFrame
+      backHref="/admin/news"
+      backLabel="Volver a novedades"
+      title="Editar noticia"
+      status={recordStatus(item.slug, item.isPublished, "f")}
+    >
       {/* Keyed by the cover so the alt field and the panel start fresh after a replace or remove. */}
       <NewsForm
         key={item.cover?.url ?? "no-cover"}

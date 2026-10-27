@@ -11,7 +11,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 import { ListSearch } from "../_components/list-search";
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { Pager } from "../_components/pager";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
@@ -36,11 +36,11 @@ export default async function AdminFaqsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Preguntas frecuentes"
-        meta={`main · ${countsSummary(counts)}`}
+        status={`main · ${countsSummary(counts)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/faqs/new">
               <Icon name="plus" />
               Nueva pregunta

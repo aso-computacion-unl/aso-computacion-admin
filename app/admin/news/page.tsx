@@ -12,7 +12,7 @@ import { listCriteria, parseListParams } from "@/interface/admin/list-params";
 import { parseStatusFilter } from "@/interface/admin/status-filter";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { TrashButton, PublishedToggle } from "../_components/row-actions";
 import { BulkCheckbox, BulkSelection } from "../_components/bulk-selection";
 import { ListSearch } from "../_components/list-search";
@@ -37,11 +37,11 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Novedades"
-        meta={`main · ${countsSummary(counts)}`}
+        status={`main · ${countsSummary(counts)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/news/new">
               <Icon name="plus" />
               Nueva noticia

@@ -5,7 +5,13 @@ import { NewsForm } from "../_components/news-form";
 
 export default function NewNewsPage() {
   return (
-    <FormFrame backHref="/admin/news" backLabel="Volver a novedades" title="Nueva noticia" meta="Queda como borrador. La foto de portada, opcional, se sube en el paso siguiente.">
+    <FormFrame
+      backHref="/admin/news"
+      backLabel="Volver a novedades"
+      title="Nueva noticia"
+      status="sin guardar"
+      description="Queda como borrador. La foto de portada, opcional, se sube en el paso siguiente."
+    >
       <NewsForm
         action={createNewsItem}
         submitLabel="Crear noticia"

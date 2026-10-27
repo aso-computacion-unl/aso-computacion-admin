@@ -1,7 +1,8 @@
 import { createPreviewToken } from "@/interface/admin/preview/actions";
 import { getPreviewSetup } from "@/interface/admin/preview/preview-admin-read";
 
-import { PageHead, Panel } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
+import { Panel } from "../_components/page-head";
 import { PreviewTokenForm } from "./_components/preview-token-form";
 
 // Reads the environment on every request.
@@ -12,12 +13,11 @@ export default async function AdminPreviewPage() {
 
   return (
     <div>
-      <PageHead title="Vista previa" meta="Borradores y contenido programado, solo con código" />
-      <p className="mt-4 max-w-2xl text-mist">
-        Genere un código para ver en una versión de prueba del sitio lo que todavía no es público: borradores y contenido programado. Quien tenga el código
-        puede ver ese contenido hasta que venza, así que compártalo solo con quien deba revisarlo. Sin el código, el sitio público sigue mostrando únicamente
-        lo publicado.
-      </p>
+      <PageHeader
+        title="Vista previa"
+        status="Borradores y contenido programado, solo con código"
+        description="Genere un código para ver en una versión de prueba lo que todavía no es público. Quien lo tenga ve ese contenido hasta que venza, así que compártalo solo con quien deba revisarlo."
+      />
 
       <Panel className="mt-6" aria-labelledby="preview-title">
         <h2 id="preview-title" className="mb-4 text-lg font-bold font-stretch-[112%]">

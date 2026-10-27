@@ -7,7 +7,8 @@ import { parseReportQueueParams, reportQueueHref } from "@/interface/admin/forum
 import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
-import { Panel, PageHead } from "../../_components/page-head";
+import { PageHeader } from "../../_components/page-header";
+import { Panel } from "../../_components/page-head";
 import { EmptyState } from "../../_components/empty-state";
 import { Stamp } from "../../_components/timeline-parts";
 import { CloseReportForm, PostControls } from "./_components/report-controls";
@@ -72,10 +73,11 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
 
   return (
     <div>
-      <PageHead title="Reportes del foro" meta={`${pluralize(total, status === "open" ? "reporte abierto" : "reporte cerrado", status === "open" ? "reportes abiertos" : "reportes cerrados")}`} />
-      <p className="mt-4 max-w-2xl text-mist">
-        Lo que los estudiantes marcaron para revisar. Oculte la publicación, cierre el hilo o suspenda la cuenta si hace falta, y luego cierre el reporte. Cada acción queda en el registro de cambios.
-      </p>
+      <PageHeader
+        title="Reportes del foro"
+        status={`${pluralize(total, status === "open" ? "reporte abierto" : "reporte cerrado", status === "open" ? "reportes abiertos" : "reportes cerrados")}`}
+        description="Lo que los estudiantes marcaron para revisar. Oculte la publicación, cierre el hilo o suspenda la cuenta si hace falta, y luego cierre el reporte. Cada acción queda en el registro de cambios."
+      />
 
       <nav aria-label="Filtrar reportes" className="mt-5">
         <ul className="flex flex-wrap gap-2">

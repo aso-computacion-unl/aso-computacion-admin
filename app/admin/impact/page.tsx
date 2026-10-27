@@ -9,7 +9,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
@@ -22,11 +22,11 @@ export default async function AdminImpactPage() {
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Impacto"
-        meta={`main · ${publicationSummary(stats)}`}
+        status={`main · ${publicationSummary(stats)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/impact/new">
               <Icon name="plus" />
               Nueva cifra

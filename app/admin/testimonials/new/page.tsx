@@ -9,7 +9,8 @@ export default function NewTestimonialPage() {
       backHref="/admin/testimonials"
       backLabel="Volver a los testimonios"
       title="Nuevo testimonio"
-      meta="Se agrega al final de la lista. La foto es opcional y se sube en el paso siguiente."
+      status="sin guardar"
+      description="Se agrega al final de la lista. La foto es opcional y se sube en el paso siguiente."
       aside={<AsideNote title="Foto">Se sube al guardar el testimonio, en la pantalla de edición. No es necesaria para publicar.</AsideNote>}
     >
       <Panel>

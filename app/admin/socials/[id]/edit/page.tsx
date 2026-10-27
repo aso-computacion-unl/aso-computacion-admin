@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateSocialLink } from "@/interface/admin/socials/actions";
 import { getAdminSocialLink } from "@/interface/admin/socials/socials-admin-read";
 
+import { recordStatus } from "../../../_components/page-header";
 import { FormPage, Panel } from "../../../_components/page-head";
 import { SocialForm } from "../../_components/social-form";
 
@@ -19,7 +20,12 @@ export default async function EditSocialLinkPage({ params }: EditSocialLinkPageP
   if (!link) notFound();
 
   return (
-    <FormPage backHref="/admin/socials" backLabel="Volver a redes" title="Editar red">
+    <FormPage
+      backHref="/admin/socials"
+      backLabel="Volver a redes"
+      title="Editar red"
+      status={recordStatus(link.label, link.isPublished, "f")}
+    >
       <Panel>
         <SocialForm
           action={updateSocialLink.bind(null, id)}

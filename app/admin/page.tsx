@@ -18,7 +18,7 @@ import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-rea
 import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read";
 import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonials-admin-read";
 
-import { PageHead } from "./_components/page-head";
+import { PageHeader } from "./_components/page-header";
 import { MODULE_NAV, visibleTo } from "./_components/nav-items";
 
 // Counts are read on every request.
@@ -81,11 +81,11 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Inicio"
-        meta="main · el sitio se vuelve a publicar con cada cambio"
+        status="main · el sitio se vuelve a publicar con cada cambio"
         action={
-          <Button asChild className="min-h-12">
+          <Button asChild>
             <Link href="/admin/events/new">
               <Icon name="plus" />
               Nuevo evento

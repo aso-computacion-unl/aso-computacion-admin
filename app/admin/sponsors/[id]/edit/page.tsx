@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { updateSponsor } from "@/interface/admin/sponsors/actions";
 import { getAdminSponsor } from "@/interface/admin/sponsors/sponsors-admin-read";
 
+import { recordStatus } from "../../../_components/page-header";
 import { FormPage, Panel } from "../../../_components/page-head";
 import { SponsorForm } from "../../_components/sponsor-form";
 import { SponsorLogoPanel } from "../../_components/sponsor-logo-panel";
@@ -24,6 +25,7 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
       backHref="/admin/sponsors"
       backLabel="Volver a los aliados"
       title="Editar aliado"
+      status={recordStatus(sponsor.name, sponsor.isPublished, "m")}
       aside={<SponsorLogoPanel key={sponsor.logo?.url ?? "no-logo"} sponsorId={id} logo={sponsor.logo} />}
     >
       {/* Keyed by the logo so the alt field and the panel start fresh after a replace or remove. */}

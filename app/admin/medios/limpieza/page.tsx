@@ -4,7 +4,7 @@ import { getAdminOrphanScan } from "@/interface/admin/media/media-cleanup-admin-
 import { parseMediaCursor } from "@/interface/admin/media/media-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 
-import { BackLink, PageHead } from "../../_components/page-head";
+import { PageHeader } from "../../_components/page-header";
 import { EmptyState } from "../../_components/empty-state";
 import { OrphanCleanup } from "./_components/orphan-cleanup";
 
@@ -20,15 +20,13 @@ export default async function AdminMediaCleanupPage({ searchParams }: { searchPa
 
   return (
     <div>
-      <BackLink href="/admin/medios">Medios</BackLink>
-      <PageHead
+      <PageHeader
         title="Imágenes sin uso"
-        meta={scan.status === "ok" ? `${pluralize(scan.scanned, "imagen revisada", "imágenes revisadas")} · ${pluralize(scan.orphans.length, "sin uso", "sin uso")}` : undefined}
+        status={scan.status === "ok" ? `${pluralize(scan.scanned, "imagen revisada", "imágenes revisadas")} · ${pluralize(scan.orphans.length, "sin uso", "sin uso")}` : undefined}
+        description="Esta revisión no borra nada: solo muestra las imágenes que ningún contenido usa, una página del almacén a la vez. Elegir y confirmar es lo que elimina los archivos, y no se puede deshacer."
+        back={{ href: "/admin/medios", label: "Medios" }}
       />
-      <p className="mt-4 max-w-2xl text-mist">
-        Esta revisión no borra nada: solo muestra, de a una página del almacén, las imágenes que ningún contenido usa. Elegir y confirmar es lo que elimina los archivos, y no se
-        puede deshacer. Las subidas en las últimas 24 horas no se pueden elegir, porque pueden estar a medio guardar.
-      </p>
+      <p className="mt-3 max-w-3xl text-sm text-mist">Las subidas de las últimas 24 horas no se pueden elegir, porque pueden estar a medio guardar.</p>
 
       {scan.status === "ok" && scan.notManaged > 0 ? (
         <p role="status" className="mt-3 max-w-2xl text-sm text-mist">

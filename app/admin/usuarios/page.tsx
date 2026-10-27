@@ -4,7 +4,8 @@ import { ROLE_LABELS } from "@/interface/admin/role-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
-import { PageHead, Panel } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
+import { Panel } from "../_components/page-head";
 import { CreateInviteForm } from "./_components/create-invite-form";
 import { RevokeInviteButton } from "./_components/revoke-invite-button";
 import { UserActiveControl, UserRoleSelect } from "./_components/user-row-controls";
@@ -22,12 +23,11 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
-      <PageHead title="Usuarios" meta={`${pluralize(active, "activo", "activos")} · ${pluralize(users.length - active, "desactivado", "desactivados")}`} />
-      <p className="mt-4 max-w-2xl text-mist">
-        Solo entran al panel las personas de esta lista, con su cuenta de Google. Para sumar a alguien, cree una invitación: se genera un link de un solo
-        uso, atado a su correo, que usted envía por el medio que prefiera; la persona entra con Google y recién entonces queda en la lista. Un editor crea y edita contenido; un administrador además gestiona
-        usuarios, los textos del sitio y el registro de cambios, y elimina de forma definitiva.
-      </p>
+      <PageHeader
+        title="Usuarios"
+        status={`${pluralize(active, "activo", "activos")} · ${pluralize(users.length - active, "desactivado", "desactivados")}`}
+        description="Solo entran al panel las personas de esta lista, con su cuenta de Google. Invite con un enlace de un solo uso, atado a su correo. Los editores editan contenido; los administradores, además, usuarios, textos del sitio y registro."
+      />
 
       <Panel className="mt-6" aria-labelledby="invite-title">
         <h2 id="invite-title" className="mb-4 text-lg font-bold font-stretch-[112%]">

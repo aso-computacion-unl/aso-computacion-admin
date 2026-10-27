@@ -9,7 +9,8 @@ export default function NewBoardMemberPage() {
       backHref="/admin/board"
       backLabel="Volver a la directiva"
       title="Agregar integrante"
-      meta="Se agrega al final de la lista. La foto se sube en el paso siguiente y es necesaria para publicar."
+      status="sin guardar"
+      description="Se agrega al final de la lista. La foto se sube en el paso siguiente y es necesaria para publicar."
       aside={<AsideNote title="Foto">Se sube al guardar el integrante, en la pantalla de edición. Sin foto no se puede publicar.</AsideNote>}
     >
       <Panel>

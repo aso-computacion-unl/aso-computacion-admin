@@ -13,7 +13,7 @@ import { parseStatusFilter } from "@/interface/admin/status-filter";
 import { EmptyState } from "../_components/empty-state";
 import { Stamp, TimelineItem } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { BulkCheckbox, BulkSelection } from "../_components/bulk-selection";
 import { ListSearch } from "../_components/list-search";
 import { Pager } from "../_components/pager";
@@ -198,11 +198,11 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <PageHead
+      <PageHeader
         title="Eventos"
-        meta={`main · ${pluralize(counts.published, "publicado", "publicados")} · ${pluralize(counts.draft, "borrador", "borradores")}`}
+        status={`main · ${pluralize(counts.published, "publicado", "publicados")} · ${pluralize(counts.draft, "borrador", "borradores")}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/events/new">
               <Icon name="plus" />
               Nuevo evento

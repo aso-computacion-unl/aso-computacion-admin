@@ -2,7 +2,7 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-read";
 import { describeUserAgent } from "@/interface/admin/sessions/user-agent";
 
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
 import { RevokeSessionButton } from "./_components/revoke-session-button";
 
@@ -17,12 +17,15 @@ export default async function AdminSessionsPage() {
 
   return (
     <div>
-      <PageHead title="Sesiones activas" meta={pluralize(sessions.length, "sesión abierta", "sesiones abiertas")} />
-      <p className="mt-4 max-w-2xl text-mist">
-        {isAdmin
-          ? "Todas las sesiones abiertas en el panel. Al cerrar una, ese dispositivo tendrá que iniciar sesión de nuevo."
-          : "Los dispositivos donde su cuenta tiene la sesión abierta. Cierre los que no reconozca."}
-      </p>
+      <PageHeader
+        title="Sesiones activas"
+        status={pluralize(sessions.length, "sesión abierta", "sesiones abiertas")}
+        description={
+          isAdmin
+            ? "Todas las sesiones abiertas en el panel. Al cerrar una, ese dispositivo tendrá que iniciar sesión de nuevo."
+            : "Los dispositivos donde su cuenta tiene la sesión abierta. Cierre los que no reconozca."
+        }
+      />
       {sessions.length === 0 ? (
         <EmptyState icon="lock">No hay sesiones abiertas.</EmptyState>
       ) : (

@@ -9,7 +9,8 @@ export default function NewSponsorPage() {
       backHref="/admin/sponsors"
       backLabel="Volver a los aliados"
       title="Nuevo aliado"
-      meta="Se agrega al final de la lista. El logo se sube en el paso siguiente y es necesario para publicar."
+      status="sin guardar"
+      description="Se agrega al final de la lista. El logo se sube en el paso siguiente y es necesario para publicar."
       aside={<AsideNote title="Logo">Se sube al guardar el aliado, en la pantalla de edición. Sin logo no se puede publicar.</AsideNote>}
     >
       <Panel>

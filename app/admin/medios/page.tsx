@@ -7,7 +7,7 @@ import { getAdminMediaLibrary } from "@/interface/admin/media/media-admin-read";
 import { formatBytes, MEDIA_KIND_LABELS, mediaHref, parseMediaCursor, usageHref } from "@/interface/admin/media/media-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
@@ -23,20 +23,18 @@ export default async function AdminMediaPage({ searchParams }: { searchParams: P
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Medios"
-        meta={library.status === "ok" ? `${pluralize(library.items.length, "imagen", "imágenes")} en esta página` : undefined}
+        status={library.status === "ok" ? `${pluralize(library.items.length, "imagen", "imágenes")} en esta página` : undefined}
+        description="Las imágenes guardadas y dónde se usa cada una. Reemplazar o quitar una imagen en un contenido no borra el archivo: sigue aquí, sin uso, hasta que se elimine."
         action={
           actor.role === "ADMIN" ? (
-            <Button asChild variant="line" className="min-h-12 flex-none">
+            <Button asChild variant="line">
               <Link href="/admin/medios/limpieza">Buscar imágenes sin uso</Link>
             </Button>
           ) : undefined
         }
       />
-      <p className="mt-4 max-w-2xl text-mist">
-        Las imágenes guardadas y dónde se usa cada una. Reemplazar o quitar una imagen en un contenido no borra el archivo: sigue aquí, sin uso, hasta que se elimine.
-      </p>
 
       {/* How the environment is set up is the administrators' business: an editor only learns there is nothing to show. */}
       {library.status === "unavailable" ? (

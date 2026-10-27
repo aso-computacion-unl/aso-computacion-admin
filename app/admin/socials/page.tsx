@@ -10,7 +10,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
@@ -23,11 +23,11 @@ export default async function AdminSocialLinksPage() {
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Redes sociales"
-        meta={`main · ${publicationSummary(links)}`}
+        status={`main · ${publicationSummary(links)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/socials/new">
               <Icon name="plus" />
               Agregar red

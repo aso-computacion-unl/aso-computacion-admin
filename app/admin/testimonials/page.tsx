@@ -10,7 +10,7 @@ import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
@@ -23,11 +23,11 @@ export default async function AdminTestimonialsPage() {
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Testimonios"
-        meta={`main · ${publicationSummary(testimonials)}`}
+        status={`main · ${publicationSummary(testimonials)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/testimonials/new">
               <Icon name="plus" />
               Nuevo testimonio

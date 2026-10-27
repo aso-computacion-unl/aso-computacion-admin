@@ -268,6 +268,31 @@ test("the users page invites by link instead of adding people, and the public in
   expect(await response.text()).toContain("noindex");
 });
 
+test("an editor opens the forum report queue from the sidebar, and a visitor is sent to the login", async ({ browser }) => {
+  // Students sign in with Google, which the suite cannot do: the queue starts empty, and the data rules live in the integration suites.
+  const editorContext = await browser.newContext({ baseURL: BASE_URL });
+  await actAsEditor(editorContext);
+  const editorPage = await editorContext.newPage();
+
+  await editorPage.goto("/admin");
+  await editorPage.getByRole("link", { name: "Foro", exact: true }).first().click();
+  await expect(editorPage).toHaveURL(/\/admin\/foro\/reportes$/);
+  await expect(editorPage.getByRole("heading", { name: "Reportes del foro" })).toBeVisible();
+  await expect(editorPage.getByText("No hay reportes abiertos.")).toBeVisible();
+
+  await editorPage.getByRole("link", { name: "Cerrados" }).click();
+  await expect(editorPage).toHaveURL(/estado=cerrados$/);
+  await expect(editorPage.getByText("Todavía no se cerró ningún reporte.")).toBeVisible();
+  await editorContext.close();
+
+  const visitorContext = await browser.newContext({ baseURL: BASE_URL });
+  const visitorPage = await visitorContext.newPage();
+
+  await visitorPage.goto("/admin/foro/reportes");
+  await expect(visitorPage).toHaveURL(/\/login/);
+  await visitorContext.close();
+});
+
 test("a session revoked in Sesiones activas stops working at once", async ({ page, browser }) => {
   // The editor's second session works...
   const editorContext = await browser.newContext({ baseURL: BASE_URL });

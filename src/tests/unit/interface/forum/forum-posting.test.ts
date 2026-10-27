@@ -122,7 +122,7 @@ describe("posting", () => {
     testForum.store.threads.set("locked", makeForumThread({ id: "locked", categoryId: "c1", lockedAt: new Date() }));
     testForum.store.threads.set("theirs", makeForumThread({ id: "theirs", categoryId: "c1", authorId: "someone-else" }));
 
-    expect(await posting.replyToForumThread("locked", null, replyForm())).toEqual({ error: "Este hilo está cerrado y no admite más respuestas." });
+    expect(await posting.replyToForumThread("locked", null, replyForm())).toEqual({ error: "Este hilo está cerrado: no admite respuestas ni cambios." });
     expect(await posting.editForumThread("theirs", null, threadForm())).toEqual({ error: "Solo puede editar sus propias publicaciones." });
     expect(await posting.replyToForumThread("ghost", null, replyForm())).toEqual({ error: "No se encontró la publicación." });
     expect(await posting.createForumThread("nope", null, threadForm())).toEqual({ error: "No se encontró la publicación." });
@@ -179,6 +179,16 @@ describe("forum reads", () => {
     }
 
     expect(redirectMock).toHaveBeenCalledWith("/foro");
+  });
+
+  it("carry the page a visitor asked for, so signing in brings them back to it", async () => {
+    jar({});
+
+    await expect(getForumCategories("/foro/c/programacion/nuevo")).rejects.toThrow("REDIRECT");
+    expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%2Fnuevo");
+
+    await expect(getForumThreads("programacion", 2, "/foro/c/programacion?pagina=2")).rejects.toThrow("REDIRECT");
+    expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%3Fpagina%3D2");
   });
 
   it("show a member the categories, a page of threads and a thread, marking their own and hiding the hidden", async () => {

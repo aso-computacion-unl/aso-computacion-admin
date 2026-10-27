@@ -11,10 +11,11 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 // The two Google routes are how a session is obtained, so they cannot require one: the callback only
 // opens a session for a verified Google identity that is on the user list, behind the login throttle.
 // The forum is a separate zone with its own session (`forum_session`, own secret, own guard): its pages and
-// its two Google routes are outside the admin middleware on purpose, and its guard fails closed.
+// its two Google routes are outside the admin middleware on purpose, and its guard fails closed. Every page
+// of the student screens (`requireForumPageMember`) sends a visitor to the sign-in at `/foro`.
 // `/foro/eventos/<slug>` is the UNL-account event registration page: it shows the event's registration state to
 // anyone, and its action only works for a signed-in forum member (the forum guard, never the admin one).
-const FORUM_ROUTES = ["/foro", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos/x"];
+const FORUM_ROUTES = ["/foro", "/foro/c/x", "/foro/c/x/nuevo", "/foro/hilo/x", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos/x"];
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
 const PUBLIC_ROUTES: string[] = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];

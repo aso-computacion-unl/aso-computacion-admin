@@ -7,6 +7,11 @@ describe("entityTypeLabel", () => {
     expect(entityTypeLabel("event")).toBe("Evento");
     expect(entityTypeLabel("session")).toBe("Sesión");
     expect(entityTypeLabel("settings")).toBe("Sitio");
+    expect(entityTypeLabel("forum_category")).toBe("Categoría del foro");
+    expect(entityTypeLabel("forum_thread")).toBe("Hilo del foro");
+    expect(entityTypeLabel("forum_reply")).toBe("Respuesta del foro");
+    expect(entityTypeLabel("forum_member")).toBe("Cuenta del foro");
+    expect(entityTypeLabel("forum_report")).toBe("Reporte del foro");
     expect(entityTypeLabel("whatever")).toBe("whatever");
   });
 });

@@ -3,15 +3,17 @@ import { ZodError } from "zod";
 import { ForumThrottledError } from "@/application/forum/posting-throttle";
 import { ForbiddenError, NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
-import { ForumMemberSuspendedError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
+import { ForumAlreadyReportedError, ForumMemberSuspendedError, ForumNotThreadAuthorError, ForumPostNotOwnedError, ForumThreadLockedError } from "@/domain/forum";
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { ForumUnauthorizedError } from "./require-forum-member";
 
 /**
  * Result of every student-facing forum server action. `fieldErrors` carries per-field messages, `error`
- * a single message for everything else (never both); `id` is the new thread or reply on success;
- * `retryAfterSeconds` is set when the member is posting too fast.
+ * a single message for everything else (never both); `id` is the new thread or reply on success (or the
+ * reply marked as the best answer); `retryAfterSeconds` is set when the member is posting too fast;
+ * `reacted` and `count` answer a «me sirvió» toggle; `alreadyReported` marks the refusal of a second open
+ * report on the same post, which the UI shows as a state, not as a failure.
  */
 export interface ForumActionResult {
   success?: true;
@@ -19,6 +21,9 @@ export interface ForumActionResult {
   error?: string;
   fieldErrors?: Record<string, string>;
   retryAfterSeconds?: number;
+  reacted?: boolean;
+  count?: number;
+  alreadyReported?: true;
 }
 
 export const FORUM_SESSION_EXPIRED_MESSAGE = "Inicie sesión para participar en el foro.";
@@ -27,6 +32,7 @@ const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.
 
 const FIELD_MESSAGES: Record<string, string> = {
   title: "El título es obligatorio y admite hasta 120 caracteres.",
+  reason: "Cuéntenos el motivo en hasta 500 caracteres.",
   body: "El texto es obligatorio y admite hasta 10000 caracteres en un hilo y 5000 en una respuesta.",
 };
 
@@ -45,11 +51,19 @@ export function mapForumActionError(error: unknown): ForumActionResult {
   }
 
   if (error instanceof ForumThreadLockedError) {
-    return { error: "Este hilo está cerrado y no admite más respuestas." };
+    return { error: "Este hilo está cerrado: no admite respuestas ni cambios." };
   }
 
   if (error instanceof ForumPostNotOwnedError) {
     return { error: "Solo puede editar sus propias publicaciones." };
+  }
+
+  if (error instanceof ForumNotThreadAuthorError) {
+    return { error: "Solo quien abrió el hilo puede elegir la mejor respuesta." };
+  }
+
+  if (error instanceof ForumAlreadyReportedError) {
+    return { error: "Ya reportó esta publicación. El equipo la revisará.", alreadyReported: true };
   }
 
   if (error instanceof ForumThrottledError) {

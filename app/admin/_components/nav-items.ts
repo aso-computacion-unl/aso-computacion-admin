@@ -34,6 +34,9 @@ export const MEDIA_NAV: NavItem = { href: "/admin/medios", label: "Medios", icon
 /** Where deleted content waits for a restore. Not a content module: it has no card on the home. */
 export const TRASH_NAV: NavItem = { href: "/admin/papelera", label: "Papelera", icon: "trash" };
 
+/** The forum's report queue: moderation is open to editors and admins, and it is not a content module (no home card). */
+export const FORUM_NAV: NavItem = { href: "/admin/foro/reportes", label: "Foro", icon: "alert" };
+
 /** Preview codes and sessions are for everyone (an editor sees and revokes their own sessions); users and the audit log are the admin's. */
 export const ACCOUNT_NAV: readonly NavItem[] = [
   { href: "/admin/vista-previa", label: "Vista previa", icon: "eye" },
@@ -53,10 +56,10 @@ export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NA
 
 /** The whole sidebar, in order. */
 export function sideNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role), MEDIA_NAV, TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
+  return [HOME_NAV, ...visibleTo(MODULE_NAV, role), MEDIA_NAV, TRASH_NAV, FORUM_NAV, ...visibleTo(ACCOUNT_NAV, role)];
 }
 
 /** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */
 export function moreNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role).filter((item) => !TAB_HREFS.includes(item.href)), MEDIA_NAV, TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
+  return [HOME_NAV, ...visibleTo(MODULE_NAV, role).filter((item) => !TAB_HREFS.includes(item.href)), MEDIA_NAV, TRASH_NAV, FORUM_NAV, ...visibleTo(ACCOUNT_NAV, role)];
 }

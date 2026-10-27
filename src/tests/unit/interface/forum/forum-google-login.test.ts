@@ -31,7 +31,7 @@ vi.mock("@/infrastructure/auth/google-oauth", async (importOriginal) => ({
 
 import { GoogleAuthError } from "@/infrastructure/auth/google-oauth";
 import { OAUTH_STATE_COOKIE_NAME, sealOAuthState } from "@/infrastructure/auth/oauth-state";
-import { FORUM_OAUTH_STATE_COOKIE_NAME, sealForumOAuthState } from "@/infrastructure/forum/forum-oauth-state";
+import { FORUM_OAUTH_STATE_COOKIE_NAME, openForumOAuthState, sealForumOAuthState } from "@/infrastructure/forum/forum-oauth-state";
 import { FORUM_COOKIE_NAME, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
 import { finishForumLogin, startForumLogin } from "@/interface/forum/forum-google-login";
 import { finishGoogleLogin, startGoogleLogin } from "@/interface/auth/google-login";
@@ -85,6 +85,53 @@ describe("startForumLogin", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  describe("the return path (?next=)", () => {
+    const startWith = async (query: string) => {
+      startMock.mockReturnValue({ url: new URL("https://accounts.google.com/o/oauth2/v2/auth?state=the-state"), ...FLOW });
+
+      const response = await startForumLogin(new Request(`https://admin.example.org/foro/auth/google/start${query}`));
+      const sealed = cookieSetMock.mock.calls[0]?.[1] as string;
+
+      return { response, flow: await openForumOAuthState(sealed) };
+    };
+
+    it("seals a valid forum path into the state cookie, next to the flow's own secrets", async () => {
+      const { response, flow } = await startWith(`?next=${encodeURIComponent("/foro/hilo/abc?x=1")}`);
+
+      expect(location(response)).toBe("https://accounts.google.com/o/oauth2/v2/auth?state=the-state");
+      expect(flow).toEqual({ ...FLOW, next: "/foro/hilo/abc?x=1" });
+    });
+
+    it("seals the normalized path, not the raw one", async () => {
+      expect((await startWith(`?next=${encodeURIComponent("/foro/c/./programacion#top")}`)).flow?.next).toBe("/foro/c/programacion");
+    });
+
+    it("seals nothing without a next", async () => {
+      expect((await startWith("")).flow).toEqual(FLOW);
+    });
+
+    it.each([
+      ["an external URL", "https://evil.example/foro/hilo/1"],
+      ["a protocol-relative URL", "//evil.example"],
+      ["a backslash", "/foro\\evil.example"],
+      ["an encoded trick", "/foro/%2f%2fevil.example"],
+      ["a path outside the forum", "/admin"],
+      ["the forum's auth routes", "/foro/auth/google/start"],
+      ["a path that is too long", `/foro/${"a".repeat(600)}`],
+    ])("ignores %s: Google still starts, nothing is sealed, no error page", async (_label, next) => {
+      const { response, flow } = await startWith(`?next=${encodeURIComponent(next)}`);
+
+      expect(location(response)).toBe("https://accounts.google.com/o/oauth2/v2/auth?state=the-state");
+      expect(flow).toEqual(FLOW);
+    });
+
+    it("does not pass next to Google", async () => {
+      await startWith(`?next=${encodeURIComponent("/foro/hilo/abc")}`);
+
+      expect(startMock).toHaveBeenCalledWith({ clientId: "client-id", clientSecret: "client-secret", redirectUri: "https://admin.example.org/foro/auth/google/callback" });
+    });
+  });
+
   it.each(["FORUM_ALLOWED_EMAIL_DOMAIN", "FORUM_SESSION_SECRET", "GOOGLE_CLIENT_ID", "AUTH_URL"])("fails closed without %s: back to the forum page, nothing set, Google never called", async (name) => {
     vi.stubEnv(name, "");
 
@@ -125,6 +172,69 @@ describe("finishForumLogin", () => {
 
     expect(cookieDeleteMock).toHaveBeenCalledTimes(2);
     expect(cookieDeleteMock).toHaveBeenCalledWith({ name: FORUM_OAUTH_STATE_COOKIE_NAME, path: "/foro/auth/google" });
+  });
+
+  describe("the return path", () => {
+    const sealWith = async (next: string) => {
+      sealedFlow = await sealForumOAuthState({ ...FLOW, next });
+    };
+
+    it("goes to the path sealed at the start once the login succeeds", async () => {
+      await sealWith("/foro/hilo/abc?x=1");
+
+      const response = await finishForumLogin(request("?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/foro/hilo/abc?x=1");
+      expect(testForum.sessions.sessions.size).toBe(1);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    });
+
+    it("ignores a next in the callback URL: without a sealed one it goes to /foro", async () => {
+      const response = await finishForumLogin(request(`?code=c&state=the-state&next=${encodeURIComponent("/foro/hilo/evil")}`));
+
+      expect(location(response)).toBe("https://admin.example.org/foro");
+    });
+
+    it("prefers the sealed path over the one in the callback URL", async () => {
+      await sealWith("/foro/hilo/sealed");
+
+      const response = await finishForumLogin(request(`?code=c&state=the-state&next=${encodeURIComponent("https://evil.example")}`));
+
+      expect(location(response)).toBe("https://admin.example.org/foro/hilo/sealed");
+    });
+
+    it.each(["https://evil.example/", "//evil.example", "/admin", "/foro/auth/google/start", "/foro\\evil"])("falls back to /foro when the sealed value is not a valid forum path (%s)", async (next) => {
+      await sealWith(next);
+
+      expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/foro");
+    });
+
+    it("never redirects off the app's own origin, whatever the request URL says", async () => {
+      await sealWith("/foro/hilo/abc");
+
+      const response = await finishForumLogin(new Request("https://evil.example/foro/auth/google/callback?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/foro/hilo/abc");
+    });
+
+    it.each([
+      ["a refused account", async () => completeMock.mockResolvedValue({ ...IDENTITY, emailVerified: false }), "denied"],
+      ["a rejected token", async () => completeMock.mockRejectedValue(new GoogleAuthError("token")), "failed"],
+      ["a Google outage", async () => completeMock.mockRejectedValue(new GoogleAuthError("unavailable")), "verification"],
+      ["an unexpected failure", async () => completeMock.mockRejectedValue(new Error("boom")), "unavailable"],
+    ])("keeps today's refusal for %s: back to /foro with the code, never to the sealed path", async (_label, arrange, code) => {
+      await sealWith("/foro/hilo/abc");
+      await arrange();
+
+      expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe(`https://admin.example.org/foro?error=${code}`);
+      expect(testForum.sessions.sessions.size).toBe(0);
+    });
+
+    it("keeps the refusal for a state that does not match, even with a sealed path", async () => {
+      await sealWith("/foro/hilo/abc");
+
+      expect(location(await finishForumLogin(request("?code=c&state=forged")))).toBe("https://admin.example.org/foro?error=failed");
+    });
   });
 
   describe("an account that must not get in", () => {
@@ -241,6 +351,26 @@ describe("the admin Google login, with the forum configured next to it (regressi
     expect(adminOpenSessionMock).toHaveBeenCalledWith({ kind: "user", userId: "ana" }, "EDITOR");
     expect(testForum.members.members.size).toBe(0);
     expect(cookiesSet()).not.toContain(FORUM_COOKIE_NAME);
+  });
+
+  it("ignores a forum return path at the admin login: still /admin", async () => {
+    testAuth.users.users.set("ana", makeUser({ id: "ana", email: "ana@example.org", role: "EDITOR" }));
+    completeMock.mockResolvedValue({ email: "ana@example.org", emailVerified: true, name: "Ana", subject: "sub-ana" });
+    cookieGetMock.mockImplementation((name: string) => (name === OAUTH_STATE_COOKIE_NAME ? { name, value: sealedAdminFlow } : undefined));
+
+    const response = await finishGoogleLogin(new Request(`https://admin.example.org/auth/google/callback?code=c&state=the-state&next=${encodeURIComponent("/foro/hilo/abc")}`));
+
+    expect(location(response)).toBe("https://admin.example.org/admin");
+  });
+
+  it("does not seal a next into the admin flow cookie", async () => {
+    startMock.mockReturnValue({ url: new URL("https://accounts.google.com/o/oauth2/v2/auth"), ...FLOW });
+
+    await startGoogleLogin(new Request(`https://admin.example.org/auth/google/start?next=${encodeURIComponent("/foro/hilo/abc")}`));
+
+    const sealed = cookieSetMock.mock.calls[0]?.[1] as string;
+    expect(await openForumOAuthState(sealed)).toBeNull();
+    expect(Buffer.from(sealed.split(".")[1] ?? "", "base64url").toString()).not.toContain("next");
   });
 
   it("still refuses a forum-flow cookie at the admin callback", async () => {

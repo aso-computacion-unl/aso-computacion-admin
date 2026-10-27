@@ -188,9 +188,15 @@ test("impact stats and testimonials managed in the admin reach the public API in
 test("the emergency login is flagged on every page, as the session of the emergency actor", async ({ page }) => {
   await logInAsAdmin(page);
 
-  await expect(page.getByRole("note").getByText(/acceso de emergencia con contraseña/i)).toBeVisible();
+  // The red pill in the top bar carries the state on every page; the explanation is in the identity menu.
+  const identity = page.getByRole("button", { name: "Menú de cuenta: Acceso de emergencia" });
+
+  await expect(identity).toBeVisible();
+  await identity.click();
+  await expect(page.getByText(/acceso de emergencia con contraseña/i)).toBeVisible();
 
   await page.goto("/admin/sesiones");
+  await expect(page.getByRole("button", { name: "Menú de cuenta: Acceso de emergencia" })).toBeVisible();
   await expect(page.getByText("emergencia", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("esta sesión", { exact: true })).toBeVisible();
 });

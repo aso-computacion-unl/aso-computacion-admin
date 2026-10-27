@@ -91,6 +91,9 @@ const landingSchema = z
     socials: z.array(socialSchema).default([]),
     board: z.array(boardSchema).default([]),
     settings: settingsSchema.nullable().default(null),
+    // The landing writes its news list here too, but news is created in the admin, never seeded. An empty
+    // list drops nothing; entries are refused rather than silently left out.
+    news: z.array(z.unknown()).max(0, { message: "news is not seeded: create news items in the admin" }).default([]),
   })
   .superRefine((content, context) => {
     const sections: Array<[string, readonly string[]]> = [

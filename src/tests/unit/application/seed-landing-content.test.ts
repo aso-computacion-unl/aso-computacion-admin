@@ -127,6 +127,17 @@ describe("parseLandingSeedContent", () => {
     expect(() => parseLandingSeedContent({ ...raw, events: [raw.events[0]!, raw.events[0]!] })).toThrow(/duplicate/i);
   });
 
+  it("accepts the landing's empty news list, which the seed has nothing to load from", () => {
+    expect(() => parseLandingSeedContent({ ...rawContent(), news: [] })).not.toThrow();
+  });
+
+  it("rejects news entries instead of dropping them: the seed does not load news", () => {
+    const withNews = { ...rawContent(), news: [{ slug: "bienvenida", title: "Bienvenida" }] };
+
+    expect(() => parseLandingSeedContent(withNews)).toThrow(SeedSourceError);
+    expect(() => parseLandingSeedContent(withNews)).toThrow(/news.*not seeded/);
+  });
+
   it("rejects an unknown version", () => {
     expect(() => parseLandingSeedContent({ ...rawContent(), version: 2 })).toThrow(SeedSourceError);
   });

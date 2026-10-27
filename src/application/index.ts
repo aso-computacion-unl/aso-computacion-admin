@@ -95,11 +95,30 @@ export {
   SetBoardMemberPhotoUseCase,
 } from "./use-cases/set-board-member-photo.use-case";
 export { UpdateBoardMemberUseCase } from "./use-cases/update-board-member.use-case";
+export type { ImpactStatResult } from "./dto/impact-stat-result.dto";
+export { CreateImpactStatUseCase } from "./use-cases/create-impact-stat.use-case";
+export { UpdateImpactStatUseCase } from "./use-cases/update-impact-stat.use-case";
+export type { TestimonialPhotoResult, TestimonialResult } from "./dto/testimonial-result.dto";
+export { CreateTestimonialUseCase } from "./use-cases/create-testimonial.use-case";
+export { RemoveTestimonialPhotoUseCase } from "./use-cases/remove-testimonial-photo.use-case";
+export {
+  SetTestimonialPhotoUseCase,
+  TESTIMONIAL_PHOTO_FOLDER,
+  TESTIMONIAL_PHOTO_MIN_WIDTH,
+} from "./use-cases/set-testimonial-photo.use-case";
+export { UpdateTestimonialUseCase } from "./use-cases/update-testimonial.use-case";
+export type { SponsorLogoResult, SponsorResult } from "./dto/sponsor-result.dto";
+export { CreateSponsorUseCase } from "./use-cases/create-sponsor.use-case";
+export { RemoveSponsorLogoUseCase } from "./use-cases/remove-sponsor-logo.use-case";
+export { SetSponsorLogoUseCase, SPONSOR_LOGO_FOLDER, SPONSOR_LOGO_MIN_WIDTH } from "./use-cases/set-sponsor-logo.use-case";
+export { UpdateSponsorUseCase } from "./use-cases/update-sponsor.use-case";
 export type { PublicContentSnapshot } from "./dto/public-content.dto";
 export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";
 export { RebuildOnWindowCrossingUseCase } from "./use-cases/rebuild-on-window-crossing.use-case";
 export type { WindowCrossingResult } from "./use-cases/rebuild-on-window-crossing.use-case";
 export type { LastBuildMarker, SiteRebuildTrigger } from "./ports/site-rebuild.port";
+export type { PublicSocialProofSnapshot } from "./dto/public-social-proof.dto";
+export { GetPublicSocialProofUseCase } from "./use-cases/get-public-social-proof.use-case";
 export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-content";
 export type { LandingSeedContent } from "./seed/landing-seed-content";
 export { SeedLandingContentUseCase, SeedPlanInvalidError, emptyExistingKeys } from "./seed/seed-landing-content.use-case";
@@ -124,6 +143,8 @@ export {
   PurgeEventUseCase,
   PurgeNewsItemUseCase,
   PurgePillarUseCase,
+  PurgeSponsorUseCase,
+  PurgeTestimonialUseCase,
 } from "./use-cases/purge-content.use-case";
 export {
   RestoreContentUseCase,

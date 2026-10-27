@@ -19,6 +19,9 @@ describe("trash labels", () => {
     ["faq", /pregunta/i],
     ["command", /comando/i],
     ["social", /red/i],
+    ["impact", /cifra/i],
+    ["testimonial", /testimonio.*foto/i],
+    ["sponsor", /aliado.*logo/i],
   ] as const)("the %s purge warning says what is lost, and that it cannot be undone", (kind, lost) => {
     const warning = purgeWarning(kind);
 

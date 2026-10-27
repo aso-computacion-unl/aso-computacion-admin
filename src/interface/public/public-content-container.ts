@@ -1,14 +1,17 @@
-import { GetPublicContentUseCase } from "@/application";
+import { GetPublicContentUseCase, GetPublicSocialProofUseCase } from "@/application";
 import {
   BoardMemberPrismaRepository,
   EventPhotoPrismaRepository,
   EventPrismaRepository,
   FaqPrismaRepository,
+  ImpactStatPrismaRepository,
   NewsPrismaRepository,
   PillarPrismaRepository,
   SiteSettingsPrismaRepository,
   SocialLinkPrismaRepository,
+  SponsorPrismaRepository,
   TerminalCommandPrismaRepository,
+  TestimonialPrismaRepository,
 } from "@/infrastructure";
 
 let useCase: GetPublicContentUseCase | undefined;
@@ -28,4 +31,13 @@ export function getPublicContentUseCase(): GetPublicContentUseCase {
   );
 
   return useCase;
+}
+
+let socialProofUseCase: GetPublicSocialProofUseCase | undefined;
+
+/** The S9 social proof, read next to the main snapshot. Same rules: built on first use, read-only. */
+export function getPublicSocialProofUseCase(): GetPublicSocialProofUseCase {
+  socialProofUseCase ??= new GetPublicSocialProofUseCase(new ImpactStatPrismaRepository(), new TestimonialPrismaRepository(), new SponsorPrismaRepository());
+
+  return socialProofUseCase;
 }

@@ -244,6 +244,63 @@ model BoardMember {
   @@index([sortOrder, createdAt])
 }
 
+// S9 social proof. Numbers shown on the landing: a short value ("120+") and what it counts.
+model ImpactStat {
+  id          String    @id
+  value       String
+  label       String
+  sortOrder   Int
+  isPublished Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+
+  @@index([sortOrder, createdAt])
+}
+
+// S9: a quote with who said it. The photo is optional; its five columns are all set or all null (CHECK in the migration).
+model Testimonial {
+  id            String    @id
+  quote         String
+  name          String
+  role          String
+  photoUrl      String?
+  photoPublicId String?   @unique
+  photoWidth    Int?
+  photoHeight   Int?
+  photoAlt      String?
+  sortOrder     Int
+  isPublished   Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+
+  @@index([sortOrder, createdAt])
+}
+
+// S9: a sponsor or ally. The logo's five columns are all set or all null; a published sponsor needs a logo (CHECKs in the migration).
+model Sponsor {
+  id           String    @id
+  name         String
+  logoUrl      String?
+  logoPublicId String?   @unique
+  logoWidth    Int?
+  logoHeight   Int?
+  logoAlt      String?
+  // Optional https link the landing wraps the logo in.
+  url          String?
+  sortOrder    Int
+  isPublished  Boolean   @default(false)
+  // Set when moved to the trash (never published then); null while live.
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+
+  @@index([sortOrder, createdAt])
+}
+
 // Login throttle shared by every instance (Vercel runs many). One row per client key:
 // `attempts` login tries in the current window and when the last one happened, as
 // epoch milliseconds (BIGINT) so the atomic upsert needs no time zone handling.

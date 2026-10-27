@@ -1,8 +1,9 @@
 import { Icon } from "@/components/icons";
 import { FORUM_LOGIN_ERROR_MESSAGES, type ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
 
+import { GoogleButton } from "../../_components/google-button";
+
 import { CategoryChip } from "./category-chip";
-import { GoogleButton } from "./google-button";
 import { ThreadStatusIcon } from "./thread-status-icon";
 
 // The guard answers the same for a visitor, an expired session and a suspended member, so the one place a

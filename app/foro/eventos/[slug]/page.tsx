@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 
-import { GoogleButton } from "../../_components/google-button";
+import { GoogleButton } from "../../../_components/google-button";
 import { RegisterButton } from "./register-button";
 
 // Reads the session cookie and the live seat count: never prerendered.

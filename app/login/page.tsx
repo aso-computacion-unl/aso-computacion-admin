@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 import { Icon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
 import { loginAvailability } from "@/infrastructure/auth/auth-config";
 import { login } from "@/interface/auth/actions";
 import { CONFIG_INCOMPLETE_MESSAGE, loginErrorMessage } from "@/interface/auth/login-errors";
 import { reportAuthConfigProblems } from "@/interface/auth/report-auth-config";
 
 import { BrandLogo } from "../_components/brand-mark";
+import { GoogleButton } from "../_components/google-button";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import { LoginForm } from "./_components/login-form";
@@ -57,9 +57,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           ) : null}
           {google ? (
             // A plain link, not next/link: it must not be prefetched, it starts a redirect flow.
-            <Button asChild className="min-h-12 w-full">
-              <a href="/auth/google/start">Entrar con Google</a>
-            </Button>
+            <GoogleButton href="/auth/google/start" className="w-full">
+              Entrar con Google
+            </GoogleButton>
           ) : null}
           {misconfigured && emergency ? <LoginForm action={login} /> : null}
           {google && emergency ? (

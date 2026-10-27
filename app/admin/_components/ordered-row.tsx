@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,11 @@ interface OrderedRowProps {
   remove: ReactNode;
 }
 
+/*
+ * The slots (media, toggle, remove) are wrapped in keyed fragments: a row the server streams in pieces hands them over as
+ * lazy elements without a key, and React's development build reports each one next to its siblings as a list child
+ * ("Each child in a list should have a unique key", from RowBody) even though none of them is a list.
+ */
 function RowBody({ id, position, label, editHref, media, children, toggle, move, remove, handle }: OrderedRowProps & { handle?: ReactNode }) {
   return (
     <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
@@ -43,18 +48,18 @@ function RowBody({ id, position, label, editHref, media, children, toggle, move,
         <div className="lg:order-3">{move}</div>
       </div>
       <div className="flex min-w-0 items-start gap-4 lg:order-2 lg:items-center">
-        {media}
+        <Fragment key="media">{media}</Fragment>
         <div className="grid min-w-0 flex-1 gap-1">{children}</div>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:order-4 lg:mt-0 lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-        {toggle}
+        <Fragment key="toggle">{toggle}</Fragment>
         <Button asChild variant="line" size="sm" className="ml-auto">
           <Link href={editHref} aria-label={`Editar: ${label}`}>
             <Icon name="edit" className="size-4" />
             Editar
           </Link>
         </Button>
-        {remove}
+        <Fragment key="remove">{remove}</Fragment>
       </div>
     </div>
   );

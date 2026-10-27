@@ -2,6 +2,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+/** A module of server actions: only the names the pages import, each a spy. */
+const { actions } = vi.hoisted(() => ({ actions: (...names: string[]) => Object.fromEntries(names.map((name) => [name, vi.fn()])) }));
+
 const reads = vi.hoisted(() => ({
   faq: vi.fn(),
   command: vi.fn(),
@@ -21,9 +24,14 @@ vi.mock("@/interface/admin/board/board-members-admin-read", () => ({ getAdminBoa
 vi.mock("@/interface/admin/impact/impact-admin-read", () => ({ getAdminImpactStat: reads.impact }));
 vi.mock("@/interface/admin/sponsors/sponsors-admin-read", () => ({ getAdminSponsor: reads.sponsor }));
 vi.mock("@/interface/admin/testimonials/testimonials-admin-read", () => ({ getAdminTestimonial: reads.testimonial }));
-for (const area of ["faqs", "commands", "pillars", "socials", "board", "impact", "sponsors", "testimonials"]) {
-  vi.mock(`@/interface/admin/${area}/actions`, () => new Proxy({}, { get: () => vi.fn() }));
-}
+vi.mock("@/interface/admin/faqs/actions", () => actions("updateFaq"));
+vi.mock("@/interface/admin/commands/actions", () => actions("updateCommand"));
+vi.mock("@/interface/admin/pillars/actions", () => actions("updatePillar", "uploadPillarImage", "removePillarImage"));
+vi.mock("@/interface/admin/socials/actions", () => actions("updateSocialLink"));
+vi.mock("@/interface/admin/board/actions", () => actions("updateBoardMember", "uploadBoardMemberPhoto", "removeBoardMemberPhoto"));
+vi.mock("@/interface/admin/impact/actions", () => actions("updateImpactStat"));
+vi.mock("@/interface/admin/sponsors/actions", () => actions("updateSponsor", "uploadSponsorLogo", "removeSponsorLogo"));
+vi.mock("@/interface/admin/testimonials/actions", () => actions("updateTestimonial", "uploadTestimonialPhoto", "removeTestimonialPhoto"));
 
 import { PageHeader, recordStatus } from "../../../../app/admin/_components/page-header";
 import EditBoardMemberPage from "../../../../app/admin/board/[id]/edit/page";

@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",
     "e2e": "node scripts/run-e2e.mjs",
-    "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --"
+    "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --",
+    "seed:demo": "vite-node --config scripts/seed.vite.config.ts scripts/seed-demo.ts --"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

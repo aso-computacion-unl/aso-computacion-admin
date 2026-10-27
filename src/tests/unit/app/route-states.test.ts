@@ -6,9 +6,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("react", async (importOriginal) => ({ ...(await importOriginal<typeof import("react")>()), useEffect: (effect: () => void) => effect() }));
 vi.mock("../../../../app/_components/brand-mark", () => ({ BrandLogo: () => null }));
 
+const { sessionMock, trashMock } = vi.hoisted(() => ({ sessionMock: vi.fn(), trashMock: vi.fn() }));
+
+vi.mock("@/interface/auth/require-page-session", () => ({ requirePageSession: sessionMock }));
+vi.mock("@/interface/admin/trash/trash-admin-read", () => ({ getAdminTrash: trashMock }));
+vi.mock("@/interface/admin/trash/actions", () => ({ purgeTrashed: vi.fn(), restoreTrashed: vi.fn() }));
+
 import AdminError from "../../../../app/admin/error";
 import AdminNotFound from "../../../../app/admin/not-found";
 import NotFound from "../../../../app/not-found";
+import AdminTrashPage from "../../../../app/admin/papelera/page";
+import { SettingsPreview } from "../../../../app/admin/settings/_components/settings-preview";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -96,5 +104,42 @@ describe("not-found pages", () => {
 
     expect(html).toContain("Página no encontrada");
     expect(html).toContain('href="/admin"');
+  });
+});
+
+describe("the trash page", () => {
+  const render = async (role: "ADMIN" | "EDITOR") => {
+    sessionMock.mockResolvedValue({ role });
+    trashMock.mockResolvedValue([]);
+
+    return renderToStaticMarkup(await AdminTrashPage());
+  };
+
+  it("keeps the sentences of its intro apart, whoever is looking", async () => {
+    const admin = await render("ADMIN");
+    const editor = await render("EDITOR");
+
+    expect(admin).toContain("nada se publica por sí solo. Eliminar definitivamente borra");
+    expect(editor).toContain("nada se publica por sí solo. Solo un administrador puede eliminar definitivamente.");
+  });
+});
+
+describe("the site settings preview", () => {
+  const values = { tagline: "Lema", description: "Descripción", about: "Acerca" };
+
+  it("says it follows the typing only while the fields are open", () => {
+    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: true }))).toContain("se actualiza al escribir");
+    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: false }))).not.toContain("al escribir");
+  });
+
+  it("says what it shows when the screen is read-only", () => {
+    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: false }))).toContain("textos guardados");
+  });
+
+  it("does not ask for typing on a read-only screen with nothing saved", () => {
+    const empty = { tagline: "", description: "", about: "" };
+
+    expect(renderToStaticMarkup(createElement(SettingsPreview, { values: empty, editing: false }))).not.toContain("Escriba");
+    expect(renderToStaticMarkup(createElement(SettingsPreview, { values: empty, editing: true }))).toContain("Escriba");
   });
 });

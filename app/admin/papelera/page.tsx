@@ -22,7 +22,7 @@ export default async function AdminTrashPage() {
     <div>
       <PageHead title="Papelera" meta={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`} />
       <p className="mt-4 max-w-2xl text-mist">
-        Lo que se mueve a la papelera deja de mostrarse en el sitio y se conserva aquí. Al restaurarlo vuelve como borrador: nada se publica por sí solo.
+        Lo que se mueve a la papelera deja de mostrarse en el sitio y se conserva aquí. Al restaurarlo vuelve como borrador: nada se publica por sí solo.{" "}
         {canPurge
           ? "Eliminar definitivamente borra el elemento y sus archivos, y no se puede deshacer."
           : "Solo un administrador puede eliminar definitivamente."}

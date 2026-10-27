@@ -90,7 +90,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
   }
 
   return (
-    <FormColumns stickyAside aside={<div className="lg:sticky lg:top-8"><SettingsPreview values={state.draft} /></div>}>
+    <FormColumns stickyAside aside={<div className="lg:sticky lg:top-8"><SettingsPreview values={state.draft} editing={editing} /></div>}>
       <Panel aria-label="Textos del sitio">
         {editing ? (
           <form onSubmit={handleSubmit} noValidate className="grid gap-5">

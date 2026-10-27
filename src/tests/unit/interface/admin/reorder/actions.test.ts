@@ -25,6 +25,19 @@ describe("reorderContent", () => {
     target.reorder.execute.mockResolvedValue(undefined);
   });
 
+  it.each([
+    ["impact", "/admin/impact", "Cifra de impacto reordenada"],
+    ["testimonial", "/admin/testimonials", "Testimonio reordenado"],
+    ["sponsor", "/admin/sponsors", "Aliado reordenado"],
+  ])("reorders the social proof list %s the same way", async (kind, path, summary) => {
+    cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+    expect(await reorderContent(kind, "x-1", 0)).toEqual({ success: true });
+
+    expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.summary])).toEqual([[`${kind}.move`, kind, summary]]);
+    expect(revalidatePathMock).toHaveBeenCalledWith(path);
+  });
+
   it("moves the item to the place, audits it as the single-step move does, and refreshes the list and the site", async () => {
     cookieJar(cookiesMock, await signInAs("EDITOR"));
 

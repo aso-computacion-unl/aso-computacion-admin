@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   RemoveSponsorLogoUseCase,
   SetOrderedContentPublishedUseCase,
   SetSponsorLogoUseCase,
@@ -29,6 +30,7 @@ function createSponsorUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(sponsors, toSponsorResult, NOT_FOUND),
     trash: new TrashContentUseCase(sponsors, NOT_FOUND),
     move: new MoveOrderedContentUseCase(sponsors, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(sponsors, NOT_FOUND),
     setLogo: new SetSponsorLogoUseCase(sponsors, new UploadImageUseCase(storage), storage),
     removeLogo: new RemoveSponsorLogoUseCase(sponsors, storage),
   };

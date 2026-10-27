@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   RemoveTestimonialPhotoUseCase,
   SetOrderedContentPublishedUseCase,
   SetTestimonialPhotoUseCase,
@@ -29,6 +30,7 @@ function createTestimonialUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(testimonials, toTestimonialResult, NOT_FOUND),
     trash: new TrashContentUseCase(testimonials, NOT_FOUND),
     move: new MoveOrderedContentUseCase(testimonials, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(testimonials, NOT_FOUND),
     setPhoto: new SetTestimonialPhotoUseCase(testimonials, new UploadImageUseCase(storage), storage),
     removePhoto: new RemoveTestimonialPhotoUseCase(testimonials, storage),
   };

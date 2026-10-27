@@ -8,10 +8,12 @@ import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
+import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -47,10 +49,12 @@ export default async function AdminSponsorsPage() {
           Todavía no hay aliados. Cada uno lleva nombre, logo y, si quiere, un enlace a su sitio.
         </EmptyState>
       ) : (
-        <OrderedList label="Aliados y patrocinadores, en el orden en que se muestran">
+        <BulkSelection kind="sponsor" items={sponsors.map((sponsor) => ({ id: sponsor.id, label: sponsor.name }))}>
+          <ReorderableList kind="sponsor" items={sponsors.map((sponsor) => ({ id: sponsor.id, label: sponsor.name }))} offset={0} total={sponsors.length} enabled={true} label="Aliados y patrocinadores, en el orden en que se muestran">
           {sponsors.map((sponsor, index) => (
             <OrderedRow
               key={sponsor.id}
+              id={sponsor.id}
               published={sponsor.isPublished}
               position={index + 1}
               label={sponsor.name}
@@ -88,7 +92,8 @@ export default async function AdminSponsorsPage() {
               {sponsor.logo ? null : <p className="font-mono text-xs text-mist">Sin logo: no se puede publicar</p>}
             </OrderedRow>
           ))}
-        </OrderedList>
+        </ReorderableList>
+        </BulkSelection>
       )}
     </div>
   );

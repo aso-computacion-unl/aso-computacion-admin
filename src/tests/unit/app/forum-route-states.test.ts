@@ -46,6 +46,12 @@ describe("the forum not-found page", () => {
     expect(html).toContain("ya no está disponible");
     expect(html).toContain('href="/foro"');
   });
+
+  it("does not name a kind of page, because categories, threads and events all end here", () => {
+    const html = renderToStaticMarkup(createElement(ForumNotFound));
+
+    expect(html).not.toMatch(/categor[ií]a|hilo/i);
+  });
 });
 
 const FORUM_DIRECTORY = join(__dirname, "../../../../app/foro");

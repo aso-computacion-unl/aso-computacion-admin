@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 
-import { GoogleMark } from "../../_components/google-mark";
+import { GoogleButton } from "../../_components/google-button";
 import { RegisterButton } from "./register-button";
 
 // Reads the session cookie and the live seat count: never prerendered.
@@ -29,7 +29,14 @@ export default async function EventRegistrationPage({ params }: { params: Promis
 
   const { member, status } = page;
   const { event } = status;
-  const details = [event.date ? formatEventDate(event.date, event.datePrecision) : null, event.hora, event.lugar].filter(Boolean);
+  const details = [
+    { label: "Fecha", value: event.date ? formatEventDate(event.date, event.datePrecision) : null },
+    { label: "Hora", value: event.hora },
+    { label: "Lugar", value: event.lugar },
+    { label: "Cupos", value: status.capacity === null ? null : String(status.capacity) },
+    { label: "Inscripciones hasta", value: status.deadline && status.state === "open" ? `${DEADLINE.format(status.deadline)} (hora de Ecuador)` : null },
+  ].filter((detail): detail is { label: string; value: string } => Boolean(detail.value));
+  const signIn = `/foro/auth/google/start?next=${encodeURIComponent(`/foro/eventos/${slug}`)}`;
 
   return (
     <>
@@ -37,38 +44,53 @@ export default async function EventRegistrationPage({ params }: { params: Promis
         <Icon name="left" className="size-4" />
         Foro
       </Link>
-      <section aria-labelledby="event-title" className="mt-1 grid max-w-2xl gap-4">
-        <h1 id="event-title" className="text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight wrap-anywhere">
-          {event.title}
-        </h1>
-        {details.length > 0 ? <p className="text-mist">{details.join(" · ")}</p> : null}
-        {status.deadline && status.state === "open" ? <p className="text-sm text-mist">Inscripciones hasta el {DEADLINE.format(status.deadline)} (hora de Ecuador).</p> : null}
+      <div className="mt-1 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-10">
+        <section aria-labelledby="event-title" className="grid gap-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-sky">
+            <Icon name="events" className="size-4" />
+            Inscripción al evento
+          </p>
+          <h1 id="event-title" className="text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight text-balance wrap-anywhere">
+            {event.title}
+          </h1>
+          {details.length > 0 ? (
+            <dl className="grid overflow-hidden rounded-lg border border-border sm:grid-cols-2">
+              {details.map(({ label, value }) => (
+                <div key={label} className="grid gap-0.5 border-b border-border px-4 py-3 last:border-b-0 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                  <dt className="text-xs font-semibold tracking-wide text-mist uppercase">{label}</dt>
+                  <dd className="wrap-anywhere">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </section>
 
-        {status.alreadyRegistered ? (
-          <p role="status">Usted ya está inscrito en este evento. No necesita hacer nada más.</p>
-        ) : status.state !== "open" ? (
-          <p role="status">{CLOSED_MESSAGES[status.state]}</p>
-        ) : member ? (
-          <>
-            <p>
-              Se inscribirá como <strong>{member.displayName}</strong> con su cuenta institucional. Solo se guardan su nombre y su correo.
+        <aside aria-label="Su inscripción" className="grid gap-4 rounded-lg border border-border bg-muted p-5 lg:sticky lg:top-22">
+          {status.alreadyRegistered ? (
+            <p role="status" className="flex gap-2.5">
+              <Icon name="check" className="mt-0.5 size-4.5 shrink-0 text-ok" />
+              Usted ya está inscrito en este evento. No necesita hacer nada más.
             </p>
-            <RegisterButton slug={slug} />
-          </>
-        ) : (
-          <>
-            <p>Para inscribirse, entre con su cuenta institucional de Google (@unl.edu.ec). Después de entrar, vuelva a abrir este enlace.</p>
-            {/* The same white Google button as the forum's sign-in gate. A plain link, not next/link: it starts a redirect flow and must not be prefetched. */}
-            <a
-              href="/foro/auth/google/start"
-              className="inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded border border-white bg-white px-6 font-bold text-[#1f1f1f] shadow-[0_6px_20px_-8px_rgb(0_0_0/0.45)] transition-colors hover:bg-[#e9eef5]"
-            >
-              <GoogleMark className="size-5" />
-              Entrar con Google
-            </a>
-          </>
-        )}
-      </section>
+          ) : status.state !== "open" ? (
+            <p role="status">{CLOSED_MESSAGES[status.state]}</p>
+          ) : member ? (
+            <>
+              <p>
+                Se inscribirá como <strong>{member.displayName}</strong> con su cuenta institucional. Solo se guardan su nombre y su correo.
+              </p>
+              <RegisterButton slug={slug} />
+            </>
+          ) : (
+            <>
+              <p>
+                La inscripción es con su cuenta institucional de Google <strong className="font-semibold">@unl.edu.ec</strong>. Al entrar volverá a esta página para confirmarla.
+              </p>
+              <GoogleButton href={signIn}>Entrar con Google</GoogleButton>
+              <p className="text-sm text-mist">La primera vez se crea su cuenta del foro: no hay que registrarse aparte.</p>
+            </>
+          )}
+        </aside>
+      </div>
     </>
   );
 }

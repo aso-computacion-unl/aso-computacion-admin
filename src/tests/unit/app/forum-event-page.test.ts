@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 import EventRegistrationPage from "../../../../app/foro/eventos/[slug]/page";
 import EventNotFound from "../../../../app/foro/eventos/[slug]/not-found";
 
-const event = { slug: "taller-docker", title: "Taller de Docker", date: new Date("2026-11-20T15:00:00Z"), datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
+const event = { slug: "taller-docker", title: "Taller de Docker", date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, deadline: null, ...over });
 const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
 
@@ -42,16 +42,42 @@ describe("the forum event registration page", () => {
     expect(await render()).toMatch(/<a [^>]*href="\/foro"[^>]*>(?:(?!<\/a>).)*Foro/);
   });
 
-  it("asks a visitor to sign in with the same white Google button as the forum gate", async () => {
+  it("asks a visitor to sign in with the forum's one Google button, coming back to this event", async () => {
     pageMock.mockResolvedValue({ member: null, status: status() });
 
     const html = await render();
-    const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start"[^>]*>.*?<\/a>/)?.[0] ?? "";
+    const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start[^"]*"[^>]*>.*?<\/a>/)?.[0] ?? "";
 
-    expect(button).toContain("bg-white");
-    expect(button).toContain("text-[#1f1f1f]");
+    expect(button).toContain('href="/foro/auth/google/start?next=%2Fforo%2Feventos%2Ftaller-docker"');
+    expect(button).toContain("google-button");
+    expect(button).not.toContain("bg-white");
     expect(button).toContain("<svg");
     expect(button).toContain("Entrar con Google");
+    expect(html).toContain("volverá a esta página");
+    expect(html).not.toContain("vuelva a abrir este enlace");
+  });
+
+  it("lays out the event facts as labelled details, with the seats when there is a limit", async () => {
+    pageMock.mockResolvedValue({ member: null, status: status({ deadline: new Date("2026-11-18T23:00:00Z") }) });
+
+    const html = await render();
+
+    expect(html).toContain("<dl");
+    for (const label of ["Fecha", "Hora", "Lugar", "Cupos", "Inscripciones hasta"]) expect(html).toMatch(new RegExp(`<dt[^>]*>${label}</dt>`));
+    expect(html).toMatch(/<dt[^>]*>Lugar<\/dt><dd[^>]*>Laboratorio 2<\/dd>/);
+    expect(html).toMatch(/<dt[^>]*>Cupos<\/dt><dd[^>]*>30<\/dd>/);
+    expect(html).toMatch(/<dt[^>]*>Inscripciones hasta<\/dt>/);
+  });
+
+  it("leaves out the details the event does not have", async () => {
+    pageMock.mockResolvedValue({ member: null, status: { ...status({ capacity: null }), event: { ...event, hora: null, lugar: null } } });
+
+    const html = await render();
+
+    expect(html).not.toContain(">Lugar<");
+    expect(html).not.toContain(">Hora<");
+    expect(html).not.toContain(">Cupos<");
+    expect(html).toContain(">Fecha<");
   });
 
   it("offers the registration to a signed-in member", async () => {
@@ -80,9 +106,11 @@ describe("the forum event registration page", () => {
 });
 
 describe("the event 404", () => {
-  it("says the event has no forum registration page, and links back to the forum", () => {
+  it("is the shared not-found state in the forum face, about the registration, linking back to the forum", () => {
     const html = renderToStaticMarkup(EventNotFound());
 
+    expect(html).toContain('data-slot="not-found-state"');
+    expect(html).not.toContain("font-display");
     expect(html).toContain("No encontrado");
     expect(html).toContain("inscripción");
     expect(html).not.toContain("categoría");

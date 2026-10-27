@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 interface ForumErrorProps {
@@ -20,8 +21,11 @@ export default function ForumError({ error, reset }: ForumErrorProps) {
   }, [error]);
 
   return (
-    <div role="alert" className="mx-auto mt-8 grid max-w-xl justify-items-start gap-4 border-l-2 border-dashed border-signal pl-5">
-      <h1 className="font-display text-[2rem] leading-[1.1]">Algo salió mal</h1>
+    <div role="alert" className="grid max-w-xl justify-items-start gap-4 py-10 md:py-16">
+      <span aria-hidden="true" className="grid size-12 place-items-center rounded bg-muted text-error">
+        <Icon name="alert" className="size-6" />
+      </span>
+      <h1 className="text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight text-balance">Algo salió mal</h1>
       <p className="text-mist">No pudimos cargar esta página. Lo que ya publicó no se perdió. Intente nuevamente en unos segundos.</p>
       {error.digest ? <p className="font-mono text-[0.8125rem] text-mist">Código: {error.digest}</p> : null}
       <div className="flex flex-wrap gap-3">

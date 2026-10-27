@@ -41,6 +41,8 @@ export { UpdateEventPhotoAltUseCase } from "./use-cases/update-event-photo-alt.u
 export { UpdateEventUseCase } from "./use-cases/update-event.use-case";
 export type { FaqResult } from "./dto/faq-result.dto";
 export type { MediaLibraryPort, MediaUsage, MediaUsageKind, MediaUsageReader, StoredAsset, StoredAssetPage } from "./ports/media-library.port";
+export { MANAGED_MEDIA_FOLDERS, MEDIA_OWNERS } from "./media-owners";
+export type { MediaOwner } from "./media-owners";
 export { ListMediaLibraryUseCase, MEDIA_PAGE_SIZE } from "./use-cases/list-media-library.use-case";
 export type { MediaLibraryItem, MediaLibraryPage } from "./use-cases/list-media-library.use-case";
 export {

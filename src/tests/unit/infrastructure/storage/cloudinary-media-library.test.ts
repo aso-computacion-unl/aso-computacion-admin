@@ -25,9 +25,19 @@ describe("CloudinaryMediaLibrary", () => {
 
     expect(cloudinaryMocks.resources).toHaveBeenCalledWith({ type: "upload", resource_type: "image", prefix: "aso/", max_results: 24 });
     expect(page).toEqual({
-      assets: [{ publicId: "aso/pillars/a", url: "https://res.example/a.jpg", width: 1200, height: 800, bytes: 4096, createdAt: new Date("2026-10-01T10:00:00Z") }],
+      assets: [{ publicId: "aso/pillars/a", folder: "pillars", url: "https://res.example/a.jpg", width: 1200, height: 800, bytes: 4096, createdAt: new Date("2026-10-01T10:00:00Z") }],
       nextCursor: "cur-2",
     });
+  });
+
+  it("says which folder under the app's folder each image is in: none at the root, the whole path when nested", async () => {
+    cloudinaryMocks.resources.mockResolvedValue({
+      resources: [{ ...RESOURCE, public_id: "aso/loose" }, { ...RESOURCE, public_id: "aso/events/2026/b" }, { ...RESOURCE, public_id: "aso/sponsors/c" }],
+    });
+
+    const page = await new CloudinaryMediaLibrary().listAssets({ limit: 24 });
+
+    expect(page.assets.map((asset) => asset.folder)).toEqual(["", "events/2026", "sponsors"]);
   });
 
   it("sends the cursor on and reports the last page as having no next cursor", async () => {

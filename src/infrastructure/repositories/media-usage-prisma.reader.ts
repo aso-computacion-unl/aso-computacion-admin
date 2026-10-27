@@ -9,6 +9,10 @@ import { prisma } from "../prisma/client";
  * which keep their file), pillar images, news covers and board photos. A row in the trash still
  * owns its image, so it counts as a use (marked hidden): its file is destroyed only when the row
  * is deleted for good.
+ *
+ * These queries are the columns listed in `MEDIA_OWNERS` (`@/application/media-owners`), which
+ * also fixes the folders orphan cleanup may touch. Add a query here and a row there together; a
+ * unit test reads `prisma/schema.prisma` and fails on a `*PublicId` column that is in neither.
  */
 export class MediaUsagePrismaReader implements MediaUsageReader {
   async usagesOf(publicIds: readonly string[]): Promise<Map<string, MediaUsage[]>> {

@@ -1,3 +1,4 @@
+import { isManagedMediaFolder } from "../media-owners";
 import type { MediaLibraryPort, MediaUsageReader, StoredAsset } from "../ports/media-library.port";
 import type { MediaStoragePort } from "../ports/media-storage.port";
 
@@ -21,6 +22,8 @@ export interface OrphanCandidate extends StoredAsset {
 export interface OrphanScan {
   /** How many stored images this scan looked at. */
   readonly scanned: number;
+  /** Of those, how many sit in a folder whose owners are not counted: left out, never offered. */
+  readonly notManaged: number;
   readonly orphans: readonly OrphanCandidate[];
   readonly nextCursor: string | null;
 }
@@ -29,7 +32,9 @@ const isOldEnough = (asset: StoredAsset, now: Date) => now.getTime() - asset.cre
 
 /**
  * Dry run: looks at one page of the storage and says which images no row points at. It deletes
- * nothing and has no way to: it is not given the destroy call.
+ * nothing and has no way to: it is not given the destroy call. It fails closed: only the folders
+ * whose owners the usage reader counts are looked at, so an image of any other kind of content
+ * is never reported as unused just because nothing here counts it.
  */
 export class FindOrphanImagesUseCase {
   constructor(
@@ -40,15 +45,16 @@ export class FindOrphanImagesUseCase {
 
   async execute({ cursor }: { cursor?: string } = {}): Promise<OrphanScan> {
     const page = await this.library.listAssets({ cursor, limit: ORPHAN_SCAN_PAGE_SIZE });
-    const usages = await this.usage.usagesOf(page.assets.map((asset) => asset.publicId));
+    const managed = page.assets.filter((asset) => isManagedMediaFolder(asset.folder));
+    const usages = await this.usage.usagesOf(managed.map((asset) => asset.publicId));
     const now = this.now();
-    const orphans = page.assets.filter((asset) => !usages.has(asset.publicId)).map((asset) => ({ ...asset, deletable: isOldEnough(asset, now) }));
+    const orphans = managed.filter((asset) => !usages.has(asset.publicId)).map((asset) => ({ ...asset, deletable: isOldEnough(asset, now) }));
 
-    return { scanned: page.assets.length, orphans, nextCursor: page.nextCursor };
+    return { scanned: page.assets.length, notManaged: page.assets.length - managed.length, orphans, nextCursor: page.nextCursor };
   }
 }
 
-export type OrphanOutcome = "deleted" | "not_found" | "too_recent" | "in_use" | "failed";
+export type OrphanOutcome = "deleted" | "not_found" | "not_managed" | "too_recent" | "in_use" | "failed";
 
 export interface OrphanDeletion {
   readonly publicId: string;
@@ -58,7 +64,7 @@ export interface OrphanDeletion {
 /**
  * Deletes the images a person chose from a dry run. The choice is not trusted: each image is
  * looked up again right before its file is destroyed and is skipped unless it still exists under
- * the app's folder, is old enough and no row points at it. One failure never stops the rest.
+ * the app's folder, in a folder whose owners are counted, old enough and no row points at it. One failure never stops the rest.
  */
 export class DeleteOrphanImagesUseCase {
   constructor(
@@ -83,6 +89,7 @@ export class DeleteOrphanImagesUseCase {
       const asset = await this.library.getAsset(publicId);
 
       if (!asset) return "not_found";
+      if (!isManagedMediaFolder(asset.folder)) return "not_managed";
       if (!isOldEnough(asset, this.now())) return "too_recent";
       if ((await this.usage.usagesOf([publicId])).has(publicId)) return "in_use";
 

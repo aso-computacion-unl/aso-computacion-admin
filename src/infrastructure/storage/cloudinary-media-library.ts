@@ -17,8 +17,15 @@ interface RawResource {
   created_at?: unknown;
 }
 
+/** The folders between the app's folder and the file name: "aso/pillars/a" is in "pillars", "aso/a" is in "". */
+function folderOf(publicId: string, prefix: string): string {
+  const path = publicId.startsWith(prefix) ? publicId.slice(prefix.length) : publicId;
+
+  return path.split("/").slice(0, -1).join("/");
+}
+
 /** A resource the provider reported incompletely is left out rather than shown half-empty. */
-function toAsset(raw: RawResource): StoredAsset | null {
+function toAsset(raw: RawResource, prefix: string): StoredAsset | null {
   const createdAt = typeof raw.created_at === "string" ? new Date(raw.created_at) : null;
 
   if (
@@ -33,7 +40,7 @@ function toAsset(raw: RawResource): StoredAsset | null {
     return null;
   }
 
-  return { publicId: raw.public_id, url: raw.secure_url, width: raw.width, height: raw.height, bytes: raw.bytes, createdAt };
+  return { publicId: raw.public_id, folder: folderOf(raw.public_id, prefix), url: raw.secure_url, width: raw.width, height: raw.height, bytes: raw.bytes, createdAt };
 }
 
 /** Lists the images under the app's own folder with the Admin API. Read only: it never uploads or destroys. */
@@ -53,7 +60,7 @@ export class CloudinaryMediaLibrary implements MediaLibraryPort {
     if (!publicId.startsWith(this.prefix)) return null;
 
     try {
-      return toAsset((await cloudinary.api.resource(publicId, { resource_type: "image", type: "upload" })) as RawResource);
+      return toAsset((await cloudinary.api.resource(publicId, { resource_type: "image", type: "upload" })) as RawResource, this.prefix);
     } catch (error) {
       if ((error as { http_code?: unknown } | null)?.http_code === 404) return null;
 
@@ -71,7 +78,7 @@ export class CloudinaryMediaLibrary implements MediaLibraryPort {
     })) as { resources?: RawResource[]; next_cursor?: unknown };
 
     const assets = (response.resources ?? []).flatMap((raw) => {
-      const asset = toAsset(raw);
+      const asset = toAsset(raw, this.prefix);
 
       return asset ? [asset] : [];
     });

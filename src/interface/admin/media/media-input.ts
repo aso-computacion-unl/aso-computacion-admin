@@ -25,6 +25,7 @@ export function parseOrphanIds(value: unknown): string[] | null {
 
 const OUTCOME_ERROR: Record<Exclude<OrphanOutcome, "deleted">, string> = {
   not_found: "La imagen ya no existe.",
+  not_managed: "Está en una carpeta que esta revisión no cubre, no se eliminó.",
   too_recent: "Se subió hace menos de 24 horas: puede estar en uso todavía.",
   in_use: "Ahora se usa en un contenido, no se eliminó.",
   failed: "No se pudo eliminar. Intente nuevamente.",

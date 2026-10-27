@@ -30,6 +30,12 @@ export default async function AdminMediaCleanupPage({ searchParams }: { searchPa
         puede deshacer. Las subidas en las últimas 24 horas no se pueden elegir, porque pueden estar a medio guardar.
       </p>
 
+      {scan.status === "ok" && scan.notManaged > 0 ? (
+        <p role="status" className="mt-3 max-w-2xl text-sm text-mist">
+          {pluralize(scan.notManaged, "imagen está", "imágenes están")} en carpetas que esta revisión no cubre (contenido cuyo uso no se comprueba aquí). No se ofrecen ni se pueden eliminar desde esta
+          pantalla.
+        </p>
+      ) : null}
       {scan.status === "unavailable" ? <EmptyState>El almacén de imágenes no está configurado en este entorno.</EmptyState> : null}
       {scan.status === "error" ? <EmptyState>No se pudo consultar el almacén de imágenes. Intente nuevamente en unos minutos.</EmptyState> : null}
       {scan.status === "ok" ? (

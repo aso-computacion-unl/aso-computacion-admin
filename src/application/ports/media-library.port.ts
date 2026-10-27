@@ -1,6 +1,8 @@
 /** One stored image, as the storage provider reports it. */
 export interface StoredAsset {
   readonly publicId: string;
+  /** The folder it is in below the app's folder ("pillars", "events/2026"); empty at the root. */
+  readonly folder: string;
   readonly url: string;
   readonly width: number;
   readonly height: number;

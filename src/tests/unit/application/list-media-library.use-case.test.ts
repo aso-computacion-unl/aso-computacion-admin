@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MediaLibraryPort, MediaUsage, MediaUsageReader, StoredAsset } from "@/application/ports/media-library.port";
 import { ListMediaLibraryUseCase, MEDIA_PAGE_SIZE } from "@/application/use-cases/list-media-library.use-case";
 
-const asset = (publicId: string): StoredAsset => ({ publicId, url: `https://img.example/${publicId}.jpg`, width: 1200, height: 800, bytes: 1000, createdAt: new Date("2026-10-01T00:00:00Z") });
+const asset = (publicId: string): StoredAsset => ({ publicId, folder: "pillars", url: `https://img.example/${publicId}.jpg`, width: 1200, height: 800, bytes: 1000, createdAt: new Date("2026-10-01T00:00:00Z") });
 const usage = (label: string, hidden = false): MediaUsage => ({ kind: "pillar", id: `id-${label}`, label, hidden });
 
 function build(assets: StoredAsset[], used: Record<string, MediaUsage[]>, nextCursor: string | null = null) {

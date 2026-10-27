@@ -15,7 +15,7 @@ test("a visitor at /foro sees the sign-in and none of the forum, on a phone too"
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto("/foro");
 
-  await expect(page.getByRole("heading", { level: 1, name: "Entre al foro con su cuenta de Google" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "El foro de Computación" })).toBeVisible();
   const signIn = page.getByRole("link", { name: "Entrar con Google" });
   await expect(signIn).toBeVisible();
   await expect(signIn).toHaveAttribute("href", "/foro/auth/google/start");

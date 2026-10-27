@@ -53,6 +53,16 @@ describe("ReorderableList", () => {
     expect(html).toContain("Primera");
   });
 
+  it("finds a row by its id when the key is lost on the way from the server", () => {
+    // In development the server streams rows past the first few as separate chunks, and the browser hands them over
+    // with an index key (".3") instead of their id: a list keyed by key alone silently lost them.
+    const unkeyed = ITEMS.map((item, index) => createElement(OrderedRow, { id: item.id, published: true, position: index + 1, label: item.label, editHref: `/x/${item.id}`, toggle: null, remove: null }, createElement("h2", null, item.label)));
+    const html = renderToStaticMarkup(createElement(ReorderableList, { kind: "faq", items: ITEMS, offset: 0, total: ITEMS.length, enabled: true, label: "Preguntas" }, ...unkeyed));
+
+    expect(html).toContain("Primera");
+    expect(html).toContain("Segunda");
+  });
+
   it("drops a child that is not one of the items instead of rendering a hole", () => {
     const html = renderToStaticMarkup(createElement(ReorderableList, { kind: "faq", items: [ITEMS[0]!], offset: 0, total: 1, enabled: true, label: "Preguntas" }, ITEMS.map(row)));
 

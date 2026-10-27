@@ -41,7 +41,7 @@ const INSTRUCTIONS: ScreenReaderInstructions = {
 
 interface ReorderableListProps {
   kind: ReorderKind;
-  /** The rows of the page, in order. The key of each child is its id. */
+  /** The rows of the page, in order. */
   items: readonly { id: string; label: string }[];
   /** How many items come before this page, so a drop on a later page sends its place in the whole list. */
   offset: number;
@@ -50,11 +50,23 @@ interface ReorderableListProps {
   /** Off while the list is searched: a place in the whole list is not known for a subset. */
   enabled: boolean;
   label: string;
-  /** The rows, each keyed by its item id. */
+  /** The rows: elements whose `id` prop (or key) is the id of their item. */
   children?: ReactNode;
 }
 
-const keyOf = (child: ReactNode) => (isValidElement(child) && child.key !== null ? String(child.key).replace(/^\.\$/, "") : null);
+/**
+ * The item a row stands for: its `id` prop, else its key. The key alone is not enough: in development the server streams
+ * rows past the first few as separate chunks and the browser hands them over keyed by index (".3"), not by id.
+ */
+const keyOf = (child: ReactNode) => {
+  if (!isValidElement(child)) return null;
+
+  const { id } = child.props as { id?: unknown };
+
+  if (typeof id === "string") return id;
+
+  return child.key !== null ? String(child.key).replace(/^\.\$/, "") : null;
+};
 
 /**
  * An ordered list whose rows can be dragged to a new place with the mouse, a finger or the

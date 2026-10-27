@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import { Icon } from "@/components/icons";
 import { threadStatus } from "@/interface/forum/forum-display";
-import { categoryHref } from "@/interface/forum/forum-links";
+import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { getForumReactions } from "@/interface/forum/forum-reactions-read";
 import { getForumThread } from "@/interface/forum/forum-read";
@@ -43,7 +43,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
 
   return (
     <>
-      <Link href={categoryHref(category.slug)} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
+      <Link href={feedHref({ category: category.slug })} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
         <Icon name="left" className="size-4" />
         {category.name}
       </Link>

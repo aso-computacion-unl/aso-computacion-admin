@@ -64,7 +64,19 @@ describe("ListForumFeedUseCase", () => {
 
     expect(page.items.map((item) => item.id)).toEqual(["t2"]);
     expect(page.counts).toEqual({ open: 1, solved: 1 });
-    expect(page.category).toEqual({ slug: "materias", name: "Materias" });
+    expect(page.category).toEqual({ slug: "materias", name: "Materias", description: null });
+  });
+
+  it("carries the description of the category the list is narrowed to, and only that one", async () => {
+    store.categories.set("c2", makeForumCategory({ id: "c2", slug: "materias", name: "Materias", sortOrder: 2, description: "Dudas de las materias" }));
+
+    const page = await execute({ categorySlug: "materias" });
+
+    expect(page.category).toEqual({ slug: "materias", name: "Materias", description: "Dudas de las materias" });
+    expect(page.categories).toEqual([
+      { slug: "general", name: "General" },
+      { slug: "materias", name: "Materias" },
+    ]);
   });
 
   it("offers every category in display order for the filter chips, even one without threads", async () => {

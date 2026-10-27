@@ -63,6 +63,11 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
                 <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
               </div>
             ) : null}
+            {category?.description ? (
+              <p data-slot="category-description" className="border-b border-border px-3 py-2.5 text-sm text-mist wrap-anywhere sm:px-4">
+                {category.description}
+              </p>
+            ) : null}
             {items.length === 0 ? (
               <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
                 {emptyHint(filter, counts.open + counts.solved)}

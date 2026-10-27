@@ -8,6 +8,11 @@ export interface ForumFeedCategory {
   name: string;
 }
 
+/** The category the list is narrowed to: the chip plus what it is for. */
+export interface ForumFeedSelectedCategory extends ForumFeedCategory {
+  description: string | null;
+}
+
 /** A row of the cross-category list: the thread as the category list shows it, plus the category it belongs to. */
 export interface ForumFeedItemResult extends ForumThreadListItemResult {
   /** Null only if the category vanished between the two reads. */
@@ -18,7 +23,7 @@ export interface ForumFeedPage {
   /** Every category in display order: the filter chips. */
   categories: ForumFeedCategory[];
   /** The category the list is narrowed to, if any. */
-  category: ForumFeedCategory | null;
+  category: ForumFeedSelectedCategory | null;
   state: ForumThreadState;
   items: ForumFeedItemResult[];
   /** Visible threads of the same scope per tab, so both tab counts stay true on any page. */
@@ -55,7 +60,7 @@ export class ListForumFeedUseCase {
 
     return {
       categories: all.map(({ slug, name }) => ({ slug, name })),
-      category: selected && { slug: selected.slug, name: selected.name },
+      category: selected && { slug: selected.slug, name: selected.name, description: selected.description },
       state: input.state,
       items: items.map(({ thread, authorName, replyCount }) => ({
         id: thread.id,

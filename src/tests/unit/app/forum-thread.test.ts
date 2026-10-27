@@ -84,7 +84,7 @@ describe("a thread page", () => {
     expect(html).toContain("abrió este hilo");
     expect(html).toContain("Inició el hilo");
     expect(html).toContain("<strong>al final</strong>");
-    expect(html).toMatch(/href="\/foro\/c\/programacion"[^>]*>.*Programación/);
+    expect(html).toMatch(/href="\/foro\?categoria=programacion"[^>]*>.*Programación/);
     expect(html).toContain("0 respuestas");
   });
 

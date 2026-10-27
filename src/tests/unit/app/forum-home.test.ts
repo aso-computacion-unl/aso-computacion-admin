@@ -192,6 +192,27 @@ describe("/foro as a member", () => {
     expect(await renderQuery({ categoria: "materias" })).not.toContain("Ideas para el hackatón");
   });
 
+  it("shows the description of the chosen category under the chips, and none for the whole forum", async () => {
+    seedForum();
+    testForum.store.categories.set("c2", makeForumCategory({ id: "c2", slug: "materias", name: "Materias", sortOrder: 2, description: "Dudas de las materias" }));
+
+    const one = await renderQuery({ categoria: "materias" });
+    const all = await renderQuery({});
+
+    expect(one).toMatch(/<p[^>]*>Dudas de las materias<\/p>/);
+    expect(one.indexOf("Dudas de las materias")).toBeGreaterThan(one.indexOf('aria-label="Categoría"'));
+    expect(one.indexOf("Dudas de las materias")).toBeLessThan(one.indexOf('href="/foro/hilo/'));
+    expect(all).not.toContain("Dudas de las materias");
+  });
+
+  it("shows no description line for a category that has none", async () => {
+    seedForum();
+
+    const html = await renderQuery({ categoria: "materias" });
+
+    expect(html).not.toMatch(/data-slot="category-description"/);
+  });
+
   it("is a 404 for a category that does not exist", async () => {
     seedForum();
 

@@ -9,6 +9,7 @@ import { countsSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { ListSearch } from "../_components/list-search";
+import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
 import { Pager } from "../_components/pager";
@@ -64,38 +65,41 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
           <ListSearch path={LIST_PATH} filter="todos" search={search} label="comandos" />
           {commands.length === 0 ? <FilterEmpty path={LIST_PATH} filter="todos" noun="comandos" search={search} /> : null}
           {commands.length > 0 ? (
-            <OrderedList label="Comandos, en el orden en que se muestran">
-              {commands.map((item, index) => (
-                <OrderedRow
-                  key={item.id}
-                  published={item.isPublished}
-                  position={searching ? null : offset + index + 1}
-                  label={item.command}
-                  editHref={`/admin/commands/${item.id}/edit`}
-                  toggle={<PublishedToggle label={item.command} isPublished={item.isPublished} action={setCommandPublished.bind(null, item.id)} />}
-                  move={
-                    searching ? undefined : (
-                      <MoveButtons
-                        label={item.command}
-                        isFirst={offset + index === 0}
-                        isLast={offset + index === page.total - 1}
-                        position={offset + index + 1}
-                        total={page.total}
-                        action={moveCommand.bind(null, item.id)}
-                      />
-                    )
-                  }
-                  remove={<TrashButton label={item.command} warning="¿Mover este comando a la papelera?" action={trashCommand.bind(null, item.id)} undo={restoreTrashed.bind(null, "command", item.id)} />}
-                >
-                  <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
-                    <Link href={`/admin/commands/${item.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
-                      ❯ {item.command}
-                    </Link>
-                  </h2>
-                  <p className="line-clamp-2 text-sm text-mist">{item.description}</p>
-                </OrderedRow>
-              ))}
-            </OrderedList>
+            <BulkSelection kind="command" items={commands.map((item) => ({ id: item.id, label: item.command }))}>
+              <OrderedList label="Comandos, en el orden en que se muestran">
+                {commands.map((item, index) => (
+                  <OrderedRow
+                    key={item.id}
+                    id={item.id}
+                    published={item.isPublished}
+                    position={searching ? null : offset + index + 1}
+                    label={item.command}
+                    editHref={`/admin/commands/${item.id}/edit`}
+                    toggle={<PublishedToggle label={item.command} isPublished={item.isPublished} action={setCommandPublished.bind(null, item.id)} />}
+                    move={
+                      searching ? undefined : (
+                        <MoveButtons
+                          label={item.command}
+                          isFirst={offset + index === 0}
+                          isLast={offset + index === page.total - 1}
+                          position={offset + index + 1}
+                          total={page.total}
+                          action={moveCommand.bind(null, item.id)}
+                        />
+                      )
+                    }
+                    remove={<TrashButton label={item.command} warning="¿Mover este comando a la papelera?" action={trashCommand.bind(null, item.id)} undo={restoreTrashed.bind(null, "command", item.id)} />}
+                  >
+                    <h2 className="text-base leading-snug font-bold font-stretch-[108%] wrap-anywhere">
+                      <Link href={`/admin/commands/${item.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
+                        ❯ {item.command}
+                      </Link>
+                    </h2>
+                    <p className="line-clamp-2 text-sm text-mist">{item.description}</p>
+                  </OrderedRow>
+                ))}
+              </OrderedList>
+            </BulkSelection>
           ) : null}
           <Pager path={LIST_PATH} filter="todos" search={search} page={page} />
         </>

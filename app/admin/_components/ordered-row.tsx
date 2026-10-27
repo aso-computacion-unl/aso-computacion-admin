@@ -4,9 +4,12 @@ import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
+import { BulkCheckbox } from "./bulk-selection";
 import { Stamp, TimelineItem } from "./timeline-parts";
 
 interface OrderedRowProps {
+  /** The item's id: what a bulk selection and a reorder name it by. */
+  id: string;
   published: boolean;
   /** 1-based place in the list: the order of the public site. Null while the list is searched: a place in the whole list is not known then. */
   position: number | null;
@@ -28,12 +31,15 @@ interface OrderedRowProps {
  * things you can do below. On lg+ the same four parts sit in one row (number, content, move,
  * actions) so a wide card is not a tall one.
  */
-export function OrderedRow({ published, position, label, editHref, media, children, toggle, move, remove }: OrderedRowProps) {
+export function OrderedRow({ id, published, position, label, editHref, media, children, toggle, move, remove }: OrderedRowProps) {
   return (
     <TimelineItem published={published} lane="trunk">
       <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
         <div className="flex items-center justify-between gap-3 lg:contents">
-          <Stamp className="lg:order-1">{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>
+          <div className="flex items-center gap-2 lg:order-1">
+            <BulkCheckbox id={id} label={label} />
+            <Stamp>{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>
+          </div>
           <div className="lg:order-3">{move}</div>
         </div>
         <div className="flex min-w-0 items-start gap-4 lg:order-2 lg:items-center">

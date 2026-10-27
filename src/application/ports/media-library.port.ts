@@ -17,6 +17,8 @@ export interface StoredAssetPage {
 /** Reads what is in the storage under the app's folder. It never changes anything. */
 export interface MediaLibraryPort {
   listAssets(options: { cursor?: string; limit: number }): Promise<StoredAssetPage>;
+  /** One image by id; null when it does not exist or is not under the app's folder. */
+  getAsset(publicId: string): Promise<StoredAsset | null>;
 }
 
 /** The content a stored image belongs to. */

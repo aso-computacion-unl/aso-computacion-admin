@@ -10,6 +10,7 @@ const ENTITY_LABELS: Record<string, string> = {
   user: "Usuario",
   session: "Sesión",
   invite: "Invitación",
+  media: "Imagen",
 };
 
 export function entityTypeLabel(entityType: string): string {

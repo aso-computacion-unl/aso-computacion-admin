@@ -48,6 +48,19 @@ export class CloudinaryMediaLibrary implements MediaLibraryPort {
     cloudinary.config({ cloud_name: config.cloudName, api_key: config.apiKey, api_secret: config.apiSecret });
   }
 
+  async getAsset(publicId: string): Promise<StoredAsset | null> {
+    // Anything outside the app's folder is none of this app's business, whatever the id.
+    if (!publicId.startsWith(this.prefix)) return null;
+
+    try {
+      return toAsset((await cloudinary.api.resource(publicId, { resource_type: "image", type: "upload" })) as RawResource);
+    } catch (error) {
+      if ((error as { http_code?: unknown } | null)?.http_code === 404) return null;
+
+      throw error;
+    }
+  }
+
   async listAssets({ cursor, limit }: { cursor?: string; limit: number }): Promise<StoredAssetPage> {
     const response = (await cloudinary.api.resources({
       type: "upload",

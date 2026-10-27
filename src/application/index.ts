@@ -43,6 +43,14 @@ export type { FaqResult } from "./dto/faq-result.dto";
 export type { MediaLibraryPort, MediaUsage, MediaUsageKind, MediaUsageReader, StoredAsset, StoredAssetPage } from "./ports/media-library.port";
 export { ListMediaLibraryUseCase, MEDIA_PAGE_SIZE } from "./use-cases/list-media-library.use-case";
 export type { MediaLibraryItem, MediaLibraryPage } from "./use-cases/list-media-library.use-case";
+export {
+  DeleteOrphanImagesUseCase,
+  FindOrphanImagesUseCase,
+  ORPHAN_DELETE_MAX,
+  ORPHAN_MIN_AGE_MS,
+  ORPHAN_SCAN_PAGE_SIZE,
+} from "./use-cases/media-orphans.use-cases";
+export type { OrphanCandidate, OrphanDeletion, OrphanOutcome, OrphanScan } from "./use-cases/media-orphans.use-cases";
 export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
 export {
   GetOrderedContentUseCase,

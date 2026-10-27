@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const cloudinaryMocks = vi.hoisted(() => ({ config: vi.fn(), resources: vi.fn() }));
+const cloudinaryMocks = vi.hoisted(() => ({ config: vi.fn(), resource: vi.fn(), resources: vi.fn() }));
 
-vi.mock("cloudinary", () => ({ v2: { config: cloudinaryMocks.config, api: { resources: cloudinaryMocks.resources } } }));
+vi.mock("cloudinary", () => ({ v2: { config: cloudinaryMocks.config, api: { resource: cloudinaryMocks.resource, resources: cloudinaryMocks.resources } } }));
 vi.mock("server-only", () => ({}));
 
 import { CloudinaryMediaLibrary } from "@/infrastructure/storage/cloudinary-media-library";
@@ -59,5 +59,30 @@ describe("CloudinaryMediaLibrary", () => {
     cloudinaryMocks.resources.mockResolvedValue({ resources: [] });
 
     await expect(new CloudinaryMediaLibrary().listAssets({ limit: 1 })).resolves.toEqual({ assets: [], nextCursor: null });
+  });
+
+  describe("getAsset", () => {
+    it("looks one image up by id", async () => {
+      cloudinaryMocks.resource.mockResolvedValue(RESOURCE);
+
+      const found = await new CloudinaryMediaLibrary().getAsset("aso/pillars/a");
+
+      expect(cloudinaryMocks.resource).toHaveBeenCalledWith("aso/pillars/a", { resource_type: "image", type: "upload" });
+      expect(found?.publicId).toBe("aso/pillars/a");
+    });
+
+    it("never asks the provider about an id outside the app's folder", async () => {
+      expect(await new CloudinaryMediaLibrary().getAsset("someone-else/x")).toBeNull();
+      expect(await new CloudinaryMediaLibrary().getAsset("asobelow/x")).toBeNull();
+      expect(cloudinaryMocks.resource).not.toHaveBeenCalled();
+    });
+
+    it("answers null for an image that does not exist, and rethrows any other failure", async () => {
+      cloudinaryMocks.resource.mockRejectedValueOnce({ http_code: 404 });
+      expect(await new CloudinaryMediaLibrary().getAsset("aso/gone")).toBeNull();
+
+      cloudinaryMocks.resource.mockRejectedValueOnce({ http_code: 420 });
+      await expect(new CloudinaryMediaLibrary().getAsset("aso/limited")).rejects.toEqual({ http_code: 420 });
+    });
   });
 });

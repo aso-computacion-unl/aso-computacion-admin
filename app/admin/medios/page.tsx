@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
+import { requirePageSession } from "@/interface/auth/require-page-session";
 import { getAdminMediaLibrary } from "@/interface/admin/media/media-admin-read";
 import { formatBytes, MEDIA_KIND_LABELS, mediaHref, parseMediaCursor, usageHref } from "@/interface/admin/media/media-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
@@ -16,18 +18,27 @@ const STEP_CLASSES =
 
 export default async function AdminMediaPage({ searchParams }: { searchParams: Promise<{ despues?: string | string[] }> }) {
   const cursor = parseMediaCursor((await searchParams).despues);
+  const actor = await requirePageSession();
   const library = await getAdminMediaLibrary(cursor);
 
   return (
     <div>
-      <PageHead title="Medios" meta={library.status === "ok" ? `${pluralize(library.items.length, "imagen", "imágenes")} en esta página` : undefined} />
+      <PageHead
+        title="Medios"
+        meta={library.status === "ok" ? `${pluralize(library.items.length, "imagen", "imágenes")} en esta página` : undefined}
+        action={
+          actor.role === "ADMIN" ? (
+            <Button asChild variant="line" className="min-h-12 flex-none">
+              <Link href="/admin/medios/limpieza">Buscar imágenes sin uso</Link>
+            </Button>
+          ) : undefined
+        }
+      />
       <p className="mt-4 max-w-2xl text-mist">
         Las imágenes guardadas y dónde se usa cada una. Reemplazar o quitar una imagen en un contenido no borra el archivo: sigue aquí, sin uso, hasta que se elimine.
       </p>
 
-      {library.status === "unavailable" ? (
-        <EmptyState>El almacén de imágenes no está configurado en este entorno, así que no se puede mostrar la biblioteca.</EmptyState>
-      ) : null}
+      {library.status === "unavailable" ? <EmptyState>El almacén de imágenes no está configurado en este entorno, así que no se puede mostrar la biblioteca.</EmptyState> : null}
       {library.status === "error" ? <EmptyState>No se pudo consultar el almacén de imágenes. Intente nuevamente en unos minutos.</EmptyState> : null}
       {library.status === "ok" && library.items.length === 0 ? <EmptyState>Todavía no hay imágenes guardadas.</EmptyState> : null}
 
@@ -38,7 +49,15 @@ export default async function AdminMediaPage({ searchParams }: { searchParams: P
               <li key={item.publicId} className="grid content-start gap-3 rounded bg-card p-4">
                 {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumbnailUrl(item.url, 240, 160)} alt="" loading="lazy" decoding="async" width={240} height={160} className="aspect-3/2 w-full rounded-xs bg-muted object-cover" />
+                <img
+                  src={thumbnailUrl(item.url, 240, 160)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={240}
+                  height={160}
+                  className="aspect-3/2 w-full rounded-xs bg-muted object-cover"
+                />
                 <div className="grid gap-1">
                   <p className="font-mono text-xs break-all text-mist">{item.publicId}</p>
                   <p className="font-mono text-xs text-mist">

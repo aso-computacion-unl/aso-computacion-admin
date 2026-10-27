@@ -10,7 +10,7 @@ function build(assets: StoredAsset[], used: Record<string, MediaUsage[]>, nextCu
   const listAssets = vi.fn<MediaLibraryPort["listAssets"]>(async () => ({ assets, nextCursor }));
   const usagesOf = vi.fn<MediaUsageReader["usagesOf"]>(async (ids) => new Map(ids.flatMap((id) => (used[id] ? [[id, used[id]!] as const] : []))));
 
-  return { listAssets, usagesOf, useCase: new ListMediaLibraryUseCase({ listAssets }, { usagesOf }) };
+  return { listAssets, usagesOf, useCase: new ListMediaLibraryUseCase({ listAssets, getAsset: async () => null }, { usagesOf }) };
 }
 
 describe("ListMediaLibraryUseCase", () => {

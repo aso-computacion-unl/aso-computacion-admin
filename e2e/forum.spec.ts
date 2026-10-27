@@ -28,8 +28,11 @@ test("a visitor is sent back to the sign-in from every member-only page", async 
   for (const path of ["/foro/c/programacion", "/foro/c/programacion/nuevo", "/foro/hilo/nope"]) {
     await page.goto(path);
 
-    await expect(page, path).toHaveURL(/\/foro$/);
-    await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
+    await expect(page, path).toHaveURL(`/foro?next=${encodeURIComponent(path)}`);
+    await expect(page.getByRole("link", { name: "Entrar con Google" })).toHaveAttribute(
+      "href",
+      `/foro/auth/google/start?next=${encodeURIComponent(path)}`,
+    );
   }
 });
 
@@ -54,5 +57,5 @@ test("an admin session is not a forum member", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Categorías" })).toHaveCount(0);
 
   await page.goto("/foro/c/programacion");
-  await expect(page).toHaveURL(/\/foro$/);
+  await expect(page).toHaveURL(`/foro?next=${encodeURIComponent("/foro/c/programacion")}`);
 });

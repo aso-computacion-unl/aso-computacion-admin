@@ -181,6 +181,16 @@ describe("forum reads", () => {
     expect(redirectMock).toHaveBeenCalledWith("/foro");
   });
 
+  it("carry the page a visitor asked for, so signing in brings them back to it", async () => {
+    jar({});
+
+    await expect(getForumCategories("/foro/c/programacion/nuevo")).rejects.toThrow("REDIRECT");
+    expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%2Fnuevo");
+
+    await expect(getForumThreads("programacion", 2, "/foro/c/programacion?pagina=2")).rejects.toThrow("REDIRECT");
+    expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%3Fpagina%3D2");
+  });
+
   it("show a member the categories, a page of threads and a thread, marking their own and hiding the hidden", async () => {
     const { cookie } = await signInToForumAs({ id: "member-1", displayName: "Ana" });
     jar({ [FORUM_COOKIE_NAME]: cookie });

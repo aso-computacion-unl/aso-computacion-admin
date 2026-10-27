@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewThreadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = (await getForumCategories()).find((candidate) => candidate.slug === slug);
+  const category = (await getForumCategories(`${categoryHref(slug)}/nuevo`)).find((candidate) => candidate.slug === slug);
 
   if (!category) {
     notFound();

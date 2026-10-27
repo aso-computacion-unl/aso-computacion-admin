@@ -14,7 +14,7 @@ import { ThreadFilterTabs } from "../../_components/thread-filter-tabs";
 import { ThreadRow } from "../../_components/thread-row";
 
 // The title and the page share one read per request.
-const loadThreads = cache((slug: string, page: number) => orNotFound(getForumThreads(slug, page)));
+const loadThreads = cache((slug: string, page: number) => orNotFound(getForumThreads(slug, page, categoryHref(slug, { page }))));
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;

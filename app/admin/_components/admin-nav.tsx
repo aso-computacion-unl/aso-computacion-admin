@@ -15,13 +15,16 @@ function isCurrent(pathname: string, item: NavItem): boolean {
   return item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-/** Sidebar list (desktop). */
+/**
+ * Sidebar list (desktop). Every section must fit the screen without scrolling, so a row's height follows
+ * the viewport height: roomy on tall screens, never below 26 px (still above the 24 px target minimum).
+ */
 export function SideNav({ role }: { role: Role }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Secciones">
-      <ul className="grid gap-1">
+    <nav aria-label="Secciones" className="min-h-0">
+      <ul className="grid">
         {sideNav(role).map((item) => {
           const current = isCurrent(pathname, item);
 
@@ -31,12 +34,12 @@ export function SideNav({ role }: { role: Role }) {
                 href={item.href}
                 aria-current={current ? "page" : undefined}
                 className={cn(
-                  "group flex min-h-11 items-center gap-3 rounded px-3 font-semibold text-mist",
+                  "group flex h-[clamp(1.625rem,3.4dvh,2.5rem)] items-center gap-2.5 rounded px-3 text-sm font-semibold text-mist",
                   "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
                   "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
                 )}
               >
-                <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />
+                <Icon name={item.icon} className="size-4 shrink-0 group-aria-[current=page]:text-sky" />
                 {item.label}
               </Link>
             </li>

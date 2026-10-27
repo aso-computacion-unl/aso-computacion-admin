@@ -37,18 +37,19 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         Saltar al contenido
       </a>
 
-      <aside className="sticky top-0 hidden h-screen flex-col gap-7 bg-muted px-4 py-6 shadow-[1px_0_0_var(--color-border)] lg:flex">
-        <Link href="/admin" aria-label="ASO Computación, inicio de la administración" className="block px-2 py-1">
-          <BrandLogo width={152} className="h-auto w-38" />
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-3 bg-muted px-3 py-4 shadow-[1px_0_0_var(--color-border)] lg:flex">
+        <Link href="/admin" aria-label="ASO Computación, inicio de la administración" className="block px-3 py-1">
+          <BrandLogo width={112} className="h-auto w-28" />
         </Link>
         <SideNav role={actor.role} />
-        <div className="mt-auto grid gap-2 border-t border-border pt-4">
-          <p className="px-2 font-mono text-[0.8125rem] text-mist">{sessionLabel(actor)}</p>
-          <ThemeToggle showLabel className="w-full justify-start" />
+        <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
+          <p className="min-w-0 flex-1 truncate px-2 font-mono text-xs text-mist" title={sessionLabel(actor)}>
+            {sessionLabel(actor)}
+          </p>
+          <ThemeToggle />
           <form action={logout}>
-            <Button variant="quiet" type="submit" className="w-full justify-start">
+            <Button variant="quiet" size="icon" type="submit" aria-label="Cerrar sesión" title="Cerrar sesión">
               <Icon name="out" />
-              Cerrar sesión
             </Button>
           </form>
         </div>

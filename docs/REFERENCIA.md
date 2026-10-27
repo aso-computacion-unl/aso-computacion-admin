@@ -125,6 +125,13 @@ Uploads accept JPEG, PNG and WebP up to 5 MB. The minimum width is chosen by eac
 
 `/admin/settings` ("Sitio") edits the landing's site texts: a tagline (1–120 characters), a description (1–300) and the "about" text (1–600). They are a singleton: one row whose id is always `site` (enforced by a `CHECK` in the migration), created on the first save and replaced on every later one. Until the first save there is no row and the form starts empty: the read returns `null`, not invented defaults, because the landing keeps its own copy of these texts as the fallback. The hero, manifesto and join copy stay in the landing code for now.
 
+## Media library
+
+`/admin/medios` ("Medios" in the nav, for editors and admins; read only) lists every image stored under the app's Cloudinary folder (`CLOUDINARY_FOLDER`, default `aso-computacion`) with its size, dimensions, upload date and **where it is used**: event photos, pillar images, news covers and board photos, each linking to the edit page of its owner. An image no row points at reads «Sin uso». A photo taken off an event and the image of a row in the trash still count as a use (marked «oculta»): the file belongs to that row until it is deleted for good.
+
+- **How it reads.** `MediaLibraryPort` (`CloudinaryMediaLibrary`, the Admin API `resources` call with the folder as `prefix`) returns one page of 24 images and an opaque cursor; `MediaUsageReader` (`MediaUsagePrismaReader`, one query per owning table with `publicId IN (...)`) says what uses those 24; `ListMediaLibraryUseCase` joins them. Pages are cursor based (`?despues=<cursor>`, validated before it reaches the provider): there is a «Siguiente» link and «Volver al principio», no page numbers, because the provider does not offer them.
+- **Nothing is written.** The adapter has no upload or destroy call. Without Cloudinary credentials, or when the provider does not answer, the page says so instead of failing (the error is logged and reported). The Admin API has an hourly rate limit on the free plan: each page is one call.
+
 ## Trash (soft delete)
 
 Every content type (events, news, FAQ, free commands, social links, pillars, board) is deleted in two steps. The destructive action on a row is now **«Mover a la papelera»**; the row is only removed, with its stored images, by **«Eliminar definitivamente»** on `/admin/papelera`. Event photos (`EventPhoto`) keep their own `isActive` flag and have no trash of their own.

@@ -117,3 +117,12 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
   await expect(page.getByRole("link", { name: questions[0]! }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: /Arrastrar para reordenar/ })).toHaveCount(0);
 });
+
+test("the media library opens even when the image storage is not configured, and says so", async ({ page }) => {
+  await logInAsAdmin(page);
+  await page.getByRole("link", { name: "Medios" }).first().click();
+
+  await expect(page).toHaveURL(/\/admin\/medios$/);
+  await expect(page.getByRole("heading", { name: "Medios", level: 1 })).toBeVisible();
+  await expect(page.getByText("El almacén de imágenes no está configurado")).toBeVisible();
+});

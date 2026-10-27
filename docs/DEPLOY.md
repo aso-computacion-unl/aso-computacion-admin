@@ -128,15 +128,15 @@ An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their e
 4. **Authorized redirect URIs**: add exactly `https://<your admin domain>/auth/google/callback` (it must match `AUTH_URL` + `/auth/google/callback`, character for character). For local development also `http://localhost:3000/auth/google/callback`. No authorized JavaScript origins are needed.
 5. Copy the client ID and the client secret into Vercel as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (secret: Sensitive), set `AUTH_URL` to `https://<your admin domain>` and `ADMIN_BOOTSTRAP_EMAILS` to the one or two emails that should be the first admins. Redeploy.
 
-**All three or none.** The three variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`) are one setting:
+**The client id and secret decide.** Google login needs `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `AUTH_URL`. `AUTH_URL` on its own is not a Google setting: invitations, preview links and registration links need it too, so it can be set before Google is.
 
 | Set | Result |
 |-----|--------|
-| None of them (empty or still a `__REPLACE_…__` placeholder) | No Google. The shared-password login is on, as in local development and before the cut-over. |
+| Neither the client id nor the secret (empty or still a `__REPLACE_…__` placeholder), with or without `AUTH_URL` | No Google. The shared-password login is on, as in local development and before the cut-over. |
 | All three, `AUTH_URL` a valid `https` origin (plain `http` only for `localhost`) | Google login on. The password login is off unless `BREAK_GLASS_PASSWORD_LOGIN=1`. |
-| Only some of them, or `AUTH_URL` not a valid `https` origin | **Configuration error.** Google login is unavailable **and the password login stays off** (a typo must not silently re-open the shared password). `/login` shows "Configuración incompleta: el acceso con Google no está disponible…" and the Vercel logs show `Incomplete Google login configuration: <names of the variables to fix>` once per instance (also sent to Sentry; names only, never values). |
+| The client id or the secret set, but not the whole setting (the other one missing, or `AUTH_URL` missing or not a valid `https` origin) | **Configuration error.** Google login is unavailable **and the password login stays off** (a typo must not silently re-open the shared password). `/login` shows "Configuración incompleta: el acceso con Google no está disponible…" and the Vercel logs show `Incomplete Google login configuration: <names of the variables to fix>` once per instance (also sent to Sentry; names only, never values). |
 
-To fix it, set the variables the log names (or clear all three to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
+To fix it, set the variables the log names (or clear the client id and secret to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
 
 If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
 

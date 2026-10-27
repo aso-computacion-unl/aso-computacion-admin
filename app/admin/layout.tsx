@@ -7,7 +7,7 @@ import { BREAK_GLASS_NOTICE, sessionLabel } from "@/interface/admin/role-labels"
 import { logout } from "@/interface/auth/actions";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
-import { BrandIsotype, BrandLogo } from "../_components/brand-mark";
+import { BrandIsotype } from "../_components/brand-mark";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import { SideNav, TabBar } from "./_components/admin-nav";
@@ -37,15 +37,19 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         Saltar al contenido
       </a>
 
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-3 bg-muted px-3 py-4 shadow-[1px_0_0_var(--color-border)] lg:flex">
-        <Link href="/admin" aria-label="ASO Computación, inicio de la administración" className="block px-3 py-1">
-          <BrandLogo width={112} className="h-auto w-28" />
+      {/* --sidebar-chrome: the brand row, the group labels, the footer and the padding; the nav rows share the rest. */}
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-1.5 bg-muted px-3 py-3 shadow-[1px_0_0_var(--color-border)] [--sidebar-chrome:12.5rem] lg:flex">
+        <Link
+          href="/admin"
+          aria-label="ASO Computación, inicio de la administración"
+          className="flex h-9 shrink-0 items-center gap-2.5 rounded px-2"
+        >
+          <BrandIsotype width={24} height={27} />
+          <span className="font-display text-base tracking-[0.01em]">Admin ASO</span>
         </Link>
         <SideNav role={actor.role} />
-        <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
-          <p className="min-w-0 flex-1 truncate px-2 font-mono text-xs text-mist" title={sessionLabel(actor)}>
-            {sessionLabel(actor)}
-          </p>
+        <div className="flex shrink-0 items-center gap-1 border-t border-border pt-2">
+          <p className="line-clamp-2 min-w-0 flex-1 px-2 font-mono text-xs leading-tight text-mist">{sessionLabel(actor)}</p>
           <ThemeToggle />
           <form action={logout}>
             <Button variant="quiet" size="icon" type="submit" aria-label="Cerrar sesión" title="Cerrar sesión">

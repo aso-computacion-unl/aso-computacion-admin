@@ -2,50 +2,67 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import type { Role } from "@/domain/user";
 
-import { TAB_NAV, moreNav, sideNav, type NavItem } from "./nav-items";
+import { TAB_NAV, moreNav, sideNavGroups, type NavItem } from "./nav-items";
 
 function isCurrent(pathname: string, item: NavItem): boolean {
   return item.href === "/admin" ? pathname === "/admin" : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 /**
- * Sidebar list (desktop). Every section must fit the screen without scrolling, so a row's height follows
- * the viewport height: roomy on tall screens, never below 26 px (still above the 24 px target minimum).
+ * Sidebar (desktop), in groups. Every section must fit the screen without scrolling and without dead space,
+ * so the rows share the height the sidebar's fixed parts leave (`--sidebar-chrome`, set on the aside):
+ * never below 24 px (the target-size minimum), never above 44 px. The scroll is only a last resort for
+ * windows shorter than every row at its minimum.
  */
 export function SideNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const groups = sideNavGroups(role);
+  const rows = groups.reduce((count, group) => count + group.items.length, 0);
 
   return (
-    <nav aria-label="Secciones" className="min-h-0">
-      <ul className="grid">
-        {sideNav(role).map((item) => {
-          const current = isCurrent(pathname, item);
+    <nav
+      aria-label="Secciones"
+      className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:thin]"
+      style={{ "--nav-rows": rows } as CSSProperties}
+    >
+      {groups.map((group) => {
+        const headingId = group.label ? `nav-${group.label}` : undefined;
 
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={current ? "page" : undefined}
-                className={cn(
-                  "group flex h-[clamp(1.625rem,3.4dvh,2.5rem)] items-center gap-2.5 rounded px-3 text-sm font-semibold text-mist",
-                  "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
-                )}
-              >
-                <Icon name={item.icon} className="size-4 shrink-0 group-aria-[current=page]:text-sky" />
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+        return (
+          <div key={group.label ?? "home"} className="[&+&]:mt-1">
+            {group.label ? (
+              <p id={headingId} className="flex h-5 items-end px-3 pb-1 font-mono text-[0.6875rem] leading-none text-mist">
+                {group.label}/
+              </p>
+            ) : null}
+            <ul aria-labelledby={headingId}>
+              {group.items.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={isCurrent(pathname, item) ? "page" : undefined}
+                    className={cn(
+                      "group flex h-[clamp(1.5rem,calc((100dvh-var(--sidebar-chrome))/var(--nav-rows)),2.75rem)] items-center gap-2.5 rounded px-3",
+                      "text-sm font-medium text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
+                      "aria-[current=page]:bg-navy-lift aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
+                    )}
+                  >
+                    <Icon name={item.icon} className="size-4 shrink-0 opacity-80 group-aria-[current=page]:text-sky group-aria-[current=page]:opacity-100" />
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }

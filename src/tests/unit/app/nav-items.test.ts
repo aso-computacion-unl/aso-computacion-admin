@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_NAV, FORUM_NAV, HOME_NAV, MEDIA_NAV, MODULE_NAV, TAB_NAV, TRASH_NAV, moreNav, sideNav } from "../../../../app/admin/_components/nav-items";
+import {
+  ACCOUNT_NAV,
+  FORUM_NAV,
+  HOME_NAV,
+  MEDIA_NAV,
+  MODULE_NAV,
+  TAB_NAV,
+  TRASH_NAV,
+  moreNav,
+  sideNav,
+  sideNavGroups,
+} from "../../../../app/admin/_components/nav-items";
 
 describe("admin navigation and the trash", () => {
   it("links to the trash page, outside the content modules (it has no home card)", () => {
@@ -49,6 +60,17 @@ describe("admin navigation and the trash", () => {
     expect(social.map((item) => item.label)).toEqual(["Impacto", "Testimonios", "Aliados"]);
     expect(social.every((item) => !item.adminOnly && item.action?.href === `${item.href}/new`)).toBe(true);
     expect(sideNav("EDITOR").map((item) => item.href)).toEqual(expect.arrayContaining(social.map((item) => item.href)));
+  });
+
+  it("groups the sidebar into the home, the landing content, the tools and the account, in the sidebar's order", () => {
+    for (const role of ["ADMIN", "EDITOR"] as const) {
+      const groups = sideNavGroups(role);
+
+      expect(groups.map((group) => group.label)).toEqual([null, "landing", "herramientas", "cuenta"]);
+      expect(groups.flatMap((group) => group.items)).toEqual(sideNav(role));
+    }
+
+    expect(sideNavGroups("ADMIN").slice(0, 3).map((group) => group.items)).toEqual([[HOME_NAV], MODULE_NAV, [MEDIA_NAV, TRASH_NAV, FORUM_NAV]]);
   });
 
   it("offers the forum report queue to editors and admins alike, outside the content modules, and on the phone through «Más»", () => {

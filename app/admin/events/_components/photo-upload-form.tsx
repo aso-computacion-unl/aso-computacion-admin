@@ -10,6 +10,7 @@ import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { uploadEventPhoto } from "@/interface/admin/events/actions";
 
 import { FieldError } from "../../_components/form-parts";
+import { formatFileSize, MediaDropzone } from "../../_components/media-dropzone";
 import { useToast } from "../../_components/toast";
 import { resultMessage } from "../../_components/use-run-action";
 
@@ -36,10 +37,6 @@ interface QueuedPhoto {
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 
-function formatSize(bytes: number): string {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
 /** The width the browser decodes, or null when it cannot (the server then decides on its own). */
 async function readWidth(file: File): Promise<number | null> {
   try {
@@ -56,7 +53,7 @@ async function readWidth(file: File): Promise<number | null> {
 /** Why a file cannot be sent at all, or undefined when it is worth trying. */
 function localProblem(file: File, width: number | null, minWidth: number): string | undefined {
   if (!ACCEPTED.includes(file.type)) return "Solo JPEG, PNG o WebP.";
-  if (file.size > MAX_BYTES) return `Pesa ${formatSize(file.size)}; el máximo es 5 MB.`;
+  if (file.size > MAX_BYTES) return `Pesa ${formatFileSize(file.size)}; el máximo es 5 MB.`;
   if (width !== null && width < minWidth) return `Mide ${width} px de ancho; el mínimo es ${minWidth} px.`;
 
   return undefined;
@@ -83,8 +80,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
   // Previews are object URLs: release them all when the form goes away.
   useEffect(() => () => queueRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl)), []);
 
-  async function addFiles(list: FileList | null) {
-    const files = Array.from(list ?? []);
+  async function addFiles(files: File[]) {
     setInputKey((key) => key + 1);
     setShowMissing(false);
     if (files.length === 0) return;
@@ -181,32 +177,16 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
 
   return (
     <div className="grid gap-4">
-      <label
-        className={cn(
-          "relative grid cursor-pointer justify-items-center gap-1.5 rounded border-2 border-dashed border-sky/70 bg-muted/55 px-4 py-5 text-center",
-          "transition-colors duration-150 ease-out hover:border-sky hover:bg-sky/14 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-sky",
-          (remaining <= 0 || uploading) && "pointer-events-none opacity-50",
-        )}
-      >
-        <Icon name="upload" className="size-7 text-sky" />
-        <span>
-          <strong className="font-bold font-stretch-[112%]">Elegir fotos</strong>
-          <span className="hidden md:inline"> o arrastrarlas aquí</span>
-        </span>
-        <span className="text-xs leading-snug text-mist">
-          JPEG, PNG o WebP · hasta 5 MB cada una · mínimo {minWidth} px de ancho · caben {Math.max(0, remaining)} más
-        </span>
-        <input
-          key={inputKey}
-          type="file"
-          multiple
-          accept={ACCEPTED.join(",")}
-          disabled={remaining <= 0 || uploading}
-          onChange={(event) => void addFiles(event.target.files)}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          aria-label="Elegir fotos para subir"
-        />
-      </label>
+      <MediaDropzone
+        title="Elegir fotos"
+        rules={`JPEG, PNG o WebP · hasta 5 MB cada una · mínimo ${minWidth} px de ancho · caben ${Math.max(0, remaining)} más`}
+        accept={ACCEPTED}
+        multiple
+        disabled={remaining <= 0 || uploading}
+        inputKey={inputKey}
+        ariaLabel="Elegir fotos para subir"
+        onFiles={(files) => void addFiles(files)}
+      />
 
       {notice ? (
         <p role="status" className="text-sm text-mist">
@@ -227,7 +207,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
                   <img src={item.previewUrl} alt="" decoding="async" width={88} height={66} className={cn("aspect-4/3 w-full rounded-xs object-cover", item.status === "invalid" && "opacity-45 grayscale")} />
                   <div className="grid min-w-0 content-start gap-1.5">
                     <p className="truncate font-mono text-[0.6875rem] text-mist" title={item.file.name}>
-                      {item.file.name} · {item.width ? `${item.width} px` : "…"} · {formatSize(item.file.size)}
+                      {item.file.name} · {item.width ? `${item.width} px` : "…"} · {formatFileSize(item.file.size)}
                     </p>
                     {item.error ? <FieldError>{item.error}</FieldError> : null}
                     {item.status !== "invalid" ? (

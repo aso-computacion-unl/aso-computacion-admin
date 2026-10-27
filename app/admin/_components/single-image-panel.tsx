@@ -9,9 +9,12 @@ import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
+import { formatFileSize, MediaDropzone } from "./media-dropzone";
 import { Panel } from "./page-head";
 import { DeleteButton } from "./row-actions";
 import { useRunAction } from "./use-run-action";
+
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 
 export interface StoredImage {
   url: string;
@@ -99,39 +102,34 @@ export function SingleImagePanel({ heading, subject, image, altField, upload, re
       )}
 
       <form onSubmit={handleSubmit} noValidate className="grid gap-4 border-t border-border pt-5">
-        <div className="grid gap-1.5">
-          <Label htmlFor={`${id}-file`}>
-            {image ? copy.replace : copy.add}
-          </Label>
-          <input
-            key={inputKey}
-            id={`${id}-file`}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            aria-invalid={errors.file ? true : undefined}
-            aria-describedby={`${id}-rules${errors.file ? ` ${id}-file-error` : ""}`}
-            className="w-full min-w-0 rounded border border-input bg-muted p-2 text-sm text-mist"
-          />
-          <small id={`${id}-rules`} className="text-[0.8125rem] leading-[1.4] text-mist">
-            {copy.rules}
-          </small>
-          {errors.file ? <FieldError id={`${id}-file-error`}>{errors.file}</FieldError> : null}
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`${id}-alt`}>{copy.altLabel}</Label>
-          <Input
-            id={`${id}-alt`}
-            value={alt}
-            onChange={(event) => setAlt(event.target.value)}
-            maxLength={200}
-            required
-            aria-invalid={errors[altField] ? true : undefined}
-            aria-describedby={errors[altField] ? `${id}-alt-error` : undefined}
-          />
-          <small className="text-[0.8125rem] leading-[1.4] text-mist">Obligatoria, para quien no pueda ver la imagen.</small>
-          {errors[altField] ? <FieldError id={`${id}-alt-error`}>{errors[altField]}</FieldError> : null}
-        </div>
+        <MediaDropzone
+          title={image ? copy.replace : copy.add}
+          rules={copy.rules}
+          accept={ACCEPTED}
+          inputKey={inputKey}
+          ariaLabel={image ? copy.replace : copy.add}
+          describedBy={errors.file ? `${id}-file-error` : undefined}
+          invalid={Boolean(errors.file)}
+          chosen={file ? { name: file.name, size: formatFileSize(file.size) } : undefined}
+          onFiles={(files) => setFile(files[0] ?? null)}
+        />
+        {errors.file ? <FieldError id={`${id}-file-error`}>{errors.file}</FieldError> : null}
+        {file ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${id}-alt`}>{copy.altLabel}</Label>
+            <Input
+              id={`${id}-alt`}
+              value={alt}
+              onChange={(event) => setAlt(event.target.value)}
+              maxLength={200}
+              required
+              aria-invalid={errors[altField] ? true : undefined}
+              aria-describedby={errors[altField] ? `${id}-alt-error` : undefined}
+            />
+            <small className="text-[0.8125rem] leading-[1.4] text-mist">Obligatoria, para quien no pueda ver la imagen.</small>
+            {errors[altField] ? <FieldError id={`${id}-alt-error`}>{errors[altField]}</FieldError> : null}
+          </div>
+        ) : null}
         <div aria-live="polite" className="text-sm">
           {run.result?.error ? <FieldError>{run.result.error}</FieldError> : null}
           {run.result?.success ? (
@@ -140,9 +138,11 @@ export function SingleImagePanel({ heading, subject, image, altField, upload, re
             </p>
           ) : null}
         </div>
-        <Button type="submit" busy={run.pending} aria-disabled={run.pending || !file || undefined} className="justify-self-start">
-          {run.pending ? copy.uploading : image ? copy.submitReplace : copy.submitAdd}
-        </Button>
+        {file ? (
+          <Button type="submit" busy={run.pending} aria-disabled={run.pending || undefined} className="justify-self-start">
+            {run.pending ? copy.uploading : image ? copy.submitReplace : copy.submitAdd}
+          </Button>
+        ) : null}
       </form>
     </Panel>
   );

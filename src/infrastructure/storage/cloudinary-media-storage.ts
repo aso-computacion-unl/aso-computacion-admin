@@ -3,6 +3,7 @@ import "server-only";
 import { v2 as cloudinary } from "cloudinary";
 
 import type {
+  DestroyOutcome,
   ImageUploadFile,
   MediaStoragePort,
   UploadOptions,
@@ -101,12 +102,14 @@ export class CloudinaryMediaStorage implements MediaStoragePort {
     });
   }
 
-  async destroy(publicId: string): Promise<void> {
-    const outcome = (await cloudinary.uploader.destroy(publicId, CLOUDINARY_DESTROY_OPTIONS)) as { result?: unknown } | undefined;
+  async destroy(publicId: string): Promise<DestroyOutcome> {
+    const answer = (await cloudinary.uploader.destroy(publicId, CLOUDINARY_DESTROY_OPTIONS)) as { result?: unknown } | undefined;
 
-    // The provider answers 200 with `{ result: "not found" }` and the like: only "ok" means the file is gone.
-    if (outcome?.result !== "ok") {
-      throw new Error(`Cloudinary did not delete ${publicId}.`);
-    }
+    // The provider answers 200 with `{ result: "not found" }` for a file it no longer has: the two
+    // outcomes are told apart so the callers choose. Any other answer is not a deletion at all.
+    if (answer?.result === "ok") return "deleted";
+    if (answer?.result === "not found") return "not_found";
+
+    throw new Error(`Cloudinary did not delete ${publicId}.`);
   }
 }

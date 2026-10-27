@@ -17,7 +17,7 @@ function build(stored: StoredAsset[], used: string[] = []) {
     getAsset: vi.fn(async (publicId: string) => stored.find((item) => item.publicId === publicId) ?? null),
   };
   const usage: MediaUsageReader = { usagesOf: vi.fn(async (ids: readonly string[]) => new Map<string, MediaUsage[]>(ids.filter((id) => used.includes(id)).map((id) => [id, [use]]))) };
-  const storage: MediaStoragePort = { upload: vi.fn(), destroy: vi.fn(async () => undefined) };
+  const storage: MediaStoragePort = { upload: vi.fn(), destroy: vi.fn(async () => "deleted" as const) };
 
   return { library, usage, storage, find: new FindOrphanImagesUseCase(library, usage, () => NOW), remove: new DeleteOrphanImagesUseCase(library, usage, storage, () => NOW) };
 }
@@ -109,7 +109,10 @@ describe("DeleteOrphanImagesUseCase", () => {
       const { remove, library, storage } = build([asset("a"), asset("b")]);
       const order: string[] = [];
 
-      vi.mocked(storage.destroy).mockImplementation(async (id) => void order.push(`destroy ${id}`));
+      vi.mocked(storage.destroy).mockImplementation(async (id) => {
+        order.push(`destroy ${id}`);
+        return "deleted";
+      });
       vi.mocked(library.getAsset).mockImplementation(async (id) => {
         order.push(`lookup ${id}`);
         return asset(id);
@@ -128,6 +131,16 @@ describe("DeleteOrphanImagesUseCase", () => {
 
       await remove.execute({ publicIds: ["fails", "young", "used", "missing"], onDeleted });
 
+      expect(onDeleted).not.toHaveBeenCalled();
+    });
+
+    it("is not called for a file the storage no longer had: it was not deleted here", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const onDeleted = vi.fn();
+      const { remove, storage } = build([asset("gone")]);
+      vi.mocked(storage.destroy).mockResolvedValueOnce("not_found");
+
+      expect(await remove.execute({ publicIds: ["gone"], onDeleted })).toEqual([{ publicId: "gone", outcome: "failed" }]);
       expect(onDeleted).not.toHaveBeenCalled();
     });
 

@@ -121,7 +121,13 @@ export class DeleteOrphanImagesUseCase {
       if (!isOldEnough(asset, this.now())) return "too_recent";
       if ((await this.usage.usagesOf([publicId])).has(publicId)) return "in_use";
 
-      await this.storage.destroy(publicId);
+      // Only a file this call removed is a deletion: one the provider no longer had was not deleted
+      // here, so it is neither audited nor reported as deleted.
+      if ((await this.storage.destroy(publicId)) !== "deleted") {
+        console.error(`The unused image ${publicId} was not deleted: the storage did not have it.`);
+        return "failed";
+      }
+
       return "deleted";
     } catch (error) {
       console.error(`Could not delete the unused image ${publicId}.`, error);

@@ -17,7 +17,14 @@ export interface UploadResult {
   readonly height: number;
 }
 
+/**
+ * What a destroy that the provider accepted came to. `not_found` means the file was already gone:
+ * a caller that only wants it gone treats that as success, one that must know it removed the file
+ * itself (the orphan cleanup, which audits the deletion) accepts only `deleted`.
+ */
+export type DestroyOutcome = "deleted" | "not_found";
+
 export interface MediaStoragePort {
   upload(file: ImageUploadFile, options: UploadOptions): Promise<UploadResult>;
-  destroy(publicId: string): Promise<void>;
+  destroy(publicId: string): Promise<DestroyOutcome>;
 }

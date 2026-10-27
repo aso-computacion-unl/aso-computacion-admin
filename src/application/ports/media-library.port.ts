@@ -24,7 +24,7 @@ export interface MediaLibraryPort {
 }
 
 /** The content a stored image belongs to. */
-export type MediaUsageKind = "event" | "news" | "pillar" | "board";
+export type MediaUsageKind = "event" | "news" | "pillar" | "board" | "testimonial" | "sponsor";
 
 export interface MediaUsage {
   readonly kind: MediaUsageKind;

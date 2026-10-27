@@ -86,7 +86,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
                       </p>
                       <p className="font-mono text-xs text-mist">
                         {entityTypeLabel(entry.entityType)} · {entry.action}
-                        {entry.entityId ? (
+                        {/* A preview code row keeps its lifetime ("24h") as the entity id, which is not a record to point at. */}
+                        {entry.entityId && entry.entityType !== "preview" ? (
                           <span title={entry.entityId}>
                             {" · "}#{shortId(entry.entityId)}
                           </span>

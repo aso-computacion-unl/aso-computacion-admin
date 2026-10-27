@@ -14,6 +14,7 @@ const ENTITY_LABELS: Record<string, string> = {
   session: "Sesión",
   invite: "Invitación",
   media: "Imagen",
+  preview: "Vista previa",
   forum_category: "Categoría del foro",
   forum_thread: "Hilo del foro",
   forum_reply: "Respuesta del foro",

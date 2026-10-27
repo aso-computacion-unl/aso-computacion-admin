@@ -60,7 +60,7 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
         aria-busy={pending || undefined}
         aria-label={`Publicado: ${label}`}
         onClick={toggle}
-        className="group inline-flex min-h-11 min-w-34 items-center gap-2.5 rounded pr-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground aria-checked:text-foreground"
+        className="group inline-flex min-h-11 items-center min-[84rem]:min-w-34 gap-2.5 rounded pr-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground aria-checked:text-foreground"
       >
         <span
           aria-hidden="true"

@@ -45,7 +45,7 @@ export function PageHeader({ title, status, description, action, back }: PageHea
   );
 }
 
-const STATUS_NAME_MAX = 48;
+const STATUS_NAME_MAX = 32;
 
 /**
  * The status line of an edit page: which record this is and whether it is public, like a branch name and its state.

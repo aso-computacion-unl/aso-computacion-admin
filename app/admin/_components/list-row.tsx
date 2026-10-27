@@ -53,7 +53,7 @@ export function ListRow({ id, label, published, when, lane, handle, lead, media,
         data-slot="list-row"
         className={cn(
           "grid gap-2.5 p-4 md:px-5 min-[84rem]:items-center min-[84rem]:gap-x-6 min-[84rem]:py-3.5",
-          move ? "min-[84rem]:grid-cols-[9.5rem_minmax(0,1fr)_auto_auto]" : "min-[84rem]:grid-cols-[9.5rem_minmax(0,1fr)_auto]",
+          move ? "min-[84rem]:grid-cols-[10rem_minmax(0,1fr)_auto_auto]" : "min-[84rem]:grid-cols-[10rem_minmax(0,1fr)_auto]",
         )}
       >
         <div className="flex items-center justify-between gap-3 min-[84rem]:contents">
@@ -68,7 +68,7 @@ export function ListRow({ id, label, published, when, lane, handle, lead, media,
           <Fragment key="media">{media}</Fragment>
           <div className="grid min-w-0 flex-1 gap-1">{children}</div>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 min-[84rem]:order-4 min-[84rem]:mt-0 min-[84rem]:w-84 min-[84rem]:border-t-0 min-[84rem]:border-l min-[84rem]:pt-0 min-[84rem]:pl-6">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-2 min-[84rem]:order-4 min-[84rem]:mt-0 min-[84rem]:w-84 min-[84rem]:border-t-0 min-[84rem]:gap-x-3 min-[84rem]:border-l min-[84rem]:pt-0 min-[84rem]:pl-6">
           <Fragment key="toggle">{toggle}</Fragment>
           <Button asChild variant="line" size="sm" className="ml-auto">
             <Link href={editHref} aria-label={`Editar: ${label}`}>

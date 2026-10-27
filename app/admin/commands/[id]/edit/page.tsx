@@ -4,7 +4,7 @@ import { updateCommand } from "@/interface/admin/commands/actions";
 import { getAdminCommand } from "@/interface/admin/commands/commands-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormPage, Panel } from "../../../_components/page-head";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { CommandForm } from "../../_components/command-form";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function EditCommandPage({ params }: EditCommandPageProps) 
   if (!command) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/commands"
       backLabel="Volver a comandos"
       title="Editar comando"
@@ -38,6 +38,6 @@ export default async function EditCommandPage({ params }: EditCommandPageProps) 
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

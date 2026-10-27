@@ -1,11 +1,11 @@
 import { createImpactStat } from "@/interface/admin/impact/actions";
 
-import { FormPage, Panel } from "../../_components/page-head";
+import { FormLayout, Panel } from "../../_components/form-layout";
 import { ImpactStatForm } from "../_components/impact-stat-form";
 
 export default function NewImpactStatPage() {
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/impact"
       backLabel="Volver al impacto"
       title="Nueva cifra de impacto"
@@ -15,6 +15,6 @@ export default function NewImpactStatPage() {
       <Panel>
         <ImpactStatForm action={createImpactStat} submitLabel="Crear cifra" />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

@@ -10,7 +10,7 @@ import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
 import { formatFileSize, MediaDropzone } from "./media-dropzone";
-import { Panel } from "./page-head";
+import { Panel } from "./form-layout";
 import { DeleteButton } from "./row-actions";
 import { useRunAction } from "./use-run-action";
 

@@ -4,7 +4,7 @@ import { updateTestimonial } from "@/interface/admin/testimonials/actions";
 import { getAdminTestimonial } from "@/interface/admin/testimonials/testimonials-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormPage, Panel } from "../../../_components/page-head";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { TestimonialForm } from "../../_components/testimonial-form";
 import { TestimonialPhotoPanel } from "../../_components/testimonial-photo-panel";
 
@@ -21,7 +21,7 @@ export default async function EditTestimonialPage({ params }: EditTestimonialPag
   if (!testimonial) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/testimonials"
       backLabel="Volver a los testimonios"
       title="Editar testimonio"
@@ -44,6 +44,6 @@ export default async function EditTestimonialPage({ params }: EditTestimonialPag
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

@@ -2,7 +2,7 @@ import { createPreviewToken } from "@/interface/admin/preview/actions";
 import { getPreviewSetup } from "@/interface/admin/preview/preview-admin-read";
 
 import { PageHeader } from "../_components/page-header";
-import { Panel } from "../_components/page-head";
+import { Panel } from "../_components/form-layout";
 import { PreviewTokenForm } from "./_components/preview-token-form";
 
 // Reads the environment on every request.

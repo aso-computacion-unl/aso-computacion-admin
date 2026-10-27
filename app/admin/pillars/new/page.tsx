@@ -1,21 +1,20 @@
 import { createPillar } from "@/interface/admin/pillars/actions";
 
-import { AsideNote, FormPage, Panel } from "../../_components/page-head";
+import { FormLayout, Panel } from "../../_components/form-layout";
 import { PillarForm } from "../_components/pillar-form";
 
 export default function NewPillarPage() {
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/pillars"
       backLabel="Volver a pilares"
       title="Nuevo pilar"
       status="sin guardar"
-      description="Se agrega al final de la lista. La imagen se sube en el paso siguiente."
-      aside={<AsideNote title="Imagen">Opcional. Se agrega al guardar el pilar, en la pantalla de edición.</AsideNote>}
+      description="Se agrega al final de la lista. La imagen es opcional y se sube al guardar, en la pantalla de edición."
     >
       <Panel>
         <PillarForm action={createPillar} submitLabel="Crear pilar" />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

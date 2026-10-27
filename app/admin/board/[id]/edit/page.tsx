@@ -4,7 +4,7 @@ import { updateBoardMember } from "@/interface/admin/board/actions";
 import { getAdminBoardMember } from "@/interface/admin/board/board-members-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormPage, Panel } from "../../../_components/page-head";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { BoardMemberForm } from "../../_components/board-member-form";
 import { BoardMemberPhotoPanel } from "../../_components/board-member-photo-panel";
 
@@ -21,7 +21,7 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
   if (!member) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/board"
       backLabel="Volver a la directiva"
       title="Editar integrante"
@@ -43,6 +43,6 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

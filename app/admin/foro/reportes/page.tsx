@@ -8,7 +8,7 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
 import { PageHeader } from "../../_components/page-header";
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 import { EmptyState } from "../../_components/empty-state";
 import { Stamp } from "../../_components/timeline-parts";
 import { CloseReportForm, PostControls } from "./_components/report-controls";

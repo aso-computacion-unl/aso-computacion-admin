@@ -1,6 +1,6 @@
 import type { SettingsValues } from "@/interface/admin/settings/settings-editor-state";
 
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 
 /**
  * Approximate: where each text lands on the public site, in the admin's own type and colours. The tagline

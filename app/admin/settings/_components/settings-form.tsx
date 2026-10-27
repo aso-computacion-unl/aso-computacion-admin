@@ -16,7 +16,7 @@ import {
 } from "@/interface/admin/settings/settings-editor-state";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
-import { FormColumns, Panel } from "../../_components/page-head";
+import { FormColumns, Panel, StickyAside } from "../../_components/form-layout";
 import { SettingsPreview } from "./settings-preview";
 import { SettingsReadView } from "./settings-read-view";
 
@@ -90,7 +90,11 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
   }
 
   return (
-    <FormColumns stickyAside aside={<div className="lg:sticky lg:top-8"><SettingsPreview values={state.draft} editing={editing} /></div>}>
+    <FormColumns stickyAside aside={
+        <StickyAside>
+          <SettingsPreview values={state.draft} editing={editing} />
+        </StickyAside>
+      }>
       <Panel aria-label="Textos del sitio">
         {editing ? (
           <form onSubmit={handleSubmit} noValidate className="grid gap-5">

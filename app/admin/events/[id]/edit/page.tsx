@@ -8,7 +8,7 @@ import { eventToFormValues } from "@/interface/admin/events/event-form-values";
 import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormPage, Panel } from "../../../_components/page-head";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { EventForm } from "../../_components/event-form";
 import { PhotoGallery } from "../../_components/photo-gallery";
 
@@ -25,7 +25,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
   if (!event) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/events"
       backLabel="Volver a eventos"
       title="Editar evento"
@@ -49,6 +49,6 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
           </Button>
         </Panel>
       )}
-    </FormPage>
+    </FormLayout>
   );
 }

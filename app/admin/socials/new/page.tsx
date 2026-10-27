@@ -1,11 +1,11 @@
 import { createSocialLink } from "@/interface/admin/socials/actions";
 
-import { FormPage, Panel } from "../../_components/page-head";
+import { FormLayout, Panel } from "../../_components/form-layout";
 import { SocialForm } from "../_components/social-form";
 
 export default function NewSocialLinkPage() {
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/socials"
       backLabel="Volver a redes"
       title="Agregar red"
@@ -15,6 +15,6 @@ export default function NewSocialLinkPage() {
       <Panel>
         <SocialForm action={createSocialLink} submitLabel="Agregar red" />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

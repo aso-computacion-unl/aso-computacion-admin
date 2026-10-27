@@ -10,7 +10,7 @@ import type { ActionResult } from "@/interface/admin/action-result";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { ScheduleFields } from "../../_components/schedule-fields";
-import { FormColumns, Panel } from "../../_components/page-head";
+import { FormColumns, Panel, StickyAside } from "../../_components/form-layout";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { NewsPreview } from "./news-preview";
 
@@ -48,14 +48,14 @@ interface NewsFormProps {
   initialValues?: NewsFormValues;
   isEditing?: boolean;
   cover?: { url: string; width: number; height: number } | null;
-  /** What goes above the preview in the right column: the cover panel on edit, a note on create. */
-  asideTop: ReactNode;
+  /** What goes above the preview in the right column: the cover panel, once the news item exists. */
+  asideTop?: ReactNode;
 }
 
 const MARKDOWN_HELP = "Separe los párrafos con una línea en blanco. **negrita**, *cursiva*, [texto](https://enlace) y listas con «- » al inicio de cada línea.";
 
 /** The form owns the values, so the preview in the right column lives here too and follows every keystroke. */
-export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, isEditing = false, cover = null, asideTop }: NewsFormProps) {
+export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, isEditing = false, cover = null, asideTop = null }: NewsFormProps) {
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
   const values = { title: bind("title").value, summary: bind("summary").value, body: bind("body").value, publishedAt: bind("publishedAt").value };
 
@@ -66,9 +66,9 @@ export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_
         <>
           {/* Keyed: React flags a node handed down from the page when it sits beside a sibling without one. */}
           <Fragment key="top">{asideTop}</Fragment>
-          <div key="preview" className="lg:sticky lg:top-8">
+          <StickyAside key="preview">
             <NewsPreview values={values} cover={cover} coverAlt={bind("coverAlt").value} />
-          </div>
+          </StickyAside>
         </>
       }
     >

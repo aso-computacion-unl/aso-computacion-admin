@@ -7,7 +7,7 @@ import { getAdminEventRegistrations } from "@/interface/admin/event-registration
 import { pluralize } from "@/interface/admin/publication-summary";
 
 import { PageHeader } from "../../../_components/page-header";
-import { Panel } from "../../../_components/page-head";
+import { Panel } from "../../../_components/form-layout";
 import { EmptyState } from "../../../_components/empty-state";
 import { RegistrationDeleteButton } from "./_components/registration-delete-button";
 

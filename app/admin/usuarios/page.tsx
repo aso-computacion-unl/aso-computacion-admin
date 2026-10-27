@@ -5,7 +5,7 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { PageHeader } from "../_components/page-header";
-import { Panel } from "../_components/page-head";
+import { Panel } from "../_components/form-layout";
 import { CreateInviteForm } from "./_components/create-invite-form";
 import { RevokeInviteButton } from "./_components/revoke-invite-button";
 import { UserActiveControl, UserRoleSelect } from "./_components/user-row-controls";

@@ -1,11 +1,11 @@
 import { createFaq } from "@/interface/admin/faqs/actions";
 
-import { FormPage, Panel } from "../../_components/page-head";
+import { FormLayout, Panel } from "../../_components/form-layout";
 import { FaqForm } from "../_components/faq-form";
 
 export default function NewFaqPage() {
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/faqs"
       backLabel="Volver a preguntas"
       title="Nueva pregunta"
@@ -15,6 +15,6 @@ export default function NewFaqPage() {
       <Panel>
         <FaqForm action={createFaq} submitLabel="Crear pregunta" />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

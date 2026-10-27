@@ -4,7 +4,7 @@ import { updatePillar } from "@/interface/admin/pillars/actions";
 import { getAdminPillar } from "@/interface/admin/pillars/pillars-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormPage, Panel } from "../../../_components/page-head";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { PillarForm } from "../../_components/pillar-form";
 import { PillarImagePanel } from "../../_components/pillar-image-panel";
 
@@ -21,7 +21,7 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
   if (!pillar) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/pillars"
       backLabel="Volver a pilares"
       title="Editar pilar"
@@ -44,6 +44,6 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

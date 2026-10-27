@@ -7,14 +7,15 @@ import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/eve
 import { getAdminEventCounts, getAdminEventsPage } from "@/interface/admin/events/events-admin-read";
 import { windowBadge } from "@/interface/admin/publication-window-badge";
 import { pluralize } from "@/interface/admin/publication-summary";
-import { listCriteria, parseListParams } from "@/interface/admin/list-params";
+import { listCriteria, parseListParams, showListTools } from "@/interface/admin/list-params";
 import { parseStatusFilter } from "@/interface/admin/status-filter";
 
 import { EmptyState } from "../_components/empty-state";
-import { Stamp, TimelineItem } from "../_components/timeline-parts";
+import { Stamp } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
 import { PageHeader } from "../_components/page-header";
-import { BulkCheckbox, BulkSelection } from "../_components/bulk-selection";
+import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow, ListRow } from "../_components/list-row";
 import { ListSearch } from "../_components/list-search";
 import { Pager } from "../_components/pager";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
@@ -42,44 +43,37 @@ function GroupTitle({ id, title, hint }: { id: string; title: string; hint: stri
   );
 }
 
-/** One event as a commit: date stamp, type, state, title, the joke message, and what can be done with it. */
+/** One event as a commit: date stamp, title, the joke message, what it is, and what can be done with it. */
 function EventCommit({ event, when }: { event: EventListItemResult; when?: "next" }) {
+  const typeLabel = event.type ? TYPE_LABELS[event.type] : undefined;
+
   return (
-    <TimelineItem published={event.isPublished} when={when}>
-      <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)_auto] lg:items-center lg:gap-x-8 lg:py-4">
-        <div className="grid min-w-0 gap-2.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <BulkCheckbox id={event.id} label={event.title} />
-            <Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>
-            {event.type ? (
-              <span className="inline-flex h-6 items-center rounded-xs bg-muted px-2 font-mono text-xs leading-none">{TYPE_LABELS[event.type]}</span>
-            ) : null}
-            <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[0.8125rem] text-mist lg:ml-3">
-              <Icon name="image" className="size-4" />
-              {pluralize(event.photoCount, "foto", "fotos")}
-            </span>
-          </div>
-          <h3 className="font-display text-lg leading-tight wrap-anywhere lg:text-xl">
-            <Link href={`/admin/events/${event.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
-              {event.title}
-            </Link>
-          </h3>
-          {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
-          <WindowBadge badge={windowBadge(event, new Date())} />
-        </div>
-        {event.description ? <p className="hidden line-clamp-3 text-sm text-mist lg:block">{event.description}</p> : <span className="hidden lg:block" />}
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:mt-0 lg:flex-nowrap lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          <EventPublishedToggle eventId={event.id} title={event.title} isPublished={event.isPublished} />
-          <Button asChild variant="line" size="sm" className="ml-auto">
-            <Link href={`/admin/events/${event.id}/edit`} aria-label={`Editar: ${event.title}`}>
-              <Icon name="edit" className="size-4" />
-              Editar
-            </Link>
-          </Button>
-          <EventDeleteButton eventId={event.id} title={event.title} />
-        </div>
-      </div>
-    </TimelineItem>
+    <ListRow
+      id={event.id}
+      label={event.title}
+      published={event.isPublished}
+      when={when}
+      lead={<Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>}
+      toggle={<EventPublishedToggle eventId={event.id} title={event.title} isPublished={event.isPublished} />}
+      editHref={`/admin/events/${event.id}/edit`}
+      remove={<EventDeleteButton eventId={event.id} title={event.title} />}
+    >
+      <h3 className="font-display text-lg leading-tight wrap-anywhere min-[84rem]:text-xl">
+        <Link href={`/admin/events/${event.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
+          {event.title}
+        </Link>
+      </h3>
+      {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.8125rem] text-mist">
+        {typeLabel ? <span>{typeLabel}</span> : null}
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="image" className="size-4" />
+          {pluralize(event.photoCount, "foto", "fotos")}
+        </span>
+      </p>
+      {event.description ? <p className="line-clamp-2 hidden text-sm text-mist md:block">{event.description}</p> : null}
+      <WindowBadge badge={windowBadge(event, new Date())} />
+    </ListRow>
   );
 }
 
@@ -195,6 +189,8 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
   const { drafts, upcoming, past } = groupEvents(events, today);
   // Drafts have their own branch; with only drafts asked for, the main line has nothing to show.
   const showMainLine = filter !== "borradores";
+  const total = counts.published + counts.draft;
+  const tools = showListTools(total, { search, filter });
 
   return (
     <>
@@ -212,7 +208,8 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
       />
 
       {counts.published + counts.draft === 0 ? (
-        <EmptyState icon="events"
+        <EmptyState
+          icon="events"
           action={
             <Button asChild>
               <Link href="/admin/events/new">
@@ -227,12 +224,13 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
       ) : (
         <>
           <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
-          <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" />
+          {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" /> : null}
           {events.length === 0 ? (
             <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" search={search} />
           ) : (
-            <BulkSelection kind="event" items={events.map((event) => ({ id: event.id, label: event.title }))}>
+            <BulkSelection kind="event" enabled={tools} items={events.map((event) => ({ id: event.id, label: event.title }))}>
               <EventsTimeline drafts={drafts} upcoming={upcoming} past={past} today={today} showMainLine={showMainLine} />
+              {tools ? null : <AddRow href="/admin/events/new">Agregar evento</AddRow>}
             </BulkSelection>
           )}
           <Pager path={LIST_PATH} filter={filter} search={search} page={page} />

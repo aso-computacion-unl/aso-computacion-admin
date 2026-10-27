@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ComponentType, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,8 +19,12 @@ import ForumNotFound from "../../../../app/foro/not-found";
 import NotFound from "../../../../app/not-found";
 import { NotFoundState } from "../../../../app/_components/not-found-state";
 
+/** `createElement` for a component whose `children` are required: the children go in as an argument, not as a prop. */
+const withChildren = <P extends { children: ReactNode }>(component: ComponentType<P>, props: Omit<P, "children">, children: ReactNode) =>
+  createElement(component as ComponentType<Omit<P, "children">>, props, children);
+
 describe("EmptyState", () => {
-  const html = renderToStaticMarkup(createElement(EmptyState, { icon: "trash", action: createElement("a", { href: "/admin" }, "Volver"), children: "La papelera está vacía." }));
+  const html = renderToStaticMarkup(withChildren(EmptyState, { icon: "trash", action: createElement("a", { href: "/admin" }, "Volver") }, "La papelera está vacía."));
 
   it("shows an icon, one sentence and the action, announced as a status", () => {
     expect(html).toContain('data-slot="empty-state"');
@@ -38,7 +42,7 @@ describe("EmptyState", () => {
 
 describe("NotFoundState", () => {
   it("names the problem, says why in one sentence and offers one way back", () => {
-    const html = renderToStaticMarkup(createElement(NotFoundState, { title: "No encontrado", href: "/admin", actionLabel: "Volver al inicio", children: "Ya no existe." }));
+    const html = renderToStaticMarkup(withChildren(NotFoundState, { title: "No encontrado", href: "/admin", actionLabel: "Volver al inicio" }, "Ya no existe."));
 
     expect(html).toContain("No encontrado");
     expect(html).toContain("Ya no existe.");
@@ -48,8 +52,8 @@ describe("NotFoundState", () => {
   });
 
   it("uses the display face in the admin and the forum's own face when asked", () => {
-    const admin = renderToStaticMarkup(createElement(NotFoundState, { title: "A", href: "/", actionLabel: "B", children: "C" }));
-    const forum = renderToStaticMarkup(createElement(NotFoundState, { title: "A", href: "/", actionLabel: "B", face: "forum", children: "C" }));
+    const admin = renderToStaticMarkup(withChildren(NotFoundState, { title: "A", href: "/", actionLabel: "B" }, "C"));
+    const forum = renderToStaticMarkup(withChildren(NotFoundState, { title: "A", href: "/", actionLabel: "B", face: "forum" }, "C"));
 
     expect(admin).toContain("font-display");
     expect(forum).not.toContain("font-display");

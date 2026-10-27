@@ -7,8 +7,10 @@ import { trashBoardMember, moveBoardMember, setBoardMemberPublished } from "@/in
 import { getAdminBoardMembers } from "@/interface/admin/board/board-members-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminBoardPage() {
   const members = await getAdminBoardMembers();
+  const tools = showListTools(members.length);
 
   return (
     <div>
@@ -36,7 +39,8 @@ export default async function AdminBoardPage() {
         }
       />
       {members.length === 0 ? (
-        <EmptyState icon="board"
+        <EmptyState
+          icon="board"
           action={
             <Button asChild>
               <Link href="/admin/board/new">
@@ -49,7 +53,7 @@ export default async function AdminBoardPage() {
           Todavía no hay integrantes. Cada uno lleva solo nombre, cargo y foto; nada más se guarda.
         </EmptyState>
       ) : (
-        <BulkSelection kind="board" items={members.map((member) => ({ id: member.id, label: member.name }))}>
+        <BulkSelection kind="board" enabled={tools} items={members.map((member) => ({ id: member.id, label: member.name }))}>
           <ReorderableList kind="board" items={members.map((member) => ({ id: member.id, label: member.name }))} offset={0} total={members.length} enabled={true} label="Integrantes de la directiva, en el orden en que se muestran">
             {members.map((member, index) => (
               <OrderedRow
@@ -95,6 +99,7 @@ export default async function AdminBoardPage() {
               </OrderedRow>
             ))}
           </ReorderableList>
+          {tools ? null : <AddRow href="/admin/board/new">Agregar integrante</AddRow>}
         </BulkSelection>
       )}
     </div>

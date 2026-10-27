@@ -8,6 +8,17 @@ export const SEARCH_MAX_LENGTH = 80;
 /** Far beyond any real list; it only keeps `(page - 1) * PAGE_SIZE` far from overflowing. */
 export const MAX_PAGE = 10_000;
 
+/** Under this many rows a list is short: it shows its rows and an add row, not the search and the select-all bar. */
+export const LIST_TOOLS_MIN_ROWS = 5;
+
+/**
+ * Whether a list earns its search and select-all bar. `total` is the whole list, not the page; a search or a status
+ * filter in force always keeps them, so the way back from an empty result is never hidden.
+ */
+export function showListTools(total: number, active: { search?: string; filter?: StatusFilter } = {}): boolean {
+  return total >= LIST_TOOLS_MIN_ROWS || (active.search ?? "") !== "" || (active.filter ?? "todos") !== "todos";
+}
+
 /** A search param as Next hands it over. */
 type Raw = string | string[] | undefined;
 

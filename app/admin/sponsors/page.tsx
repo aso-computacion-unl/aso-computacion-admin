@@ -7,8 +7,10 @@ import { moveSponsor, setSponsorPublished, trashSponsor } from "@/interface/admi
 import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminSponsorsPage() {
   const sponsors = await getAdminSponsors();
+  const tools = showListTools(sponsors.length);
 
   return (
     <div>
@@ -36,7 +39,8 @@ export default async function AdminSponsorsPage() {
         }
       />
       {sponsors.length === 0 ? (
-        <EmptyState icon="image"
+        <EmptyState
+          icon="image"
           action={
             <Button asChild>
               <Link href="/admin/sponsors/new">
@@ -49,7 +53,7 @@ export default async function AdminSponsorsPage() {
           Todavía no hay aliados. Cada uno lleva nombre, logo y, si quiere, un enlace a su sitio.
         </EmptyState>
       ) : (
-        <BulkSelection kind="sponsor" items={sponsors.map((sponsor) => ({ id: sponsor.id, label: sponsor.name }))}>
+        <BulkSelection kind="sponsor" enabled={tools} items={sponsors.map((sponsor) => ({ id: sponsor.id, label: sponsor.name }))}>
           <ReorderableList kind="sponsor" items={sponsors.map((sponsor) => ({ id: sponsor.id, label: sponsor.name }))} offset={0} total={sponsors.length} enabled={true} label="Aliados y patrocinadores, en el orden en que se muestran">
           {sponsors.map((sponsor, index) => (
             <OrderedRow
@@ -93,6 +97,7 @@ export default async function AdminSponsorsPage() {
             </OrderedRow>
           ))}
         </ReorderableList>
+          {tools ? null : <AddRow href="/admin/sponsors/new">Agregar aliado</AddRow>}
         </BulkSelection>
       )}
     </div>

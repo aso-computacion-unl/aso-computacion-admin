@@ -7,8 +7,10 @@ import { moveTestimonial, setTestimonialPublished, trashTestimonial } from "@/in
 import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonials-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminTestimonialsPage() {
   const testimonials = await getAdminTestimonials();
+  const tools = showListTools(testimonials.length);
 
   return (
     <div>
@@ -36,7 +39,8 @@ export default async function AdminTestimonialsPage() {
         }
       />
       {testimonials.length === 0 ? (
-        <EmptyState icon="news"
+        <EmptyState
+          icon="news"
           action={
             <Button asChild>
               <Link href="/admin/testimonials/new">
@@ -49,7 +53,7 @@ export default async function AdminTestimonialsPage() {
           Todavía no hay testimonios. Cada uno lleva una cita, el nombre y el cargo de quien la dijo, y una foto opcional.
         </EmptyState>
       ) : (
-        <BulkSelection kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))}>
+        <BulkSelection kind="testimonial" enabled={tools} items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))}>
           <ReorderableList kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))} offset={0} total={testimonials.length} enabled={true} label="Testimonios, en el orden en que se muestran">
           {testimonials.map((testimonial, index) => (
             <OrderedRow
@@ -95,6 +99,7 @@ export default async function AdminTestimonialsPage() {
             </OrderedRow>
           ))}
         </ReorderableList>
+          {tools ? null : <AddRow href="/admin/testimonials/new">Agregar testimonio</AddRow>}
         </BulkSelection>
       )}
     </div>

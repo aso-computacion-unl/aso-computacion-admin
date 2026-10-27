@@ -4,12 +4,13 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { trashCommand, moveCommand, setCommandPublished } from "@/interface/admin/commands/actions";
 import { getAdminCommandsCounts, getAdminCommandsPage } from "@/interface/admin/commands/commands-admin-read";
-import { listCriteria, parseListParams } from "@/interface/admin/list-params";
+import { listCriteria, parseListParams, showListTools } from "@/interface/admin/list-params";
 import { countsSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { ListSearch } from "../_components/list-search";
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
@@ -33,6 +34,7 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
   const offset = (page.page - 1) * page.pageSize;
   // `counts` are the whole list's, whatever the search; the page's own total is the match count.
   const listTotal = counts.published + counts.draft;
+  const tools = showListTools(listTotal, { search });
 
   return (
     <div>
@@ -49,7 +51,8 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
         }
       />
       {listTotal === 0 ? (
-        <EmptyState icon="merge"
+        <EmptyState
+          icon="merge"
           action={
             <Button asChild>
               <Link href="/admin/commands/new">
@@ -63,10 +66,10 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
         </EmptyState>
       ) : (
         <>
-          <ListSearch path={LIST_PATH} filter="todos" search={search} label="comandos" />
+          {tools ? <ListSearch path={LIST_PATH} filter="todos" search={search} label="comandos" /> : null}
           {commands.length === 0 ? <FilterEmpty path={LIST_PATH} filter="todos" noun="comandos" search={search} /> : null}
           {commands.length > 0 ? (
-            <BulkSelection kind="command" items={commands.map((item) => ({ id: item.id, label: item.command }))}>
+            <BulkSelection kind="command" enabled={tools} items={commands.map((item) => ({ id: item.id, label: item.command }))}>
               <ReorderableList kind="command" items={commands.map((item) => ({ id: item.id, label: item.command }))} offset={offset} total={page.total} enabled={!searching} label="Comandos, en el orden en que se muestran">
                 {commands.map((item, index) => (
                   <OrderedRow
@@ -100,6 +103,7 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
                   </OrderedRow>
                 ))}
               </ReorderableList>
+              {tools ? null : <AddRow href="/admin/commands/new">Agregar comando</AddRow>}
             </BulkSelection>
           ) : null}
           <Pager path={LIST_PATH} filter="todos" search={search} page={page} />

@@ -31,7 +31,8 @@ export default async function AdminTrashPage() {
         }
       />
       {items.length === 0 ? (
-        <EmptyState icon="trash"
+        <EmptyState
+          icon="trash"
           action={
             <Button asChild variant="line">
               <Link href="/admin">Volver al inicio</Link>

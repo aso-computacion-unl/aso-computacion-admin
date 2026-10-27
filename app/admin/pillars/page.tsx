@@ -7,8 +7,10 @@ import { trashPillar, movePillar, setPillarPublished } from "@/interface/admin/p
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPillarsPage() {
   const pillars = await getAdminPillars();
+  const tools = showListTools(pillars.length);
 
   return (
     <div>
@@ -36,7 +39,8 @@ export default async function AdminPillarsPage() {
         }
       />
       {pillars.length === 0 ? (
-        <EmptyState icon="pillars"
+        <EmptyState
+          icon="pillars"
           action={
             <Button asChild>
               <Link href="/admin/pillars/new">
@@ -49,7 +53,7 @@ export default async function AdminPillarsPage() {
           Todavía no hay pilares. Cada pilar es una palabra, un título y un texto corto, con imagen opcional.
         </EmptyState>
       ) : (
-        <BulkSelection kind="pillar" items={pillars.map((pillar) => ({ id: pillar.id, label: pillar.title }))}>
+        <BulkSelection kind="pillar" enabled={tools} items={pillars.map((pillar) => ({ id: pillar.id, label: pillar.title }))}>
           <ReorderableList kind="pillar" items={pillars.map((pillar) => ({ id: pillar.id, label: pillar.title }))} offset={0} total={pillars.length} enabled={true} label="Pilares, en el orden en que se muestran">
             {pillars.map((pillar, index) => (
               <OrderedRow
@@ -91,6 +95,7 @@ export default async function AdminPillarsPage() {
               </OrderedRow>
             ))}
           </ReorderableList>
+          {tools ? null : <AddRow href="/admin/pillars/new">Agregar pilar</AddRow>}
         </BulkSelection>
       )}
     </div>

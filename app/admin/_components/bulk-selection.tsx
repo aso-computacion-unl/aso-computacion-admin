@@ -44,7 +44,7 @@ interface BulkSelectionProps {
   kind: BulkKind;
   /** The rows on the page, in order: the "select all" of the bar covers exactly these. */
   items: readonly { id: string; label: string }[];
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 const OPERATION_VARIANT = { publish: "line", unpublish: "line", trash: "quiet" } as const;

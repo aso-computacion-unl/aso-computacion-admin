@@ -14,11 +14,11 @@ const ITEMS = [
 describe("BulkSelection", () => {
   const render = () =>
     renderToStaticMarkup(
-      createElement(BulkSelection, {
-        kind: "event",
-        items: ITEMS,
-        children: createElement("ul", null, ITEMS.map((item) => createElement("li", { key: item.id }, createElement(BulkCheckbox, item)))),
-      }),
+      createElement(
+        BulkSelection,
+        { kind: "event", items: ITEMS },
+        createElement("ul", null, ITEMS.map((item) => createElement("li", { key: item.id }, createElement(BulkCheckbox, item)))),
+      ),
     );
 
   it("starts with nothing selected: the select-all box and no action buttons", () => {
@@ -43,7 +43,7 @@ describe("BulkSelection", () => {
   });
 
   it("renders just the rows when the page has none", () => {
-    const html = renderToStaticMarkup(createElement(BulkSelection, { kind: "event", items: [], children: createElement("p", null, "vacío") }));
+    const html = renderToStaticMarkup(createElement(BulkSelection, { kind: "event", items: [] }, createElement("p", null, "vacío")));
 
     expect(html).toBe("<p>vacío</p>");
   });

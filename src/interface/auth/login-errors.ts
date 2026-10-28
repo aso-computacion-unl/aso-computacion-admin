@@ -5,7 +5,7 @@ export const LOGIN_ERROR_MESSAGES = {
   unavailable: "El acceso no está disponible en este momento. Intente de nuevo en unos minutos.",
   failed: "No se pudo completar el acceso con Google. Intente de nuevo.",
   invite: "La invitación no es válida, ya se usó, venció o no corresponde a esa cuenta de Google.",
-  verification: "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos.",
+  verification: "No pudimos verificar su cuenta de Google. Intente de nuevo en unos minutos.",
 } as const;
 
 export type LoginErrorCode = keyof typeof LOGIN_ERROR_MESSAGES;

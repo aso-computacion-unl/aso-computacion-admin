@@ -6,7 +6,7 @@ import { login } from "@/interface/auth/actions";
 import { CONFIG_INCOMPLETE_MESSAGE, loginErrorMessage } from "@/interface/auth/login-errors";
 import { reportAuthConfigProblems } from "@/interface/auth/report-auth-config";
 
-import { BrandLogo } from "../_components/brand-mark";
+import { AuthSplit } from "../_components/auth-split";
 import { GoogleButton } from "../_components/google-button";
 import { ThemeToggle } from "../_components/theme-toggle";
 
@@ -28,11 +28,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   reportAuthConfigProblems(problems);
 
   return (
-    <main className="relative grid min-h-screen place-items-center px-6 py-10">
-      <ThemeToggle className="absolute top-3 right-3" />
-      <div className="w-full max-w-sm">
-        <BrandLogo alt="ASO Computación" width={168} className="mb-10 h-auto w-42" />
-
+    <main>
+      <AuthSplit
+        panelLabel="Sobre el panel"
+        headline="El sitio de la asociación, siempre al día."
+        lines={["Publique eventos, noticias y galerías sin pedir ayuda a nadie.", "Cada cambio reconstruye el sitio público de ASO Computación."]}
+        terminal="git log --oneline"
+        visual={<CommitLog />}
+        mobileLogo
+      >
+        <ThemeToggle className="absolute top-3 right-3" />
         {/* The landing's branch line, with the page title as its first commit. */}
         <section aria-labelledby="login-title" className="relative border-l-2 border-sky pb-2 pl-7">
           <span
@@ -71,7 +76,28 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           ) : null}
           {google || misconfigured ? null : <LoginForm action={login} />}
         </section>
-      </div>
+      </AuthSplit>
     </main>
+  );
+}
+
+// Made-up history that shows what the panel is for; decoration, never read from the database.
+const COMMITS = [
+  ["a3f9c21", "evento publicado"],
+  ["7be04d8", "galería ordenada"],
+  ["c19a5f3", "noticia actualizada"],
+  ["02d6e7b", "preguntas frecuentes al día"],
+] as const;
+
+function CommitLog() {
+  return (
+    <ol aria-hidden="true" className="grid gap-3 font-mono text-sm">
+      {COMMITS.map(([hash, message]) => (
+        <li key={hash} className="flex gap-3">
+          <span className="text-sky">{hash}</span>
+          <span className="text-mist">{message}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

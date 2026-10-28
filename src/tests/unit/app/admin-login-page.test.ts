@@ -29,3 +29,30 @@ describe("the admin login with Google available", () => {
     expect(link).toContain("#4285F4");
   });
 });
+
+describe("the admin login layout", () => {
+  beforeEach(() => availability.mockReturnValue({ google: true, emergency: true, problems: [] }));
+
+  it("sets a brand panel beside the form on wide screens: what the panel is for, a commit log, and no second h1", async () => {
+    const html = await render();
+    const panel = html.match(/<aside[^>]*aria-label="Sobre el panel"[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+    expect(panel).toContain("hidden");
+    expect(panel).toContain("lg:flex");
+    expect(panel).toContain("El sitio de la asociación, siempre al día.");
+    expect(panel).toContain("git log --oneline");
+    expect(panel).toContain("a3f9c21");
+    expect(panel).not.toContain("<h1");
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html.indexOf('aria-label="Sobre el panel"')).toBeLessThan(html.indexOf('id="login-title"'));
+  });
+
+  it("keeps the form in the one main landmark and fills the viewport height", async () => {
+    const html = await render();
+
+    expect(html.match(/<main/g)).toHaveLength(1);
+    expect(html).toContain("min-h-dvh");
+    expect(html).toContain('id="login-title"');
+    expect(html).toContain("Panel de administración");
+  });
+});

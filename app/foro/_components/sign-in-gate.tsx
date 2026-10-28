@@ -1,6 +1,7 @@
 import { Icon } from "@/components/icons";
 import { FORUM_LOGIN_ERROR_MESSAGES, type ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
 
+import { AuthSplit } from "../../_components/auth-split";
 import { GoogleButton } from "../../_components/google-button";
 
 import { CategoryChip } from "./category-chip";
@@ -26,42 +27,48 @@ const SAMPLE_THREADS = [
   { status: "solved", title: "Error al conectar Postgres desde Docker en el laboratorio", category: { slug: "materias", name: "Materias" }, meta: "hace 5 h", replies: 9 },
   { status: "open", title: "Propuesta: taller de Docker para primeros ciclos", category: { slug: "propuestas", name: "Propuestas" }, meta: "ayer", replies: 14 },
   { status: "open", title: "Busco equipo para el hackathon (backend con Node)", category: { slug: "general", name: "General" }, meta: "ayer", replies: 3 },
-  { status: "solved", title: "¿Qué electivas recomiendan para 7.º ciclo?", category: { slug: "general", name: "General" }, meta: "hace 3 días", replies: 21 },
-  { status: "locked", title: "Horario del laboratorio abierto los sábados", category: { slug: "general", name: "General" }, meta: "hace 1 semana", replies: 4 },
 ] as const;
 
 /** What a visitor sees at /foro: what the forum is, a look inside, and the only way in. */
 export function SignInGate({ problem, next }: SignInGateProps) {
   return (
-    <div className="grid items-center gap-10 lg:min-h-[calc(100dvh-11rem)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-14">
-      <section aria-labelledby="gate-title" className="grid gap-6">
-        <h1 id="gate-title" className="text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.1] font-bold font-stretch-[106%] tracking-tight text-balance">
-          {problem ? "No pudimos entrar" : "El foro de Computación"}
-        </h1>
+    // `data-bleed`: the forum layout lets the sign-in fill the width under the top bar.
+    <div data-bleed>
+      <AuthSplit
+        panelLabel="Sobre el foro"
+        headline="Entre estudiantes nos ayudamos."
+        lines={["Dudas de materias, propuestas de talleres y equipos para cada evento.", "Un espacio para los estudiantes de Computación de la UNL."]}
+        terminal="git switch foro"
+        visual={<ForumPreview />}
+        belowTopBar
+      >
+        <section aria-labelledby="gate-title" className="grid gap-6">
+          <h1 id="gate-title" className="text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.1] font-bold font-stretch-[106%] tracking-tight text-balance">
+            {problem ? "No pudimos entrar" : "El foro de Computación"}
+          </h1>
 
-        {problem ? (
-          <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
-            <Icon name="alert" className="mt-0.5 size-4.5 shrink-0 text-error" />
-            <div className="grid gap-1.5">
-              <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
-              {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
+          {problem ? (
+            <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
+              <Icon name="alert" className="mt-0.5 size-4.5 shrink-0 text-error" />
+              <div className="grid gap-1.5">
+                <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
+                {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
+              </div>
             </div>
+          ) : (
+            <p className="max-w-[34ch] text-lg leading-relaxed text-mist">
+              Pregunte sobre materias, proponga talleres y arme equipo para el próximo evento. Es el espacio de los estudiantes de la UNL.
+            </p>
+          )}
+
+          <div className="grid gap-3">
+            <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}>{problem ? "Entrar de nuevo con Google" : "Entrar con Google"}</GoogleButton>
+            <p className="text-sm text-mist">
+              Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
+            </p>
           </div>
-        ) : (
-          <p className="max-w-[34ch] text-lg leading-relaxed text-mist">
-            Pregunte sobre materias, proponga talleres y arme equipo para el próximo evento. Es el espacio de los estudiantes de la UNL.
-          </p>
-        )}
-
-        <div className="grid gap-3">
-          <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}>{problem ? "Entrar de nuevo con Google" : "Entrar con Google"}</GoogleButton>
-          <p className="text-sm text-mist">
-            Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
-          </p>
-        </div>
-      </section>
-
-      <ForumPreview />
+        </section>
+      </AuthSplit>
     </div>
   );
 }

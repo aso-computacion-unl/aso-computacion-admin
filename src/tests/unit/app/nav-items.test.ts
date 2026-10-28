@@ -6,6 +6,7 @@ import {
   HOME_NAV,
   MEDIA_NAV,
   MODULE_NAV,
+  REGISTRATIONS_NAV,
   TAB_NAV,
   TRASH_NAV,
   moreNav,
@@ -41,6 +42,18 @@ describe("admin navigation and the trash", () => {
     expect(moreNav("EDITOR").map((item) => item.href)).not.toContain("/admin/settings");
   });
 
+  it("links to the registrations of every event for editors and admins, outside the content modules (no home card)", () => {
+    expect(REGISTRATIONS_NAV).toMatchObject({ href: "/admin/registrations", label: "Inscripciones" });
+    expect(MODULE_NAV.map((item) => item.href)).not.toContain(REGISTRATIONS_NAV.href);
+
+    for (const role of ["EDITOR", "ADMIN"] as const) {
+      expect(sideNav(role).map((item) => item.href)).toContain(REGISTRATIONS_NAV.href);
+      expect(moreNav(role).map((item) => item.href)).toContain(REGISTRATIONS_NAV.href);
+    }
+
+    expect(TAB_NAV.map((item) => item.href)).not.toContain(REGISTRATIONS_NAV.href);
+  });
+
   it("offers the preview page to editors and admins alike", () => {
     expect(sideNav("EDITOR").map((item) => item.href)).toContain("/admin/vista-previa");
     expect(sideNav("ADMIN").map((item) => item.href)).toContain("/admin/vista-previa");
@@ -48,7 +61,7 @@ describe("admin navigation and the trash", () => {
   });
 
   it("shows an admin everything, in the sidebar and in the phone's «Más» sheet", () => {
-    const all = [...MODULE_NAV, MEDIA_NAV, TRASH_NAV, FORUM_NAV, ...ACCOUNT_NAV].map((item) => item.href);
+    const all = [...MODULE_NAV, MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, ...ACCOUNT_NAV].map((item) => item.href);
 
     expect(sideNav("ADMIN").map((item) => item.href)).toEqual([HOME_NAV.href, ...all]);
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));
@@ -72,7 +85,7 @@ describe("admin navigation and the trash", () => {
       expect(groups.flatMap((group) => group.items)).toEqual(sideNav(role));
     }
 
-    expect(sideNavGroups("ADMIN").slice(0, 3).map((group) => group.items)).toEqual([[HOME_NAV], MODULE_NAV, [MEDIA_NAV, TRASH_NAV, FORUM_NAV]]);
+    expect(sideNavGroups("ADMIN").slice(0, 3).map((group) => group.items)).toEqual([[HOME_NAV], MODULE_NAV, [MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV]]);
   });
 
   it("offers the forum report queue to editors and admins alike, outside the content modules, and on the phone through «Más»", () => {

@@ -117,6 +117,37 @@ test("the registrations belong to the admin and the editor, but only an admin ca
   expect((await request.get(`/admin/events/${id}/registrations/export`, { maxRedirects: 0 })).status()).toBe(307);
 });
 
+test("the seats endpoint counts a registrable event for anyone, and the admin overview lists it with a link to its registrants", async ({ page, request }) => {
+  const title = `E2E cupos ${Date.now()}`;
+
+  await logInAsAdmin(page);
+  const { id, slug } = await createRegistrableEvent(page, title);
+
+  // Public, PII-free, readable from any origin, short cache: the event shows with its two seats free.
+  const seats = await request.get("/api/public/events/seats", { headers: { origin: "https://preview.example" } });
+  const body = await seats.json();
+
+  expect(seats.status()).toBe(200);
+  expect(seats.headers()["access-control-allow-origin"]).toBe("*");
+  expect(seats.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=5, must-revalidate");
+  expect(body.events).toContainEqual({ slug, capacity: 2, registered: 0, seatsLeft: 2, status: "open" });
+
+  // The overview is one click from the sidebar and lists the event; its link opens that event's registrants.
+  await page.goto("/admin");
+  await page.getByRole("link", { name: "Inscripciones", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/admin\/registrations$/);
+  await expect(page.getByRole("heading", { name: "Inscripciones", level: 1 })).toBeVisible();
+
+  const row = page.getByRole("row").filter({ hasText: title });
+
+  await expect(row).toContainText("Formulario abierto");
+  await expect(row).toContainText("0 / 2");
+  await expect(row).toContainText("Abierta");
+  await row.getByRole("link", { name: /Ver inscritos/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/events/${id}/registrations$`));
+  await expect(page.getByText("Todavía no hay inscripciones.")).toBeVisible();
+});
+
 test("the UNL-account registration page answers 404 for an unknown event", async ({ request }) => {
   expect((await request.get("/foro/eventos/no-existe")).status()).toBe(404);
 });

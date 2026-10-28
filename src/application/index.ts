@@ -209,6 +209,8 @@ export type { PurgeResult } from "./event-registration/purge-expired-registratio
 export type { EventRegistrationRetentionStore, RetentionCandidate } from "./ports/event-registration-retention.port";
 export { ListEventSeatsUseCase } from "./event-registration/list-event-seats.use-case";
 export type { EventSeats } from "./event-registration/list-event-seats.use-case";
+export { ListRegistrationOverviewUseCase } from "./event-registration/list-registration-overview.use-case";
+export type { RegistrationOverview, RegistrationOverviewRow } from "./event-registration/list-registration-overview.use-case";
 export { buildEventRegistrationServices } from "./event-registration/event-registration-services";
 export type { EventRegistrationServices } from "./event-registration/event-registration-services";
 export { GetPublicEventUseCase } from "./use-cases/get-public-event.use-case";

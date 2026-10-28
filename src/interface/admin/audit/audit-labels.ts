@@ -1,3 +1,4 @@
+// `impact` and `testimonial` are no longer managed, but their past entries stay in the change log and keep a readable name.
 const ENTITY_LABELS: Record<string, string> = {
   event: "Evento",
   news: "Novedad",

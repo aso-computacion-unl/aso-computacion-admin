@@ -11,9 +11,7 @@ const reads = vi.hoisted(() => ({
   pillar: vi.fn(),
   social: vi.fn(),
   board: vi.fn(),
-  impact: vi.fn(),
   sponsor: vi.fn(),
-  testimonial: vi.fn(),
 }));
 
 vi.mock("@/interface/admin/faqs/faqs-admin-read", () => ({ getAdminFaq: reads.faq }));
@@ -21,27 +19,21 @@ vi.mock("@/interface/admin/commands/commands-admin-read", () => ({ getAdminComma
 vi.mock("@/interface/admin/pillars/pillars-admin-read", () => ({ getAdminPillar: reads.pillar }));
 vi.mock("@/interface/admin/socials/socials-admin-read", () => ({ getAdminSocialLink: reads.social }));
 vi.mock("@/interface/admin/board/board-members-admin-read", () => ({ getAdminBoardMember: reads.board }));
-vi.mock("@/interface/admin/impact/impact-admin-read", () => ({ getAdminImpactStat: reads.impact }));
 vi.mock("@/interface/admin/sponsors/sponsors-admin-read", () => ({ getAdminSponsor: reads.sponsor }));
-vi.mock("@/interface/admin/testimonials/testimonials-admin-read", () => ({ getAdminTestimonial: reads.testimonial }));
 vi.mock("@/interface/admin/faqs/actions", () => actions("updateFaq"));
 vi.mock("@/interface/admin/commands/actions", () => actions("updateCommand"));
 vi.mock("@/interface/admin/pillars/actions", () => actions("updatePillar", "uploadPillarImage", "removePillarImage"));
 vi.mock("@/interface/admin/socials/actions", () => actions("updateSocialLink"));
 vi.mock("@/interface/admin/board/actions", () => actions("updateBoardMember", "uploadBoardMemberPhoto", "removeBoardMemberPhoto"));
-vi.mock("@/interface/admin/impact/actions", () => actions("updateImpactStat"));
 vi.mock("@/interface/admin/sponsors/actions", () => actions("updateSponsor", "uploadSponsorLogo", "removeSponsorLogo"));
-vi.mock("@/interface/admin/testimonials/actions", () => actions("updateTestimonial", "uploadTestimonialPhoto", "removeTestimonialPhoto"));
 
 import { PageHeader, recordStatus } from "../../../../app/admin/_components/page-header";
 import EditBoardMemberPage from "../../../../app/admin/board/[id]/edit/page";
 import EditCommandPage from "../../../../app/admin/commands/[id]/edit/page";
 import EditFaqPage from "../../../../app/admin/faqs/[id]/edit/page";
-import EditImpactStatPage from "../../../../app/admin/impact/[id]/edit/page";
 import EditPillarPage from "../../../../app/admin/pillars/[id]/edit/page";
 import EditSocialLinkPage from "../../../../app/admin/socials/[id]/edit/page";
 import EditSponsorPage from "../../../../app/admin/sponsors/[id]/edit/page";
-import EditTestimonialPage from "../../../../app/admin/testimonials/[id]/edit/page";
 
 describe("PageHeader", () => {
   const html = renderToStaticMarkup(
@@ -102,9 +94,7 @@ describe("every edit page names its record and its state", () => {
     ["pillars", reads.pillar, EditPillarPage, { word: "w", title: "Comunidad", text: "t", image: null, isPublished: true }, "Comunidad · publicado"],
     ["socials", reads.social, EditSocialLinkPage, { platform: "instagram", label: "Instagram", handle: "@aso", url: "https://x.test", note: null, blurb: null, isPublished: false }, "Instagram · borrador"],
     ["board", reads.board, EditBoardMemberPage, { name: "Emilio Jaramillo", role: "Presidente", photo: null, isPublished: true }, "Emilio Jaramillo · publicado"],
-    ["impact", reads.impact, EditImpactStatPage, { value: "120", label: "Estudiantes", isPublished: true }, "Estudiantes · publicada"],
     ["sponsors", reads.sponsor, EditSponsorPage, { name: "Acme", url: null, logo: null, isPublished: false }, "Acme · borrador"],
-    ["testimonials", reads.testimonial, EditTestimonialPage, { quote: "q", name: "Ana Pérez", role: "r", photo: null, isPublished: true }, "Ana Pérez · publicado"],
   ] as const;
 
   it.each(cases)("%s", async (_module, read, Page, record, status) => {

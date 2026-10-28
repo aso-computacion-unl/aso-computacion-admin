@@ -32,8 +32,11 @@ describe("links", () => {
     expect(usageHref({ kind: "board", id: "b1" })).toBe("/admin/board/b1/edit");
     expect(usageHref({ kind: "event", id: "e1" })).toBe("/admin/events/e1/edit");
     expect(usageHref({ kind: "news", id: "n1" })).toBe("/admin/news/n1/edit");
-    expect(usageHref({ kind: "testimonial", id: "t1" })).toBe("/admin/testimonials/t1/edit");
     expect(usageHref({ kind: "sponsor", id: "s1" })).toBe("/admin/sponsors/s1/edit");
+  });
+
+  it("has no link for a testimonial: its page is gone but its photo is still in use", () => {
+    expect(usageHref({ kind: "testimonial", id: "t1" })).toBeNull();
   });
 
   it("builds the page link with the cursor encoded, and the plain path for the first page", () => {

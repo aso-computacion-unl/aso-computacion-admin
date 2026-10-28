@@ -12,13 +12,11 @@ import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { getAdminFaqs } from "@/interface/admin/faqs/faqs-admin-read";
 import { getAdminForumReports } from "@/interface/admin/forum/forum-moderation-read";
 import { buildHomeAgenda, type HomeAgenda } from "@/interface/admin/home-agenda";
-import { getAdminImpactStats } from "@/interface/admin/impact/impact-admin-read";
 import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 import { getAdminPillars } from "@/interface/admin/pillars/pillars-admin-read";
 import { pluralize, publicationSummary } from "@/interface/admin/publication-summary";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
 import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read";
-import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonials-admin-read";
 
 import { EmptyState } from "./_components/empty-state";
 import { PageHeader } from "./_components/page-header";
@@ -49,7 +47,7 @@ function describe(items: readonly { isPublished: boolean }[] | undefined): Modul
 }
 
 async function readHome(now: Date): Promise<{ lines: Record<Summary, ModuleSummary>; agenda: HomeAgenda }> {
-  const [events, news, faqs, commands, board, pillars, socials, impact, testimonials, sponsors, reports] = await Promise.all([
+  const [events, news, faqs, commands, board, pillars, socials, sponsors, reports] = await Promise.all([
     attempt(getAdminEvents),
     attempt(getAdminNewsItems),
     attempt(getAdminFaqs),
@@ -57,8 +55,6 @@ async function readHome(now: Date): Promise<{ lines: Record<Summary, ModuleSumma
     attempt(getAdminBoardMembers),
     attempt(getAdminPillars),
     attempt(getAdminSocialLinks),
-    attempt(getAdminImpactStats),
-    attempt(getAdminTestimonials),
     attempt(getAdminSponsors),
     attempt(() => getAdminForumReports({ status: "open", page: 1 })),
   ]);
@@ -72,8 +68,6 @@ async function readHome(now: Date): Promise<{ lines: Record<Summary, ModuleSumma
       "/admin/board": describe(board),
       "/admin/pillars": describe(pillars),
       "/admin/socials": describe(socials),
-      "/admin/impact": describe(impact),
-      "/admin/testimonials": describe(testimonials),
       "/admin/sponsors": describe(sponsors),
       "/admin/settings": { line: "Lema, descripción y «Acerca de»" },
     },

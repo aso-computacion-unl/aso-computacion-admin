@@ -21,8 +21,6 @@ const SUMMARY_BY_KIND = {
   social: "Red social reordenada",
   pillar: "Pilar reordenado",
   board: "Integrante de la directiva reordenado",
-  impact: "Cifra de impacto reordenada",
-  testimonial: "Testimonio reordenado",
   sponsor: "Aliado reordenado",
 } as const;
 

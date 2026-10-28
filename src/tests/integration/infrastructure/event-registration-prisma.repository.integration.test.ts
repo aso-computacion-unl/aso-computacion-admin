@@ -52,6 +52,19 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
     expect(await registrations.exists(event.id, first.email)).toBe(true);
   });
 
+  it("counts the registrations of many events in one call, leaving out the events nobody joined", async () => {
+    const busy = await addEvent({ title: "Con inscritos" });
+    const quiet = await addEvent({ title: "Sin inscritos" });
+    const other = await addEvent({ title: "Fuera de la consulta" });
+
+    for (const [event, times] of [[busy, 2], [other, 1]] as const) {
+      for (let index = 0; index < times; index += 1) await registrations.register(person(event.id), NOW);
+    }
+
+    expect(await registrations.countByEvents([busy.id, quiet.id])).toEqual(new Map([[busy.id, 2]]));
+    expect(await registrations.countByEvents([])).toEqual(new Map());
+  });
+
   it("gives the last seat to exactly one of many people who ask at the same moment", async () => {
     const event = await addEvent({ registrationCapacity: 3 });
 

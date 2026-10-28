@@ -262,6 +262,23 @@ CORS is the read API's allowlist (`PUBLIC_CORS_ORIGINS`, exact origins, no crede
 
 **Calendar file.** `GET /api/public/events/<slug>/calendar.ics` is public (no session, no personal data), rate limited and CORS-allowlisted like the content API, `Cache-Control: public, max-age=0, s-maxage=60, must-revalidate`, `Content-Disposition: attachment`. It exists only for an event that is public now and has an exact day (`404` otherwise). Times come from the first readable `HH:MM`, `HHhMM` or `Hh` in the free-text `hora` (the next one, if later, is the end); with none it is an all-day event. Times are written in UTC (Ecuador has no daylight saving, so no `VTIMEZONE`), text is escaped and lines are folded at 75 octets per RFC 5545. A start without an end has no `DTEND`. `UID` is `<slug>@aso-computacion` (no internal id).
 
+**Live seats.** `GET /api/public/events/seats` tells the landing how many seats each event has left, at page load, without a rebuild. It lists every event that takes registrations (`unl` or `open`) and is public now (published, inside its publication window, not trashed), at any date, soonest first and undated last. Read-only and **PII-free**: only the slug and counts; no ids, names, emails or titles.
+
+```jsonc
+{ "events": [
+  { "slug": "taller-de-git", "capacity": 60, "registered": 48, "seatsLeft": 12, "status": "open" },
+  { "slug": "charla-abierta", "capacity": null, "registered": 3, "seatsLeft": null, "status": "open" },
+  { "slug": "hackathon", "capacity": 2, "registered": 2, "seatsLeft": 0, "status": "full" }
+] }
+```
+
+- `registered` counts every stored registration, whatever the mode (there is no pending state). `capacity` and `seatsLeft` are `null` when the event has no limit; `seatsLeft` is never below 0.
+- `status` is `registrationState` (`src/domain/event-registration.ts`), the same rule the registration applies: `closed` when the deadline instant has passed or the event day is before today in Ecuador; else `full` when `registered >= capacity`; else `open`. `closed` wins over `full`. A month-only or undated event never closes by date.
+- One aggregated query counts all events (`EventRegistrationRepository.countByEvents`, a `GROUP BY`), never one per event.
+- `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate`, like the content API. Rate limit: the read API's (60 per minute per client, 429 + `Retry-After`). Any failure answers a generic `503 {"error":"Service unavailable"}` with `no-store`.
+- CORS: `Access-Control-Allow-Origin: *` (no credentials, no cookies are read), because the answer holds no personal data and a landing preview on a new origin must work; `OPTIONS` answers `204` for `GET`. It does **not** use the `PUBLIC_CORS_ORIGINS` allowlist, which stays for the content API and the registration form.
+- The number is a hint for the UI. The server stays the authority: the registration itself still answers `full` / `closed`.
+
 **Public API, per event** (additive; `null` when it does not apply):
 
 ```jsonc
@@ -281,7 +298,7 @@ CORS is the read API's allowlist (`PUBLIC_CORS_ORIGINS`, exact origins, no crede
 } | null
 ```
 
-URLs are built from `AUTH_URL` and are `null` while it is not set. `structuredData` and `calendarUrl` are `null` for a month-only or undated event. The seats left are **not** published (they change with every registration and the landing is static): `capacity` is the total, and the endpoint answers `full` / `closed` when it is too late. For the JSON-LD the landing adds `@type: "Event"`, `name`, `description`, `image`, `eventAttendanceMode` and, when registration exists, `offers: { "@type": "Offer", url: registrationUrl ?? <its own page>, price: "0", priceCurrency: "USD", availability }`.
+URLs are built from `AUTH_URL` and are `null` while it is not set. `structuredData` and `calendarUrl` are `null` for a month-only or undated event. The seats left are **not** in the content snapshot (they change with every registration and the landing is static): `capacity` is the total, the live count is `GET /api/public/events/seats` (below), and the registration endpoint answers `full` / `closed` when it is too late. For the JSON-LD the landing adds `@type: "Event"`, `name`, `description`, `image`, `eventAttendanceMode` and, when registration exists, `offers: { "@type": "Offer", url: registrationUrl ?? <its own page>, price: "0", priceCurrency: "USD", availability }`.
 
 **Admin.** `/admin/events/<id>/registrations` lists the people (linked from the event editor): **ADMIN and EDITOR** can view; only an **ADMIN** can export (`GET /admin/events/<id>/registrations/export`, a UTF-8 CSV with a byte order mark, every cell quoted, spreadsheet formulas neutralised with a leading `'`; `401` / `403` / `404` as statuses) or delete a registration (`deleteEventRegistration`, `requireRole("ADMIN")`, a row in `action-policy.ts`). Both are audited (`event.registrations_export`, `event.registration_delete`) with the event id and, for the export, a count: **never a name or an email** in a summary. Deleting is permanent and frees the seat.
 

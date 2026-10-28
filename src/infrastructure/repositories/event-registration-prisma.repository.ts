@@ -79,6 +79,14 @@ export class EventRegistrationPrismaRepository implements EventRegistrationRepos
     return prisma.eventRegistration.count({ where: { eventId } });
   }
 
+  async countByEvents(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>> {
+    if (eventIds.length === 0) return new Map();
+
+    const groups = await prisma.eventRegistration.groupBy({ by: ["eventId"], where: { eventId: { in: [...eventIds] } }, _count: { _all: true } });
+
+    return new Map(groups.map((group) => [group.eventId, group._count._all]));
+  }
+
   async exists(eventId: string, email: string): Promise<boolean> {
     return (await prisma.eventRegistration.findUnique({ where: { eventId_email: { eventId, email } }, select: { id: true } })) !== null;
   }

@@ -87,7 +87,40 @@ describe("the registrations overview page", () => {
 
     expect(html).toContain("7 · sin límite");
     expect(html).toContain("Borrador: no está en el sitio");
-    expect(html.match(/no está en el sitio/g)).toHaveLength(1);
+    // The stacked list and the table each say it once; only one of them shows at a time.
+    expect(html.match(/no está en el sitio/g)).toHaveLength(2);
+  });
+
+  it("says in words what the seats and the closing of each event mean", async () => {
+    const limitado = await addTestEvent({ title: "Con tope", date: "2099-12-01", registrationCapacity: 40, registrationDeadline: new Date("2099-11-27T23:00:00.000Z") });
+    const sinFecha = await addTestEvent({ title: "Sin día", date: null });
+    await addTestEvent({ title: "De todo el mes", date: "2099-12-01", datePrecision: "month" });
+    await addTestEvent({ title: "De un día", date: "2099-12-05" });
+    register(limitado.id, 12);
+    register(sinFecha.id, 1);
+
+    const html = await render();
+
+    // The screen reader gets "12 de 40" instead of "12 slash 40"; the slash and the dot stay for the eyes only.
+    expect(html).toContain('<span aria-hidden="true">12 / 40</span><span class="sr-only">12 de 40</span>');
+    expect(html).toContain('<span class="sr-only">1, sin límite</span>');
+    // The time of the deadline never breaks before "p. m.".
+    expect(html).toContain("6:00\u00a0p.\u00a0m.");
+    expect(html).toContain("Sin cierre");
+    expect(html).toContain("Al terminar el mes");
+    expect(html).toContain("Con el día del evento");
+  });
+
+  it("gives every event a stacked block for narrow screens beside the table, and names each section only once", async () => {
+    await addTestEvent({ title: "Uno", date: "2099-12-01" });
+    await addTestEvent({ title: "Dos", date: "2099-12-02" });
+
+    const html = await render();
+
+    expect(html.match(/<li /g)).toHaveLength(2);
+    expect(html.match(/<tr /g)).toHaveLength(3); // the header and one per event
+    expect(html.match(/aria-labelledby="registrations-upcoming"/g)).toHaveLength(1);
+    expect(html.match(/aria-label=/g)).toBeNull();
   });
 
   it("shows counts only: nothing of the people registered", async () => {

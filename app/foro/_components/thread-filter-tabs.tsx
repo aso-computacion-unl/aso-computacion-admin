@@ -5,7 +5,8 @@ import type { ThreadFilter } from "@/interface/forum/forum-display";
 import { cn } from "@/lib/utils";
 
 interface ThreadFilterTabsProps {
-  active: ThreadFilter;
+  /** `null` on a page that is not the list (the registrations): no tab is current. */
+  active: ThreadFilter | null;
   /** The URL of each tab: the list decides which parameters travel with it. */
   hrefFor: (filter: ThreadFilter) => string;
   /** Per-filter counts; omitted when they would mislead (a category list spanning several pages). */

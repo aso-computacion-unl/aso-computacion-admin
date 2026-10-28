@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 interface CategoryRailProps {
   categories: { slug: string; name: string; description: string | null; threadCount: number }[];
-  /** The slug the list is narrowed to; none means every category. */
-  active: string | undefined;
+  /** The slug the list is narrowed to; none means every category, `null` that no category applies (the registrations page). */
+  active: string | null | undefined;
   /** The tab stays when the category changes. */
   filter: ThreadFilter;
 }

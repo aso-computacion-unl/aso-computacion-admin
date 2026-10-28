@@ -31,10 +31,10 @@ export function SideNav() {
                 className={cn(
                   "group flex min-h-11 items-center gap-3 rounded px-3 font-semibold text-mist",
                   "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
+                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_3px_0_0_var(--color-signal)]",
                 )}
               >
-                <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />
+                <Icon name={item.icon} />
                 {item.label}
               </Link>
             </li>
@@ -48,7 +48,7 @@ export function SideNav() {
 const TAB_LINK_CLASSES = cn(
   "flex flex-col items-center justify-center gap-1 text-xs font-semibold text-mist no-underline",
   "transition-colors duration-150 ease-out active:bg-navy-lift",
-  "aria-[current=page]:text-sky",
+  "aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_0_3px_0_var(--color-signal)]",
   "focus-visible:-outline-offset-4",
 );
 
@@ -116,10 +116,10 @@ function MoreTab({ pathname }: { pathname: string }) {
                 className={cn(
                   "group flex min-h-12 items-center gap-3 rounded px-3 font-semibold text-mist",
                   "transition-colors duration-150 ease-out active:bg-navy-lift",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
+                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_3px_0_0_var(--color-signal)]",
                 )}
               >
-                <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />
+                <Icon name={item.icon} />
                 {item.label}
               </Link>
             </li>

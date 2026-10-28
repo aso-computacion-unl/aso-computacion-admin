@@ -89,13 +89,13 @@ export default async function AdminHomePage() {
                   href={item.href}
                   className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 py-3 pr-2 transition-colors duration-150 ease-out after:absolute after:inset-0 after:content-[''] hover:bg-foreground/4 sm:flex-1 sm:items-start sm:rounded sm:p-5 sm:pb-4"
                 >
-                  <Icon name={item.icon} className="ml-2 text-sky sm:mt-1 sm:ml-0" />
+                  <Icon name={item.icon} className="ml-2 sm:mt-1 sm:ml-0" />
                   <span className="grid">
                     <span className="font-bold font-stretch-[112%] sm:text-lg">{item.label}</span>
                     <span className="font-mono text-[0.8125rem] text-mist">{line}</span>
                   </span>
                   {count === null ? null : (
-                    <span aria-hidden="true" className="hidden font-display text-4xl leading-none text-sky tabular-nums sm:block">
+                    <span aria-hidden="true" className="hidden font-display text-4xl leading-none tabular-nums sm:block">
                       {count}
                     </span>
                   )}

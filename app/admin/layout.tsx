@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       <a
         href="#main"
-        className="fixed top-[-4rem] left-3 z-100 rounded bg-sky px-4 py-2.5 font-bold text-primary-foreground focus:top-3"
+        className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3"
       >
         Saltar al contenido
       </a>
@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-muted pr-2 pl-4 shadow-[0_1px_0_var(--color-border)] lg:hidden">
         <Link href="/admin" aria-label="ASO Computación, inicio de la administración" className="flex items-center gap-3">
           <BrandIsotype width={26} height={29} />
-          <span className="font-display text-lg tracking-[0.01em]">Admin ASO</span>
+          <span className="font-brand text-lg tracking-[0.01em]">Admin ASO</span>
         </Link>
         <ThemeToggle className="ml-auto" />
         <form action={logout}>

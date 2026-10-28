@@ -54,7 +54,7 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
               {event.title}
             </Link>
           </h3>
-          {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
+          {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-foreground/72">$ {event.commitMessage}</p> : null}
         </div>
         {event.description ? <p className="hidden line-clamp-3 text-sm text-mist lg:block">{event.description}</p> : <span className="hidden lg:block" />}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:mt-0 lg:flex-nowrap lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">

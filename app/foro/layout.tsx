@@ -27,7 +27,7 @@ export default async function ForumLayout({ children }: { children: ReactNode })
 
   return (
     <div className="min-h-screen">
-      <a href="#main" className="fixed top-[-4rem] left-3 z-100 rounded bg-sky px-4 py-2.5 font-bold text-primary-foreground focus:top-3">
+      <a href="#main" className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3">
         Saltar al contenido
       </a>
 

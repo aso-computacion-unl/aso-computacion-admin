@@ -34,7 +34,7 @@ export function BulkCheckbox({ id, label }: { id: string; label: string }) {
         disabled={selection.disabled}
         onChange={() => selection.toggle(id)}
         aria-label={`Seleccionar: ${label}`}
-        className="size-5 cursor-pointer accent-sky"
+        className="size-5 cursor-pointer accent-action"
       />
     </label>
   );
@@ -129,7 +129,7 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
               checked={allSelected}
               disabled={pending}
               onChange={() => setSelected(selectAll(ids, !allSelected))}
-              className="size-5 cursor-pointer accent-sky"
+              className="size-5 cursor-pointer accent-action"
             />
             Seleccionar todo en esta página
           </label>

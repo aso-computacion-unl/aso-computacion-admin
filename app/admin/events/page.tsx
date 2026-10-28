@@ -63,7 +63,7 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
           {event.title}
         </Link>
       </h3>
-      {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
+      {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-foreground/72">$ {event.commitMessage}</p> : null}
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.8125rem] text-mist">
         {typeLabel ? <span>{typeLabel}</span> : null}
         <span className="inline-flex items-center gap-1.5">

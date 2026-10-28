@@ -70,7 +70,7 @@ export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
             checked={allSelected}
             disabled={pending || deletable.length === 0}
             onChange={() => setSelected(selectAll(deletable, !allSelected))}
-            className="size-5 cursor-pointer accent-sky"
+            className="size-5 cursor-pointer accent-action"
           />
           Seleccionar todas las que se pueden eliminar
         </label>
@@ -147,7 +147,7 @@ export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
                   disabled={pending}
                   onChange={() => setSelected((previous) => toggle(previous, item.publicId))}
                   aria-label={`Seleccionar: ${item.publicId}`}
-                  className="size-5 cursor-pointer accent-sky"
+                  className="size-5 cursor-pointer accent-action"
                 />
                 Eliminar
               </label>

@@ -221,7 +221,7 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
             return (
               <li key={item.href} className="bg-card">
                 <Link href={item.href} className={ROW_LINK}>
-                  <Icon name={item.icon} className="size-4.5 shrink-0 text-sky" />
+                  <Icon name={item.icon} className="size-4.5 shrink-0" />
                   <span className="grid min-w-0">
                     <span className="font-semibold">{item.label}</span>
                     <span className="truncate font-mono text-xs text-mist">{line}</span>

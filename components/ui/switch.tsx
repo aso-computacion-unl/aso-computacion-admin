@@ -12,7 +12,7 @@ export function SwitchTrack({ className }: { className?: string }) {
         "transition-colors duration-200 ease-out",
         "after:absolute after:top-0.5 after:left-0.5 after:size-[1.125rem] after:rounded-full after:bg-mist",
         "after:transition-[translate,background-color] after:duration-200 after:ease-(--ease-reveal) after:content-['']",
-        "peer-checked:border-sky peer-checked:bg-sky peer-checked:after:translate-x-5 peer-checked:after:bg-muted",
+        "peer-checked:border-action peer-checked:bg-action peer-checked:after:translate-x-5 peer-checked:after:bg-muted",
         "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-sky",
         "peer-disabled:opacity-50",
         className,

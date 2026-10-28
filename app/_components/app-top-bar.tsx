@@ -23,7 +23,7 @@ export function AppTopBar({ productName, homeHref, homeLabel, children }: AppTop
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-muted px-4 shadow-[0_1px_0_var(--color-border)] sm:px-6">
       <Link href={homeHref} aria-label={homeLabel} className="flex items-center gap-3 rounded">
         <BrandIsotype width={26} height={29} />
-        <span className="font-display text-lg tracking-[0.01em]">{productName}</span>
+        <span className="font-brand text-lg tracking-[0.01em]">{productName}</span>
       </Link>
       <div className="ml-auto flex items-center gap-1">{children}</div>
     </header>

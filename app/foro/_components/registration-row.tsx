@@ -34,6 +34,9 @@ export function RegistrationRow({ event }: { event: OpenUnlEvent }) {
           <span className="xl:hidden"> · </span>
           <span className="xl:col-start-4 xl:row-span-2 xl:row-start-1 xl:self-center xl:text-sm">{seatsText(event.seatsLeft)}</span>
         </span>
+        {event.description ? (
+          <span className="col-start-2 line-clamp-2 max-w-[65ch] text-sm text-mist xl:row-start-2">{event.description}</span>
+        ) : null}
       </Link>
     </li>
   );

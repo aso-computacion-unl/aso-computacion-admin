@@ -107,6 +107,27 @@ describe("/foro/eventos as a member", () => {
     expect(html).not.toContain("Taller lleno");
   });
 
+  it("shows each event's description under its title, and nothing extra for an event without one", async () => {
+    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28", description: "Contenedores desde cero, con tu laptop." });
+    await addTestEvent({ title: "Meetup sin texto", registrationMode: "unl", date: "2099-12-02" });
+
+    const list = (await render()).match(/<ul>[\s\S]*?<\/ul>/)?.[0] ?? "";
+    const items = list.match(/<li>[\s\S]*?<\/li>/g) ?? [];
+
+    expect(items[0]).toContain("Contenedores desde cero, con tu laptop.");
+    expect(items[1]).not.toContain("line-clamp-2");
+  });
+
+  it("lists more than five open events: the page shows them all", async () => {
+    for (let day = 1; day <= 7; day += 1) {
+      await addTestEvent({ title: `Evento ${day}`, registrationMode: "unl", date: `2099-12-${String(day).padStart(2, "0")}` });
+    }
+
+    const list = (await render()).match(/<ul>[\s\S]*?<\/ul>/)?.[0] ?? "";
+
+    expect(list.match(/<li>/g)).toHaveLength(7);
+  });
+
   it("says so, with a way back to the threads, while no event is open", async () => {
     await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { ListOpenUnlEventsUseCase, OPEN_UNL_EVENTS_LIMIT } from "@/application/event-registration/list-open-unl-events.use-case";
+import { ListOpenUnlEventsUseCase } from "@/application/event-registration/list-open-unl-events.use-case";
 import { Event, type CreateEventInput } from "@/domain/event";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
@@ -41,11 +41,13 @@ describe("ListOpenUnlEventsUseCase", () => {
     expect(await titles()).toEqual(["Taller de Docker", "Taller de Git", "Charla sin fecha"]);
   });
 
-  it("describes each event for a link: slug, date, and the seats left of the capacity", async () => {
-    const taller = await addEvent("Taller de Docker", { registrationCapacity: 60 });
+  it("describes each event for its row: slug, date, description, and the seats left of the capacity", async () => {
+    const taller = await addEvent("Taller de Docker", { registrationCapacity: 60, description: "Contenedores desde cero." });
     register(taller.id, 48);
 
-    expect(await list()).toEqual([{ slug: "taller-de-docker", title: "Taller de Docker", date: "2026-11-28", datePrecision: "day", capacity: 60, seatsLeft: 12 }]);
+    expect(await list()).toEqual([
+      { slug: "taller-de-docker", title: "Taller de Docker", date: "2026-11-28", datePrecision: "day", description: "Contenedores desde cero.", capacity: 60, seatsLeft: 12 },
+    ]);
   });
 
   it("has no seat count for an event without a limit", async () => {
@@ -73,12 +75,12 @@ describe("ListOpenUnlEventsUseCase", () => {
     expect(await list()).toEqual([]);
   });
 
-  it(`shows at most ${OPEN_UNL_EVENTS_LIMIT} events, the soonest ones`, async () => {
-    for (let day = 1; day <= OPEN_UNL_EVENTS_LIMIT + 2; day += 1) await addEvent(`Evento ${day}`, { date: `2026-12-${String(day).padStart(2, "0")}` });
+  it("lists every open event, not only the first few: the registrations page shows them all", async () => {
+    for (let day = 1; day <= 7; day += 1) await addEvent(`Evento ${day}`, { date: `2026-12-${String(day).padStart(2, "0")}` });
 
     const shown = await titles();
 
-    expect(shown).toHaveLength(OPEN_UNL_EVENTS_LIMIT);
+    expect(shown).toHaveLength(7);
     expect(shown[0]).toBe("Evento 1");
   });
 });

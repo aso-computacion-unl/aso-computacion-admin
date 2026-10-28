@@ -5,6 +5,7 @@ import { requireRuntimeValue } from "../config/runtime-env";
 
 export const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 export const TURNSTILE_SECRET_ENV_VAR = "TURNSTILE_SECRET_KEY";
+export const TURNSTILE_SITE_KEY_ENV_VAR = "TURNSTILE_SITE_KEY";
 
 /** Cloudflare documents tokens of up to 2048 characters; anything longer is not one. */
 const TOKEN_MAX_LENGTH = 2048;
@@ -23,6 +24,24 @@ export interface TurnstileOptions {
 function configuredSecret(env: Record<string, string | undefined>): string | undefined {
   try {
     return requireRuntimeValue(TURNSTILE_SECRET_ENV_VAR, env[TURNSTILE_SECRET_ENV_VAR]).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+// What Cloudflare issues (letters, digits, `_`, `-`); the value ends up in the page, so nothing else gets through.
+const SITE_KEY_PATTERN = /^[0-9A-Za-z_-]{1,100}$/;
+
+/**
+ * The public half of the widget's key pair, read at request time so the page can render the widget without a
+ * rebuild. Missing, a placeholder or oddly shaped: `undefined`, and the page renders no widget (the server
+ * still refuses an unverified registration in production).
+ */
+export function turnstileSiteKey(env: Record<string, string | undefined> = process.env): string | undefined {
+  try {
+    const key = requireRuntimeValue(TURNSTILE_SITE_KEY_ENV_VAR, env[TURNSTILE_SITE_KEY_ENV_VAR]).trim();
+
+    return SITE_KEY_PATTERN.test(key) ? key : undefined;
   } catch {
     return undefined;
   }

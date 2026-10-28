@@ -2,18 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { buildContentSecurityPolicy, SECURITY_HEADERS } from "@/infrastructure/http/security-headers";
 
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
 function scriptSrc(policy: string): string {
   return policy.split("; ").find((directive) => directive.startsWith("script-src")) ?? "";
 }
 
 describe("buildContentSecurityPolicy", () => {
   it("never allows eval in production", () => {
-    expect(scriptSrc(buildContentSecurityPolicy("production"))).toBe("script-src 'self' 'unsafe-inline'");
+    expect(scriptSrc(buildContentSecurityPolicy("production"))).toBe(`script-src 'self' 'unsafe-inline' ${TURNSTILE_ORIGIN}`);
   });
 
   it("allows eval only under next dev, whose React runtime needs it to hydrate", () => {
     expect(scriptSrc(buildContentSecurityPolicy("development"))).toBe(
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${TURNSTILE_ORIGIN}`,
     );
   });
 
@@ -32,10 +34,20 @@ describe("buildContentSecurityPolicy", () => {
   it("allows only the Sentry ingest origin for connections, and only when a DSN is configured", () => {
     const connectSrc = (policy: string) => policy.split("; ").find((directive) => directive.startsWith("connect-src"));
 
-    expect(connectSrc(buildContentSecurityPolicy("production"))).toBe("connect-src 'self'");
+    expect(connectSrc(buildContentSecurityPolicy("production"))).toBe(`connect-src 'self' ${TURNSTILE_ORIGIN}`);
     expect(connectSrc(buildContentSecurityPolicy("production", "https://key@o1.ingest.us.sentry.io/2"))).toBe(
-      "connect-src 'self' https://o1.ingest.us.sentry.io",
+      `connect-src 'self' https://o1.ingest.us.sentry.io ${TURNSTILE_ORIGIN}`,
     );
+  });
+
+  it("lets the registration page load Cloudflare Turnstile and its challenge frame, and nothing else from outside", () => {
+    const directive = (name: string) => buildContentSecurityPolicy("production").split("; ").find((entry) => entry.startsWith(name));
+
+    expect(directive("frame-src")).toBe(`frame-src ${TURNSTILE_ORIGIN}`);
+    expect(directive("script-src")).toContain(TURNSTILE_ORIGIN);
+    expect(directive("default-src")).toBe("default-src 'self'");
+    expect(directive("frame-ancestors")).toBe("frame-ancestors 'none'");
+    expect(buildContentSecurityPolicy("production")).not.toMatch(/\*/);
   });
 
   it("ignores a DSN that is not an https URL", () => {

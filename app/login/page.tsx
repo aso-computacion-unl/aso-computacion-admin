@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 
-import { Icon } from "@/components/icons";
 import { loginAvailability } from "@/infrastructure/auth/auth-config";
 import { login } from "@/interface/auth/actions";
 import { CONFIG_INCOMPLETE_MESSAGE, loginErrorMessage } from "@/interface/auth/login-errors";
 import { reportAuthConfigProblems } from "@/interface/auth/report-auth-config";
 
-import { AuthSplit } from "../_components/auth-split";
-import { GoogleButton } from "../_components/google-button";
+import { AuthAlert } from "../_components/auth-alert";
+import { AuthBranch, BranchGoogleButton, BranchLead, BranchNode, BranchNodeText, BranchNodeTitle } from "../_components/auth-branch";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import { LoginForm } from "./_components/login-form";
@@ -29,69 +28,64 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main>
-      <AuthSplit
-        panelLabel="Sobre el panel"
-        headline="El sitio de la asociación, siempre al día."
-        lines={["Publique eventos, noticias y galerías sin pedir ayuda a nadie.", "Cada cambio reconstruye el sitio público de ASO Computación."]}
-        terminal="git log --oneline"
-        visual={<CommitLog />}
-        logo
+      <AuthBranch
+        branch="admin"
         title="Panel de administración"
         titleId="login-title"
-        titleClassName="font-display text-[1.75rem] leading-[1.15] lg:text-[clamp(1.75rem,2.3vw,2.25rem)]"
+        logo
         corner={<ThemeToggle />}
-      >
-        <p className="text-lg text-mist">
-          {google
-            ? "Entre con su cuenta de Google para editar el sitio de ASO Computación."
-            : misconfigured && !emergency
-              ? "El acceso no está disponible hasta corregir la configuración."
-              : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
-        </p>
-        {error ? (
-          <p role="alert" className="flex items-start gap-2 border-l-2 border-error bg-error/10 px-3 py-2 text-sm">
-            <Icon name="alert" className="mt-px size-4 shrink-0 text-error" />
-            {error}
-          </p>
-        ) : null}
-        {google ? (
-          // A plain link, not next/link: it must not be prefetched, it starts a redirect flow.
-          <GoogleButton href="/auth/google/start" className="w-full">
-            Entrar con Google
-          </GoogleButton>
-        ) : null}
-        {misconfigured && emergency ? <LoginForm action={login} /> : null}
-        {google && emergency ? (
-          <details className="border-t border-border pt-4">
-            <summary className="cursor-pointer font-semibold text-mist">Acceso de emergencia</summary>
-            <p className="mt-3 mb-4 text-sm text-mist">Solo si el acceso con Google no está disponible. Queda registrado.</p>
-            <LoginForm action={login} />
-          </details>
-        ) : null}
-        {google || misconfigured ? null : <LoginForm action={login} />}
-      </AuthSplit>
+        note="Después de entrar, esto es lo que sigue."
+        head={
+          <>
+            <BranchLead>
+              {google
+                ? "Entre con su cuenta de Google para editar el sitio de ASO Computación."
+                : misconfigured && !emergency
+                  ? "El acceso no está disponible hasta corregir la configuración."
+                  : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
+            </BranchLead>
+            {error ? (
+              <AuthAlert className="mb-4 max-w-[34rem]">
+                <p>{error}</p>
+              </AuthAlert>
+            ) : null}
+            {/* A plain link, not next/link: it must not be prefetched, it starts a redirect flow. */}
+            {google ? <BranchGoogleButton href="/auth/google/start">Entrar con Google</BranchGoogleButton> : null}
+            {misconfigured && emergency ? (
+              <div className="max-w-[34rem]">
+                <LoginForm action={login} />
+              </div>
+            ) : null}
+            {google && emergency ? (
+              <details className="emergency mt-2.5 max-w-[34rem]">
+                <summary className="font-stretch-[108%] font-semibold text-mist hover:text-foreground">Acceso de emergencia</summary>
+                <div className="mt-1.5 grid gap-3 rounded-lg border border-border bg-card p-4.5">
+                  <p className="text-[0.9375rem] text-mist">Solo si el acceso con Google no está disponible. Queda registrado.</p>
+                  <LoginForm action={login} />
+                </div>
+              </details>
+            ) : null}
+            {google || misconfigured ? null : (
+              <div className="max-w-[34rem]">
+                <LoginForm action={login} />
+              </div>
+            )}
+          </>
+        }
+        nodes={NEXT_STEPS.map(([hash, title, text]) => (
+          <BranchNode key={hash} hash={hash}>
+            <BranchNodeTitle>{title}</BranchNodeTitle>
+            <BranchNodeText>{text}</BranchNodeText>
+          </BranchNode>
+        ))}
+      />
     </main>
   );
 }
 
-// Made-up history that shows what the panel is for; decoration, never read from the database.
-const COMMITS = [
-  ["a3f9c21", "evento publicado"],
-  ["7be04d8", "galería ordenada"],
-  ["c19a5f3", "noticia actualizada"],
-  ["02d6e7b", "preguntas frecuentes al día"],
+// What the panel is for, one node each. The hashes are made up; they only dress the branch.
+const NEXT_STEPS = [
+  ["a3f9c21", "Eventos y galerías", "Publique el evento con todas sus fotos, sin pedir ayuda a nadie."],
+  ["c19a5f3", "Noticias y preguntas frecuentes", "Redacte, corrija y programe lo que dice el sitio de la asociación."],
+  ["02d6e7b", "Sitio público al día", "Cada cambio reconstruye el sitio público de ASO Computación."],
 ] as const;
-
-function CommitLog() {
-  return (
-    <ol aria-hidden="true" className="grid gap-4 font-mono text-sm xl:gap-5 xl:text-base">
-      {COMMITS.map(([hash, message]) => (
-        <li key={hash} className="relative flex gap-4">
-          <span className="absolute top-[0.5em] left-[calc(-1.75rem-0.375rem)] size-[0.6875rem] rounded-full border-2 border-sky bg-muted" />
-          <span className="text-sky">{hash}</span>
-          <span className="text-foreground">{message}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}

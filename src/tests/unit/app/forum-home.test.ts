@@ -57,27 +57,30 @@ describe("/foro as a visitor", () => {
     expect(html).not.toContain('role="alert"');
   });
 
-  it("draws the Google button from the shared style, not from colours of its own, and the title in the forum's title face", async () => {
+  it("draws the Google button from the shared style, not from colours of its own, and the title in the shared title face", async () => {
     const html = await renderHome();
     const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start"[^>]*>/)?.[0] ?? "";
     const title = html.match(/<h1[^>]*id="gate-title"[^>]*>/)?.[0] ?? "";
 
     expect(button).toContain('class="google-button');
     expect(button).not.toMatch(/#[0-9a-f]{3,6}|bg-white|border-white|rgb\(/i);
-    expect(title).not.toContain("font-display");
-    expect(title).toContain("font-bold");
+    expect(title).toContain("font-display");
     expect(html).toMatch(/<h1[^>]*>El foro de Computación<\/h1>/);
   });
 
-  it("splits the sign-in into a brand panel and the form: the panel names the forum, the form owns the h1", async () => {
+  it("sets the sign-in as the first node of a branch, followed by sample threads hidden from assistive technology", async () => {
     const html = await renderHome();
-    const panel = html.match(/<aside[^>]*aria-label="Sobre el foro"[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+    const branch = html.match(/<ol class="branch">[\s\S]*?<\/ol>\s*<\/section>/)?.[0] ?? "";
+    const head = branch.match(/<li>[\s\S]*?<\/li>/)?.[0] ?? "";
 
-    expect(panel).toContain("Entre estudiantes nos ayudamos.");
-    expect(panel).toContain("git switch foro");
-    expect(panel).not.toContain("<h1");
+    expect(head).toContain("HEAD → foro");
+    expect(head).toContain("Entrar con Google");
+    expect(branch).toContain("materias");
+    expect(branch).toContain("¿Cómo preparo el examen de Estructuras de Datos?");
+    expect(branch).toMatch(/<li aria-hidden="true" inert="">/);
     expect(html.match(/<h1/g)).toHaveLength(1);
-    expect(html.indexOf('aria-label="Sobre el foro"')).toBeLessThan(html.indexOf('id="gate-title"'));
+    expect(html.match(/<h2/g)).toBeNull();
+    expect(html).toContain("Hilos de ejemplo");
     expect(html).toContain("data-bleed");
   });
 

@@ -33,18 +33,27 @@ describe("the admin login with Google available", () => {
 describe("the admin login layout", () => {
   beforeEach(() => availability.mockReturnValue({ google: true, emergency: true, problems: [] }));
 
-  it("sets a brand panel beside the form on wide screens: what the panel is for, a commit log, and no second h1", async () => {
+  it("sets the access as the first node of a branch: HEAD, then what the panel is for, with no second h1", async () => {
     const html = await render();
-    const panel = html.match(/<aside[^>]*aria-label="Sobre el panel"[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+    const branch = html.match(/<ol class="branch">[\s\S]*?<\/ol>/)?.[0] ?? "";
+    const head = branch.match(/<li>[\s\S]*?<\/li>/)?.[0] ?? "";
 
-    expect(panel).toContain("hidden");
-    expect(panel).toContain("lg:flex");
-    expect(panel).toContain("El sitio de la asociación, siempre al día.");
-    expect(panel).toContain("git log --oneline");
-    expect(panel).toContain("a3f9c21");
-    expect(panel).not.toContain("<h1");
+    expect(head).toContain("HEAD → admin");
+    expect(head).toContain("Entrar con Google");
+    expect(branch.match(/<li/g)).toHaveLength(4);
+    expect(branch).toContain("Eventos y galerías");
+    expect(branch).toContain("Noticias y preguntas frecuentes");
+    expect(branch).toContain("Sitio público al día");
+    expect(branch).toContain("a3f9c21");
     expect(html.match(/<h1/g)).toHaveLength(1);
-    expect(html.indexOf('aria-label="Sobre el panel"')).toBeLessThan(html.indexOf('id="login-title"'));
+    expect(html.indexOf('id="login-title"')).toBeLessThan(html.indexOf('class="branch"'));
+  });
+
+  it("keeps the hashes and the terminal line out of assistive technology", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/<span aria-hidden="true"[^>]*>a3f9c21<\/span>/);
+    expect(html).toMatch(/<p aria-hidden="true"[^>]*>\$ git branch --show-current/);
   });
 
   it("keeps the form in the one main landmark and fills the viewport height", async () => {
@@ -56,12 +65,33 @@ describe("the admin login layout", () => {
     expect(html).toContain("Panel de administración");
   });
 
-  it("names the form's section by the title and gives the panel the larger share of the width", async () => {
+  it("names the section by the title and offers the emergency access as a closed disclosure", async () => {
     const html = await render();
 
     expect(html).toMatch(/<section aria-labelledby="login-title"[^>]*>\s*<h1 id="login-title"/);
-    expect(html).toContain("lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]");
     expect(html).toContain("Entrar con Google");
-    expect(html).toContain("Acceso de emergencia");
+    expect(html).toMatch(/<details class="emergency[^"]*"[^>]*>\s*<summary[^>]*>Acceso de emergencia<\/summary>/);
+    expect(html).not.toMatch(/<details[^>]* open/);
+  });
+});
+
+describe("the admin login states", () => {
+  it("shows the error of the query as one alert in the first node, above the Google button", async () => {
+    availability.mockReturnValue({ google: true, emergency: true, problems: [] });
+    const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({ error: "verification" }) }));
+
+    expect(html.match(/role="alert"/g)).toHaveLength(1);
+    expect(html).toContain("No pudimos verificar tu cuenta de Google");
+    expect(html.indexOf('role="alert"')).toBeLessThan(html.indexOf('href="/auth/google/start"'));
+  });
+
+  it("without Google, asks for the password in the first node and offers no Google button or disclosure", async () => {
+    availability.mockReturnValue({ google: false, emergency: true, problems: [] });
+    const html = await render();
+
+    expect(html).toContain("Ingrese la contraseña de la directiva");
+    expect(html).toContain('name="password"');
+    expect(html).not.toContain("Entrar con Google");
+    expect(html).not.toContain("<details");
   });
 });

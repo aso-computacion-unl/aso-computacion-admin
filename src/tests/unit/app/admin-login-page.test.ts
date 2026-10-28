@@ -81,7 +81,7 @@ describe("the admin login states", () => {
     const html = renderToStaticMarkup(await LoginPage({ searchParams: Promise.resolve({ error: "verification" }) }));
 
     expect(html.match(/role="alert"/g)).toHaveLength(1);
-    expect(html).toContain("No pudimos verificar tu cuenta de Google");
+    expect(html).toContain("No pudimos verificar su cuenta de Google");
     expect(html.indexOf('role="alert"')).toBeLessThan(html.indexOf('href="/auth/google/start"'));
   });
 

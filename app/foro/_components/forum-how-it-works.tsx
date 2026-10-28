@@ -10,12 +10,12 @@ const STEPS: { icon: IconName; title: string; text: string }[] = [
 /** A short guide to the forum for the side of the list on wide screens, and below it on phones. */
 export function ForumHowItWorks() {
   return (
-    <aside aria-labelledby="how-it-works-title" className="overflow-hidden rounded-xl border border-border bg-muted">
-      <h2 id="how-it-works-title" className="flex items-center gap-2 border-b border-border px-3 py-3 text-base font-bold font-stretch-[106%] tracking-tight sm:px-4">
+    <aside aria-labelledby="how-it-works-title">
+      <h2 id="how-it-works-title" className="flex items-center gap-2 pb-3 text-base font-bold font-stretch-[106%] tracking-tight">
         <Icon name="terminal" className="size-4 text-sky" />
         Cómo funciona el foro
       </h2>
-      <ol className="grid gap-4 px-3 py-4 sm:px-4">
+      <ol className="grid gap-4 border-t border-border/50 pt-4">
         {STEPS.map(({ icon, title, text }) => (
           <li key={title} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3">
             <Icon name={icon} className="mt-0.5 size-5 text-sky" />

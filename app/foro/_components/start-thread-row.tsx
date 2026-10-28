@@ -6,10 +6,13 @@ interface StartThreadRowProps {
   currentSlug?: string;
 }
 
-/** The last row of a thread list: the way to add one more. Outside the list's card so the category panel is not clipped by it. */
+/**
+ * The end of a thread list, where its branch line stops in an open node: the way to add one more. It lives inside
+ * `.thread-graph` (forum.css) and outside the list itself, so the category panel of the button is not clipped.
+ */
 export function StartThreadRow({ categories, currentSlug }: StartThreadRowProps) {
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-dashed border-border px-4 py-4 sm:px-5">
+    <div className="thread-graph-end flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border/50 py-5 pr-(--row-px) pl-[calc(var(--row-px)+2.25rem)] xl:pl-[calc(var(--row-px)+3rem)]">
       <div className="min-w-0">
         <p className="font-semibold text-foreground">¿No encuentra su duda?</p>
         <p className="text-sm text-mist">Abra un hilo y otros estudiantes le responderán.</p>

@@ -41,11 +41,12 @@ export default async function ForumLayout({ children }: { children: ReactNode })
 
       {/*
         * A reading column by default (threads, events, the new-thread form). A page marks what it needs inside:
-        * `data-wide` for the three-column list, `data-bleed` for the sign-in, which fills the width under the top bar.
+        * `data-wide` for the list with its side rail and `data-bleed` for the sign-in; both fill the width under the
+        * top bar and set their own spacing.
         */}
       <main
         id="main"
-        className="mx-auto w-full max-w-[62rem] px-4 pt-8 pb-16 sm:px-6 has-[[data-wide]]:max-w-[88rem] has-[[data-bleed]]:max-w-none has-[[data-bleed]]:p-0 has-[[data-bleed]]:sm:px-0"
+        className="mx-auto w-full max-w-[62rem] px-4 pt-8 pb-16 sm:px-6 has-[[data-bleed]]:max-w-none has-[[data-bleed]]:p-0 has-[[data-bleed]]:sm:px-0 has-[[data-wide]]:max-w-none has-[[data-wide]]:p-0 has-[[data-wide]]:sm:px-0"
       >
         {children}
       </main>

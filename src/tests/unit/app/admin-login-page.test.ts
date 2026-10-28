@@ -55,4 +55,13 @@ describe("the admin login layout", () => {
     expect(html).toContain('id="login-title"');
     expect(html).toContain("Panel de administración");
   });
+
+  it("names the form's section by the title and gives the panel the larger share of the width", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/<section aria-labelledby="login-title"[^>]*>\s*<h1 id="login-title"/);
+    expect(html).toContain("lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]");
+    expect(html).toContain("Entrar con Google");
+    expect(html).toContain("Acceso de emergencia");
+  });
 });

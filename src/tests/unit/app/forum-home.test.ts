@@ -170,8 +170,8 @@ describe("/foro as a member", () => {
     const html = await renderQuery({});
 
     expect(html).toMatch(/<span class="chip"[^>]*data-hue="\d"[^>]*>Materias<\/span>/);
-    expect(html).toContain("· abierto");
-    expect(html).toContain("· cerrado por la moderación");
+    expect(html).toContain(">abierto</span>");
+    expect(html).toContain(">cerrado por la moderación</span>");
     expect(html).toContain('<span class="sr-only">Abierto</span>');
   });
 
@@ -186,7 +186,7 @@ describe("/foro as a member", () => {
     expect(open).toMatch(/aria-current="page"[^>]*href="\/foro"/);
     expect(open).toContain('href="/foro?estado=resueltos"');
     expect(solved).toContain("Segfault al liberar la lista");
-    expect(solved).toContain("· resuelto");
+    expect(solved).toContain(">resuelto</span>");
     expect(solved).not.toContain("¿Cómo configuro WSL2?");
     expect(solved).toMatch(/aria-current="page"[^>]*href="\/foro\?estado=resueltos"/);
   });
@@ -213,9 +213,9 @@ describe("/foro as a member", () => {
     const all = await renderQuery({});
 
     expect(one).toMatch(/<p[^>]*>Dudas de las materias<\/p>/);
-    expect(one.indexOf("Dudas de las materias")).toBeGreaterThan(one.indexOf('aria-label="Categoría"'));
-    expect(one.indexOf("Dudas de las materias")).toBeLessThan(one.indexOf('href="/foro/hilo/'));
     expect(one).toContain('data-slot="category-description"');
+    // The line sits between the header and the list, after the rail that carries the same words.
+    expect(one.indexOf('data-slot="category-description"')).toBeLessThan(one.indexOf('href="/foro/hilo/'));
     // The whole forum has no line of its own; the rail still says what each category is for.
     expect(all).not.toContain('data-slot="category-description"');
   });
@@ -322,7 +322,7 @@ describe("/foro as a member", () => {
     expect(html).toContain("Cómo funciona el foro");
   });
 
-  it("is a three-column frame: a rail with the filters and the categories, the list, and the side blocks", async () => {
+  it("is a rail with the filters and the categories beside the list, with the side blocks after it", async () => {
     seedForum();
     testForum.store.categories.set("c2", makeForumCategory({ id: "c2", slug: "materias", name: "Materias", sortOrder: 2, description: "Dudas de las materias" }));
     await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
@@ -359,19 +359,33 @@ describe("/foro as a member", () => {
 
     expect(html.match(/aria-label="Estado de los hilos"/g)).toHaveLength(2);
     expect(html.match(/aria-label="Categoría"/g)).toHaveLength(2);
-    expect(html).toMatch(/class="[^"]*\blg:hidden\b[^"]*"><nav aria-label="Estado de los hilos"/);
+    expect(html).toMatch(/<div class="[^"]*\blg:hidden\b[^"]*">[\s\S]*?<nav aria-label="Estado de los hilos"/);
     expect(html).toMatch(/class="[^"]*\bhidden\b[^"]*\blg:grid\b[^"]*"><nav aria-label="Estado de los hilos"/);
   });
 
-  it("ends a list that has threads with a prompt to start one, outside the list's card, and not on an empty list", async () => {
+  it("ends a list that has threads with a prompt to start one, after the list on its branch line, and not on an empty list", async () => {
     seedForum();
 
     const html = await renderQuery({});
-    const prompt = html.match(/<div class="[^"]*border-dashed[^"]*">[\s\S]*?¿No encuentra su duda\?[\s\S]*?Nuevo hilo/)?.[0] ?? "";
+    const prompt = html.match(/<div class="thread-graph-end[^"]*">[\s\S]*?¿No encuentra su duda\?[\s\S]*?Nuevo hilo/)?.[0] ?? "";
 
     expect(prompt).toContain("Abra un hilo");
+    expect(html.indexOf("</ul>")).toBeLessThan(html.indexOf("thread-graph-end"));
     expect(html.lastIndexOf('href="/foro/hilo/')).toBeLessThan(html.indexOf("¿No encuentra su duda?"));
     expect(await renderQuery({ categoria: "propuestas" })).not.toContain("¿No encuentra su duda?");
+  });
+
+  it("sets the list as a branch of the history graph with a header over its columns, and says each column in words", async () => {
+    seedForum();
+
+    const html = await renderQuery({});
+    const header = html.match(/<div aria-hidden="true" class="thread-cols[^"]*">[\s\S]*?<\/div>/)?.[0] ?? "";
+
+    expect(html).toContain('class="thread-graph"');
+    for (const column of ["Hilo", "Autor", "Última actividad", "Respuestas"]) expect(header).toContain(`>${column}<`);
+    // Phones read the same words in one line under the title; from xl up each has its own column.
+    expect(html).toContain("Kevin L.");
+    expect(html).toContain("actividad </span>");
   });
 
   it("falls back to the sign-in when the session was revoked", async () => {
@@ -407,7 +421,7 @@ describe("the forum layout", () => {
     const main = (await renderLayout()).match(/<main[^>]*>/)?.[0] ?? "";
 
     expect(main).toContain("max-w-[62rem]");
-    expect(main).toContain("has-[[data-wide]]:max-w-[88rem]");
+    expect(main).toContain("has-[[data-wide]]:max-w-none");
     expect(main).toContain("has-[[data-bleed]]:max-w-none");
   });
 });

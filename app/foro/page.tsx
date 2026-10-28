@@ -54,7 +54,7 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   if (categories.length === 0) {
     return (
-      <div data-wide>
+      <div data-wide className="px-4 py-8 sm:px-6">
         <h1 className="mb-5 text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
         <div className="rounded-xl border border-border bg-muted">
           <ThreadListEmpty title="Todavía no hay categorías.">La directiva las irá creando. Vuelva pronto.</ThreadListEmpty>
@@ -64,52 +64,74 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
   }
 
   return (
-    <div data-wide className="grid items-start gap-x-8 gap-y-6 lg:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_18rem]">
+    // The list fills the width under the top bar: a rail of filters as tall as the screen, then the list and its side blocks.
+    <div data-wide className="lg:grid lg:min-h-[calc(100dvh-3.5rem)] lg:grid-cols-[17rem_minmax(0,1fr)]">
       {/* Wide screens: the filters live in a rail beside the list; on phones they stay on top of it. */}
-      <div className="-m-1.5 hidden max-h-[calc(100dvh-7rem)] gap-6 overflow-y-auto p-1.5 lg:sticky lg:top-20 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:grid xl:row-span-1">
+      <div className="hidden gap-8 self-start border-r border-border bg-muted px-3 py-8 lg:sticky lg:top-14 lg:grid lg:max-h-[calc(100dvh-3.5rem)] lg:min-h-[calc(100dvh-3.5rem)] lg:content-start lg:overflow-y-auto">
         <ThreadFilterTabs active={filter} hrefFor={hrefForFilter} counts={counts} orientation="vertical" />
         <CategoryRail categories={railCategories} active={category?.slug} filter={filter} />
       </div>
 
-      <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <h1 className="min-w-0 text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
-          <NewThreadMenu categories={categories} currentSlug={category?.slug} />
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-border bg-muted">
-          <div className="border-b border-border px-2 py-1.5 lg:hidden">
-            <ThreadFilterTabs active={filter} hrefFor={hrefForFilter} counts={counts} />
-          </div>
-          {categories.length > 1 ? (
-            <div className="border-b border-border px-3 py-2.5 sm:px-4 lg:hidden">
-              <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
+      <div className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-10 xl:px-10">
+        <div className="mx-auto grid max-w-[100rem] gap-x-10 gap-y-12 2xl:min-h-[calc(100dvh-3.5rem-5rem)] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="min-w-0">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:mb-6">
+              <h1 className="min-w-0 text-[clamp(1.75rem,3.2vw,2.5rem)] leading-[1.15] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
+              <NewThreadMenu categories={categories} currentSlug={category?.slug} />
             </div>
-          ) : null}
-          {category?.description ? (
-            <p data-slot="category-description" className="border-b border-border px-3 py-2.5 text-sm text-mist wrap-anywhere sm:px-4">
-              {category.description}
-            </p>
-          ) : null}
-          {items.length === 0 ? (
-            <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
-              {emptyHint(filter, counts.open + counts.solved)}
-            </ThreadListEmpty>
-          ) : (
-            <ul className="divide-y divide-border/50">
-              {items.map((thread) => (
-                <ThreadRow key={thread.id} thread={thread} now={now} category={category ? null : thread.category} />
-              ))}
-            </ul>
-          )}
-        </div>
-        {items.length > 0 ? <StartThreadRow categories={categories} currentSlug={category?.slug} /> : null}
-        <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
-      </div>
 
-      <div className="grid gap-6 lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-1">
-        {openEvents.length > 0 ? <OpenRegistrationsAside events={openEvents} /> : null}
-        <ForumHowItWorks />
+            <div className="mb-4 overflow-hidden rounded-xl border border-border bg-muted lg:hidden">
+              <div className="border-b border-border px-2 py-1.5">
+                <ThreadFilterTabs active={filter} hrefFor={hrefForFilter} counts={counts} />
+              </div>
+              {categories.length > 1 ? (
+                <div className="px-3 py-2.5 sm:px-4">
+                  <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
+                </div>
+              ) : null}
+            </div>
+
+            {category?.description ? (
+              <p data-slot="category-description" className="mb-4 max-w-[65ch] text-mist wrap-anywhere">
+                {category.description}
+              </p>
+            ) : null}
+
+            <div className="thread-graph">
+              {items.length === 0 ? (
+                <div className="rounded-xl border border-border bg-muted">
+                  <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
+                    {emptyHint(filter, counts.open + counts.solved)}
+                  </ThreadListEmpty>
+                </div>
+              ) : (
+                <>
+                  <div aria-hidden="true" className="thread-cols hidden border-b border-border pb-2.5 text-xs font-semibold text-mist xl:grid">
+                    <span className="col-start-2">Hilo</span>
+                    <span>Autor</span>
+                    <span>Última actividad</span>
+                    <span className="justify-self-end">Respuestas</span>
+                  </div>
+                  <ul>
+                    {items.map((thread) => (
+                      <ThreadRow key={thread.id} thread={thread} now={now} category={category ? null : thread.category} />
+                    ))}
+                  </ul>
+                  <StartThreadRow categories={categories} currentSlug={category?.slug} />
+                </>
+              )}
+            </div>
+            <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
+          </div>
+
+          {/* The column runs the height of the screen, with its divider; its blocks stay in view while the list scrolls. */}
+          <div className="2xl:border-l 2xl:border-border 2xl:pl-10">
+            <div className="grid content-start gap-10 md:grid-cols-2 2xl:sticky 2xl:top-24 2xl:grid-cols-1">
+              {openEvents.length > 0 ? <OpenRegistrationsAside events={openEvents} /> : null}
+              <ForumHowItWorks />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

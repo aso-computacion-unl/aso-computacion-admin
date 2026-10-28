@@ -27,6 +27,7 @@ const SAMPLE_THREADS = [
   { status: "solved", title: "Error al conectar Postgres desde Docker en el laboratorio", category: { slug: "materias", name: "Materias" }, meta: "hace 5 h", replies: 9 },
   { status: "open", title: "Propuesta: taller de Docker para primeros ciclos", category: { slug: "propuestas", name: "Propuestas" }, meta: "ayer", replies: 14 },
   { status: "open", title: "Busco equipo para el hackathon (backend con Node)", category: { slug: "general", name: "General" }, meta: "ayer", replies: 3 },
+  { status: "solved", title: "¿Merge o rebase al integrar la rama del proyecto?", category: { slug: "materias", name: "Materias" }, meta: "hace 2 d", replies: 11 },
 ] as const;
 
 /** What a visitor sees at /foro: what the forum is, a look inside, and the only way in. */
@@ -37,37 +38,36 @@ export function SignInGate({ problem, next }: SignInGateProps) {
       <AuthSplit
         panelLabel="Sobre el foro"
         headline="Entre estudiantes nos ayudamos."
-        lines={["Dudas de materias, propuestas de talleres y equipos para cada evento.", "Un espacio para los estudiantes de Computación de la UNL."]}
         terminal="git switch foro"
         visual={<ForumPreview />}
         belowTopBar
+        bleed
+        title={problem ? "No pudimos entrar" : "El foro de Computación"}
+        titleId="gate-title"
+        titleClassName="text-[clamp(1.75rem,4.2vw,2.25rem)] leading-[1.15] font-bold font-stretch-[106%] tracking-tight text-balance xl:text-[2.5rem]"
       >
-        <section aria-labelledby="gate-title" className="grid gap-6">
-          <h1 id="gate-title" className="text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.1] font-bold font-stretch-[106%] tracking-tight text-balance">
-            {problem ? "No pudimos entrar" : "El foro de Computación"}
-          </h1>
-
-          {problem ? (
-            <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
-              <Icon name="alert" className="mt-0.5 size-4.5 shrink-0 text-error" />
-              <div className="grid gap-1.5">
-                <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
-                {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
-              </div>
+        {problem ? (
+          <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
+            <Icon name="alert" className="mt-0.5 size-4.5 shrink-0 text-error" />
+            <div className="grid gap-1.5">
+              <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
+              {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
             </div>
-          ) : (
-            <p className="max-w-[34ch] text-lg leading-relaxed text-mist">
-              Pregunte sobre materias, proponga talleres y arme equipo para el próximo evento. Es el espacio de los estudiantes de la UNL.
-            </p>
-          )}
-
-          <div className="grid gap-3">
-            <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}>{problem ? "Entrar de nuevo con Google" : "Entrar con Google"}</GoogleButton>
-            <p className="text-sm text-mist">
-              Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
-            </p>
           </div>
-        </section>
+        ) : (
+          <p className="text-lg text-mist">
+            Pregunte sobre materias, proponga talleres y arme equipo para el próximo evento. Es el espacio de los estudiantes de Computación de la UNL.
+          </p>
+        )}
+
+        <div className="grid gap-3">
+          <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"} className="w-full">
+            {problem ? "Entrar de nuevo con Google" : "Entrar con Google"}
+          </GoogleButton>
+          <p className="text-sm text-mist">
+            Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
+          </p>
+        </div>
       </AuthSplit>
     </div>
   );
@@ -77,7 +77,7 @@ export function SignInGate({ problem, next }: SignInGateProps) {
 function ForumPreview() {
   return (
     <div aria-hidden="true" inert className="relative select-none">
-      <div className="overflow-hidden rounded-xl border border-border bg-muted shadow-[0_24px_60px_-28px_rgb(0_0_0/0.6)] [mask-image:linear-gradient(to_bottom,black_62%,transparent)]">
+      <div className="overflow-hidden rounded-t-xl border border-b-0 border-border bg-background [mask-image:linear-gradient(to_bottom,black_55%,transparent)]">
         <div className="flex items-center gap-5 border-b border-border px-4 py-3 text-sm">
           <span className="flex items-center gap-1.5 font-semibold">
             <Icon name="dot" className="size-4 text-ok" />
@@ -91,12 +91,12 @@ function ForumPreview() {
         </div>
         <ul className="divide-y divide-border/50">
           {SAMPLE_THREADS.map((thread) => (
-            <li key={thread.title} className="flex items-start gap-3 px-4 py-3">
+            <li key={thread.title} className="flex items-start gap-3 px-4 py-3 xl:py-4">
               <span className="mt-0.5 [&_svg]:size-4">
                 <ThreadStatusIcon status={thread.status} />
               </span>
               <div className="grid min-w-0 flex-1 gap-1">
-                <p className="truncate font-semibold">{thread.title}</p>
+                <p className="truncate font-semibold xl:text-[1.0625rem]">{thread.title}</p>
                 <p className="flex items-center gap-2 text-xs text-mist">
                   <CategoryChip category={thread.category} />
                   {thread.meta}

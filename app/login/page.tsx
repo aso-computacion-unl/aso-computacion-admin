@@ -35,47 +35,40 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         lines={["Publique eventos, noticias y galerías sin pedir ayuda a nadie.", "Cada cambio reconstruye el sitio público de ASO Computación."]}
         terminal="git log --oneline"
         visual={<CommitLog />}
-        mobileLogo
+        logo
+        title="Panel de administración"
+        titleId="login-title"
+        titleClassName="font-display text-[1.75rem] leading-[1.15] lg:text-[clamp(1.75rem,2.3vw,2.25rem)]"
+        corner={<ThemeToggle />}
       >
-        <ThemeToggle className="absolute top-3 right-3" />
-        {/* The landing's branch line, with the page title as its first commit. */}
-        <section aria-labelledby="login-title" className="relative border-l-2 border-sky pb-2 pl-7">
-          <span
-            aria-hidden="true"
-            className="absolute top-[0.8125rem] -left-[calc(0.5625rem+1px)] size-[1.125rem] rounded-full border-[3px] border-navy bg-sky"
-          />
-          <h1 id="login-title" className="font-display text-[1.75rem] leading-[1.15]">
-            Panel de administración
-          </h1>
-          <p className="mt-2 mb-6 text-mist">
-            {google
-              ? "Entre con su cuenta de Google para editar el sitio de ASO Computación."
-              : misconfigured && !emergency
-                ? "El acceso no está disponible hasta corregir la configuración."
-                : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
+        <p className="text-lg text-mist">
+          {google
+            ? "Entre con su cuenta de Google para editar el sitio de ASO Computación."
+            : misconfigured && !emergency
+              ? "El acceso no está disponible hasta corregir la configuración."
+              : "Ingrese la contraseña de la directiva para editar el sitio de ASO Computación."}
+        </p>
+        {error ? (
+          <p role="alert" className="flex items-start gap-2 border-l-2 border-error bg-error/10 px-3 py-2 text-sm">
+            <Icon name="alert" className="mt-px size-4 shrink-0 text-error" />
+            {error}
           </p>
-          {error ? (
-            <p role="alert" className="mb-4 flex items-start gap-2 border-l-2 border-error bg-error/10 px-3 py-2 text-sm">
-              <Icon name="alert" className="mt-px size-4 shrink-0 text-error" />
-              {error}
-            </p>
-          ) : null}
-          {google ? (
-            // A plain link, not next/link: it must not be prefetched, it starts a redirect flow.
-            <GoogleButton href="/auth/google/start" className="w-full">
-              Entrar con Google
-            </GoogleButton>
-          ) : null}
-          {misconfigured && emergency ? <LoginForm action={login} /> : null}
-          {google && emergency ? (
-            <details className="mt-8 border-t border-border pt-4">
-              <summary className="cursor-pointer font-semibold text-mist">Acceso de emergencia</summary>
-              <p className="mt-3 mb-4 text-sm text-mist">Solo si el acceso con Google no está disponible. Queda registrado.</p>
-              <LoginForm action={login} />
-            </details>
-          ) : null}
-          {google || misconfigured ? null : <LoginForm action={login} />}
-        </section>
+        ) : null}
+        {google ? (
+          // A plain link, not next/link: it must not be prefetched, it starts a redirect flow.
+          <GoogleButton href="/auth/google/start" className="w-full">
+            Entrar con Google
+          </GoogleButton>
+        ) : null}
+        {misconfigured && emergency ? <LoginForm action={login} /> : null}
+        {google && emergency ? (
+          <details className="border-t border-border pt-4">
+            <summary className="cursor-pointer font-semibold text-mist">Acceso de emergencia</summary>
+            <p className="mt-3 mb-4 text-sm text-mist">Solo si el acceso con Google no está disponible. Queda registrado.</p>
+            <LoginForm action={login} />
+          </details>
+        ) : null}
+        {google || misconfigured ? null : <LoginForm action={login} />}
       </AuthSplit>
     </main>
   );
@@ -91,11 +84,12 @@ const COMMITS = [
 
 function CommitLog() {
   return (
-    <ol aria-hidden="true" className="grid gap-3 font-mono text-sm">
+    <ol aria-hidden="true" className="grid gap-4 font-mono text-sm xl:gap-5 xl:text-base">
       {COMMITS.map(([hash, message]) => (
-        <li key={hash} className="flex gap-3">
+        <li key={hash} className="relative flex gap-4">
+          <span className="absolute top-[0.5em] left-[calc(-1.75rem-0.375rem)] size-[0.6875rem] rounded-full border-2 border-sky bg-muted" />
           <span className="text-sky">{hash}</span>
-          <span className="text-mist">{message}</span>
+          <span className="text-foreground">{message}</span>
         </li>
       ))}
     </ol>

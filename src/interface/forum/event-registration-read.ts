@@ -1,22 +1,57 @@
 import type { ForumActor } from "@/application";
 import type { EventRegistrationStatus } from "@/application";
 import type { OpenUnlEvent } from "@/application/event-registration/list-open-unl-events.use-case";
+import { todayInEcuador } from "@/domain/calendar-date";
+import { turnstileSiteKey } from "@/infrastructure/http/turnstile";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
 import { getForumMember } from "./require-forum-member";
 
-export interface EventRegistrationPage {
+/** What the page says about the event, whatever way (if any) it takes registrations. */
+export type EventFacts = EventRegistrationStatus["event"];
+
+/**
+ * What `/foro/eventos/[slug]` shows, by the event's registration mode. `calendarHref` is the public `.ics` of the
+ * event, or null when there is nothing to add (no exact day, or the day already passed).
+ */
+export type EventRegistrationPage =
   /** The signed-in member, or null: the page then offers the Google login. */
-  member: ForumActor | null;
-  status: EventRegistrationStatus;
+  | { kind: "unl"; member: ForumActor | null; status: EventRegistrationStatus }
+  /** The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured. */
+  | { kind: "open"; status: EventRegistrationStatus; siteKey: string | undefined; calendarHref: string | null }
+  | { kind: "none"; event: EventFacts; calendarHref: string | null };
+
+function calendarHrefFor(event: EventFacts, now: Date): string | null {
+  const upcoming = event.date !== null && event.datePrecision === "day" && event.date >= todayInEcuador(now);
+
+  return upcoming ? `/api/public/events/${event.slug}/calendar.ics` : null;
 }
 
-/** What `/foro/eventos/[slug]` shows, or null (a 404) unless the event is public and asks for a UNL account. */
+/** The page of one public event, or null (a 404) when it does not exist or is not public right now. */
 export async function getEventRegistrationPage(slug: string, now: Date = new Date()): Promise<EventRegistrationPage | null> {
+  const services = getEventRegistrationServices();
   const member = await getForumMember();
-  const status = await getEventRegistrationServices().status.execute({ slug, now, memberId: member?.memberId });
+  const status = await services.status.execute({ slug, now, memberId: member?.memberId });
 
-  return status && status.mode === "unl" ? { member, status } : null;
+  if (status?.mode === "unl") {
+    return { kind: "unl", member, status };
+  }
+
+  if (status) {
+    return { kind: "open", status, siteKey: turnstileSiteKey(), calendarHref: calendarHrefFor(status.event, now) };
+  }
+
+  // No status: either the event is not public or it takes no registration. Only the second has a page.
+  const event = await services.publicEvent.execute({ slug, now });
+
+  if (event?.registrationMode !== "none") {
+    return null;
+  }
+
+  const { slug: eventSlug, title, description, date, datePrecision, hora, lugar } = event;
+  const facts: EventFacts = { slug: eventSlug, title, description, date, datePrecision, hora, lugar };
+
+  return { kind: "none", event: facts, calendarHref: calendarHrefFor(facts, now) };
 }
 
 export type { OpenUnlEvent };

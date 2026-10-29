@@ -120,13 +120,69 @@ describe("parseMarkdownSubset with code blocks (forum posts)", () => {
   });
 
   it("ignores a language that is not a plain word, so it can never reach a class name as markup", () => {
+    // Not a fence, so no block and no language: the line reads as inline code, which is only ever text.
     expect(parseMarkdownSubset('```ts" onclick="x\ncode\n```', withCode)).toEqual([
-      { type: "paragraph", children: [{ type: "text", text: '```ts" onclick="x code ```' }] },
+      { type: "paragraph", children: [{ type: "code", text: 'ts" onclick="x code ' }] },
     ]);
   });
 
   it("is off unless asked for: the news grammar stays the same", () => {
     expect(parseMarkdownSubset("```\nx\n```")).toEqual([{ type: "paragraph", children: [{ type: "text", text: "``` x ```" }] }]);
+    expect(parseMarkdownSubset("Use `printf`")).toEqual([{ type: "paragraph", children: [{ type: "text", text: "Use `printf`" }] }]);
+  });
+
+  it("reads inline code between backticks verbatim, markers included", () => {
+    expect(parseMarkdownSubset("Use `printf` y `**no**` aquí", withCode)).toEqual([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "Use " },
+          { type: "code", text: "printf" },
+          { type: "text", text: " y " },
+          { type: "code", text: "**no**" },
+          { type: "text", text: " aquí" },
+        ],
+      },
+    ]);
+  });
+
+  it("reads inline code with a backtick inside when the run is longer, trimming one padding space", () => {
+    expect(parseMarkdownSubset("Un ``a`b`` y `` `x` ``", withCode)).toEqual([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "Un " },
+          { type: "code", text: "a`b" },
+          { type: "text", text: " y " },
+          { type: "code", text: "`x`" },
+        ],
+      },
+    ]);
+  });
+
+  it("reads inline code inside bold, a list item and a link label, and leaves a lone backtick literal", () => {
+    expect(parseMarkdownSubset("**usa `free`**\n\n- `ls`\n\nun ` suelto", withCode)).toEqual([
+      { type: "paragraph", children: [{ type: "strong", children: [{ type: "text", text: "usa " }, { type: "code", text: "free" }] }] },
+      { type: "list", items: [[{ type: "code", text: "ls" }]] },
+      { type: "paragraph", children: [{ type: "text", text: "un ` suelto" }] },
+    ]);
+  });
+
+  it("reads an indented fence, removing the fence's indentation from the code", () => {
+    expect(parseMarkdownSubset("Mirá:\n\n  ```c\n  int x = 0;\n    y();\n  ```", withCode)).toEqual([
+      { type: "paragraph", children: [{ type: "text", text: "Mirá:" }] },
+      { type: "code", language: "c", text: "int x = 0;\n  y();" },
+    ]);
+  });
+
+  it("reads a tilde fence and a fence with words after the language", () => {
+    expect(parseMarkdownSubset("~~~\nls -la\n~~~", withCode)).toEqual([{ type: "code", language: null, text: "ls -la" }]);
+    expect(parseMarkdownSubset("```js title=demo\nconsole.log(1)\n```", withCode)).toEqual([{ type: "code", language: "js", text: "console.log(1)" }]);
+  });
+
+  it("closes a fence only with the same character and at least as many of them", () => {
+    expect(parseMarkdownSubset("````md\n```\ninside\n```\n````", withCode)).toEqual([{ type: "code", language: "md", text: "```\ninside\n```" }]);
+    expect(parseMarkdownSubset("~~~\na\n```\n~~~", withCode)).toEqual([{ type: "code", language: null, text: "a\n```" }]);
   });
 });
 

@@ -24,6 +24,8 @@ function renderInline(nodes: InlineNode[]): ReactNode[] {
   return nodes.map((node, index) => {
     switch (node.type) {
       case "text":
+      // The news grammar never produces inline code (that is the forum's); kept as plain text if it ever did.
+      case "code":
         return node.text;
       case "strong":
         return <strong key={index}>{renderInline(node.children)}</strong>;

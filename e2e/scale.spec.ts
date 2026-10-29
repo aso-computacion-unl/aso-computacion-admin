@@ -86,6 +86,11 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
 
   // Drag the first row down onto the last one.
   const handle = (question: string) => page.getByRole("button", { name: `Arrastrar para reordenar: ${question}` });
+  // The list holds whatever other specs left in it, so the new rows may start below the fold: center the middle one,
+  // which keeps the first and the last on screen (scrolling the last just into view leaves the first above the top
+  // and the last at the bottom edge). Instant: the page scrolls smoothly, and the boxes below would be read mid-scroll.
+  await handle(questions[1]!).evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+
   const from = (await handle(questions[0]!).boundingBox())!;
   const to = (await handle(questions[2]!).boundingBox())!;
 
@@ -95,7 +100,8 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2 + 4, { steps: 15 });
   await page.mouse.up();
 
-  await expect(page.getByRole("status").getByText(`${questions[0]}: posición 3 de`)).toBeVisible();
+  // The place counts the rows other specs left in the list; the order of the three is checked below.
+  await expect(page.getByRole("status").getByText(new RegExp(`${questions[0]}: posición \\d+ de`))).toBeVisible();
   await expect.poll(mine).toEqual([questions[1], questions[2], questions[0]]);
   expect(await publicOrder()).toEqual([questions[1], questions[2], questions[0]]);
   await page.reload();
@@ -105,9 +111,14 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
   await page.waitForLoadState("networkidle");
   await handle(questions[0]!).focus();
   await page.keyboard.press("Space");
-  await expect(page.getByText(`«${questions[0]}» está sobre la posición 3`)).toBeAttached();
+  const over = (place: number | string) => page.getByText(new RegExp(`«${questions[0]}» está sobre la posición ${place} de`));
+
+  await expect(over("\\d+")).toBeAttached();
+
+  const last = Number(/posición (\d+)/.exec((await over("\\d+").textContent()) ?? "")?.[1]);
+
   await page.keyboard.press("ArrowUp");
-  await expect(page.getByText(`«${questions[0]}» está sobre la posición 2`)).toBeAttached();
+  await expect(over(last - 1)).toBeAttached();
   await page.keyboard.press("Space");
 
   await expect.poll(mine).toEqual([questions[1], questions[0], questions[2]]);

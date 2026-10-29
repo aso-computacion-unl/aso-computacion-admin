@@ -866,7 +866,8 @@ test.describe("site settings", () => {
     await fillPastLimit(page.getByLabel("Acerca de"), "A".repeat(601));
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Acerca de")).toBeVisible();
-    expect(((await publicContent(page)).settings as { tagline: string }).tagline).not.toBe(tagline);
+    // A fresh database has no settings row yet (the form shows defaults), so the public content may say null.
+    expect(((await publicContent(page)).settings as { tagline: string } | null)?.tagline).not.toBe(tagline);
 
     // The save: line breaks arrive as plain line breaks, and the fields close.
     await page.getByLabel("Acerca de").fill(about);
@@ -1051,8 +1052,12 @@ test.describe("trash", () => {
 
     await page.goto("/admin/papelera");
     for (const label of [question, newsTitle, socialLabel]) {
-      await page.getByRole("button", { name: `Restaurar: ${label}` }).click();
-      await expect(page.getByRole("status").getByText("Restaurado como borrador.")).toBeVisible();
+      const restore = page.getByRole("button", { name: `Restaurar: ${label}` });
+
+      await restore.click();
+      // The row leaving the trash is the proof; a built server answers fast enough for two toasts to be on screen at once.
+      await expect(page.getByRole("status").getByText("Restaurado como borrador.").first()).toBeVisible();
+      await expect(restore).toBeHidden();
     }
 
     const restored = await publicText();

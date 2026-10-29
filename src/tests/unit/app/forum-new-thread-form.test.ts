@@ -40,7 +40,14 @@ describe("the new-thread form", () => {
 
     expect(host.querySelector("label[for]")?.textContent).toBe("Título");
     expect(host.textContent).toContain("Texto (Markdown)");
-    expect(host.querySelectorAll('[role="toolbar"] button')).toHaveLength(5);
+    expect([...host.querySelectorAll('[role="toolbar"] button')].map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Negrita",
+      "Cursiva",
+      "Código en línea",
+      "Bloque de código",
+      "Lista",
+      "Enlace",
+    ]);
     expect(host.textContent).toContain("Vista previa");
     expect(host.querySelector('a[href="/foro?categoria=programacion"]')?.textContent).toBe("Cancelar");
   });

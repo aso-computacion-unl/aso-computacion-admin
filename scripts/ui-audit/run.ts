@@ -77,6 +77,9 @@ async function logInAsAdmin(browser: Browser): Promise<Awaited<ReturnType<Browse
   const page = await context.newPage();
 
   await page.goto(`${ADMIN_URL}/login`, { waitUntil: "load", timeout: NAVIGATION_TIMEOUT });
+  // With Google sign-in configured, the password form sits folded under the emergency access.
+  const emergency = page.getByText("Acceso de emergencia");
+  if (await emergency.isVisible()) await emergency.click();
   await page.getByLabel("Contraseña").fill(process.env.ADMIN_PASSWORD ?? "");
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
   await page.waitForURL(/\/admin$/, { timeout: NAVIGATION_TIMEOUT });

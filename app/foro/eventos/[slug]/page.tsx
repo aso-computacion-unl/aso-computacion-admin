@@ -97,11 +97,14 @@ export default async function EventRegistrationPage({ params }: { params: Promis
           action={
             <aside aria-label="Inscripción" className="grid gap-4 rounded-lg border border-border bg-muted p-5">
               <h2 className="text-lg font-bold font-stretch-[106%]">Inscríbete</h2>
-              {status.state === "open" ? (
-                <OpenRegistrationForm slug={slug} title={status.event.title} siteKey={page.siteKey} calendarHref={page.calendarHref} />
-              ) : (
-                <p role="status">{CLOSED_MESSAGES[status.state]}</p>
-              )}
+              {/* Always the form: when it is full or closed it says so, unless this visitor just took the last seat. */}
+              <OpenRegistrationForm
+                slug={slug}
+                title={status.event.title}
+                siteKey={page.siteKey}
+                calendarHref={page.calendarHref}
+                closedMessage={status.state === "open" ? undefined : CLOSED_MESSAGES[status.state]}
+              />
             </aside>
           }
         />

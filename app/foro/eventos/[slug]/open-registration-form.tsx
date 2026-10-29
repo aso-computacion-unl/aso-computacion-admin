@@ -37,6 +37,11 @@ interface OpenRegistrationFormProps {
   siteKey: string | undefined;
   /** The event's `.ics`, offered once the person is in; null when there is nothing to add. */
   calendarHref: string | null;
+  /**
+   * Why registration is over (full or closed), as the server sees it now; undefined while it is open. The page keeps
+   * the form mounted either way, so whoever takes the last seat keeps their confirmation after the refresh.
+   */
+  closedMessage?: string;
 }
 
 /**
@@ -44,7 +49,7 @@ interface OpenRegistrationFormProps {
  * same endpoint the landing used (so every server rule applies), and says what happened in the place the person
  * is looking: under the field it concerns, or in one alert for everything else.
  */
-export function OpenRegistrationForm({ slug, title, siteKey, calendarHref }: OpenRegistrationFormProps) {
+export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, closedMessage }: OpenRegistrationFormProps) {
   const router = useRouter();
   const id = useId();
   const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", career: "", semester: "" });
@@ -145,6 +150,8 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref }: Ope
       </div>
     );
   }
+
+  if (phase.name === "form" && closedMessage) return <p role="status">{closedMessage}</p>;
 
   if (phase.name === "ended") {
     return (

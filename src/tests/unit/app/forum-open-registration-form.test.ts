@@ -109,6 +109,33 @@ describe("the open registration form", () => {
     expect(control(host, 'input[name="email"]').getAttribute("aria-invalid")).toBe("true");
   });
 
+  it("shows why registration is over, and no form, when the event is already full or closed", async () => {
+    const host = await open({ closedMessage: "Ya no quedan cupos para este evento." });
+
+    expect(control(host, '[role="status"]').textContent).toBe("Ya no quedan cupos para este evento.");
+    expect(host.querySelector("form")).toBeNull();
+  });
+
+  it("keeps the confirmation of whoever took the last seat after the refresh says the event is full", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const props = { slug: "taller-de-git", title: "Taller de Git", siteKey: undefined, calendarHref: CALENDAR };
+    answer(201, { ok: true });
+
+    await act(() => root.render(createElement(OpenRegistrationForm, props)));
+    await fill(host);
+    await click(submit(host));
+    await settle();
+    await act(() => root.render(createElement(OpenRegistrationForm, { ...props, closedMessage: "Ya no quedan cupos para este evento." })));
+
+    expect(control(host, '[role="status"]').textContent).toContain("Quedaste inscrito en Taller de Git");
+    expect(host.textContent).not.toContain("Ya no quedan cupos");
+    await act(() => root.unmount());
+    host.remove();
+  });
+
   it("posts the fields to the public endpoint, confirms the registration, offers the calendar and refreshes the seats", async () => {
     answer(201, { ok: true });
     const host = await open();

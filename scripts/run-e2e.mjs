@@ -17,6 +17,7 @@ const COMPOSE_ARGUMENTS = ["--context", "default", "compose", "--project-name", 
 
 // Test-only values, used when the caller (CI defines its own) does not set them. They guard nothing real.
 const E2E_ADMIN_PASSWORD = "e2e-only-admin-password-0123456789";
+const E2E_FORUM_DOMAIN = "unl.edu.ec";
 const E2E_ADMIN_SECRET = "e2e-only-session-secret-0123456789-abcdefghij";
 
 // Every variable that switches a feature on, by name (the full list the app reads, besides the test-only values
@@ -32,8 +33,7 @@ const FEATURE_VARIABLES = [
   "BREAK_GLASS_PASSWORD_LOGIN",
   "ADMIN_BOOTSTRAP_EMAILS",
   "ALLOWED_EMAIL_DOMAIN",
-  // Forum login (FORUM_SESSION_SECRET is handled separately: the caller opts in to the signed-in suite).
-  "FORUM_ALLOWED_EMAIL_DOMAIN",
+  // Forum login (the domain and the session secret are handled separately: the caller opts in to the signed-in suite).
   "FORUM_GOOGLE_CLIENT_ID",
   "FORUM_GOOGLE_CLIENT_SECRET",
   // Captcha, uploads, scheduled rebuilds, signed preview links, cross-origin reads.
@@ -116,8 +116,11 @@ export async function runE2e(environment = process.env, playwrightArguments = []
   const appEnvironment = {
     ...environment,
     ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
-    // Opt-in: forum-member.spec.ts runs only when the caller supplies a secret; never one from a `.env*` file.
+    // Opt-in: the signed-in forum specs run only when the caller supplies a secret, never one from a `.env*` file.
+    // With it, the members' domain is set too (registering for an event with a UNL account needs it); the login
+    // itself stays off, because there is no Google client, so forum.spec.ts still sees "unavailable".
     FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
+    FORUM_ALLOWED_EMAIL_DOMAIN: environment.FORUM_SESSION_SECRET ? E2E_FORUM_DOMAIN : "",
     DATABASE_URL: testDatabaseUrl,
     TEST_DATABASE_URL: testDatabaseUrl,
     ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,

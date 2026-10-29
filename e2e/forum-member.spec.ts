@@ -9,8 +9,9 @@ import { SignJWT } from "jose";
  *
  *   FORUM_SESSION_SECRET=<at least 32 characters> npm run e2e
  *
- * Without the variable the whole file is skipped. It leaves FORUM_ALLOWED_EMAIL_DOMAIN unset on purpose,
- * so the login stays off and forum.spec.ts still sees "unavailable".
+ * Without the variable the whole file is skipped. The harness then also sets FORUM_ALLOWED_EMAIL_DOMAIN (the
+ * members here are @unl.edu.ec, and registering for an event needs the domain), but never a Google client, so
+ * the login stays off and forum.spec.ts still sees "unavailable".
  */
 const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const BASE_URL = "http://127.0.0.1:3100";
@@ -164,7 +165,8 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
 
   await page.goto("/foro");
   await page.getByRole("link", { name: "Programación", exact: true }).click();
-  await page.getByRole("link", { name: "Nuevo hilo" }).click();
+  // The list header and the empty end of the list both offer it: the header one is the first.
+  await page.getByRole("link", { name: "Nuevo hilo" }).first().click();
   await page.getByLabel("Título").fill("Hilo creado desde el e2e");
   await page.getByLabel("Texto (Markdown)").fill("Un texto con **negrita** y\n\n```js\nconsole.log(1);\n```");
   await expect(page.locator("pre").first()).toContainText("console.log(1);");

@@ -21,9 +21,10 @@ export async function resolveEventSlug(
     return explicitSlug;
   }
 
-  const base = slugify(title);
+  // A title with no Latin letters or digits (日本語, 🚀) slugifies to nothing; the item still needs an address.
+  const base = slugify(title) || "evento";
 
-  if (base === "" || !(await events.slugExists(base, excludeId))) {
+  if (!(await events.slugExists(base, excludeId))) {
     return base;
   }
 

@@ -156,6 +156,10 @@ describe("parseOpenRegistration", () => {
     expect(parseOpenRegistration(valid)).toEqual({ name: "Ana María Pérez", email: "ana.perez@example.com", career: "Computación", semester: 5 });
   });
 
+  it("keeps accents, ñ, CJK and emoji (a valid surrogate pair is not a lone one)", () => {
+    expect(parseOpenRegistration({ ...valid, name: "José Ñandú 李雷 😀", career: "Ingeniería 😀" })).toMatchObject({ name: "José Ñandú 李雷 😀", career: "Ingeniería 😀" });
+  });
+
   it("accepts a numeric semester", () => {
     expect(parseOpenRegistration({ ...valid, semester: 12 }).semester).toBe(12);
   });
@@ -164,6 +168,9 @@ describe("parseOpenRegistration", () => {
     ["name", { name: "" }],
     ["name", { name: "x".repeat(121) }],
     ["name", { name: "Ana\u0000" }],
+    ["name", { name: "Ana \ud800 Pérez" }],
+    ["career", { career: "Computaci\udc00n" }],
+    ["email", { email: "ana\ud800@example.com" }],
     ["name", { name: 42 }],
     ["email", { email: "not-an-email" }],
     ["email", { email: `${"a".repeat(250)}@x.co` }],

@@ -39,6 +39,7 @@ describe("validateOpenForm", () => {
     expect(validateOpenForm({ ...VALID, email: "ana@" }).email).toBe("Revisa tu correo: no parece una dirección válida.");
     expect(validateOpenForm({ ...VALID, name: "a".repeat(121) }).name).toBe("Tu nombre es muy largo: usa hasta 120 caracteres.");
     expect(validateOpenForm({ ...VALID, name: "Ana\u0000" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, name: "Ana \ud800" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
   });
 });
 
@@ -92,6 +93,12 @@ describe("outcomeMessage", () => {
     expect(outcomeMessage({ kind: "full" })).toBe("Ya no quedan cupos para este evento.");
     expect(outcomeMessage({ kind: "closed" })).toBe("Las inscripciones de este evento ya cerraron.");
     expect(outcomeMessage({ kind: "duplicate" })).toContain("Ya hay una inscripción con ese correo");
+  });
+
+  it("does not ask for a verification the page never showed: without the widget a captcha refusal is a plain retry", () => {
+    expect(outcomeMessage({ kind: "captcha" })).toContain("Completa la verificación");
+    expect(outcomeMessage({ kind: "captcha" }, { widget: false })).toBe("No pudimos comprobar que eres una persona. Inténtalo de nuevo en unos minutos.");
+    expect(outcomeMessage({ kind: "duplicate" }, { widget: false })).toContain("Ya hay una inscripción");
   });
 
   it("tells how long to wait after a rate limit, in minutes once it is a minute or more", () => {

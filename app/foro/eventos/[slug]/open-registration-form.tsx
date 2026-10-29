@@ -127,7 +127,7 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
       setPhase({ name: "ended", message: outcomeMessage(outcome) });
       router.refresh();
     } else {
-      say(outcomeMessage(outcome));
+      say(outcomeMessage(outcome, { widget: Boolean(siteKey) }));
     }
   }
 

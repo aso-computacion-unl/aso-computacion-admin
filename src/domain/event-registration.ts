@@ -137,6 +137,8 @@ export interface OpenRegistrationData {
 
 // Control characters (including NUL, line breaks and tabs) have no place in a name that ends up in a CSV and a sheet.
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
+// A lone surrogate (JSON's "\ud800") is not text: Postgres cannot store it, so it must be refused here, not become a 503.
+const LONE_SURROGATE = /\p{Surrogate}/u;
 
 function text(field: string, value: unknown, max: number): string {
   if (typeof value !== "string") {
@@ -145,7 +147,7 @@ function text(field: string, value: unknown, max: number): string {
 
   const collapsed = value.trim().replace(/\s+/g, " ");
 
-  if (collapsed.length === 0 || collapsed.length > max || CONTROL_CHARACTERS.test(collapsed)) {
+  if (collapsed.length === 0 || collapsed.length > max || CONTROL_CHARACTERS.test(collapsed) || LONE_SURROGATE.test(collapsed)) {
     throw new ValidationError(field, `${field} must have 1 to ${max} characters, without control characters`);
   }
 
@@ -166,6 +168,10 @@ function semester(value: unknown): number {
 export function parseOpenRegistration(input: Record<string, unknown>): OpenRegistrationData {
   const name = text("name", input.name, REGISTRATION_NAME_MAX_LENGTH);
   const email = typeof input.email === "string" ? normalizeEmail(input.email) : normalizeEmail("");
+
+  if (LONE_SURROGATE.test(email)) {
+    throw new ValidationError("email", "email must be a valid address");
+  }
 
   return { name, email, career: text("career", input.career, REGISTRATION_CAREER_MAX_LENGTH), semester: semester(input.semester) };
 }

@@ -19,6 +19,44 @@ const COMPOSE_ARGUMENTS = ["--context", "default", "compose", "--project-name", 
 const E2E_ADMIN_PASSWORD = "e2e-only-admin-password-0123456789";
 const E2E_ADMIN_SECRET = "e2e-only-session-secret-0123456789-abcdefghij";
 
+// Every variable that switches a feature on, by name (the full list the app reads, besides the test-only values
+// below). Next loads `.env*` files for each variable the process does not already define, so the developer's own
+// config would otherwise reach the build: Google sign-in folds the password form under "Acceso de emergencia",
+// a forum domain turns the forum login on, an AUTH_URL adds registration links, and so on. The specs describe
+// a server with none of them, so each is set to "" (the app treats empty as unset, and Next never overrides it).
+const FEATURE_VARIABLES = [
+  // Admin sign-in: Google, the emergency password, who may enter.
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "AUTH_URL",
+  "BREAK_GLASS_PASSWORD_LOGIN",
+  "ADMIN_BOOTSTRAP_EMAILS",
+  "ALLOWED_EMAIL_DOMAIN",
+  // Forum login (FORUM_SESSION_SECRET is handled separately: the caller opts in to the signed-in suite).
+  "FORUM_ALLOWED_EMAIL_DOMAIN",
+  "FORUM_GOOGLE_CLIENT_ID",
+  "FORUM_GOOGLE_CLIENT_SECRET",
+  // Captcha, uploads, scheduled rebuilds, signed preview links, cross-origin reads.
+  "TURNSTILE_SECRET_KEY",
+  "TURNSTILE_SITE_KEY",
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+  "CLOUDINARY_FOLDER",
+  "CRON_SECRET",
+  "PREVIEW_TOKEN_SECRET",
+  "PUBLIC_CORS_ORIGINS",
+  // The real landing deploy and error reporting.
+  "CLOUDFLARE_DEPLOY_HOOK_URL",
+  "SENTRY_DSN",
+  "NEXT_PUBLIC_SENTRY_DSN",
+  "SENTRY_AUTH_TOKEN",
+  "SENTRY_ORG",
+  "SENTRY_PROJECT",
+  "SENTRY_TRACES_SAMPLE_RATE",
+  "NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE",
+];
+
 // Test-only: the e2e suite signs in with the emergency password (no real Google), so the editor sessions that
 // prove the role rules are planted here, straight into the disposable database, and handed to Playwright as
 // signed cookie values. Nothing in the app can create a session like this.
@@ -66,7 +104,8 @@ function run(command, arguments_, environment, label) {
   }
 }
 
-export async function runE2e(environment = process.env) {
+// `playwrightArguments` go straight to `playwright test` (a file, `-g <title>`), so one spec can run against the same build.
+export async function runE2e(environment = process.env, playwrightArguments = []) {
   const testDatabaseUrl = environment.TEST_DATABASE_URL ?? CANONICAL_TEST_DATABASE_URL;
   assertSafePrismaTestTarget(testDatabaseUrl);
 
@@ -76,12 +115,9 @@ export async function runE2e(environment = process.env) {
   const databaseEnvironment = createIntegrationEnvironment(testDatabaseUrl, environment, temporaryDirectory);
   const appEnvironment = {
     ...environment,
-    // Next also loads `.env*` files, but never overrides a variable already set: blanking these keeps a
-    // local run from triggering the real landing deploy or reporting test errors to Sentry.
-    CLOUDFLARE_DEPLOY_HOOK_URL: "",
-    SENTRY_DSN: "",
-    NEXT_PUBLIC_SENTRY_DSN: "",
-    SENTRY_AUTH_TOKEN: "",
+    ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
+    // Opt-in: forum-member.spec.ts runs only when the caller supplies a secret; never one from a `.env*` file.
+    FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
     DATABASE_URL: testDatabaseUrl,
     TEST_DATABASE_URL: testDatabaseUrl,
     ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,
@@ -98,7 +134,7 @@ export async function runE2e(environment = process.env) {
     appEnvironment.E2E_EDITOR_SESSION = editorSession;
     appEnvironment.E2E_REVOKABLE_EDITOR_SESSION = revokableEditorSession;
     run("npx", ["next", "build"], appEnvironment, "Next build");
-    run("npx", ["playwright", "test"], appEnvironment, "Playwright");
+    run("npx", ["playwright", "test", ...playwrightArguments], appEnvironment, "Playwright");
   } catch (error) {
     failure = error;
   }
@@ -120,7 +156,7 @@ export async function runE2e(environment = process.env) {
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   try {
-    await runE2e();
+    await runE2e(process.env, process.argv.slice(2));
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;

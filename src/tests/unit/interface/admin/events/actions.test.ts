@@ -216,6 +216,20 @@ describe("events server actions", () => {
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events/e1/edit");
     });
 
+    it("hands over an empty alt when none was typed, on upload and on edit, so the use case can explain the rule", async () => {
+      useCases.attachPhoto.execute.mockResolvedValue({ id: "p1" });
+      useCases.updatePhotoAlt.execute.mockResolvedValue({ id: "p1" });
+
+      const fileOnly = new FormData();
+      fileOnly.set("file", jpeg());
+
+      expect(await actions.uploadEventPhoto("e1", null, fileOnly)).toEqual({ success: true });
+      expect(await actions.updateEventPhotoAlt("e1", "p1", null, form({}))).toEqual({ success: true });
+
+      expect(useCases.attachPhoto.execute).toHaveBeenCalledWith({ eventId: "e1", file: expect.objectContaining({ name: "a.jpg" }), alt: "" });
+      expect(useCases.updatePhotoAlt.execute).toHaveBeenCalledWith({ eventId: "e1", photoId: "p1", alt: "" });
+    });
+
     it("rejects a missing file, a wrong type and a spoofed signature before any upload", async () => {
       const noFile = await actions.uploadEventPhoto("e1", null, form({ alt: "Foto" }));
       const gif = await actions.uploadEventPhoto("e1", null, photoForm(new File([new Uint8Array(8)], "a.gif", { type: "image/gif" })));

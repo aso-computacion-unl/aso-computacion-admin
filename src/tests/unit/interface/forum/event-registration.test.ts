@@ -133,6 +133,55 @@ describe("getEventRegistrationPage", () => {
     expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", siteKey: undefined });
   });
 
+  describe("Turnstile configuration of the open form", () => {
+    const secret = "cf-secret-for-tests";
+    const siteKey = "0x4AAAA-site_key";
+
+    beforeEach(async () => {
+      await addTestEvent({ title: "Abierto", registrationMode: "open" });
+      jar({});
+    });
+
+    it("both keys: the widget is offered and nothing is misconfigured", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", secret);
+      vi.stubEnv("TURNSTILE_SITE_KEY", siteKey);
+
+      expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", siteKey, captchaMisconfigured: false });
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it("secret without a site key: the form is marked unusable and the misconfiguration is logged once, naming the missing key", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", secret);
+      vi.stubEnv("TURNSTILE_SITE_KEY", "");
+
+      for (const attempt of [1, 2, 3]) {
+        expect(await getEventRegistrationPage("abierto"), `visit ${attempt}`).toMatchObject({ kind: "open", siteKey: undefined, captchaMisconfigured: true });
+      }
+
+      expect(console.error).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(console.error).mock.calls[0]![0]).toContain("TURNSTILE_SITE_KEY");
+      expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(secret);
+    });
+
+    it("a placeholder or malformed site key counts as missing", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", secret);
+
+      for (const value of ["__REPLACE_TURNSTILE_SITE_KEY__", "not a key!"]) {
+        vi.stubEnv("TURNSTILE_SITE_KEY", value);
+        expect(await getEventRegistrationPage("abierto"), value).toMatchObject({ kind: "open", captchaMisconfigured: true });
+      }
+    });
+
+    it("a site key without the secret, or neither key: not flagged here (the endpoint decides by environment)", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+      vi.stubEnv("TURNSTILE_SITE_KEY", siteKey);
+      expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", captchaMisconfigured: false });
+
+      vi.stubEnv("TURNSTILE_SITE_KEY", "");
+      expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", siteKey: undefined, captchaMisconfigured: false });
+    });
+  });
+
   it("keeps showing an open event that is full or closed, so the page can say so instead of hiding it", async () => {
     await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
     await addTestEvent({ title: "Pasado", registrationMode: "open", date: "2000-01-01" });

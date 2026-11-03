@@ -108,6 +108,61 @@ describe("POST /api/public/events/[slug]/registrations", () => {
     });
   });
 
+  // Which keys are set decides whether a token is demanded. The endpoint also serves the landing's own form, whose
+  // widget uses the landing's site key, so verification follows the secret alone (see docs/DEPLOY.md, section 4c).
+  describe("Turnstile configuration", () => {
+    const SITE_KEY = "0x4AAAA-site_key";
+    const withoutToken = { ...FORM, turnstileToken: undefined };
+
+    beforeEach(() => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+
+    it("both keys: a token is required and checked", async () => {
+      vi.stubEnv("TURNSTILE_SITE_KEY", SITE_KEY);
+
+      const refused = await post(withoutToken);
+
+      expect(refused.status).toBe(400);
+      expect(await refused.json()).toEqual({ error: "captcha" });
+      expect((await post(FORM)).status).toBe(201);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("secret only: still verifies, so the landing's own widget keeps protecting the endpoint", async () => {
+      vi.stubEnv("TURNSTILE_SITE_KEY", "");
+
+      expect((await post(withoutToken)).status).toBe(400);
+      expect((await post(FORM)).status).toBe(201);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("site key only in production: closed (503), like no keys at all, and Cloudflare is never asked", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+      vi.stubEnv("TURNSTILE_SITE_KEY", SITE_KEY);
+
+      for (const body of [FORM, withoutToken]) {
+        const response = await post(body);
+
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ error: "unavailable" });
+      }
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(stored()).toHaveLength(0);
+    });
+
+    it("neither key: closed in production, and outside production the check is skipped so local development works", async () => {
+      vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+      vi.stubEnv("TURNSTILE_SITE_KEY", "");
+      expect((await post(FORM)).status).toBe(503);
+
+      vi.stubEnv("NODE_ENV", "development");
+      expect((await post(withoutToken)).status).toBe(201);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("rate limit", () => {
     it("answers 429 with Retry-After once a client spends its budget, before touching Cloudflare or the database", async () => {
       const ip = "198.51.100.77";

@@ -34,8 +34,8 @@ const SITE_KEY_PATTERN = /^[0-9A-Za-z_-]{1,100}$/;
 
 /**
  * The public half of the widget's key pair, read at request time so the page can render the widget without a
- * rebuild. Missing, a placeholder or oddly shaped: `undefined`, and the page renders no widget (the server
- * still refuses an unverified registration in production).
+ * rebuild. Missing, a placeholder or oddly shaped: `undefined`, and the page renders no widget (with the secret
+ * set the page closes its form, see `turnstileSecretWithoutSiteKey`).
  */
 export function turnstileSiteKey(env: Record<string, string | undefined> = process.env): string | undefined {
   try {
@@ -48,6 +48,26 @@ export function turnstileSiteKey(env: Record<string, string | undefined> = proce
 }
 
 let reportedMissingSecret = false;
+let reportedMissingSiteKey = false;
+
+/**
+ * Whether the secret is configured but no usable site key is: the server then demands a token that this admin's
+ * own pages cannot render a widget for, so their form can never be submitted. Verification itself does not change
+ * (the endpoint also serves the landing's form, whose widget uses the landing's site key); the caller closes the
+ * page's form instead. Logged once, naming the variable to set.
+ */
+export function turnstileSecretWithoutSiteKey(env: Record<string, string | undefined> = process.env): boolean {
+  if (!configuredSecret(env) || turnstileSiteKey(env)) {
+    return false;
+  }
+
+  if (!reportedMissingSiteKey) {
+    reportedMissingSiteKey = true;
+    console.error(`${TURNSTILE_SECRET_ENV_VAR} is set but ${TURNSTILE_SITE_KEY_ENV_VAR} is missing or invalid; the event page cannot show the Turnstile widget, so its registration form is closed. Set ${TURNSTILE_SITE_KEY_ENV_VAR} to the widget's public site key.`);
+  }
+
+  return true;
+}
 
 /**
  * Verifies a Cloudflare Turnstile token server-side. It fails closed: a missing secret in production, an

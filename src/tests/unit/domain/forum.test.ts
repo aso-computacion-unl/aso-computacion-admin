@@ -13,6 +13,7 @@ import {
   parseCategoryName,
   parseDisplayName,
   parseReplyBody,
+  parseResolutionNote,
   parseThreadBody,
   parseThreadTitle,
   type ForumMember,
@@ -86,6 +87,23 @@ describe("thread and reply text", () => {
 
   it("normalises Windows line endings", () => {
     expect(parseReplyBody("uno\r\ndos")).toBe("uno\ndos");
+  });
+});
+
+describe("resolution note", () => {
+  it("is optional: a missing or blank note is stored as null", () => {
+    expect(parseResolutionNote(undefined)).toBeNull();
+    expect(parseResolutionNote(null)).toBeNull();
+    expect(parseResolutionNote("   ")).toBeNull();
+  });
+
+  it("is trimmed and limited to 500 characters", () => {
+    expect(parseResolutionNote("  Se avisó a la autora.  ")).toBe("Se avisó a la autora.");
+    expect(() => parseResolutionNote("x".repeat(501))).toThrow(expect.objectContaining({ name: "ValidationError", field: "note" }));
+  });
+
+  it("refuses a NUL character, which the database cannot store", () => {
+    expect(() => parseResolutionNote("nota\u0000oculta")).toThrow(expect.objectContaining({ name: "ValidationError", field: "note" }));
   });
 });
 

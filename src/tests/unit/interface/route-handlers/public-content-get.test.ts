@@ -85,6 +85,19 @@ describe("GET /api/public/content", () => {
     expect(Object.keys(rest).sort()).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
   });
 
+  it("builds the registration and calendar URLs from the admin's public origin (AUTH_URL), and leaves them null without it", async () => {
+    const event = { slug: "taller", title: "Taller", description: null, date: "2026-11-28", datePrecision: "day", type: null, commitMessage: null, hora: null, lugar: null, para: null, featured: false, linkUrl: null, linkLabel: null, highlights: [], registrationMode: "open", registrationCapacity: 20, registrationDeadline: null, photos: [] };
+    executeMock.mockResolvedValue({ ...emptySnapshot, events: [event] });
+
+    vi.stubEnv("AUTH_URL", "https://admin.example");
+    const configured = (await (await route.GET(get())).json()).events[0];
+    vi.stubEnv("AUTH_URL", "");
+    const unconfigured = (await (await route.GET(get())).json()).events[0];
+
+    expect(configured).toMatchObject({ calendarUrl: "https://admin.example/api/public/events/taller/calendar.ics", registration: { mode: "open", capacity: 20, endpoint: "https://admin.example/api/public/events/taller/registrations" } });
+    expect(unconfigured).toMatchObject({ calendarUrl: null, registration: { mode: "open", endpoint: null } });
+  });
+
   it("sends a strong ETag that stays put while the content does and moves when it changes", async () => {
     const first = await route.GET(get());
     await new Promise((resolve) => setTimeout(resolve, 5));

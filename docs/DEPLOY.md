@@ -68,6 +68,7 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `FORUM_ALLOWED_EMAIL_DOMAIN` | for the forum | The institutional email domain students must belong to: `unl.edu.ec`. both the email domain and Google's `hd` claim must match, and the email must be verified. **Unset or empty: the forum login is off** (section 4b). |
 | `FORUM_SESSION_SECRET` | for the forum | Signs the `forum_session` cookie and the forum's Google login cookie. At least 32 characters and **different from `ADMIN_SECRET`** (equal is refused). Missing or invalid: the forum login is off. Mark it Sensitive. |
 | `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | no | A separate Google OAuth client for the forum. Set both or neither; unset, the forum reuses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. |
+| `TURNSTILE_SECRET_KEY` | for the open registration form | Cloudflare Turnstile **secret** key (section 4c). Mark it Sensitive. Missing, empty or a placeholder **in production: the open registration form answers 503** (fail closed), so nobody registers without the antispam check. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -170,6 +171,17 @@ Students sign in to the forum with their institutional Google account; there is 
 
 **Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; the screens come with the forum UI.
 
+## 4c. Event registration
+
+Each event chooses its registration mode in the admin (none, UNL Google account, open form). What each needs:
+
+- **UNL account**: the forum (section 4b) must be configured, because it reuses the forum's identity and cookie. Without it nobody can sign in, and the event page says so by not offering a registration.
+- **Open form**: a Cloudflare Turnstile widget. In the Cloudflare dashboard (**Turnstile → Add widget**) create a widget for the landing's hostname (and `localhost` for development); the **site key** goes in the landing (public), the **secret key** here as `TURNSTILE_SECRET_KEY` (Sensitive). The landing sends the widget's token as `turnstileToken` in the JSON body. For local development Cloudflare publishes test keys (the always-pass secret is `1x0000000000000000000000000000000AA`); outside production an unset secret skips the check.
+- `PUBLIC_CORS_ORIGINS` must list the landing's origin, or the browser blocks its `POST` (and the preflight).
+- `AUTH_URL` must be set: the public API builds the registration page, endpoint and calendar URLs from it (they are `null` otherwise).
+
+The contract the landing codes against is in [REFERENCIA.md](REFERENCIA.md#event-registration).
+
 ## 5. Seeding the landing content
 
 The landing keeps its real content in `src/data/fallback.json` and its images in `src/assets/`. `npm run seed:landing` loads them into the admin through the same use cases the admin UI calls, so every rule applies: board entries carry only name, role and photo (a file with any other key on a board entry is rejected as a whole), photo minimum widths, and a board member needs a photo to be published.
@@ -240,6 +252,13 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances. The password login and the Google callback spend the same throttle.
 - Sessions live in the `Session` table (24 h, revocable). Only a keyed hash of the client address and a shortened user agent are stored. Old rows are not purged automatically; they are small and expired ones are never listed.
 - The audit log (`AuditLog`) holds who did what to which record, by name and id: never content bodies, passwords, tokens or emails. A failure to write an entry never fails the action it describes; it is logged and reported to Sentry.
+
+### The event registration migration (`20261027100000_add_event_registration`)
+
+Purely additive: it creates the `EventRegistrationMode` enum (`none`, `unl`, `open`), adds `registrationMode` (default `none`), `registrationCapacity` and `registrationDeadline` to `Event` (with `CHECK`s: capacity positive, and no capacity or deadline while the mode is `none`) and creates the `EventRegistration` table (unique `(eventId, email)`, lower-case email, short text and semester `CHECK`s, `ON DELETE CASCADE` from the event). Existing events keep `none`, so nothing changes for them, and the previous admin keeps working against it (it ignores the columns and the table).
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if registration is abandoned (roll the app back first): `DROP TABLE "EventRegistration"; ALTER TABLE "Event" DROP CONSTRAINT "Event_registration_capacity_check", DROP CONSTRAINT "Event_registration_settings_check", DROP COLUMN "registrationMode", DROP COLUMN "registrationCapacity", DROP COLUMN "registrationDeadline"; DROP TYPE "EventRegistrationMode"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261027100000_add_event_registration';`, with the **direct** connection string. **Every registration is lost with it**: export the CSVs first.
 
 ### The publication window migration (`20261026180000_add_publication_window`)
 
@@ -326,6 +345,7 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.
+- [ ] Optional, only to take registrations (section 4c): `TURNSTILE_SECRET_KEY` set for the open form, the landing's origin in `PUBLIC_CORS_ORIGINS`, and `AUTH_URL` set.
 - [ ] Optional, for scheduled content (section 6a): `CRON_SECRET` set, and `vercel.json`'s schedule matches the Vercel plan (daily on Hobby). Optional, for previews: `PREVIEW_TOKEN_SECRET` set.
 - [ ] Optional: Sentry project created and `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set (section 7).
 - [ ] Plan's `maxDuration` limit checked against the `30` in `app/admin/layout.tsx`.

@@ -1,5 +1,6 @@
 import type { EventResult } from "@/application";
 import type { EventDatePrecision } from "@/domain/event";
+import type { EventRegistrationMode } from "@/domain/event-registration";
 
 import { windowEndToFormValue } from "../publication-window-fields";
 
@@ -31,6 +32,11 @@ export interface EventFormValues {
   publishAt: string;
   /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no end. */
   unpublishAt: string;
+  registrationMode: EventRegistrationMode;
+  /** Seats as typed; blank is unlimited. */
+  registrationCapacity: string;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no deadline. */
+  registrationDeadline: string;
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
@@ -51,6 +57,9 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   isPublished: false,
   publishAt: "",
   unpublishAt: "",
+  registrationMode: "none",
+  registrationCapacity: "",
+  registrationDeadline: "",
 };
 
 export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | "updatedAt">): EventFormValues {
@@ -72,6 +81,9 @@ export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | 
     isPublished: event.isPublished,
     publishAt: windowEndToFormValue(event.publishAt),
     unpublishAt: windowEndToFormValue(event.unpublishAt),
+    registrationMode: event.registrationMode,
+    registrationCapacity: event.registrationCapacity === null ? "" : String(event.registrationCapacity),
+    registrationDeadline: windowEndToFormValue(event.registrationDeadline),
   };
 }
 

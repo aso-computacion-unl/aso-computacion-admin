@@ -14,38 +14,72 @@ enum EventType {
   comunidad
 }
 
+// S8: how a person signs up for an event, chosen per event in the admin. `none`: no registration;
+// `unl`: a signed-in forum member (verified institutional Google account); `open`: a public form
+// protected by Turnstile (unverified email).
+enum EventRegistrationMode {
+  none
+  unl
+  open
+}
+
 model Event {
-  id            String       @id
+  id                   String                @id
   // Unique among live rows (deletedAt IS NULL): partial index "Event_slug_live_key", raw SQL in the
   // add_soft_delete migration because Prisma cannot express it. A trashed event keeps its slug.
-  slug          String
-  title         String
-  description   String?
+  slug                 String
+  title                String
+  description          String?
   // Calendar date without time zone; a future date reads as upcoming on the landing.
-  date          DateTime?    @db.Date
+  date                 DateTime?             @db.Date
   // "day" or "month" (CHECK in the migration). With "month" the date is the first of the month.
-  datePrecision String       @default("day")
-  type          EventType?
-  commitMessage String?
-  hora          String?
-  lugar         String?
-  para          String?
-  featured      Boolean      @default(false)
-  linkUrl       String?
-  linkLabel     String?
-  highlights    String[]     @default([])
-  isPublished   Boolean      @default(false)
+  datePrecision        String                @default("day")
+  type                 EventType?
+  commitMessage        String?
+  hora                 String?
+  lugar                String?
+  para                 String?
+  featured             Boolean               @default(false)
+  linkUrl              String?
+  linkLabel            String?
+  highlights           String[]              @default([])
+  isPublished          Boolean               @default(false)
   // Optional publish window, instants in UTC (the admin edits them in Ecuador time). A published event is
   // public from publishAt (inclusive) until unpublishAt (exclusive); null is open on that side. CHECK: unpublishAt > publishAt.
-  publishAt     DateTime?
-  unpublishAt   DateTime?
+  publishAt            DateTime?
+  unpublishAt          DateTime?
+  // S8: registration settings. Capacity and deadline only mean something when the mode is not `none`
+  // (CHECKs in the migration); a null capacity is unlimited, a null deadline never closes (the event day does).
+  registrationMode     EventRegistrationMode @default(none)
+  registrationCapacity Int?
+  registrationDeadline DateTime?
   // Set when moved to the trash (never published then); null while live. Its photos stay attached.
-  deletedAt     DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime
-  photos        EventPhoto[]
+  deletedAt            DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime
+  photos               EventPhoto[]
+  registrations        EventRegistration[]
 
   @@index([isPublished, date])
+}
+
+// S8: one person signed up for one event. Personal data, so only what each mode needs: `unl` rows hold the
+// forum member's verified name and email; `open` rows add career and semester. The email is lower-cased
+// (CHECK) and unique per event, which is what makes a second registration by the same person a no-op.
+// Rows go with their event (cascade) and are deleted by an ADMIN on request.
+model EventRegistration {
+  id        String                @id
+  eventId   String
+  event     Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  mode      EventRegistrationMode
+  name      String
+  email     String
+  career    String?
+  semester  Int?
+  createdAt DateTime              @default(now())
+
+  @@unique([eventId, email])
+  @@index([eventId, createdAt])
 }
 
 model EventPhoto {

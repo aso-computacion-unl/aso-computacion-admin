@@ -102,7 +102,7 @@ describe("toPublicContentResponse", () => {
 
   it("exposes exact event keys: the slug stands in for the id, photos carry url, width, height and alt only", () => {
     expect(keys(body.events[0]!)).toEqual([
-      "commitMessage", "date", "datePrecision", "description", "featured", "highlights", "hora", "linkLabel", "linkUrl", "lugar", "para", "photos", "slug", "title", "type",
+      "calendarUrl", "commitMessage", "date", "datePrecision", "description", "featured", "highlights", "hora", "linkLabel", "linkUrl", "lugar", "para", "photos", "registration", "slug", "structuredData", "title", "type",
     ]);
     expect(keys(body.events[0]!.photos[0]!)).toEqual(["alt", "height", "url", "width"]);
   });

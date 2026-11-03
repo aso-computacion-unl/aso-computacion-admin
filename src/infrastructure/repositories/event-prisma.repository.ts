@@ -47,6 +47,12 @@ export class EventPrismaRepository
     return record ? toDomain(record) : null;
   }
 
+  async findLiveBySlug(slug: string): Promise<Event | null> {
+    const record = await prisma.event.findFirst({ where: { slug, ...LIVE } });
+
+    return record ? toDomain(record) : null;
+  }
+
   async slugExists(slug: string, excludeId?: string): Promise<boolean> {
     const record = await prisma.event.findFirst({
       where: { slug, ...LIVE, ...(excludeId ? { id: { not: excludeId } } : {}) },

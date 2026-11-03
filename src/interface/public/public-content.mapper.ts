@@ -1,6 +1,7 @@
 import type { PublicContentSnapshot } from "@/application/dto/public-content.dto";
 
 import type { PublicContentResponse, PublicImage } from "./public-content.dto";
+import { toPublicEventExtras } from "./public-event-extras";
 
 /**
  * Version of the public JSON contract (`schemaVersion`, and its older alias `version`). It is bumped only on a
@@ -13,7 +14,12 @@ export const PUBLIC_CONTENT_SCHEMA_VERSION = 1;
 // entity later stays private until someone adds it here on purpose.
 const toPublicImage = ({ url, width, height, alt }: PublicImage): PublicImage => ({ url, width, height, alt });
 
-export function toPublicContentResponse(snapshot: PublicContentSnapshot, generatedAt: Date): PublicContentResponse {
+export interface PublicContentOptions {
+  /** Public origin of this admin (`AUTH_URL`), for the registration and calendar URLs; they are `null` without it. */
+  adminOrigin?: string;
+}
+
+export function toPublicContentResponse(snapshot: PublicContentSnapshot, generatedAt: Date, { adminOrigin }: PublicContentOptions = {}): PublicContentResponse {
   return {
     version: PUBLIC_CONTENT_SCHEMA_VERSION,
     schemaVersion: PUBLIC_CONTENT_SCHEMA_VERSION,
@@ -34,6 +40,7 @@ export function toPublicContentResponse(snapshot: PublicContentSnapshot, generat
       linkLabel: event.linkLabel,
       highlights: [...event.highlights],
       photos: event.photos.map(toPublicImage),
+      ...toPublicEventExtras(event, adminOrigin),
     })),
     faqs: snapshot.faqs.map((faq) => ({ question: faq.question, answer: faq.answer, command: faq.command })),
     pillars: snapshot.pillars.map((pillar) => ({

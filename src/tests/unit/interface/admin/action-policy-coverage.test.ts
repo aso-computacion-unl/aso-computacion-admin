@@ -36,6 +36,7 @@ describe("server action policy", () => {
     );
 
     expect(adminOnly.sort()).toEqual([
+      "event-registrations:deleteEventRegistration",
       "forum:createForumCategory",
       "forum:deleteForumCategory",
       "forum:updateForumCategory",

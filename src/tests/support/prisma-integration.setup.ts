@@ -26,7 +26,7 @@ for (const suite of INTEGRATION_SUITES) {
 beforeEach(async () => {
   await createPrismaIntegrationCleanup(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL, () =>
     // Photos cascade from their event, but delete them explicitly so cleanup never depends on the FK.
-    prisma.$transaction([prisma.forumReport.deleteMany(), prisma.forumReaction.deleteMany(), prisma.forumReply.deleteMany(), prisma.forumThread.deleteMany(), prisma.forumCategory.deleteMany(), prisma.forumSession.deleteMany(), prisma.forumMember.deleteMany(), prisma.eventPhoto.deleteMany(), prisma.event.deleteMany(), prisma.faq.deleteMany(), prisma.terminalCommand.deleteMany(), prisma.socialLink.deleteMany(), prisma.pillar.deleteMany(), prisma.siteSettings.deleteMany(), prisma.boardMember.deleteMany(), prisma.newsItem.deleteMany(), prisma.loginAttempt.deleteMany(), prisma.deployStatus.deleteMany(), prisma.adminInvite.deleteMany(), prisma.auditLog.deleteMany(), prisma.session.deleteMany(), prisma.user.deleteMany()]),
+    prisma.$transaction([prisma.eventRegistration.deleteMany(), prisma.forumReport.deleteMany(), prisma.forumReaction.deleteMany(), prisma.forumReply.deleteMany(), prisma.forumThread.deleteMany(), prisma.forumCategory.deleteMany(), prisma.forumSession.deleteMany(), prisma.forumMember.deleteMany(), prisma.eventPhoto.deleteMany(), prisma.event.deleteMany(), prisma.faq.deleteMany(), prisma.terminalCommand.deleteMany(), prisma.socialLink.deleteMany(), prisma.pillar.deleteMany(), prisma.siteSettings.deleteMany(), prisma.boardMember.deleteMany(), prisma.newsItem.deleteMany(), prisma.loginAttempt.deleteMany(), prisma.deployStatus.deleteMany(), prisma.adminInvite.deleteMany(), prisma.auditLog.deleteMany(), prisma.session.deleteMany(), prisma.user.deleteMany()]),
   );
 });
 

@@ -90,6 +90,16 @@ describe("purge and list-trash use cases", () => {
       expect(storage.destroyedPublicIds).toEqual([]);
     });
 
+    it("purges a news item without a cover without touching the storage", async () => {
+      const item = await newsItems.create(news("Sin portada"));
+      await newsItems.trash(item.props.id);
+
+      await new PurgeNewsItemUseCase(newsItems, storage).execute({ id: item.props.id });
+
+      expect(await newsItems.listTrashed()).toEqual([]);
+      expect(storage.destroyedPublicIds).toEqual([]);
+    });
+
     it("keeps the image when the purge itself fails, and still succeeds when the destroy fails (logging the leftover)", async () => {
       const first = await pillars.create(Pillar.create({ word: "VOZ", title: "Uno", text: "t", sortOrder: 0, image: image("uno") }));
       const second = await pillars.create(Pillar.create({ word: "RED", title: "Dos", text: "t", sortOrder: 1, image: image("dos") }));

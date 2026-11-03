@@ -96,6 +96,20 @@ describe("ResolveGoogleLoginUseCase", () => {
       expect((await users.findByEmail("first@example.org"))?.role).toBe("ADMIN");
     });
 
+    it("signs in the admin another request created at the same moment, instead of failing the second first login", async () => {
+      const winner = makeUser({ id: "winner", email: "first@example.org", role: "ADMIN" });
+
+      // The competing first login lands between our lookup and our insert.
+      users.create = async () => {
+        users.users.set(winner.id, winner);
+
+        return false;
+      };
+
+      expect(await resolve({ bootstrapEmails: ["first@example.org"] }).execute({ email: "first@example.org", emailVerified: true })).toMatchObject({ ok: true, user: { id: "winner" } });
+      expect(users.users.size).toBe(3);
+    });
+
     it("does not create anyone for an unverified email or outside the allowed domain", async () => {
       const bootstrapEmails = ["first@example.org"];
 

@@ -41,6 +41,16 @@ describe("sponsors in the trash", () => {
     expect(await sponsors.listTrashed()).toEqual([]);
   });
 
+  it("purging a sponsor without a logo destroys nothing", async () => {
+    const plain = await sponsors.create(sponsor(0));
+    await sponsors.trash(plain.props.id);
+
+    await new PurgeSponsorUseCase(sponsors, storage).execute({ id: plain.props.id });
+
+    expect(await sponsors.listTrashed()).toEqual([]);
+    expect(storage.destroyedPublicIds).toEqual([]);
+  });
+
   it("keeps the image of an item that is still live when its purge is refused", async () => {
     const live = await sponsors.create(sponsor(0, image("acme")));
 

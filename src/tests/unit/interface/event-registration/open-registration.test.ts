@@ -39,6 +39,7 @@ describe("validateOpenForm", () => {
     expect(validateOpenForm({ ...VALID, email: "ana@" }).email).toBe("Revisa tu correo: no parece una dirección válida.");
     expect(validateOpenForm({ ...VALID, name: "a".repeat(121) }).name).toBe("Tu nombre es muy largo: usa hasta 120 caracteres.");
     expect(validateOpenForm({ ...VALID, name: "Ana\u0000" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, career: "Compu\u0007tación" }).career).toBe("Tu carrera tiene caracteres que no podemos guardar.");
     expect(validateOpenForm({ ...VALID, name: "Ana \ud800" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
   });
 });
@@ -58,6 +59,8 @@ describe("outcomeFromResponse", () => {
     [201, { ok: true }, { kind: "registered" }],
     [400, { error: "validation", field: "semester" }, { kind: "field", field: "semester" }],
     [400, { error: "validation", field: "turnstile" }, { kind: "failed" }],
+    [400, { error: "validation" }, { kind: "failed" }],
+    [400, { error: "validation", field: 7 }, { kind: "failed" }],
     [400, { error: "captcha" }, { kind: "captcha" }],
     [400, { error: "bad_request" }, { kind: "failed" }],
     [404, { error: "not_found" }, { kind: "not_found" }],
@@ -102,6 +105,7 @@ describe("outcomeMessage", () => {
   });
 
   it("tells how long to wait after a rate limit, in minutes once it is a minute or more", () => {
+    expect(outcomeMessage({ kind: "rate_limited", retryAfterSeconds: 1 })).toContain("1 segundo.");
     expect(outcomeMessage({ kind: "rate_limited", retryAfterSeconds: 45 })).toContain("45 segundos");
     expect(outcomeMessage({ kind: "rate_limited", retryAfterSeconds: 61 })).toContain("2 minutos");
     expect(outcomeMessage({ kind: "rate_limited", retryAfterSeconds: 60 })).toContain("1 minuto.");

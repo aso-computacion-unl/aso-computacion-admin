@@ -29,6 +29,7 @@ vi.mock("@/interface/admin/board/board-members-container", () => ({ getBoardMemb
 import { NotFoundError } from "@/application";
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/board/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string | File>): FormData {
   const data = new FormData();
@@ -96,6 +97,13 @@ describe("board member server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/board");
   });
 
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setBoardMemberPublished("member-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "member-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "board.unpublish", entityType: "board", entityId: "member-1", summary: "Integrante de la directiva pasado a borrador" }]);
+  });
+
   it("publishing a member without a photo reports the photo rule instead of failing silently", async () => {
     useCases.setPublished.execute.mockRejectedValue(new ValidationError("photo", "needs a photo"));
 
@@ -125,6 +133,14 @@ describe("board member server actions", () => {
         alt: "Ana",
       });
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/board/member-1/edit");
+    });
+
+    it("hands over an empty alt when none was typed, so the use case can explain the rule", async () => {
+      useCases.setPhoto.execute.mockResolvedValue({});
+
+      expect(await actions.uploadBoardMemberPhoto("member-1", null, form({ file: jpeg() }))).toEqual({ success: true });
+
+      expect(useCases.setPhoto.execute).toHaveBeenCalledWith({ id: "member-1", file: expect.objectContaining({ name: "a.jpg" }), alt: "" });
     });
 
     it("rejects a missing file, a wrong type and a spoofed signature before any upload", async () => {

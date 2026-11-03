@@ -157,6 +157,12 @@ describe("ListForumReportsUseCase", () => {
     expect(page.items[0]).toMatchObject({ status: "RESOLVED", resolutionNote: "Ocultada", resolvedAt: NOW, target: { hidden: true, authorSuspended: true } });
   });
 
+  it.each([0, -3, 1.5, Number.NaN])("falls back to the first page for a page number that cannot be one (%s)", async (requested) => {
+    open("only", 1);
+
+    expect(await listReports().execute({ status: "open", page: requested })).toMatchObject({ page: 1, total: 1, items: [{ id: "only" }] });
+  });
+
   it("cuts a long post to an excerpt and paginates, keeping a page past the end in range", async () => {
     store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", body: "x".repeat(1000) }));
     for (let index = 0; index < FORUM_REPORTS_PAGE_SIZE + 1; index += 1) open(`p${index}`, index);

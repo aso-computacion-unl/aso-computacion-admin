@@ -205,6 +205,18 @@ describe("RedeemAdminInviteUseCase", () => {
     expect((await redeem({ allowedDomain: "example.org" }).execute({ token: "the-token", identity: identity({ hostedDomain: "example.org" }) })).ok).toBe(true);
   });
 
+  it("refuses as used when another redemption wins between the read and the write, creating nobody", async () => {
+    const redeemWrite = invites.redeem.bind(invites);
+    invites.redeem = async (inviteId, user) => {
+      invites.invites.set(inviteId, { ...invites.invites.get(inviteId)!, usedAt: NOW, usedByUserId: "someone-else" });
+
+      return redeemWrite(inviteId, user);
+    };
+
+    expect(await redeem().execute({ token: "the-token", identity: identity() })).toEqual({ ok: false, reason: "used" });
+    expect(await users.findByEmail("ben@example.org")).toBeNull();
+  });
+
   it("refuses when a user with that email was added meanwhile, keeping the invite pending", async () => {
     users.users.set("ben", makeUser({ id: "ben", email: "ben@example.org", role: "EDITOR" }));
     const before = snapshot();

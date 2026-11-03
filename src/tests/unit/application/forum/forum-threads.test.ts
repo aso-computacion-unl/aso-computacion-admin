@@ -146,6 +146,20 @@ describe("ReplyToForumThreadUseCase", () => {
     expect(store.replies.size).toBe(0);
   });
 
+  it("answers not found when the thread gets hidden between the read and the write", async () => {
+    store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1" }));
+    const racing = new InMemoryForumPostRepository(store);
+    const original = racing.findThread.bind(racing);
+    racing.findThread = async (id) => {
+      const row = await original(id);
+      store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", hiddenAt: NOW }));
+      return row;
+    };
+
+    await expect(new ReplyToForumThreadUseCase(members, racing, new PostingThrottle(racing, now), now, newId).execute({ memberId: "m2", threadId: "t1", body: "hola" })).rejects.toThrow(NotFoundError);
+    expect(store.replies.size).toBe(0);
+  });
+
   it("treats a hidden or unknown thread as not found, and refuses a suspended member and an empty body", async () => {
     store.threads.set("t2", makeForumThread({ id: "t2", categoryId: "c1", hiddenAt: NOW }));
 
@@ -303,6 +317,12 @@ describe("reading", () => {
       ["r2", false, true],
     ]);
     expect(JSON.stringify(view)).not.toMatch(/unl\.edu\.ec|"authorId"|googleSub|"email"/);
+  });
+
+  it("answers not found for a thread whose category no longer exists", async () => {
+    store.threads.set("orphan", makeForumThread({ id: "orphan", categoryId: "gone" }));
+
+    await expect(new GetForumThreadUseCase(categories, posts).execute({ threadId: "orphan", viewerId: "m1" })).rejects.toThrow(NotFoundError);
   });
 
   it("answers not found for a hidden or unknown thread", async () => {

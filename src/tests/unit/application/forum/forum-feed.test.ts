@@ -44,6 +44,14 @@ describe("ListForumFeedUseCase", () => {
     expect(page.category).toBeNull();
   });
 
+  it("lists a thread whose category is gone without one instead of failing", async () => {
+    store.threads.set("t6", makeForumThread({ id: "t6", categoryId: "gone", authorId: "m2", title: "Sin categoría", lastActivityAt: at(50) }));
+
+    const page = await execute();
+
+    expect(page.items[0]).toMatchObject({ id: "t6", title: "Sin categoría", category: null });
+  });
+
   it("lists the solved threads under the solved tab and counts both tabs", async () => {
     const page = await execute({ state: "solved" });
 

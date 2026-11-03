@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requireAdminSessionMock, revalidatePathMock, restore, purge } = vi.hoisted(() => ({
-  requireAdminSessionMock: vi.fn(),
+const { requireSessionMock, revalidatePathMock, restore, purge } = vi.hoisted(() => ({
+  requireSessionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   restore: vi.fn(),
   purge: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
-vi.mock("@/interface/auth/require-admin-session", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/interface/auth/require-admin-session")>()),
-  requireAdminSession: requireAdminSessionMock,
+vi.mock("@/interface/auth/require-session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/interface/auth/require-session")>()),
+  requireSession: requireSessionMock,
+  requireRole: requireSessionMock,
 }));
 // Each kind gets its own stub so a test can tell which one a call reached.
 const byKind = (operation: typeof restore) => new Proxy({}, { get: (_target, kind) => ({ execute: (command: { id: string }) => operation(kind, command) }) });
@@ -24,7 +25,7 @@ import * as actions from "@/interface/admin/trash/actions";
 describe("trash server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireAdminSessionMock.mockResolvedValue(undefined);
+    requireSessionMock.mockResolvedValue({ kind: "user", sessionId: "s1", userId: "u1", name: "Ana", role: "ADMIN" });
   });
 
   it("restoreTrashed restores the kind it is given and refreshes the trash and that kind's list", async () => {

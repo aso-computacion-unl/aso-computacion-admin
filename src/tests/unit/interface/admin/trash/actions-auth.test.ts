@@ -22,12 +22,12 @@ vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("@/interface/admin/trash/trash-container", () => ({ getTrashUseCases: getTrashUseCasesMock }));
 
-import { signSession } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/trash/actions";
 import { cookieJar, registerAdminActionAuthCases } from "@/tests/support/admin-action-auth";
+import { registerPolicyCases } from "@/tests/support/action-policy";
 
-describe("trash server actions require an admin session (L9)", () => {
-  registerAdminActionAuthCases({
+const SUITE = {
     actionsPath: "src/interface/admin/trash/actions.ts",
     actions,
     actionCalls: {
@@ -36,15 +36,22 @@ describe("trash server actions require an admin session (L9)", () => {
     },
     cookiesMock,
     untouchedMocks: [getTrashUseCasesMock, revalidatePathMock],
-  });
+};
+
+describe("trash server actions require an admin session (L9)", () => {
+  registerAdminActionAuthCases(SUITE);
 
   it("positive control: a valid session reaches the use cases", async () => {
-    cookieJar(cookiesMock, await signSession());
+    cookieJar(cookiesMock, await signInAs("ADMIN"));
 
     await expect(actions.restoreTrashed("faq", "faq-1")).resolves.toEqual({ success: true });
     await expect(actions.purgeTrashed("faq", "faq-1")).resolves.toEqual({ success: true });
 
     expect(useCases.restore.faq?.execute).toHaveBeenCalledWith({ id: "faq-1" });
     expect(useCases.purge.faq?.execute).toHaveBeenCalledWith({ id: "faq-1" });
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases(SUITE);
   });
 });

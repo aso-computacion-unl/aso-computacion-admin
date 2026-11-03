@@ -56,7 +56,7 @@ Un PR debería poder revisarse en menos de una hora: idealmente **menos de 400 l
 
 Protegen la seguridad del panel y la privacidad de la directiva. Un PR que las rompe no se mergea:
 
-- **Cada server action verifica la sesión** con `requireAdminSession()` como primera instrucción y tiene un test que prueba que sin sesión no escribe nada (ver la [referencia técnica](docs/REFERENCIA.md#server-actions-are-guarded-individually)).
+- **Cada server action verifica la sesión y el rol** como primera instrucción: `requireSession()` si puede llamarla cualquier usuario con sesión, o `requireRole("ADMIN")` si es solo para administradores. Tiene además una fila en `src/tests/support/action-policy.ts` y un test que prueba que sin sesión no escribe nada (ver la [referencia técnica](docs/REFERENCIA.md#server-actions-are-guarded-individually)).
 - **La directiva solo tiene nombre, cargo y foto.** Nada de teléfono, correo, edad ni redes personales: hay tests que fallan si aparecen esos campos en el modelo o en una migración.
 - **Migraciones solo hacia adelante.** No edites una migración ya mergeada; agregá una nueva. Las migraciones de producción se aplican a mano (ver `docs/DEPLOY.md`).
 - **La API pública solo expone lo publicado.** Cualquier campo nuevo en `/api/public/content` es un cambio de contrato con la landing: coordiná el PR en los dos repositorios.

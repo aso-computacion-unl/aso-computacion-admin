@@ -58,8 +58,13 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 |----------|----------|--------------|
 | `DATABASE_URL` | yes | Postgres connection string. On Vercel: the **pooled** Neon URL (step 1). Locally: your own database. |
 | `TEST_DATABASE_URL` | never on Vercel | Disposable database for `npm run test:integration` only. Must match the exact local target written in `.env.example`; never point it at Neon. |
-| `ADMIN_PASSWORD` | yes | The one shared password of the whole board. **At least 16 characters**, enforced: shorter, missing or still a placeholder disables login and logs an error. |
-| `ADMIN_SECRET` | yes | Signs the session cookie and the "known device" cookie. At least 32 characters. |
+| `ADMIN_PASSWORD` | yes | The shared **emergency (break-glass) password**. **At least 16 characters**, enforced: shorter, missing or still a placeholder disables the password login and logs an error. Once Google is configured it only works with `BREAK_GLASS_PASSWORD_LOGIN=1` (section 4a). |
+| `ADMIN_SECRET` | yes | Signs the session cookie, the "known device" cookie and the short-lived Google login cookie, and keys the hash of each session's client address. At least 32 characters. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | for Google login | The OAuth client of section 4a. Mark the secret Sensitive. Set all three Google variables or none: a partial set is a configuration error (section 4a). |
+| `AUTH_URL` | for Google login | Public origin of this admin, `https://…` with no path (plain `http` only for localhost). The OAuth redirect URI is `${AUTH_URL}/auth/google/callback`. |
+| `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
+| `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
+| `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when none of the three Google variables is set). |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -80,13 +85,59 @@ openssl rand -base64 24   # ADMIN_PASSWORD, 32 characters
 
 Use a password manager to store the password and share it with the board. A long random password is the real protection against guessing: the login throttle only slows each client down (see "Login throttle" in [REFERENCIA.md](REFERENCIA.md#login-throttle)), and a passphrase of four or five unrelated words also clears 16 characters if people must type it.
 
-### Rotating the password (when the board changes)
+### Rotating the emergency password
 
 Change `ADMIN_PASSWORD` in Vercel and redeploy. What that does:
 
-- **Existing sessions stay valid until they expire (24 hours).** A session cookie is signed with `ADMIN_SECRET` only; it does not know the password. A former member who is still logged in keeps access until then.
+- **Existing sessions are not affected by the password.** Every session is a row in the database; to cut someone off at once, revoke it in **Sesiones activas** (an admin sees everyone's, including emergency ones) or deactivate the user in **Usuarios**.
 - **"Known device" cookies stop matching** (they carry a fingerprint of the password), so those browsers fall back to the per-IP login throttle until their next login. That is harmless; it only affects the throttle.
-- To cut access **immediately**, rotate `ADMIN_SECRET` as well. That invalidates every session and every device cookie: everyone, including you, logs in again.
+- Rotating `ADMIN_SECRET` invalidates every session cookie and every device cookie at once: everyone, including you, logs in again.
+
+## 4a. Sign-in with Google, users and roles
+
+People log in with their Google account; only emails on the **Usuarios** list get in, with the role they were given.
+
+| Role | Can |
+|------|-----|
+| `EDITOR` | Create, edit, publish, reorder, move to the trash and restore content; see and close their own sessions. |
+| `ADMIN` | Everything an editor can, plus: the site texts (**Sitio**), delete for good from the trash, **Usuarios**, other people's sessions, and the **Registro de cambios** (audit log). |
+
+The role is checked on the server in every action (and on every page read), against the database: demoting, deactivating or revoking takes effect on the person's next request. The last active admin can be neither demoted nor deactivated.
+
+### Google Cloud setup (once)
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) create (or pick) a project.
+2. **APIs & Services → OAuth consent screen**: user type **Internal** if the accounts belong to one Google Workspace organisation, otherwise **External** (then publish it, or only listed test users can log in). App name `ASO Computación · Administración`, a support email, no extra scopes (the app asks for `openid`, `email` and `profile`).
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**, application type **Web application**.
+4. **Authorized redirect URIs**: add exactly `https://<your admin domain>/auth/google/callback` (it must match `AUTH_URL` + `/auth/google/callback`, character for character). For local development also `http://localhost:3000/auth/google/callback`. No authorized JavaScript origins are needed.
+5. Copy the client ID and the client secret into Vercel as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (secret: Sensitive), set `AUTH_URL` to `https://<your admin domain>` and `ADMIN_BOOTSTRAP_EMAILS` to the one or two emails that should be the first admins. Redeploy.
+
+**All three or none.** The three variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`) are one setting:
+
+| Set | Result |
+|-----|--------|
+| None of them (empty or still a `__REPLACE_…__` placeholder) | No Google. The shared-password login is on, as in local development and before the cut-over. |
+| All three, `AUTH_URL` a valid `https` origin (plain `http` only for `localhost`) | Google login on. The password login is off unless `BREAK_GLASS_PASSWORD_LOGIN=1`. |
+| Only some of them, or `AUTH_URL` not a valid `https` origin | **Configuration error.** Google login is unavailable **and the password login stays off** (a typo must not silently re-open the shared password). `/login` shows "Configuración incompleta: el acceso con Google no está disponible…" and the Vercel logs show `Incomplete Google login configuration: <names of the variables to fix>` once per instance (also sent to Sentry; names only, never values). |
+
+To fix it, set the variables the log names (or clear all three to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
+
+If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
+
+### Cut-over from the shared password
+
+1. Apply the migration (see "The users, sessions and audit migration" in section 8) **before** deploying this version.
+2. Deploy with the Google variables **unset**: login is the shared password, exactly as before, but each login is now a revocable session (listed as "emergencia") and the page shows a warning banner.
+3. Set the Google variables and `ADMIN_BOOTSTRAP_EMAILS`, redeploy, and log in with Google. Your first login creates your ADMIN user. Add the rest of the board in **Usuarios**.
+4. Once Google works, the password login switches off by itself (it needs `BREAK_GLASS_PASSWORD_LOGIN=1` from then on), and every emergency session still open is rejected at its next request.
+
+### Emergency procedure (break-glass)
+
+Use it only when Google login is unavailable (Google outage, a mistyped redirect URI, a half-set Google configuration, nobody left who can log in).
+
+1. In Vercel set `BREAK_GLASS_PASSWORD_LOGIN=1` and redeploy. `/login` then shows **Acceso de emergencia**.
+2. Log in with `ADMIN_PASSWORD`. You act as a synthetic admin ("Acceso de emergencia"); a warning banner shows on every page, and the login is written to the audit log.
+3. Fix the cause (for example add or reactivate a user in **Usuarios**), then **log out**, remove `BREAK_GLASS_PASSWORD_LOGIN` and redeploy. Switching it off also invalidates any emergency session still open. Rotate `ADMIN_PASSWORD` if more people than you saw it.
 
 ## 5. Seeding the landing content
 
@@ -144,7 +195,17 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - A wrong or missing variable shows up in the Vercel function logs, never on screen: `ADMIN_PASSWORD is not set...`, `ADMIN_SECRET is invalid...`. If nobody can log in right after a deploy, read the logs first.
 - Failed deletes in Cloudinary never fail an admin action; the leftover `publicId`s are logged and can be removed in the Cloudinary console. Cloudinary assets are destroyed only when an item is deleted for good from the trash, never when it is moved there.
 - The dashboard shows the outcome of the last landing rebuild request ("Último despliegue"). A failure there means the content is saved but the site was not asked to rebuild: wait for the daily cron or save another change. Check `CLOUDFLARE_DEPLOY_HOOK_URL` if it keeps failing. Remember to run `prisma migrate deploy` (the `DeployStatus` table) before the first deploy that includes this.
-- The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances.
+- The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances. The password login and the Google callback spend the same throttle.
+- Sessions live in the `Session` table (24 h, revocable). Only a keyed hash of the client address and a shortened user agent are stored. Old rows are not purged automatically; they are small and expired ones are never listed.
+- The audit log (`AuditLog`) holds who did what to which record, by name and id: never content bodies, passwords, tokens or emails. A failure to write an entry never fails the action it describes; it is logged and reported to Sentry.
+
+### The users, sessions and audit migration (`20261026120000_add_users_sessions_audit`)
+
+Purely additive: it creates the `User`, `Session` and `AuditLog` tables and two enums, and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy`, needs no downtime, and the previous admin keeps working against it.
+
+- Deploy order: run the migration first, then deploy the new code (the reverse fails: the new code reads the tables).
+- Rollback, only if the feature is abandoned (roll the app back first, the old code ignores these tables): `DROP TABLE "AuditLog", "Session", "User"; DROP TYPE "ActorKind", "UserRole"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026120000_add_users_sessions_audit';`, with the **direct** connection string. The audit history is lost with it.
+- The new version no longer accepts the old session cookies (they carry no session id): everybody logs in once more after the deploy.
 
 ### The soft-delete migration (`20261025130000_add_soft_delete`)
 
@@ -191,11 +252,12 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Neon project created; pooled and direct URLs copied.
 - [ ] `DATABASE_URL='<direct>' npx prisma migrate deploy` ran without errors.
 - [ ] Cloudinary cloud name, API key and API secret copied.
-- [ ] `ADMIN_SECRET` (≥ 32 chars) and `ADMIN_PASSWORD` (≥ 16 chars) generated and saved in the password manager.
+- [ ] `ADMIN_SECRET` (≥ 32 chars) and `ADMIN_PASSWORD` (≥ 16 chars, the emergency password) generated and saved in the password manager.
+- [ ] Google OAuth client created (section 4a), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL` and `ADMIN_BOOTSTRAP_EMAILS` set; the redirect URI in Google matches `AUTH_URL/auth/google/callback`.
 - [ ] Vercel project: Next.js preset, Node 22.x, `npm ci` / `npm run build`.
 - [ ] Production variables set: `DATABASE_URL` (pooled, `pgbouncer=true`), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
 - [ ] Deployed; `GET /api/health` returns 200; `/admin` redirects to `/login`.
-- [ ] Logged in with the real password; the Vercel logs show no `ADMIN_*` error.
+- [ ] Logged in (with Google, or with the password while Google is not configured); the Vercel logs show no `ADMIN_*` error. **Usuarios**, **Sesiones activas** and **Registro de cambios** open for an admin, and an editor is sent back to the home page from **Usuarios**.
 - [ ] Uploaded one test photo to a draft event, moved the event to the trash and deleted it for good from `/admin/papelera` (checks Cloudinary and the pooled connection end to end).
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.

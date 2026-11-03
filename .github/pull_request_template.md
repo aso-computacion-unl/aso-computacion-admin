@@ -16,7 +16,7 @@
 ## Antes de pedir revisión
 
 - [ ] El PR tiene menos de ~400 líneas cambiadas, o explico por qué no se puede dividir
-- [ ] Toda server action nueva llama a `requireAdminSession()` primero y tiene su test sin sesión
+- [ ] Toda server action nueva llama a `requireSession()` (o `requireRole("ADMIN")` si es solo para admins) primero, y tiene su test sin sesión y de rol
 - [ ] No agrega datos de contacto a la directiva
 - [ ] Si cambia `/api/public/content`, hay un PR coordinado en `aso-computacion-landing`
 - [ ] Si agrega una migración, es nueva (no edita una existente) y lo anoté para aplicarla en producción

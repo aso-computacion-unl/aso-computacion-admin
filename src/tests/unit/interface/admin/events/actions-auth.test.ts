@@ -29,8 +29,10 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: getEventUseCasesMock }));
 
-import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
+import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/events/actions";
+import { registerPolicyCases } from "@/tests/support/action-policy";
 import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
 
 const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
@@ -96,7 +98,7 @@ describe("events server actions require an admin session (L9)", () => {
   });
 
   it("fails closed when the signing secret is not configured", async () => {
-    cookieJar(await signSession());
+    cookieJar(await signInAs("ADMIN"));
     vi.stubEnv("ADMIN_SECRET", "");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -108,7 +110,7 @@ describe("events server actions require an admin session (L9)", () => {
   });
 
   it("positive control: a valid session reaches the use cases", async () => {
-    cookieJar(await signSession());
+    cookieJar(await signInAs("ADMIN"));
 
     await expect(actions.trashEvent("event-1")).resolves.toEqual({ success: true });
 
@@ -117,5 +119,14 @@ describe("events server actions require an admin session (L9)", () => {
 
   it("the guard is the first statement of every action", () => {
     expect(expectGuardFirstInEveryAction("src/interface/admin/events/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases({
+      actionsPath: "src/interface/admin/events/actions.ts",
+      actionCalls: ACTION_CALLS,
+      cookiesMock,
+      untouchedMocks: [getEventUseCasesMock, revalidatePathMock, redirectMock],
+    });
   });
 });

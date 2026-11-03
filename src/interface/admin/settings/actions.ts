@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 
 import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 
-import { requireAdminSession } from "../../auth/require-admin-session";
+import { recordAudit } from "../../audit/record-audit";
+import { requireRole } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { parseSiteSettingsFormData } from "./settings-form-data";
 import { getSiteSettingsUseCases } from "./settings-container";
 
-// Every action starts with `await requireAdminSession()`, before it reads any
-// input or touches a use case (a server action can be POSTed to any page).
+// Every action starts with the session guard, before it reads any input or touches a use case (a
+// server action can be POSTed to any page). The site settings are ADMIN only.
 
 const PAGE_PATH = "/admin/settings";
 
@@ -23,8 +24,9 @@ const SETTINGS_FIELD_MESSAGES = {
 
 export async function updateSiteSettings(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdminSession();
+    const actor = await requireRole("ADMIN");
     await getSiteSettingsUseCases().update.execute(parseSiteSettingsFormData(formData));
+    await recordAudit(actor, { action: "settings.update", entityType: "settings", entityId: "site", summary: "Ajustes del sitio actualizados" });
     requestSiteRebuild();
     revalidatePath(PAGE_PATH);
     return { success: true };

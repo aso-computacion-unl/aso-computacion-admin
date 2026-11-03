@@ -41,7 +41,8 @@ vi.mock("@/interface/admin/trash/trash-container", () => ({
   getTrashUseCases: () => ({ restore: containers(), purge: containers() }),
 }));
 
-import { AUTH_COOKIE_NAME, signSession } from "@/infrastructure/auth/session-jwt";
+import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
 import * as board from "@/interface/admin/board/actions";
 import * as commands from "@/interface/admin/commands/actions";
 import * as events from "@/interface/admin/events/actions";
@@ -185,7 +186,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   order.length = 0;
   vi.stubEnv("ADMIN_SECRET", "test-secret-test-secret-test-secret-1234");
-  session(await signSession());
+  session(await signInAs("ADMIN"));
 });
 
 describe("deploy hook after admin mutations", () => {

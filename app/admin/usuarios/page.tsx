@@ -1,36 +1,63 @@
-import { inviteUser } from "@/interface/admin/users/actions";
-import { getAdminUsers } from "@/interface/admin/users/users-admin-read";
+import { createAdminInvite } from "@/interface/admin/users/actions";
+import { getAdminUsers, getPendingInvites } from "@/interface/admin/users/users-admin-read";
+import { ROLE_LABELS } from "@/interface/admin/role-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { PageHead, Panel } from "../_components/page-head";
-import { InviteUserForm } from "./_components/invite-user-form";
+import { CreateInviteForm } from "./_components/create-invite-form";
+import { RevokeInviteButton } from "./_components/revoke-invite-button";
 import { UserActiveControl, UserRoleSelect } from "./_components/user-row-controls";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
+const EXPIRY = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeZone: "America/Guayaquil" });
 const LAST_LOGIN = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Guayaquil" });
 
 export default async function AdminUsersPage() {
   const actor = await requirePageSession("ADMIN");
-  const users = await getAdminUsers();
+  const [users, invites] = await Promise.all([getAdminUsers(), getPendingInvites()]);
   const active = users.filter((user) => user.active).length;
 
   return (
     <div>
       <PageHead title="Usuarios" meta={`${pluralize(active, "activo", "activos")} · ${pluralize(users.length - active, "desactivado", "desactivados")}`} />
       <p className="mt-4 max-w-2xl text-mist">
-        Solo entran al panel las personas de esta lista, con su cuenta de Google. Un editor crea y edita contenido; un administrador además gestiona
+        Solo entran al panel las personas de esta lista, con su cuenta de Google. Para sumar a alguien, cree una invitación: se genera un link de un solo
+        uso, atado a su correo, que usted envía por el medio que prefiera; la persona entra con Google y recién entonces queda en la lista. Un editor crea y edita contenido; un administrador además gestiona
         usuarios, los textos del sitio y el registro de cambios, y elimina de forma definitiva.
       </p>
 
       <Panel className="mt-6" aria-labelledby="invite-title">
         <h2 id="invite-title" className="mb-4 text-lg font-bold font-stretch-[112%]">
-          Agregar usuario
+          Invitar a una persona
         </h2>
-        <InviteUserForm action={inviteUser} />
+        <CreateInviteForm action={createAdminInvite} />
       </Panel>
+
+      {invites.length > 0 ? (
+        <section className="mt-6" aria-labelledby="pending-title">
+          <h2 id="pending-title" className="mb-3 text-lg font-bold font-stretch-[112%]">
+            Invitaciones pendientes
+          </h2>
+          <ul className="grid gap-3" aria-label="Invitaciones pendientes">
+            {invites.map((invite) => (
+              <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded bg-card p-4">
+                <div className="grid min-w-0 flex-1 basis-60 gap-1">
+                  <p className="font-mono text-[0.8125rem] font-semibold wrap-anywhere">{invite.email}</p>
+                  <p className="font-mono text-[0.8125rem] text-mist">
+                    {ROLE_LABELS[invite.role]} · vence el {EXPIRY.format(invite.expiresAt)}
+                  </p>
+                </div>
+                <RevokeInviteButton id={invite.id} email={invite.email} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <h2 className="sr-only">Usuarios con acceso</h2>
 
       <ul className="mt-6 grid gap-3" aria-label="Usuarios">
         {users.map((user) => (

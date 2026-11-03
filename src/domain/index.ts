@@ -54,3 +54,25 @@ export type { BoardMemberPhoto, BoardMemberProps, CreateBoardMemberInput, Update
 export { todayInEcuador } from "./calendar-date";
 export { NewsItem } from "./news-item";
 export type { CreateNewsItemInput, NewsCover, NewsItemProps, UpdateNewsItemInput } from "./news-item";
+export {
+  FORUM_CATEGORY_DESCRIPTION_MAX_LENGTH,
+  FORUM_CATEGORY_NAME_MAX_LENGTH,
+  FORUM_MEMBER_NAME_MAX_LENGTH,
+  FORUM_MEMBER_STATUSES,
+  FORUM_REPLY_BODY_MAX_LENGTH,
+  FORUM_THREAD_BODY_MAX_LENGTH,
+  FORUM_THREAD_TITLE_MAX_LENGTH,
+  ForumMemberSuspendedError,
+  ForumPostNotOwnedError,
+  ForumThreadLockedError,
+  assertCanEditPost,
+  assertCanPost,
+  assertThreadAcceptsReplies,
+  parseCategoryDescription,
+  parseCategoryName,
+  parseDisplayName,
+  parseReplyBody,
+  parseThreadBody,
+  parseThreadTitle,
+} from "./forum";
+export type { ForumCategory, ForumMember, ForumMemberStatus, ForumReply, ForumThread } from "./forum";

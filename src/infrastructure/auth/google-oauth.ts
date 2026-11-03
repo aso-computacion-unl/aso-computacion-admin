@@ -79,6 +79,8 @@ export interface GoogleIdentity {
   name?: string;
   /** Google's `hd` claim: the Workspace domain of the account. Absent for a personal account. */
   hostedDomain?: string;
+  /** Google's stable account id (`sub`). The admin login ignores it; the forum matches members on it. */
+  subject?: string;
 }
 
 interface AuthorizationClient {
@@ -132,5 +134,6 @@ export async function completeGoogleAuthorization(input: CompleteGoogleAuthoriza
     emailVerified: payload.email_verified === true,
     ...(typeof payload.name === "string" ? { name: payload.name } : {}),
     ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
+    ...(typeof payload.sub === "string" && payload.sub !== "" ? { subject: payload.sub } : {}),
   };
 }

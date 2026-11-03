@@ -17,3 +17,7 @@ export { SiteSettingsPrismaRepository } from "./repositories/site-settings-prism
 export { BoardMemberPrismaRepository } from "./repositories/board-member-prisma.repository";
 export { DeployStatusPrismaRepository } from "./repositories/deploy-status-prisma.repository";
 export { NewsPrismaRepository } from "./repositories/news-prisma.repository";
+export { ForumCategoryPrismaRepository } from "./repositories/forum-category-prisma.repository";
+export { ForumMemberPrismaRepository } from "./repositories/forum-member-prisma.repository";
+export { ForumPostPrismaRepository } from "./repositories/forum-post-prisma.repository";
+export { ForumSessionPrismaRepository } from "./repositories/forum-session-prisma.repository";

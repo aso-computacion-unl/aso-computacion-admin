@@ -16,6 +16,8 @@ export interface OAuthFlow {
   state: string;
   codeVerifier: string;
   nonce: string;
+  /** The invite link's token when the login started from one (S11): the callback redeems it instead of a plain login. */
+  invite?: string;
 }
 
 /**
@@ -41,13 +43,17 @@ export async function openOAuthState(value: string | undefined): Promise<OAuthFl
 
   try {
     const { payload } = await jwtVerify(value, getSessionSecret(), { algorithms: [SESSION_ALGORITHM], requiredClaims: ["exp"] });
-    const { purpose, state, codeVerifier, nonce } = payload;
+    const { purpose, state, codeVerifier, nonce, invite } = payload;
 
     if (purpose !== PURPOSE || typeof state !== "string" || typeof codeVerifier !== "string" || typeof nonce !== "string") {
       return null;
     }
 
-    return { state, codeVerifier, nonce };
+    if (invite !== undefined && typeof invite !== "string") {
+      return null;
+    }
+
+    return invite === undefined ? { state, codeVerifier, nonce } : { state, codeVerifier, nonce, invite };
   } catch {
     return null;
   }

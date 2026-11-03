@@ -1,9 +1,13 @@
 import {
+  CreateAdminInviteUseCase,
   ListActiveSessionsUseCase,
+  ListPendingInvitesUseCase,
+  LookupPendingInviteUseCase,
+  RedeemAdminInviteUseCase,
+  RevokeAdminInviteUseCase,
   ListAuditLogUseCase,
   ListUsersUseCase,
   ChangeUserRoleUseCase,
-  InviteUserUseCase,
   ResolveGoogleLoginUseCase,
   RevokeSessionUseCase,
   SetUserActiveUseCase,
@@ -11,12 +15,14 @@ import {
   ValidateSessionUseCase,
 } from "@/application";
 import type { Role } from "@/domain/user";
+import { inviteTokens } from "@/infrastructure/auth/invite-token";
 import { signSession } from "@/infrastructure/auth/session-jwt";
-import { InMemoryAuditLog, InMemorySessionRepository, InMemoryUserRepository, makeUser } from "@/tests/fakes/in-memory-auth";
+import { InMemoryAdminInviteRepository, InMemoryAuditLog, InMemorySessionRepository, InMemoryUserRepository, makeUser } from "@/tests/fakes/in-memory-auth";
 
 const users = new InMemoryUserRepository();
 const sessions = new InMemorySessionRepository(users);
 const audit = new InMemoryAuditLog();
+const invites = new InMemoryAdminInviteRepository(users);
 
 /**
  * The auth services every unit test sees instead of the Prisma-backed container (installed for all
@@ -27,6 +33,7 @@ export const testAuth = {
   users,
   sessions,
   audit,
+  invites,
   services: {
     audit,
     startSession: new StartSessionUseCase(sessions, users),
@@ -35,7 +42,11 @@ export const testAuth = {
     revokeSession: new RevokeSessionUseCase(sessions),
     resolveGoogleLogin: new ResolveGoogleLoginUseCase(users, { bootstrapEmails: [] }),
     listUsers: new ListUsersUseCase(users),
-    inviteUser: new InviteUserUseCase(users),
+    createInvite: new CreateAdminInviteUseCase(invites, users, inviteTokens),
+    listPendingInvites: new ListPendingInvitesUseCase(invites),
+    lookupInvite: new LookupPendingInviteUseCase(invites, inviteTokens),
+    revokeInvite: new RevokeAdminInviteUseCase(invites),
+    redeemInvite: new RedeemAdminInviteUseCase(invites, inviteTokens, {}),
     changeUserRole: new ChangeUserRoleUseCase(users),
     setUserActive: new SetUserActiveUseCase(users, sessions),
     listAuditLog: new ListAuditLogUseCase(audit),
@@ -46,6 +57,7 @@ export function resetTestAuth(): void {
   users.users.clear();
   sessions.sessions.clear();
   sessions.touched = [];
+  invites.invites.clear();
   audit.entries.length = 0;
   audit.failWith = undefined;
 }

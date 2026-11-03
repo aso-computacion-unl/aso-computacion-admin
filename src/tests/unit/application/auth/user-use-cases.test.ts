@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { LastAdminError, UserEmailTakenError } from "@/application/auth/auth-errors";
-import { ChangeUserRoleUseCase, InviteUserUseCase, SetUserActiveUseCase } from "@/application/auth/user.use-cases";
+import { LastAdminError } from "@/application/auth/auth-errors";
+import { ChangeUserRoleUseCase, SetUserActiveUseCase } from "@/application/auth/user.use-cases";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
 import { InMemorySessionRepository, InMemoryUserRepository, makeUser } from "@/tests/fakes/in-memory-auth";
@@ -17,30 +17,6 @@ beforeEach(() => {
     makeUser({ id: "ana", email: "ana@example.org", name: "Ana", role: "EDITOR" }),
   ]);
   sessions = new InMemorySessionRepository(users);
-});
-
-describe("InviteUserUseCase", () => {
-  const invite = () => new InviteUserUseCase(users, () => NOW, () => "new-id");
-
-  it("adds an active user with a normalised email, the chosen role, and the local part as the default name", async () => {
-    const user = await invite().execute({ email: "  Ben.Ruiz@Example.org ", role: "EDITOR" });
-
-    expect(user).toEqual({ id: "new-id", email: "ben.ruiz@example.org", name: "ben.ruiz", role: "EDITOR", active: true, createdAt: NOW, lastLoginAt: null });
-    expect(await users.findById("new-id")).toEqual(user);
-  });
-
-  it("keeps a given name", async () => {
-    expect((await invite().execute({ email: "ben@example.org", name: " Ben Ruiz ", role: "ADMIN" })).name).toBe("Ben Ruiz");
-  });
-
-  it("refuses an email that is already registered, whatever its case", async () => {
-    await expect(invite().execute({ email: "ANA@example.org", role: "EDITOR" })).rejects.toBeInstanceOf(UserEmailTakenError);
-  });
-
-  it("refuses an invalid email or role", async () => {
-    await expect(invite().execute({ email: "nope", role: "EDITOR" })).rejects.toBeInstanceOf(ValidationError);
-    await expect(invite().execute({ email: "ben@example.org", role: "OWNER" as never })).rejects.toBeInstanceOf(ValidationError);
-  });
 });
 
 describe("ChangeUserRoleUseCase", () => {

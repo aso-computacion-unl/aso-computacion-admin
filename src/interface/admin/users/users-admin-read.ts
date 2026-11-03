@@ -8,3 +8,9 @@ export async function getAdminUsers() {
   await requirePageSession("ADMIN");
   return getAuthServices().listUsers.execute();
 }
+
+/** Invites that can still be used (not used, revoked or expired), newest first. ADMIN only. */
+export async function getPendingInvites() {
+  await requirePageSession("ADMIN");
+  return getAuthServices().listPendingInvites.execute();
+}

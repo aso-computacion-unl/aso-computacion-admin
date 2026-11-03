@@ -90,3 +90,43 @@ describe("parseMarkdownSubset", () => {
     expect(parseMarkdownSubset("uno\r\n\r\ndos")).toHaveLength(2);
   });
 });
+
+describe("parseMarkdownSubset with code blocks (forum posts)", () => {
+  const withCode = { codeBlocks: true } as const;
+
+  it("reads a fenced block as verbatim code, with its language, keeping blank lines and markers literal", () => {
+    expect(parseMarkdownSubset("Antes\n\n```ts\nconst a = **1**;\n\nreturn a;\n```\n\nDespués", withCode)).toEqual([
+      { type: "paragraph", children: [{ type: "text", text: "Antes" }] },
+      { type: "code", language: "ts", text: "const a = **1**;\n\nreturn a;" },
+      { type: "paragraph", children: [{ type: "text", text: "Después" }] },
+    ]);
+  });
+
+  it("reads a fence without a language and an empty fence", () => {
+    expect(parseMarkdownSubset("```\nx\n```", withCode)).toEqual([{ type: "code", language: null, text: "x" }]);
+    expect(parseMarkdownSubset("```\n```", withCode)).toEqual([{ type: "code", language: null, text: "" }]);
+  });
+
+  it("keeps raw HTML inside a fence as literal text", () => {
+    expect(parseMarkdownSubset("```html\n<script>alert(1)</script>\n```", withCode)).toEqual([
+      { type: "code", language: "html", text: "<script>alert(1)</script>" },
+    ]);
+  });
+
+  it("leaves a fence that never closes as literal text", () => {
+    expect(parseMarkdownSubset("```ts\nconst a = 1;", withCode)).toEqual([
+      { type: "paragraph", children: [{ type: "text", text: "```ts const a = 1;" }] },
+    ]);
+  });
+
+  it("ignores a language that is not a plain word, so it can never reach a class name as markup", () => {
+    expect(parseMarkdownSubset('```ts" onclick="x\ncode\n```', withCode)).toEqual([
+      { type: "paragraph", children: [{ type: "text", text: '```ts" onclick="x code ```' }] },
+    ]);
+  });
+
+  it("is off unless asked for: the news grammar stays the same", () => {
+    expect(parseMarkdownSubset("```\nx\n```")).toEqual([{ type: "paragraph", children: [{ type: "text", text: "``` x ```" }] }]);
+  });
+});
+

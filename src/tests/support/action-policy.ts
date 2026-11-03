@@ -78,9 +78,15 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     purgeTrashed: { role: "ADMIN", audit: "faq.purge" },
   },
   "src/interface/admin/users/actions.ts": {
-    inviteUser: { role: "ADMIN", audit: "user.invite" },
+    createAdminInvite: { role: "ADMIN", audit: "invite.create" },
+    revokeAdminInvite: { role: "ADMIN", audit: "invite.revoke" },
     changeUserRole: { role: "ADMIN", audit: "user.role_change" },
     setUserActive: { role: "ADMIN", audit: "user.deactivate" },
+  },
+  "src/interface/admin/forum/actions.ts": {
+    createForumCategory: { role: "ADMIN", audit: "forum.category.create" },
+    updateForumCategory: { role: "ADMIN", audit: "forum.category.update" },
+    deleteForumCategory: { role: "ADMIN", audit: "forum.category.delete" },
   },
   "src/interface/admin/sessions/actions.ts": {
     // Anyone may revoke their own sessions; revoking someone else's takes ADMIN (checked by the use case).

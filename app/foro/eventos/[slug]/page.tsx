@@ -17,6 +17,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Evento e inscripción", robots: { index: false } };
 
+/** The form is not offered when its spam check cannot run on this page (operator misconfiguration, already logged). */
+const UNAVAILABLE_MESSAGE = "La inscripción no está disponible en este momento. Inténtalo de nuevo en unos minutos.";
+
 const CLOSED_MESSAGES = {
   full: "Ya no quedan cupos para este evento.",
   closed: "Las inscripciones de este evento ya cerraron.",
@@ -97,14 +100,18 @@ export default async function EventRegistrationPage({ params }: { params: Promis
           action={
             <aside aria-label="Inscripción" className="grid gap-4 rounded-lg border border-border bg-muted p-5">
               <h2 className="text-lg font-bold font-stretch-[106%]">Inscríbete</h2>
-              {/* Always the form: when it is full or closed it says so, unless this visitor just took the last seat. */}
-              <OpenRegistrationForm
-                slug={slug}
-                title={status.event.title}
-                siteKey={page.siteKey}
-                calendarHref={page.calendarHref}
-                closedMessage={status.state === "open" ? undefined : CLOSED_MESSAGES[status.state]}
-              />
+              {page.captchaMisconfigured ? (
+                <p role="status">{UNAVAILABLE_MESSAGE}</p>
+              ) : (
+                /* Always the form: when it is full or closed it says so, unless this visitor just took the last seat. */
+                <OpenRegistrationForm
+                  slug={slug}
+                  title={status.event.title}
+                  siteKey={page.siteKey}
+                  calendarHref={page.calendarHref}
+                  closedMessage={status.state === "open" ? undefined : CLOSED_MESSAGES[status.state]}
+                />
+              )}
             </aside>
           }
         />

@@ -409,27 +409,16 @@ test.describe("the open form in the browser", () => {
     await expect(page.getByRole("button", { name: "Inscribirme" })).toBeEnabled();
   });
 
-  test("a deployment with a Turnstile secret but no site key shows no widget and says the registration is unavailable", async ({ page, request }) => {
+  test("a deployment with a Turnstile secret but no site key offers no form that can never pass, and says the registration is unavailable", async ({ page, request }) => {
     test.skip(!(await takesRegistrations(request)), "the production harness answers unavailable on its own");
 
     const event = await seedEvent("sinwidget");
-    let attempts = 0;
 
     await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
-    // Without a site key there is no widget to complete: nothing the person can do, so the message must not ask for it.
-    await page.route(OPEN_ENDPOINT, (route) => {
-      attempts += 1;
-
-      return route.continue();
-    });
-    await fillForm(page);
-    await page.getByRole("button", { name: "Inscribirme" }).click();
-
-    const alert = page.getByRole("alert").filter({ hasText: /No pudimos|no está disponible/ });
-
-    await expect(alert).toBeVisible();
-    await expect(alert).not.toContainText("Completa la verificación");
-    expect(attempts).toBe(1);
+    // Without a site key there is no widget to complete, so the page does not ask for data it cannot send.
+    await expect(page.getByText("La inscripción no está disponible en este momento.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
   });
 
   test("the form fits a 320 px phone and a 200% zoomed desktop without sideways scroll", async ({ page }) => {

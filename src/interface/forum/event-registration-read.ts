@@ -2,7 +2,7 @@ import type { ForumActor } from "@/application";
 import type { EventRegistrationStatus } from "@/application";
 import type { OpenUnlEvent } from "@/application/event-registration/list-open-unl-events.use-case";
 import { todayInEcuador } from "@/domain/calendar-date";
-import { turnstileSiteKey } from "@/infrastructure/http/turnstile";
+import { turnstileSecretWithoutSiteKey, turnstileSiteKey } from "@/infrastructure/http/turnstile";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
 import { getForumMember } from "./require-forum-member";
@@ -17,8 +17,12 @@ export type EventFacts = EventRegistrationStatus["event"];
 export type EventRegistrationPage =
   /** The signed-in member, or null: the page then offers the Google login. */
   | { kind: "unl"; member: ForumActor | null; status: EventRegistrationStatus }
-  /** The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured. */
-  | { kind: "open"; status: EventRegistrationStatus; siteKey: string | undefined; calendarHref: string | null }
+  /**
+   * The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured.
+   * `captchaMisconfigured`: the secret is set without a site key, so the server demands a token the page cannot
+   * produce; the page shows the event but no form.
+   */
+  | { kind: "open"; status: EventRegistrationStatus; siteKey: string | undefined; captchaMisconfigured: boolean; calendarHref: string | null }
   | { kind: "none"; event: EventFacts; calendarHref: string | null };
 
 function calendarHrefFor(event: EventFacts, now: Date): string | null {
@@ -38,7 +42,7 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   }
 
   if (status) {
-    return { kind: "open", status, siteKey: turnstileSiteKey(), calendarHref: calendarHrefFor(status.event, now) };
+    return { kind: "open", status, siteKey: turnstileSiteKey(), captchaMisconfigured: turnstileSecretWithoutSiteKey(), calendarHref: calendarHrefFor(status.event, now) };
   }
 
   // No status: either the event is not public or it takes no registration. Only the second has a page.

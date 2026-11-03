@@ -176,6 +176,29 @@ describe("the open registration of the same page", () => {
     expect(html).not.toContain("Inscripciones hasta");
   });
 
+  it("shows a working form with the widget key when Turnstile is fully configured", async () => {
+    pageMock.mockResolvedValue(open({}, { siteKey: "0x4AAAA-site_key", captchaMisconfigured: false }));
+
+    const html = await render();
+
+    expect(html).toContain("<form");
+    expect(html).toContain('name="email"');
+    expect(html).not.toContain("no está disponible");
+  });
+
+  it("does not offer a form nobody can submit when the Turnstile secret has no site key: it says registration is unavailable and keeps the event", async () => {
+    pageMock.mockResolvedValue(open({ capacity: 30, registered: 12 }, { captchaMisconfigured: true }));
+
+    const html = await render();
+
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain('name="email"');
+    expect(html).not.toContain("Completa la verificación");
+    expect(html).toContain("La inscripción no está disponible en este momento.");
+    expect(html).toContain("Taller de Docker");
+    expect(html).toContain("Quedan 18 de 30 cupos");
+  });
+
   it("is a branch of two nodes, the event and the registration, so it matches the sign-in", async () => {
     pageMock.mockResolvedValue(open());
 

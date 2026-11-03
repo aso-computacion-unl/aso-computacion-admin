@@ -37,6 +37,13 @@ describe("verifyTurnstile", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("is invalid for a refusal that lists no error codes", async () => {
+    const options = (body: unknown) => ({ env: { TURNSTILE_SECRET_KEY: SECRET }, fetch: answer(body) });
+
+    expect(await verifyTurnstile("bad", options({ success: false }))).toBe("invalid");
+    expect(await verifyTurnstile("bad", options({ success: false, "error-codes": "invalid-input-response" }))).toBe("invalid");
+  });
+
   it("fails closed when Cloudflare cannot be reached, answers an error, or answers nonsense", async () => {
     const options = (fetch: typeof globalThis.fetch) => ({ env: { TURNSTILE_SECRET_KEY: SECRET }, fetch });
 
@@ -44,6 +51,7 @@ describe("verifyTurnstile", () => {
     expect(await verifyTurnstile("t", options(answer({ success: true }, 500)))).toBe("unavailable");
     expect(await verifyTurnstile("t", options(vi.fn().mockResolvedValue(new Response("<html>", { status: 200 }))))).toBe("unavailable");
     expect(await verifyTurnstile("t", options(answer({ success: false, "error-codes": ["invalid-input-secret"] })))).toBe("unavailable");
+    expect(await verifyTurnstile("t", options(answer({ success: "maybe" })))).toBe("unavailable");
   });
 
   it("fails closed in production when the secret is missing, empty or a placeholder, without calling Cloudflare", async () => {

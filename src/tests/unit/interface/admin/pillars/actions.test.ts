@@ -29,6 +29,7 @@ vi.mock("@/interface/admin/pillars/pillars-container", () => ({ getPillarUseCase
 import { NotFoundError } from "@/application";
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/pillars/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string | File>): FormData {
   const data = new FormData();
@@ -89,6 +90,13 @@ describe("pillar server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/pillars");
   });
 
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setPillarPublished("pillar-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "pillar-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "pillar.unpublish", entityType: "pillar", entityId: "pillar-1", summary: "Pilar pasado a borrador" }]);
+  });
+
   it("movePillar rejects a direction that is not up or down", async () => {
     expect((await actions.movePillar("pillar-1", "sideways" as "up")).error).toBeTruthy();
     expect(useCases.move.execute).not.toHaveBeenCalled();
@@ -112,6 +120,14 @@ describe("pillar server actions", () => {
         alt: "Charla",
       });
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/pillars/pillar-1/edit");
+    });
+
+    it("hands over an empty alt when none was typed, so the use case can explain the rule", async () => {
+      useCases.setImage.execute.mockResolvedValue({});
+
+      expect(await actions.uploadPillarImage("pillar-1", null, form({ file: jpeg() }))).toEqual({ success: true });
+
+      expect(useCases.setImage.execute).toHaveBeenCalledWith({ id: "pillar-1", file: expect.objectContaining({ name: "a.jpg" }), alt: "" });
     });
 
     it("rejects a missing file, a wrong type and a spoofed signature before any upload", async () => {

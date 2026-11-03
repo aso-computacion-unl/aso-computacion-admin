@@ -27,6 +27,7 @@ vi.mock("@/interface/admin/commands/commands-container", () => ({ getCommandUseC
 import { NotFoundError } from "@/application";
 import { CommandNameConflictError, ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/commands/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -91,6 +92,13 @@ describe("command server actions", () => {
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "cmd-1", direction: "down" });
     expect(revalidatePathMock).toHaveBeenCalledTimes(4);
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
+  });
+
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setCommandPublished("cmd-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "cmd-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "command.unpublish", entityType: "command", entityId: "cmd-1", summary: "Comando pasado a borrador" }]);
   });
 
   it("moveCommand rejects a direction that is not up or down", async () => {

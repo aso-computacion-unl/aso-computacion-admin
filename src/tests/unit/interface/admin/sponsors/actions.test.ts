@@ -29,6 +29,7 @@ vi.mock("@/interface/admin/sponsors/sponsors-container", () => ({ getSponsorUseC
 import { NotFoundError } from "@/application";
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/sponsors/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string | File>): FormData {
   const data = new FormData();
@@ -89,6 +90,13 @@ describe("sponsor server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sponsors");
   });
 
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setSponsorPublished("sponsor-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "sponsor-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "sponsor.unpublish", entityType: "sponsor", entityId: "sponsor-1", summary: "Aliado pasado a borrador" }]);
+  });
+
   it("moveSponsor rejects a direction that is not up or down", async () => {
     expect((await actions.moveSponsor("sponsor-1", "sideways" as "up")).error).toBeTruthy();
     expect(useCases.move.execute).not.toHaveBeenCalled();
@@ -112,6 +120,14 @@ describe("sponsor server actions", () => {
         alt: "Charla",
       });
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sponsors/sponsor-1/edit");
+    });
+
+    it("hands over an empty alt when none was typed, so the use case can explain the rule", async () => {
+      useCases.setLogo.execute.mockResolvedValue({});
+
+      expect(await actions.uploadSponsorLogo("sponsor-1", null, form({ file: jpeg() }))).toEqual({ success: true });
+
+      expect(useCases.setLogo.execute).toHaveBeenCalledWith({ id: "sponsor-1", file: expect.objectContaining({ name: "a.jpg" }), alt: "" });
     });
 
     it("rejects a missing file, a wrong type and a spoofed signature before any upload", async () => {

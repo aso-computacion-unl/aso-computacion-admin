@@ -30,6 +30,7 @@ vi.mock("@/interface/admin/news/news-container", () => ({ getNewsUseCases: () =>
 import { NotFoundError } from "@/application";
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/news/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string | File>): FormData {
   const data = new FormData();
@@ -121,6 +122,13 @@ describe("news server actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/news");
   });
 
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setNewsItemPublished("news-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "news-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "news.unpublish", entityType: "news", entityId: "news-1", summary: "Novedad pasada a borrador" }]);
+  });
+
   it("maps NotFoundError to a message that names the news item, not an event", async () => {
     useCases.trash.execute.mockRejectedValue(new NotFoundError("News item not found"));
 
@@ -143,6 +151,14 @@ describe("news server actions", () => {
       });
       expect(requestSiteRebuildMock).toHaveBeenCalledTimes(1);
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/news/news-1/edit");
+    });
+
+    it("hands over an empty alt when none was typed, so the use case can explain the rule", async () => {
+      useCases.setCover.execute.mockResolvedValue({});
+
+      expect(await actions.uploadNewsCover("news-1", null, form({ file: jpeg() }))).toEqual({ success: true });
+
+      expect(useCases.setCover.execute).toHaveBeenCalledWith({ id: "news-1", file: expect.objectContaining({ name: "a.jpg" }), alt: "" });
     });
 
     it("rejects a missing file, a wrong type and a spoofed signature before any upload", async () => {

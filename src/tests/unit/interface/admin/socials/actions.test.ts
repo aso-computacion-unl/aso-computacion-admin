@@ -27,6 +27,7 @@ vi.mock("@/interface/admin/socials/socials-container", () => ({ getSocialLinkUse
 import { NotFoundError } from "@/application";
 import { ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/socials/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -88,6 +89,13 @@ describe("social link server actions", () => {
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "social-1", direction: "down" });
     expect(revalidatePathMock).toHaveBeenCalledTimes(4);
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
+  });
+
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setSocialLinkPublished("social-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "social-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "social.unpublish", entityType: "social", entityId: "social-1", summary: "Red social pasada a borrador" }]);
   });
 
   it("moveSocialLink rejects a direction that is not up or down", async () => {

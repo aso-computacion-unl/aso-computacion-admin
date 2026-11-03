@@ -27,6 +27,7 @@ describe("forum configuration", () => {
     ["FORUM_SESSION_SECRET", { FORUM_SESSION_SECRET: "__REPLACE_FORUM_SESSION_SECRET__" }],
     ["FORUM_SESSION_SECRET", { FORUM_SESSION_SECRET: "a".repeat(40) }],
     ["GOOGLE_CLIENT_ID", { GOOGLE_CLIENT_ID: undefined }],
+    ["GOOGLE_CLIENT_SECRET", { GOOGLE_CLIENT_SECRET: undefined }],
     ["AUTH_URL", { AUTH_URL: "http://admin.example.org" }],
   ])("fails closed and names only %s when it is missing or unusable", (name, override) => {
     const env = { ...ENV, ...override };

@@ -44,6 +44,19 @@ describe("imageUploadSchema", () => {
     expect(imageUploadSchema.safeParse(formOf(big)).success).toBe(false);
   });
 
+  it("rejects an input that did not arrive as form data", () => {
+    expect(imageUploadSchema.safeParse(null).success).toBe(false);
+    expect(imageUploadSchema.safeParse({ file: fileOf(JPEG, "image/jpeg") }).success).toBe(true);
+    expect(imageUploadSchema.safeParse({ file: "not-a-file" }).success).toBe(false);
+  });
+
+  it("rejects fields the upload does not declare", () => {
+    const form = formOf(fileOf(JPEG, "image/jpeg"));
+    form.append("folder", "../etc");
+
+    expect(imageUploadSchema.safeParse(form).success).toBe(false);
+  });
+
   it("allows request framing overhead on top of the 5 MB file ceiling", () => {
     expect(MAX_IMAGE_UPLOAD_REQUEST_BYTES).toBeGreaterThan(IMAGE_MAX_SIZE_BYTES);
   });
@@ -64,6 +77,8 @@ describe("assertValidImageSignature", () => {
     ["RIFF without WEBP tag", [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45], "image/webp"],
     ["text declared as PNG", [0x3c, 0x73, 0x76, 0x67], "image/png"],
     ["truncated JPEG", [0xff, 0xd8], "image/jpeg"],
+    ["a format that is not supported, whatever its bytes", JPEG, "image/gif"],
+    ["a file with no declared type", JPEG, ""],
   ])("rejects %s", async (_label, bytes, type) => {
     await expect(assertValidImageSignature(fileOf(bytes, type))).rejects.toBeInstanceOf(InvalidImageFormatError);
   });

@@ -27,6 +27,7 @@ describe("applyMarkdownTool", () => {
     ["Texto[ ]", "Texto\n```\n[ ]\n```"],
     ["[]", "```\n[]\n```"],
     ["[a]\nsigue", "```\n[a]\n```\nsigue"],
+    ["Antes [a] después", "Antes \n```\n[a]\n```\n después"],
   ])("fence puts the selection in a fenced block on its own lines (%j)", (input, expected) => {
     expect(run(input, "fence")).toBe(expected);
   });

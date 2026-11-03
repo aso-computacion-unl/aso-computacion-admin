@@ -34,6 +34,10 @@ describe("describeError", () => {
     expect(describeError(null)).toBe("null");
     expect(describeError({ email: "ana@example.com" })).toBe("Object");
   });
+
+  it("names an object without a prototype as a plain Object instead of throwing", () => {
+    expect(describeError(Object.assign(Object.create(null), { code: "P2002" }))).toBe("Object P2002");
+  });
 });
 
 describe("toSafeError", () => {
@@ -47,6 +51,17 @@ describe("toSafeError", () => {
     expect(Object.keys(safe)).toEqual([]);
     expect(safe.stack).toContain("safe-error.test.ts");
     expect(JSON.stringify([safe.message, safe.name, safe.stack])).not.toMatch(/Ana|ana@|Invalid/);
+    expect(safe.stack!.split("\n")[0]).toBe("PrismaLikeError: PrismaLikeError P2002");
+  });
+
+  it("gives a stack of its own when the error had none", () => {
+    const original = leaky();
+
+    Object.defineProperty(original, "stack", { value: undefined });
+
+    const safe = toSafeError(original);
+
+    expect(safe.message).toBe("PrismaLikeError P2002");
     expect(safe.stack!.split("\n")[0]).toBe("PrismaLikeError: PrismaLikeError P2002");
   });
 

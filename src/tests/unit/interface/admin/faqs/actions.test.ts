@@ -27,6 +27,7 @@ vi.mock("@/interface/admin/faqs/faqs-container", () => ({ getFaqUseCases: () => 
 import { NotFoundError } from "@/application";
 import { ValidationError } from "@/domain";
 import * as actions from "@/interface/admin/faqs/actions";
+import { testAuth } from "@/tests/support/test-auth";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -85,6 +86,13 @@ describe("faq server actions", () => {
     expect(useCases.move.execute).toHaveBeenCalledWith({ id: "faq-1", direction: "down" });
     expect(revalidatePathMock).toHaveBeenCalledTimes(4);
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera");
+  });
+
+  it("passing a published item back to draft is saved as such and audited as unpublished", async () => {
+    await expect(actions.setFaqPublished("faq-1", false)).resolves.toEqual({ success: true });
+
+    expect(useCases.setPublished.execute).toHaveBeenCalledWith({ id: "faq-1", isPublished: false });
+    expect(testAuth.audit.entries).toMatchObject([{ action: "faq.unpublish", entityType: "faq", entityId: "faq-1", summary: "Pregunta frecuente pasada a borrador" }]);
   });
 
   it("moveFaq rejects a direction that is not up or down", async () => {

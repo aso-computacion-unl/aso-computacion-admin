@@ -78,6 +78,31 @@ describe("ResolveForumLoginUseCase", () => {
 
     expect(await login.execute(identity)).toEqual({ ok: false, reason: "identity-conflict" });
   });
+
+  it("refuses an email that is not an address at all, as outside the domain", async () => {
+    expect(await login.execute({ ...identity, email: "not-an-email" })).toEqual({ ok: false, reason: "domain" });
+    expect(members.members.size).toBe(0);
+  });
+
+  it("signs in the member another request created at the same moment, instead of failing the second login", async () => {
+    const winner = makeForumMember({ id: "winner", email: "ana.perez@unl.edu.ec", googleSub: "sub-ana" });
+
+    // The competing first login lands between our lookup and our insert.
+    members.create = async () => {
+      members.members.set(winner.id, winner);
+
+      return false;
+    };
+
+    expect(await login.execute(identity)).toMatchObject({ ok: true, member: { id: "winner" } });
+    expect(members.members.size).toBe(1);
+  });
+
+  it("refuses the login when the insert lost the race and nobody holds that Google identity", async () => {
+    members.create = async () => false;
+
+    expect(await login.execute(identity)).toEqual({ ok: false, reason: "identity-conflict" });
+  });
 });
 
 describe("forum sessions", () => {

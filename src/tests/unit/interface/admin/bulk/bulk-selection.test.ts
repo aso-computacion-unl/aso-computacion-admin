@@ -32,6 +32,10 @@ describe("settle", () => {
     expect(outcome.failures).toEqual([{ id: "b", error: "No se encontró el evento o la foto." }]);
   });
 
+  it("gives a failure the server did not explain a generic reason", () => {
+    expect(settle(new Set(["a"]), [{ id: "a", ok: false }]).failures).toEqual([{ id: "a", error: "No se pudo completar." }]);
+  });
+
   it("keeps ids it got no result for", () => {
     expect([...settle(new Set(["a", "z"]), [{ id: "a", ok: true }]).remaining]).toEqual(["z"]);
   });
@@ -41,7 +45,9 @@ describe("doneMessage", () => {
   it("counts in Spanish, singular and plural", () => {
     expect(doneMessage("publish", 1)).toBe("1 elemento publicado.");
     expect(doneMessage("publish", 3)).toBe("3 elementos publicados.");
+    expect(doneMessage("unpublish", 1)).toBe("1 elemento pasado a borrador.");
     expect(doneMessage("unpublish", 2)).toBe("2 elementos pasados a borrador.");
+    expect(doneMessage("trash", 4)).toBe("4 elementos movidos a la papelera.");
     expect(doneMessage("trash", 1)).toBe("1 elemento movido a la papelera.");
   });
 });

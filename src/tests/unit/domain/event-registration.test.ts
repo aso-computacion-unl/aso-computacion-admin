@@ -173,6 +173,8 @@ describe("parseOpenRegistration", () => {
     ["email", { email: "ana\ud800@example.com" }],
     ["name", { name: 42 }],
     ["email", { email: "not-an-email" }],
+    ["email", { email: 42 }],
+    ["email", { email: undefined }],
     ["email", { email: `${"a".repeat(250)}@x.co` }],
     ["career", { career: "" }],
     ["career", { career: "c".repeat(121) }],

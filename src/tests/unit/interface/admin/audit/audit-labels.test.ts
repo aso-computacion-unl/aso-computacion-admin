@@ -51,6 +51,10 @@ describe("parseAuditParams", () => {
   it("caps the filter length so a long query cannot reach the database", () => {
     expect(parseAuditParams({ tipo: "x".repeat(200) }).entityType).toBeUndefined();
   });
+
+  it.each(["\u0000", "a\u0000b", "x\ny"])("drops a filter with control characters, which Postgres refuses (%j)", (value) => {
+    expect(parseAuditParams({ tipo: value, actor: value })).toEqual({ page: 1, entityType: undefined, actor: undefined });
+  });
 });
 
 describe("auditQuery", () => {

@@ -7,13 +7,18 @@
  *  - Blocks are separated by blank lines. A line starting with "- " opens a list item; consecutive
  *    such lines are one list. Any other consecutive lines are one paragraph (soft breaks become spaces).
  *  - Inline markers that never close are literal text.
- *  - Forum posts opt in (`{ codeBlocks: true }`) to fenced code blocks: a line of "```" (plus an
- *    optional plain-word language) up to the next line of "```". The code is verbatim text, blank lines
- *    and markers included; a fence that never closes is literal text. The news grammar has no code
- *    blocks and stays as it was.
+ *  - Forum posts opt in (`{ codeBlocks: true }`) to code, as CommonMark writes it:
+ *    - Fenced blocks: a line of three or more "`" or "~" (indented up to three spaces, plus an optional
+ *      plain-word language and any words after it) up to the next line of at least as many of the same
+ *      character. The code is verbatim text, blank lines and markers included, without the fence's
+ *      indentation; a fence that never closes is literal text.
+ *    - Inline code: a run of backticks up to the next run of the same length, verbatim, with one padding
+ *      space trimmed from each side when both are there. A run that never closes is literal text.
+ *    The news grammar has no code and stays as it was.
  */
 export type InlineNode =
   | { type: "text"; text: string }
+  | { type: "code"; text: string }
   | { type: "strong"; children: InlineNode[] }
   | { type: "em"; children: InlineNode[] }
   | { type: "link"; href: string; children: InlineNode[] };
@@ -27,8 +32,17 @@ const LINK = /\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/;
 const STRONG = /\*\*(?=\S)([\s\S]+?)(?<=\S)\*\*/;
 const EM = /\*(?=\S)([^*\n]+?)(?<=\S)\*/;
 const LIST_ITEM = /^- (.*)$/;
-const FENCE_OPEN = /^```([\w+#-]{0,20})[ \t]*$/;
-const FENCE_CLOSE = /^```[ \t]*$/;
+const INLINE_CODE = /(?<!`)(`+)(?!`)([\s\S]+?)(?<!`)\1(?!`)/;
+// Indentation, the fence run, a plain-word language, and words after it that never hold a backtick.
+const FENCE_OPEN = /^( {0,3})(`{3,}|~{3,})[ \t]*([\w+#-]{0,20})(?:[ \t]+[^`]*)?$/;
+
+function fenceClose(run: string): RegExp {
+  return new RegExp(`^ {0,3}${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t]*$`);
+}
+
+function inlineCodeText(content: string): string {
+  return content.length > 2 && content.startsWith(" ") && content.endsWith(" ") && content.trim() !== "" ? content.slice(1, -1) : content;
+}
 
 function httpsHref(value: string): string | null {
   try {
@@ -40,13 +54,14 @@ function httpsHref(value: string): string | null {
   }
 }
 
-function parseInline(source: string): InlineNode[] {
+function parseInline(source: string, inlineCode: boolean): InlineNode[] {
   const nodes: InlineNode[] = [];
   let rest = source;
 
   while (rest !== "") {
-    // The earliest marker wins; on a tie the order is link, strong, emphasis.
+    // The earliest marker wins; on a tie the order is code, link, strong, emphasis.
     const matches = [
+      { kind: "code", match: inlineCode ? INLINE_CODE.exec(rest) : null },
       { kind: "link", match: LINK.exec(rest) },
       { kind: "strong", match: STRONG.exec(rest) },
       { kind: "em", match: EM.exec(rest) },
@@ -62,11 +77,13 @@ function parseInline(source: string): InlineNode[] {
     if (match.index > 0) nodes.push({ type: "text", text: rest.slice(0, match.index) });
 
     const inner = match[1] ?? "";
-    if (kind === "link") {
+    if (kind === "code") {
+      nodes.push({ type: "code", text: inlineCodeText(match[2] ?? "") });
+    } else if (kind === "link") {
       const href = httpsHref(match[2] ?? "");
-      nodes.push(href ? { type: "link", href, children: parseInline(inner) } : { type: "text", text: inner });
+      nodes.push(href ? { type: "link", href, children: parseInline(inner, inlineCode) } : { type: "text", text: inner });
     } else {
-      nodes.push({ type: kind === "strong" ? "strong" : "em", children: parseInline(inner) });
+      nodes.push({ type: kind === "strong" ? "strong" : "em", children: parseInline(inner, inlineCode) });
     }
 
     rest = rest.slice(match.index + match[0].length);
@@ -85,15 +102,20 @@ function splitFences(source: string): Segment[] {
 
   for (let index = 0; index < lines.length; index++) {
     const open = FENCE_OPEN.exec(lines[index] ?? "");
-    const close = open ? lines.findIndex((line, candidate) => candidate > index && FENCE_CLOSE.test(line)) : -1;
+    const closing = open ? fenceClose(open[2] ?? "") : null;
+    const close = closing ? lines.findIndex((line, candidate) => candidate > index && closing.test(line)) : -1;
 
     if (!open || close === -1) {
       text.push(lines[index] ?? "");
       continue;
     }
 
+    // Code lines lose at most the fence's own indentation, so code nested deeper keeps its shape.
+    const indent = new RegExp(`^ {0,${(open[1] ?? "").length}}`);
+    const code = lines.slice(index + 1, close).map((line) => line.replace(indent, ""));
+
     segments.push({ kind: "text", text: text.join("\n") });
-    segments.push({ kind: "code", node: { type: "code", language: open[1] || null, text: lines.slice(index + 1, close).join("\n") } });
+    segments.push({ kind: "code", node: { type: "code", language: open[3] || null, text: code.join("\n") } });
     text = [];
     index = close;
   }
@@ -103,7 +125,7 @@ function splitFences(source: string): Segment[] {
   return segments;
 }
 
-function parseBlocks(source: string): BlockNode[] {
+function parseBlocks(source: string, inlineCode = false): BlockNode[] {
   const blocks: BlockNode[] = [];
 
   for (const chunk of source.split(/\n\s*\n/)) {
@@ -111,7 +133,7 @@ function parseBlocks(source: string): BlockNode[] {
     let items: InlineNode[][] = [];
 
     const flushParagraph = () => {
-      if (paragraph.length > 0) blocks.push({ type: "paragraph", children: parseInline(paragraph.join(" ")) });
+      if (paragraph.length > 0) blocks.push({ type: "paragraph", children: parseInline(paragraph.join(" "), inlineCode) });
       paragraph = [];
     };
     const flushList = () => {
@@ -126,7 +148,7 @@ function parseBlocks(source: string): BlockNode[] {
       const item = LIST_ITEM.exec(line);
       if (item) {
         flushParagraph();
-        items.push(parseInline((item[1] ?? "").trim()));
+        items.push(parseInline((item[1] ?? "").trim(), inlineCode));
       } else {
         flushList();
         paragraph.push(line);
@@ -149,5 +171,5 @@ export function parseMarkdownSubset(source: string, options?: { codeBlocks?: boo
     return parseBlocks(normalised);
   }
 
-  return splitFences(normalised).flatMap((segment): (BlockNode | CodeBlockNode)[] => (segment.kind === "code" ? [segment.node] : parseBlocks(segment.text)));
+  return splitFences(normalised).flatMap((segment): (BlockNode | CodeBlockNode)[] => (segment.kind === "code" ? [segment.node] : parseBlocks(segment.text, true)));
 }

@@ -41,10 +41,13 @@ type Param = string | string[] | undefined;
 
 const single = (value: Param) => (Array.isArray(value) ? value[0] : value);
 
+// A NUL byte in a text parameter makes Postgres reject the query, so a filter with control characters is no filter.
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+
 function filter(value: Param): string | undefined {
   const text = single(value)?.trim();
 
-  return text && text.length <= FILTER_MAX_LENGTH ? text : undefined;
+  return text && text.length <= FILTER_MAX_LENGTH && !CONTROL_CHARACTERS.test(text) ? text : undefined;
 }
 
 export interface AuditFilters {

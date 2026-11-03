@@ -7,6 +7,12 @@ function renderInline(nodes: InlineNode[]): ReactNode[] {
     switch (node.type) {
       case "text":
         return node.text;
+      case "code":
+        return (
+          <code key={index} className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[0.85em]">
+            {node.text}
+          </code>
+        );
       case "strong":
         return <strong key={index}>{renderInline(node.children)}</strong>;
       case "em":

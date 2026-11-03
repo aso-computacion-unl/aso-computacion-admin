@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { checkbox, parseStrictForm, toFormData } from "@/interface/admin/form-fields";
+import { checkbox, multilineText, parseStrictForm, toFormData } from "@/interface/admin/form-fields";
 
 const schema = z.strictObject({ name: z.string().trim(), flag: checkbox });
 
@@ -26,6 +26,12 @@ describe("parseStrictForm", () => {
     data.set("name", new File(["x"], "x.txt"));
 
     expect(() => parseStrictForm(schema, data)).toThrow(z.ZodError);
+  });
+});
+
+describe("multilineText", () => {
+  it("trims and turns the browser's CRLF line breaks into LF, so each break counts once", () => {
+    expect(multilineText.parse("  uno\r\n\r\ndos  ")).toBe("uno\n\ndos");
   });
 });
 

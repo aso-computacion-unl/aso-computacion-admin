@@ -25,10 +25,12 @@ const eventFormSchema = z.object({
     .string()
     .trim()
     .transform((value) => value || undefined),
+  // A form post carries line breaks as CRLF; the limit counts a break as one character, so store LF.
   description: z
     .string()
     .trim()
-    .max(EVENT_DESCRIPTION_MAX_LENGTH, `La descripción admite hasta ${EVENT_DESCRIPTION_MAX_LENGTH} caracteres.`),
+    .transform((value) => value.replaceAll("\r\n", "\n"))
+    .pipe(z.string().max(EVENT_DESCRIPTION_MAX_LENGTH, `La descripción admite hasta ${EVENT_DESCRIPTION_MAX_LENGTH} caracteres.`)),
   date: z.string().trim(),
   // An absent field means an exact date; anything but the two known values is rejected.
   datePrecision: z

@@ -28,7 +28,8 @@ const EMPTY_MESSAGES: Record<OpenField, string> = {
   semester: `Elige tu semestre, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
 };
 
-const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
+// Control characters and lone surrogates: the same text the domain refuses to store.
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]|\p{Surrogate}/u;
 
 /** What is wrong with a field the server (or the domain) refused, said for a student. */
 export function fieldMessage(field: OpenField, value: string): string {
@@ -144,9 +145,17 @@ const MESSAGES = {
 /** The widget could not even start (blocked script, no network): there is no token to send, now or later. */
 export const CAPTCHA_LOAD_MESSAGE = "No pudimos cargar la verificación. Recarga la página e inténtalo de nuevo.";
 
-/** The sentence for every outcome that is not a success and not tied to one field. */
-export function outcomeMessage(outcome: Exclude<OpenOutcome, { kind: "registered" | "field" }>): string {
-  return outcome.kind === "rate_limited" ? `Hiciste varios intentos seguidos. Vuelve a intentarlo en ${waitText(outcome.retryAfterSeconds)}.` : MESSAGES[outcome.kind];
+/** Said instead of `MESSAGES.captcha` when the page showed no widget (no site key): there is no verification to complete. */
+const CAPTCHA_WITHOUT_WIDGET = "No pudimos comprobar que eres una persona. Inténtalo de nuevo en unos minutos.";
+
+/**
+ * The sentence for every outcome that is not a success and not tied to one field. `widget`: whether the page
+ * shows the Turnstile check, which decides whether "complete the verification" is something the person can do.
+ */
+export function outcomeMessage(outcome: Exclude<OpenOutcome, { kind: "registered" | "field" }>, { widget = true }: { widget?: boolean } = {}): string {
+  if (outcome.kind === "rate_limited") return `Hiciste varios intentos seguidos. Vuelve a intentarlo en ${waitText(outcome.retryAfterSeconds)}.`;
+
+  return outcome.kind === "captcha" && !widget ? CAPTCHA_WITHOUT_WIDGET : MESSAGES[outcome.kind];
 }
 
 /** Posts to the public endpoint of the event (same origin: no CORS) and never throws: a dead network is an outcome too. */

@@ -26,7 +26,9 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
 
   if (capacity !== undefined) await page.getByLabel("Cupos").fill(String(capacity));
 
-  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
 

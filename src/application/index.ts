@@ -117,6 +117,7 @@ export {
 export { TrashContentUseCase } from "./use-cases/trash-content.use-case";
 export type { TrashContentResult } from "./use-cases/trash-content.use-case";
 export { RestoreConflictError } from "./use-cases/use-case-error";
+export * from "./auth/admin-invite.use-cases";
 export * from "./auth/auth-errors";
 export * from "./auth/list-audit-log.use-case";
 export * from "./auth/resolve-google-login.use-case";
@@ -124,3 +125,37 @@ export * from "./auth/session.use-cases";
 export * from "./auth/user.use-cases";
 export type * from "./ports/auth.ports";
 export { ForbiddenError } from "./use-cases/use-case-error";
+export {
+  CloseForumSessionUseCase,
+  FORUM_SESSION_TTL_MS,
+  OpenForumSessionUseCase,
+  ResolveForumLoginUseCase,
+  ValidateForumSessionUseCase,
+} from "./forum/forum-auth.use-cases";
+export type { ForumActor, ForumGoogleIdentity, ForumLoginConfig, ForumLoginDenial, ForumLoginOutcome } from "./forum/forum-auth.use-cases";
+export type {
+  ForumCategoryResult,
+  ForumReplyResult,
+  ForumThreadListItemResult,
+  ForumThreadResult,
+} from "./dto/forum-result.dto";
+export {
+  CreateForumCategoryUseCase,
+  DeleteForumCategoryUseCase,
+  ForumCategoryNotEmptyError,
+  ListForumCategoriesUseCase,
+  UpdateForumCategoryUseCase,
+} from "./forum/forum-categories.use-cases";
+export { ForumThrottledError, POSTING_LIMITS, PostingThrottle } from "./forum/posting-throttle";
+export {
+  CreateForumThreadUseCase,
+  EditForumReplyUseCase,
+  EditForumThreadUseCase,
+  FORUM_THREADS_PAGE_SIZE,
+  GetForumThreadUseCase,
+  ListForumThreadsUseCase,
+  ReplyToForumThreadUseCase,
+} from "./forum/forum-threads.use-cases";
+export type { ForumThreadsPage, ForumThreadView } from "./forum/forum-threads.use-cases";
+export { buildForumServices } from "./forum/forum-services";
+export type { ForumRepositories, ForumServices } from "./forum/forum-services";

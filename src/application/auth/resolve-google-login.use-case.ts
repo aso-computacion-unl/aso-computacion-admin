@@ -14,6 +14,24 @@ export type GoogleLoginDenial = "unverified" | "domain" | "unknown" | "inactive"
 
 export type GoogleLoginOutcome = { ok: true; user: User } | { ok: false; reason: GoogleLoginDenial };
 
+/** The configured Workspace domain, without a leading `@` and lower-cased; undefined when blank. */
+export function normalizeAllowedDomain(raw: string | undefined): string | undefined {
+  return raw?.trim().replace(/^@/, "").toLowerCase() || undefined;
+}
+
+/**
+ * An address of the domain is not enough: a personal Google account can carry any email, so the
+ * verified `hd` claim (absent for personal accounts) has to name the domain too.
+ */
+export function outsideAllowedDomain(allowedDomain: string | undefined, email: string, hostedDomain: string | undefined): boolean {
+  return allowedDomain !== undefined && (emailDomain(email) !== allowedDomain || hostedDomain?.trim().toLowerCase() !== allowedDomain);
+}
+
+/** The Google name, or the email's local part, capped to the `User_name_length` CHECK. */
+export function defaultUserName(email: string, name: string | undefined): string {
+  return (name?.trim() || email.slice(0, email.indexOf("@"))).slice(0, USER_NAME_MAX_LENGTH);
+}
+
 export class ResolveGoogleLoginUseCase {
   private readonly allowedDomain: string | undefined;
   private readonly bootstrapEmails: Set<string>;
@@ -24,7 +42,7 @@ export class ResolveGoogleLoginUseCase {
     private readonly now: () => Date = () => new Date(),
     private readonly newId: () => string = () => crypto.randomUUID(),
   ) {
-    this.allowedDomain = config.allowedDomain?.trim().replace(/^@/, "").toLowerCase() || undefined;
+    this.allowedDomain = normalizeAllowedDomain(config.allowedDomain);
     this.bootstrapEmails = new Set(config.bootstrapEmails.flatMap((email) => (email.trim() ? [normalizeEmail(email)] : [])));
   }
 
@@ -35,9 +53,7 @@ export class ResolveGoogleLoginUseCase {
 
     const email = normalizeEmail(input.email);
 
-    // An address of the domain is not enough: a personal Google account can carry any email, so the
-    // verified `hd` claim (absent for personal accounts) has to name the domain too.
-    if (this.allowedDomain && (emailDomain(email) !== this.allowedDomain || input.hostedDomain?.trim().toLowerCase() !== this.allowedDomain)) {
+    if (outsideAllowedDomain(this.allowedDomain, email, input.hostedDomain)) {
       return { ok: false, reason: "domain" };
     }
 
@@ -59,8 +75,7 @@ export class ResolveGoogleLoginUseCase {
     const user: User = {
       id: this.newId(),
       email,
-      // Capped to the `User_name_length` CHECK, whichever source the name comes from.
-      name: (name?.trim() || email.slice(0, email.indexOf("@"))).slice(0, USER_NAME_MAX_LENGTH),
+      name: defaultUserName(email, name),
       role: "ADMIN",
       active: true,
       createdAt: this.now(),

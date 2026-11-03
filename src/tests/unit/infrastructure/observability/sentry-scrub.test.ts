@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { scrubSentryEvent } from "@/infrastructure/observability/sentry-scrub";
 
 const HOOK = "https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/9f8e7d6c-secret-token";
+const INVITE_TOKEN = "invite-secret-token_AbC123";
 
 describe("scrubSentryEvent", () => {
   it("drops the request body and cookies", () => {
@@ -81,5 +82,68 @@ describe("scrubSentryEvent", () => {
     });
 
     expect(event.exception?.values?.[0]?.value).toBe("connect failed: postgresql://db.internal");
+  });
+
+  describe("admin invite tokens", () => {
+    it("redacts the token segment of /invitacion/<token> in the request URL, query and fragment included", () => {
+      const event = scrubSentryEvent({ request: { url: `https://admin.test/invitacion/${INVITE_TOKEN}?x=1#frag`, method: "GET" } });
+
+      expect(event.request?.url).toBe("https://admin.test/invitacion/[token]");
+      expect(JSON.stringify(event)).not.toContain(INVITE_TOKEN);
+    });
+
+    it("keeps the invite query of the Google start route redacted", () => {
+      const event = scrubSentryEvent({ request: { url: `https://admin.test/auth/google/start?invite=${INVITE_TOKEN}`, method: "GET" } });
+
+      expect(event.request?.url).toBe("https://admin.test/auth/google/start");
+      expect(JSON.stringify(event)).not.toContain(INVITE_TOKEN);
+    });
+
+    it("drops the Referer header, which carries the invitation page URL on the Google start request", () => {
+      const event = scrubSentryEvent({
+        request: { url: "https://admin.test/auth/google/start", headers: { Referer: `https://admin.test/invitacion/${INVITE_TOKEN}`, accept: "*/*" } },
+      });
+
+      expect(event.request?.headers).toEqual({ accept: "*/*" });
+      expect(JSON.stringify(event)).not.toContain(INVITE_TOKEN);
+    });
+
+    it("redacts the token in the transaction name, as a bare path and with a method prefix", () => {
+      const bare = scrubSentryEvent({ transaction: `/invitacion/${INVITE_TOKEN}` });
+      const prefixed = scrubSentryEvent({ transaction: `GET /invitacion/${INVITE_TOKEN}` });
+      const parameterized = scrubSentryEvent({ transaction: "GET /invitacion/[token]" });
+
+      expect(bare.transaction).toBe("/invitacion/[token]");
+      expect(prefixed.transaction).toBe("GET /invitacion/[token]");
+      expect(parameterized.transaction).toBe("GET /invitacion/[token]");
+    });
+
+    it("redacts the token in breadcrumb URLs: data.url, navigation to/from, and absolute URLs in messages", () => {
+      const event = scrubSentryEvent({
+        breadcrumbs: [
+          { category: "fetch", data: { url: `/invitacion/${INVITE_TOKEN}`, method: "GET" } },
+          { category: "navigation", data: { from: `/invitacion/${INVITE_TOKEN}`, to: "/auth/google/start" } },
+          { category: "navigation", data: { from: "/admin", to: `/invitacion/${INVITE_TOKEN}?utm=1` } },
+          { category: "console", message: `visited https://admin.test/invitacion/${INVITE_TOKEN}` },
+        ],
+      });
+
+      expect(event.breadcrumbs?.[0]?.data).toEqual({ url: "/invitacion/[token]", method: "GET" });
+      expect(event.breadcrumbs?.[1]?.data).toEqual({ from: "/invitacion/[token]", to: "/auth/google/start" });
+      expect(event.breadcrumbs?.[2]?.data).toEqual({ from: "/admin", to: "/invitacion/[token]?utm=1" });
+      expect(JSON.stringify(event)).not.toContain(INVITE_TOKEN);
+    });
+
+    it("leaves an unrelated URL, path and transaction unchanged", () => {
+      const event = scrubSentryEvent({
+        transaction: "GET /admin/users",
+        request: { url: "https://admin.test/admin/users", headers: { referer: "https://admin.test/admin" } },
+        breadcrumbs: [{ category: "navigation", data: { from: "/admin", to: "/admin/users" } }],
+      });
+
+      expect(event.transaction).toBe("GET /admin/users");
+      expect(event.request?.url).toBe("https://admin.test/admin/users");
+      expect(event.breadcrumbs?.[0]?.data).toEqual({ from: "/admin", to: "/admin/users" });
+    });
   });
 });

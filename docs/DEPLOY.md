@@ -65,6 +65,9 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
 | `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
 | `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when none of the three Google variables is set). |
+| `FORUM_ALLOWED_EMAIL_DOMAIN` | for the forum | The institutional email domain students must belong to: `unl.edu.ec`. both the email domain and Google's `hd` claim must match, and the email must be verified. **Unset or empty: the forum login is off** (section 4b). |
+| `FORUM_SESSION_SECRET` | for the forum | Signs the `forum_session` cookie and the forum's Google login cookie. At least 32 characters and **different from `ADMIN_SECRET`** (equal is refused). Missing or invalid: the forum login is off. Mark it Sensitive. |
+| `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | no | A separate Google OAuth client for the forum. Set both or neither; unset, the forum reuses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -95,7 +98,7 @@ Change `ADMIN_PASSWORD` in Vercel and redeploy. What that does:
 
 ## 4a. Sign-in with Google, users and roles
 
-People log in with their Google account; only emails on the **Usuarios** list get in, with the role they were given.
+People log in with their Google account; only emails on the **Usuarios** list get in, with the role they were given. New people are added by invitation (see "Inviting people" below).
 
 | Role | Can |
 |------|-----|
@@ -103,6 +106,16 @@ People log in with their Google account; only emails on the **Usuarios** list ge
 | `ADMIN` | Everything an editor can, plus: the site texts (**Sitio**), delete for good from the trash, **Usuarios**, other people's sessions, and the **Registro de cambios** (audit log). |
 
 The role is checked on the server in every action (and on every page read), against the database: demoting, deactivating or revoking takes effect on the person's next request. The last active admin can be neither demoted nor deactivated.
+
+### Inviting people
+
+An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their email and a role (`EDITOR` or `ADMIN`). The app shows a link (`<AUTH_URL>/invitacion/<token>`) once; copy it and send it by any channel. There is no email sending yet. The person opens it, signs in with Google, and only then does their user exist.
+
+- The link is **single use**, **expires after 7 days**, and is **bound to that email**: a Google account with a different email, or an unverified one, is refused (the page only says the invitation is not valid, never why).
+- The database keeps only a SHA-256 hash of the token, so a leaked database does not leak working links, and the link cannot be shown again: if it is lost, create another invitation (a new one for the same email revokes the older pending one).
+- Pending invitations are listed with their expiry and can be revoked. Creating, using and revoking an invitation go to the audit log (`invite.create`, `invite.redeem`, `invite.revoke`) with the role and the invitation id, never the email or the token. Generating a new invitation for an email revokes its older pending one, and that revocation is audited too.
+- Creating an invitation needs `AUTH_URL` (the link is built from it) and refuses with a message when it is missing. An email that already has a user cannot be invited; `ADMIN_BOOTSTRAP_EMAILS` keeps working as before.
+- Existing users, their roles and the Google login of people already on the list are unchanged. The direct "Agregar usuario" form no longer exists.
 
 ### Google Cloud setup (once)
 
@@ -128,7 +141,7 @@ If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en uno
 
 1. Apply the migration (see "The users, sessions and audit migration" in section 8) **before** deploying this version.
 2. Deploy with the Google variables **unset**: login is the shared password, exactly as before, but each login is now a revocable session (listed as "emergencia") and the page shows a warning banner.
-3. Set the Google variables and `ADMIN_BOOTSTRAP_EMAILS`, redeploy, and log in with Google. Your first login creates your ADMIN user. Add the rest of the board in **Usuarios**.
+3. Set the Google variables and `ADMIN_BOOTSTRAP_EMAILS`, redeploy, and log in with Google. Your first login creates your ADMIN user. Invite the rest of the board from **Usuarios** (see "Inviting people").
 4. Once Google works, the password login switches off by itself (it needs `BREAK_GLASS_PASSWORD_LOGIN=1` from then on), and every emergency session still open is rejected at its next request.
 
 ### Emergency procedure (break-glass)
@@ -138,6 +151,22 @@ Use it only when Google login is unavailable (Google outage, a mistyped redirect
 1. In Vercel set `BREAK_GLASS_PASSWORD_LOGIN=1` and redeploy. `/login` then shows **Acceso de emergencia**.
 2. Log in with `ADMIN_PASSWORD`. You act as a synthetic admin ("Acceso de emergencia"); a warning banner shows on every page, and the login is written to the audit log.
 3. Fix the cause (for example add or reactivate a user in **Usuarios**), then **log out**, remove `BREAK_GLASS_PASSWORD_LOGIN` and redeploy. Switching it off also invalidates any emergency session still open. Rotate `ADMIN_PASSWORD` if more people than you saw it.
+
+## 4b. Student forum (`/foro`)
+
+Students sign in to the forum with their institutional Google account; there is no sign-up step: the first successful login creates the member. The forum is a separate zone from the admin: its own cookie (`forum_session`, path `/foro`), its own secret, its own tables (`ForumMember`, `ForumSession`, …) and its own guard. A forum cookie never opens an admin page or action, and an admin session is not a forum member.
+
+1. In Vercel set `FORUM_ALLOWED_EMAIL_DOMAIN=unl.edu.ec` (the UNL student domain) and `FORUM_SESSION_SECRET` (`openssl rand -base64 48`, a different value from `ADMIN_SECRET`; mark it Sensitive). The Google client is the admin's (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`), so those must be set as in section 4a.
+2. In Google Cloud (**APIs & Services → Credentials →** the OAuth client) add a second **authorized redirect URI**: exactly `https://<your admin domain>/foro/auth/google/callback` (that is `AUTH_URL` + `/foro/auth/google/callback`). For local development also `http://localhost:3000/foro/auth/google/callback`. Keep the admin's `/auth/google/callback` one. The consent screen must let students' accounts in (an **Internal** app only admits the organisation's own accounts; an **External** one must be published).
+3. Redeploy. `/foro/auth/google/start` now sends students to Google.
+
+**Fails closed.** Without `FORUM_ALLOWED_EMAIL_DOMAIN` or a valid `FORUM_SESSION_SECRET` (missing, a placeholder, shorter than 32 characters, or equal to `ADMIN_SECRET`) nobody can sign in and `/foro` says the access is unavailable; the admin is not affected. A login is accepted only when the email is verified by Google, its domain is exactly the configured one (sub-domains are not accepted) and Google's `hd` claim names that same domain, so a personal Google account carrying an institutional address is refused. A suspended member is refused and their open sessions stop working at their next request.
+
+**What is stored and shown.** `ForumMember` keeps the lower-cased email and Google's account id (never shown to other students; no public type carries them) and the display name taken from the Google profile (a neutral "Estudiante xxxx" when there is none or it looks like an address). Forum sessions last 7 days and are revocable; only a keyed hash of the client address is kept.
+
+**Posting limits.** A member may post (threads and replies together) 3 times per minute and 30 per hour, counted in the database; the posts are Markdown with fenced code, rendered without HTML.
+
+**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; the screens come with the forum UI.
 
 ## 5. Seeding the landing content
 
@@ -188,7 +217,7 @@ The code is wired and does nothing until you do this, once, by hand:
 
 What is reported: unhandled errors in server components, route handlers and server actions (`onRequestError`), the unexpected failures the server actions and API handlers already log with `console.error` (one helper, `reportError`), the public API's 503s, and browser render errors. What is not: validation errors and other user mistakes.
 
-What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubber removes request bodies, cookies and `authorization`/`cookie`/`set-cookie` headers, and reduces every URL in breadcrumbs, spans and messages to its origin (the deploy hook URL carries a secret token). The trace sample rate defaults to 0.1.
+What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubber removes request bodies, cookies and `authorization`/`cookie`/`set-cookie` headers, and reduces every URL in breadcrumbs, spans and messages to its origin (the deploy hook URL carries a secret token), redacts the token of `/invitacion/<token>` paths in request URLs, transaction names and breadcrumbs, and drops the `Referer` header. The trace sample rate defaults to 0.1.
 
 ## 8. Operating notes
 
@@ -206,6 +235,20 @@ Purely additive: it creates the `User`, `Session` and `AuditLog` tables and two 
 - Deploy order: run the migration first, then deploy the new code (the reverse fails: the new code reads the tables).
 - Rollback, only if the feature is abandoned (roll the app back first, the old code ignores these tables): `DROP TABLE "AuditLog", "Session", "User"; DROP TYPE "ActorKind", "UserRole"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026120000_add_users_sessions_audit';`, with the **direct** connection string. The audit history is lost with it.
 - The new version no longer accepts the old session cookies (they carry no session id): everybody logs in once more after the deploy.
+
+### The admin invites migration (`20261026160000_add_admin_invites`)
+
+Purely additive: it creates the `AdminInvite` table and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy` and the previous admin keeps working against it (it ignores the table).
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if invites are abandoned (roll the app back first): `DROP TABLE "AdminInvite"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026160000_add_admin_invites';`, with the **direct** connection string. Pending invitations are lost with it; users already created from invitations stay.
+
+### The forum migration (`20261026140000_add_forum`)
+
+Purely additive: it creates the seven `Forum*` tables and two enums and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy`, needs no downtime, and the previous admin keeps working against it (it ignores these tables).
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if the forum is abandoned (roll the app back first): `DROP TABLE "ForumReport", "ForumReaction", "ForumReply", "ForumThread", "ForumCategory", "ForumSession", "ForumMember"; DROP TYPE "ForumReportStatus", "ForumMemberStatus"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026140000_add_forum';`, with the **direct** connection string. Every post is lost with it.
 
 ### The soft-delete migration (`20261025130000_add_soft_delete`)
 
@@ -254,6 +297,7 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Cloudinary cloud name, API key and API secret copied.
 - [ ] `ADMIN_SECRET` (≥ 32 chars) and `ADMIN_PASSWORD` (≥ 16 chars, the emergency password) generated and saved in the password manager.
 - [ ] Google OAuth client created (section 4a), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL` and `ADMIN_BOOTSTRAP_EMAILS` set; the redirect URI in Google matches `AUTH_URL/auth/google/callback`.
+- [ ] Optional, only to open the forum (section 4b): `FORUM_ALLOWED_EMAIL_DOMAIN=unl.edu.ec` and `FORUM_SESSION_SECRET` (≥ 32 chars, different from `ADMIN_SECRET`) set, and `https://<admin domain>/foro/auth/google/callback` added to the Google client's redirect URIs.
 - [ ] Vercel project: Next.js preset, Node 22.x, `npm ci` / `npm run build`.
 - [ ] Production variables set: `DATABASE_URL` (pooled, `pgbouncer=true`), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
 - [ ] Deployed; `GET /api/health` returns 200; `/admin` redirects to `/login`.

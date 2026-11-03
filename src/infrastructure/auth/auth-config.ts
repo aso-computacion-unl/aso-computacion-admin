@@ -19,7 +19,7 @@ function value(env: Env, name: string): string | undefined {
 }
 
 /** The public origin of the admin: https, or plain http only on localhost for development. */
-function publicOrigin(raw: string | undefined): string | undefined {
+export function publicOrigin(raw: string | undefined): string | undefined {
   if (!raw) {
     return undefined;
   }

@@ -43,7 +43,7 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **Pilares** | Las tarjetas de pilares que presenta el sitio |
 | **Redes** | Enlaces a las redes sociales |
 | **Sitio** | Lema, descripción y texto «Acerca de» (solo administradores) |
-| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol: editor o administrador |
+| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se suma gente con un link de invitación de un solo uso que vence a los 7 días |
 | **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
 | **Registro** | Quién cambió qué y cuándo (solo administradores) |
 
@@ -69,6 +69,8 @@ npm ci
 npx prisma migrate deploy
 npm run dev               # http://localhost:3000
 ```
+
+El foro de estudiantes (`/foro`) queda apagado hasta definir `FORUM_ALLOWED_EMAIL_DOMAIN=unl.edu.ec` y `FORUM_SESSION_SECRET`, y exige registrar en Google una segunda URI de redirección (`<AUTH_URL>/foro/auth/google/callback`): ver la [guía de despliegue](docs/DEPLOY.md#4b-student-forum-foro).
 
 Las variables de entorno están explicadas en la [referencia técnica](docs/REFERENCIA.md#environment-variables) y el despliegue paso a paso, en la [guía de despliegue](docs/DEPLOY.md).
 

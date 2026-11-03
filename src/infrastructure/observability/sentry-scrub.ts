@@ -3,14 +3,22 @@
  * accepts an error event and a transaction alike.
  */
 interface ScrubbableEvent {
+  transaction?: string;
   request?: { url?: string; query_string?: unknown; data?: unknown; cookies?: unknown; headers?: Record<string, string> };
   breadcrumbs?: { message?: string; data?: Record<string, unknown> }[];
   spans?: { description?: string; data?: Record<string, unknown> }[];
   exception?: { values?: { value?: string }[] };
 }
 
-const SENSITIVE_HEADERS = /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key)$/i;
+// `referer` goes too: on the Google start request it is the invitation page URL, whose path is the invite token.
+const SENSITIVE_HEADERS = /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key|referer)$/i;
 const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
+const INVITE_PATH = /\/invitacion\/[^/?#\s"'<>]+/g;
+
+/** The path of an invitation link is its secret (`/invitacion/<token>`), wherever a URL, path or route name appears. */
+function redactInviteToken(text: string): string {
+  return text.replace(INVITE_PATH, "/invitacion/[token]");
+}
 
 /**
  * Keeps only the origin of every URL in a text. The landing deploy hook carries its secret token in the
@@ -19,7 +27,7 @@ const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
  * which drops the credentials.
  */
 function redactUrls(text: string): string {
-  return text.replace(URL_IN_TEXT, (match) => {
+  const originsOnly = text.replace(URL_IN_TEXT, (match) => {
     try {
       const url = new URL(match);
 
@@ -28,6 +36,9 @@ function redactUrls(text: string): string {
       return "[url]";
     }
   });
+
+  // What is left are relative paths (navigation breadcrumbs, route names), which have no origin to keep.
+  return redactInviteToken(originsOnly);
 }
 
 /** Origin and path only: no query string (an OAuth callback carries `code` and `state`) and no fragment. */
@@ -35,7 +46,7 @@ function redactRequestUrl(raw: string): string {
   try {
     const { origin, pathname } = new URL(raw);
 
-    return origin !== "null" ? `${origin}${pathname}` : "[url]";
+    return origin !== "null" ? `${origin}${redactInviteToken(pathname)}` : "[url]";
   } catch {
     return "[url]";
   }
@@ -59,6 +70,10 @@ function redactData(data: Record<string, unknown> | undefined): void {
  */
 export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
   const { request } = event;
+
+  if (event.transaction) {
+    event.transaction = redactInviteToken(event.transaction);
+  }
 
   if (request) {
     delete request.data;

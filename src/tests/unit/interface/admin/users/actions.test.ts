@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { cookiesMock, revalidatePathMock } = vi.hoisted(() => ({ cookiesMock: vi.fn(), revalidatePathMock: vi.fn() }));
 
@@ -8,13 +8,24 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import { SESSION_EXPIRED_MESSAGE } from "@/interface/admin/action-result";
 import * as actions from "@/interface/admin/users/actions";
 import { cookieJar, registerPolicyCases } from "@/tests/support/action-policy";
-import { makeUser } from "@/tests/fakes/in-memory-auth";
+import { inviteTokens } from "@/infrastructure/auth/invite-token";
+import { makeInvite, makeUser } from "@/tests/fakes/in-memory-auth";
 import { signInAs, testAuth } from "@/tests/support/test-auth";
 
 const TARGET = makeUser({ id: "target", email: "target@example.org", name: "Target", role: "EDITOR" });
 
 async function withTarget(user = TARGET) {
   testAuth.users.users.set(user.id, user);
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+
+async function withPendingInvite(overrides: Parameters<typeof makeInvite>[0] = {}) {
+  const invite = makeInvite({ createdAt: new Date(Date.now() - DAY), expiresAt: new Date(Date.now() + DAY), ...overrides });
+
+  await testAuth.invites.create(invite);
+
+  return invite;
 }
 
 function inviteForm(fields: Record<string, string>): FormData {
@@ -28,7 +39,17 @@ describe("users server actions", () => {
     registerPolicyCases({
       actionsPath: "src/interface/admin/users/actions.ts",
       actionCalls: {
-        inviteUser: () => actions.inviteUser(null, inviteForm({ email: "new@example.org", role: "EDITOR" })),
+        createAdminInvite: async () => {
+          vi.stubEnv("AUTH_URL", "https://admin.example.org");
+
+          try {
+            return await actions.createAdminInvite(null, inviteForm({ email: "new@example.org", role: "EDITOR" }));
+          } finally {
+            // A lone AUTH_URL is a half-set Google configuration, which switches the emergency login off for later tests.
+            vi.stubEnv("AUTH_URL", undefined);
+          }
+        },
+        revokeAdminInvite: async () => actions.revokeAdminInvite((await withPendingInvite()).id),
         changeUserRole: async () => (await withTarget(), actions.changeUserRole("target", "ADMIN")),
         setUserActive: async () => (await withTarget(), actions.setUserActive("target", false)),
       },
@@ -45,39 +66,125 @@ describe("users server actions", () => {
       cookieJar(cookiesMock, await signInAs("ADMIN"));
     });
 
-    describe("inviteUser", () => {
-      it("registers the email lower-cased with the chosen role, active, and refreshes the page", async () => {
-        const result = await actions.inviteUser(null, inviteForm({ email: " New.Person@Example.ORG ", name: "New Person", role: "ADMIN" }));
+    describe("createAdminInvite", () => {
+      beforeEach(() => vi.stubEnv("AUTH_URL", "https://admin.example.org/"));
+      afterEach(() => vi.stubEnv("AUTH_URL", undefined));
 
-        expect(result).toEqual({ success: true });
-        expect(await testAuth.users.findByEmail("new.person@example.org")).toMatchObject({ name: "New Person", role: "ADMIN", active: true });
+      it("returns a link to the invitation page whose token is not what the database keeps", async () => {
+        const result = await actions.createAdminInvite(null, inviteForm({ email: " New.Person@Example.ORG ", role: "ADMIN" }));
+
+        expect(result).toEqual({ success: true, link: expect.stringMatching(/^https:\/\/admin\.example\.org\/invitacion\/[A-Za-z0-9_-]{43}$/) });
+        const token = (result as { link: string }).link.split("/invitacion/")[1]!;
+        const [stored] = [...testAuth.invites.invites.values()];
+
+        expect(stored).toMatchObject({ email: "new.person@example.org", role: "ADMIN", tokenHash: inviteTokens.hash(token), createdById: "test-admin" });
+        expect(JSON.stringify([...testAuth.invites.invites.values()])).not.toContain(token);
         expect(revalidatePathMock).toHaveBeenCalledWith("/admin/usuarios");
       });
 
-      it("keeps the email out of the audit entry", async () => {
-        await actions.inviteUser(null, inviteForm({ email: "private.person@example.org", role: "EDITOR" }));
+      it("audits invite.create with the role and the invite id, never the email or the token", async () => {
+        const result = await actions.createAdminInvite(null, inviteForm({ email: "private.person@example.org", role: "EDITOR" }));
+        const token = (result as { link: string }).link.split("/invitacion/")[1]!;
+        const [invite] = [...testAuth.invites.invites.values()];
 
+        expect(testAuth.audit.entries).toHaveLength(1);
+        expect(testAuth.audit.entries[0]).toMatchObject({ action: "invite.create", entityType: "invite", entityId: invite?.id, actorUserId: "test-admin" });
+        expect(testAuth.audit.entries[0]?.summary).toContain("Editor");
         expect(JSON.stringify(testAuth.audit.entries)).not.toContain("private.person");
         expect(JSON.stringify(testAuth.audit.entries)).not.toContain("@");
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain(token);
       });
 
-      it("says in Spanish, on the field, that an email is taken, malformed, or that the role is not valid", async () => {
+      it("audits invite.revoke for each invite the new one supersedes, with no email or token", async () => {
+        const older = await withPendingInvite({ id: "older", tokenHash: "c".repeat(64), email: "again@example.org" });
+        const result = await actions.createAdminInvite(null, inviteForm({ email: "again@example.org", role: "EDITOR" }));
+        const token = (result as { link: string }).link.split("/invitacion/")[1]!;
+        const created = [...testAuth.invites.invites.values()].find((invite) => invite.id !== older.id)!;
+
+        expect(testAuth.invites.invites.get(older.id)?.revokedAt).toBeInstanceOf(Date);
+        expect(testAuth.audit.entries).toHaveLength(2);
+        expect(testAuth.audit.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ action: "invite.create", entityType: "invite", entityId: created.id }),
+            expect.objectContaining({
+              action: "invite.revoke",
+              entityType: "invite",
+              entityId: older.id,
+              actorUserId: "test-admin",
+              summary: "Invitación anterior revocada al generar una nueva",
+            }),
+          ]),
+        );
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain("@");
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain(token);
+      });
+
+      it("writes no invite.revoke when the invite supersedes nothing", async () => {
+        await actions.createAdminInvite(null, inviteForm({ email: "fresh@example.org", role: "EDITOR" }));
+
+        expect(testAuth.audit.entries.map((entry) => entry.action)).toEqual(["invite.create"]);
+      });
+
+      it("says in Spanish, on the field, that an email is taken, malformed, or that the role is not valid, storing nothing", async () => {
         await withTarget();
 
-        expect(await actions.inviteUser(null, inviteForm({ email: "target@example.org", role: "EDITOR" }))).toEqual({
-          fieldErrors: { email: "Ese correo ya está registrado." },
-        });
-        expect(await actions.inviteUser(null, inviteForm({ email: "nope", role: "EDITOR" }))).toEqual({ fieldErrors: { email: "Escriba un correo válido." } });
-        expect(await actions.inviteUser(null, inviteForm({ email: "ok@example.org", role: "OWNER" }))).toEqual({ fieldErrors: { role: "Elija un rol de la lista." } });
-        expect(await actions.inviteUser(null, inviteForm({ email: "ok@example.org" }))).toEqual({ fieldErrors: { role: "Elija un rol de la lista." } });
+        expect(await actions.createAdminInvite(null, inviteForm({ email: "target@example.org", role: "EDITOR" }))).toEqual({ fieldErrors: { email: "Ese correo ya está registrado." } });
+        expect(await actions.createAdminInvite(null, inviteForm({ email: "nope", role: "EDITOR" }))).toEqual({ fieldErrors: { email: "Escriba un correo válido." } });
+        expect(await actions.createAdminInvite(null, inviteForm({ email: "ok@example.org", role: "OWNER" }))).toEqual({ fieldErrors: { role: "Elija un rol de la lista." } });
+        expect(await actions.createAdminInvite(null, inviteForm({ email: "ok@example.org" }))).toEqual({ fieldErrors: { role: "Elija un rol de la lista." } });
+        expect(testAuth.invites.invites.size).toBe(0);
         expect(testAuth.audit.entries).toEqual([]);
       });
 
-      it("an editor cannot invite: nothing is created", async () => {
+      it.each([["not set", undefined], ["not a usable origin", "ftp://admin.example.org"]])("refuses to make a link when AUTH_URL is %s, storing nothing", async (_label, value) => {
+        vi.stubEnv("AUTH_URL", value);
+
+        const result = await actions.createAdminInvite(null, inviteForm({ email: "new@example.org", role: "EDITOR" }));
+
+        expect(result).toEqual({ error: expect.stringContaining("AUTH_URL") });
+        expect(testAuth.invites.invites.size).toBe(0);
+        expect(testAuth.audit.entries).toEqual([]);
+      });
+
+      it("an editor cannot invite: nothing is stored", async () => {
         cookieJar(cookiesMock, await signInAs("EDITOR"));
 
-        expect(await actions.inviteUser(null, inviteForm({ email: "sneaky@example.org", role: "ADMIN" }))).toEqual({ error: "No tiene permiso para realizar esta acción." });
-        expect(await testAuth.users.findByEmail("sneaky@example.org")).toBeNull();
+        expect(await actions.createAdminInvite(null, inviteForm({ email: "sneaky@example.org", role: "ADMIN" }))).toEqual({ error: "No tiene permiso para realizar esta acción." });
+        expect(testAuth.invites.invites.size).toBe(0);
+      });
+    });
+
+    describe("revokeAdminInvite", () => {
+      it("revokes a pending invite, audits it without the email, and refreshes the page", async () => {
+        const invite = await withPendingInvite({ email: "ben@example.org" });
+
+        expect(await actions.revokeAdminInvite(invite.id)).toEqual({ success: true });
+        expect(testAuth.invites.invites.get(invite.id)?.revokedAt).toBeInstanceOf(Date);
+        expect(testAuth.audit.entries[0]).toMatchObject({ action: "invite.revoke", entityType: "invite", entityId: invite.id, actorUserId: "test-admin" });
+        expect(JSON.stringify(testAuth.audit.entries)).not.toContain("ben");
+        expect(revalidatePathMock).toHaveBeenCalledWith("/admin/usuarios");
+      });
+
+      it("says the invite is no longer pending when it was already revoked, used or never existed, auditing nothing", async () => {
+        const invite = await withPendingInvite();
+        await actions.revokeAdminInvite(invite.id);
+        testAuth.audit.entries.length = 0;
+
+        const used = await withPendingInvite({ id: "used", usedAt: new Date(), usedByUserId: "x" });
+
+        for (const id of [invite.id, used.id, "ghost"]) {
+          expect(await actions.revokeAdminInvite(id)).toEqual({ error: "La invitación ya no está pendiente." });
+        }
+
+        expect(testAuth.audit.entries).toEqual([]);
+      });
+
+      it("an editor cannot revoke: the invite stays pending", async () => {
+        const invite = await withPendingInvite();
+        cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+        expect(await actions.revokeAdminInvite(invite.id)).toEqual({ error: "No tiene permiso para realizar esta acción." });
+        expect(testAuth.invites.invites.get(invite.id)?.revokedAt).toBeNull();
       });
     });
 
@@ -136,7 +243,8 @@ describe("users server actions", () => {
       await withTarget();
 
       for (const result of [
-        await actions.inviteUser(null, inviteForm({ email: "x@example.org", role: "EDITOR" })),
+        await actions.createAdminInvite(null, inviteForm({ email: "x@example.org", role: "EDITOR" })),
+        await actions.revokeAdminInvite("any"),
         await actions.changeUserRole("target", "ADMIN"),
         await actions.setUserActive("target", false),
       ]) {

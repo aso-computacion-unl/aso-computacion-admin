@@ -1,8 +1,8 @@
-import { normalizeEmail, parseRole, parseUserName, type Role, type User } from "@/domain/user";
+import { parseRole, type Role, type User } from "@/domain/user";
 
 import type { SessionRepository, UserChangeOutcome, UserRepository } from "../ports/auth.ports";
 import { NotFoundError } from "../use-cases/use-case-error";
-import { LastAdminError, UserEmailTakenError } from "./auth-errors";
+import { LastAdminError } from "./auth-errors";
 
 type Clock = () => Date;
 
@@ -16,33 +16,6 @@ export class ListUsersUseCase {
 
   execute(): Promise<User[]> {
     return this.users.list();
-  }
-}
-
-export class InviteUserUseCase {
-  constructor(
-    private readonly users: UserRepository,
-    private readonly now: Clock = () => new Date(),
-    private readonly newId: () => string = () => crypto.randomUUID(),
-  ) {}
-
-  async execute(input: { email: string; name?: string; role: Role }): Promise<User> {
-    const email = normalizeEmail(input.email);
-    const user: User = {
-      id: this.newId(),
-      email,
-      name: parseUserName(input.name?.trim() ? input.name : email.slice(0, email.indexOf("@"))),
-      role: parseRole(input.role),
-      active: true,
-      createdAt: this.now(),
-      lastLoginAt: null,
-    };
-
-    if (!(await this.users.create(user))) {
-      throw new UserEmailTakenError();
-    }
-
-    return user;
   }
 }
 

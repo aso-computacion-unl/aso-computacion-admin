@@ -1,5 +1,5 @@
 /** The kinds of content that can be in the trash. */
-export const TRASH_KINDS = ["event", "news", "faq", "command", "social", "pillar", "board"] as const;
+export const TRASH_KINDS = ["event", "news", "faq", "command", "social", "pillar", "board", "impact", "testimonial", "sponsor"] as const;
 
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
@@ -7,7 +7,7 @@ export type TrashKind = (typeof TRASH_KINDS)[number];
 export interface TrashItemResult {
   kind: TrashKind;
   id: string;
-  /** What the admin knows the item by: the title, question, command, label or name. */
+  /** What the admin knows the item by: the title, question, command, label, name or statistic. */
   title: string;
   deletedAt: Date;
 }

@@ -42,4 +42,12 @@ describe("admin navigation and the trash", () => {
     expect(sideNav("ADMIN").map((item) => item.href)).toEqual([HOME_NAV.href, ...all]);
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));
   });
+
+  it("lists impact, testimonials and sponsors as editor-level content modules, each with a way to add one", () => {
+    const social = MODULE_NAV.filter((item) => ["/admin/impact", "/admin/testimonials", "/admin/sponsors"].includes(item.href));
+
+    expect(social.map((item) => item.label)).toEqual(["Impacto", "Testimonios", "Aliados"]);
+    expect(social.every((item) => !item.adminOnly && item.action?.href === `${item.href}/new`)).toBe(true);
+    expect(sideNav("EDITOR").map((item) => item.href)).toEqual(expect.arrayContaining(social.map((item) => item.href)));
+  });
 });

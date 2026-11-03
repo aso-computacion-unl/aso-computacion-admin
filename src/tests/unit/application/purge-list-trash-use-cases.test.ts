@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ListTrashUseCase } from "@/application/use-cases/list-trash.use-case";
+import { ListTrashUseCase, type TrashSources } from "@/application/use-cases/list-trash.use-case";
 import { PurgeBoardMemberUseCase, PurgeContentUseCase, PurgeEventUseCase, PurgeNewsItemUseCase, PurgePillarUseCase } from "@/application/use-cases/purge-content.use-case";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { BoardMember } from "@/domain/board-member";
@@ -31,6 +31,7 @@ describe("purge and list-trash use cases", () => {
   let socials: InMemoryOrderedRepository<SocialLink>;
   let pillars: InMemoryOrderedRepository<Pillar>;
   let board: InMemoryOrderedRepository<BoardMember>;
+  let socialProof: Pick<TrashSources, "impact" | "testimonials" | "sponsors">;
   let storage: InMemoryMediaStorage;
 
   beforeEach(() => {
@@ -42,6 +43,7 @@ describe("purge and list-trash use cases", () => {
     socials = new InMemoryOrderedRepository();
     pillars = new InMemoryOrderedRepository();
     board = new InMemoryOrderedRepository();
+    socialProof = { impact: new InMemoryOrderedRepository(), testimonials: new InMemoryOrderedRepository(), sponsors: new InMemoryOrderedRepository() };
     storage = new InMemoryMediaStorage();
   });
 
@@ -177,7 +179,7 @@ describe("purge and list-trash use cases", () => {
       await pillars.trash(pillar.props.id);
       await board.trash(member.props.id);
 
-      const trash = await new ListTrashUseCase({ events, news: newsItems, faqs, commands, socials, pillars, board }).execute();
+      const trash = await new ListTrashUseCase({ events, news: newsItems, faqs, commands, socials, pillars, board, ...socialProof }).execute();
 
       expect(trash.map(({ kind, title }) => [kind, title])).toEqual([
         ["board", "Ana Pérez"],
@@ -195,7 +197,7 @@ describe("purge and list-trash use cases", () => {
     it("is empty when nothing was deleted, and leaves live items out", async () => {
       await faqs.create(Faq.create({ question: "¿Vivo?", answer: "a", sortOrder: 0 }));
 
-      expect(await new ListTrashUseCase({ events, news: newsItems, faqs, commands, socials, pillars, board }).execute()).toEqual([]);
+      expect(await new ListTrashUseCase({ events, news: newsItems, faqs, commands, socials, pillars, board, ...socialProof }).execute()).toEqual([]);
     });
   });
 });

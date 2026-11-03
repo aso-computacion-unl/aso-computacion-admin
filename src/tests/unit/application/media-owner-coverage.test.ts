@@ -42,12 +42,22 @@ describe("media owner coverage (orphan cleanup must fail closed)", () => {
     expect(coverageProblems(schema, MEDIA_OWNERS, readerSource, MANAGED_MEDIA_FOLDERS)).toEqual([]);
   });
 
-  it("fails with a clear message when a model gains a *PublicId column nobody counts (what merging the testimonials and sponsors branch does)", () => {
-    const merged = `${schema}\nmodel Testimonial {\n  id            String @id\n  photoPublicId String?\n}\n\nmodel Sponsor {\n  id           String @id\n  logoPublicId String?\n}\n`;
+  it("lists the testimonial photo and the sponsor logo, each in its own cleanup subfolder", () => {
+    expect(MEDIA_OWNERS).toEqual(
+      expect.arrayContaining([
+        { model: "Testimonial", column: "photoPublicId", folder: "testimonials" },
+        { model: "Sponsor", column: "logoPublicId", folder: "sponsors" },
+      ]),
+    );
+    expect(MANAGED_MEDIA_FOLDERS).toEqual(expect.arrayContaining(["testimonials", "sponsors"]));
+  });
+
+  it("fails with a clear message when a model gains a *PublicId column nobody counts (what merging a new image owner does)", () => {
+    const merged = `${schema}\nmodel Ambassador {\n  id             String @id\n  avatarPublicId String?\n}\n\nmodel Partner {\n  id            String @id\n  badgePublicId String?\n}\n`;
 
     expect(coverageProblems(merged, MEDIA_OWNERS, readerSource, MANAGED_MEDIA_FOLDERS)).toEqual([
-      expect.stringContaining("Testimonial.photoPublicId stores a Cloudinary public id but is not listed as a media owner"),
-      expect.stringContaining("Sponsor.logoPublicId stores a Cloudinary public id but is not listed as a media owner"),
+      expect.stringContaining("Ambassador.avatarPublicId stores a Cloudinary public id but is not listed as a media owner"),
+      expect.stringContaining("Partner.badgePublicId stores a Cloudinary public id but is not listed as a media owner"),
     ]);
   });
 

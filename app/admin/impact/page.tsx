@@ -7,10 +7,12 @@ import { getAdminImpactStats } from "@/interface/admin/impact/impact-admin-read"
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
+import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -46,13 +48,15 @@ export default async function AdminImpactPage() {
           Todavía no hay cifras de impacto. Cada una lleva un número y lo que cuenta, por ejemplo «120+ · Estudiantes en la comunidad».
         </EmptyState>
       ) : (
-        <OrderedList label="Cifras de impacto, en el orden en que se muestran">
+        <BulkSelection kind="impact" items={stats.map((stat) => ({ id: stat.id, label: `${stat.value} ${stat.label}` }))}>
+          <ReorderableList kind="impact" items={stats.map((stat) => ({ id: stat.id, label: `${stat.value} ${stat.label}` }))} offset={0} total={stats.length} enabled={true} label="Cifras de impacto, en el orden en que se muestran">
           {stats.map((stat, index) => {
             const name = `${stat.value} ${stat.label}`;
 
             return (
               <OrderedRow
                 key={stat.id}
+                id={stat.id}
                 published={stat.isPublished}
                 position={index + 1}
                 label={name}
@@ -79,7 +83,8 @@ export default async function AdminImpactPage() {
               </OrderedRow>
             );
           })}
-        </OrderedList>
+        </ReorderableList>
+        </BulkSelection>
       )}
     </div>
   );

@@ -55,6 +55,19 @@ describe("bulk actions", () => {
       ]);
     });
 
+    it.each([
+      ["impact", "/admin/impact", "cifra de impacto"],
+      ["testimonial", "/admin/testimonials", "testimonio"],
+      ["sponsor", "/admin/sponsors", "aliado"],
+    ])("publishes the social proof kind %s and audits it under its own name", async (kind, path, noun) => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+      expect(await bulkSetPublished(kind, ["a"], true)).toEqual({ results: [{ id: "a", ok: true }] });
+
+      expect(audited().map((entry) => [entry.action, entry.entityType, entry.summary])).toEqual([[`${kind}.publish`, kind, `Publicado en lote: ${noun}`]]);
+      expect(revalidatePathMock).toHaveBeenCalledWith(path);
+    });
+
     it("reports a failure per item, keeps going, audits only what changed and asks for one rebuild", async () => {
       cookieJar(cookiesMock, await signInAs("EDITOR"));
       target.setPublished.execute

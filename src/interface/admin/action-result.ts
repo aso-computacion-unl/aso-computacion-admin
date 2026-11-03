@@ -20,6 +20,8 @@ import { UnauthorizedError } from "../auth/require-session";
  */
 export interface ActionResult {
   success?: true;
+  /** With `success`: the request found the target already in the wanted state, so nothing changed and nothing was audited. */
+  unchanged?: true;
   error?: string;
   fieldErrors?: Record<string, string>;
 }

@@ -1,6 +1,6 @@
 import { TRASH_KINDS, type TrashKind } from "@/application";
 
-/** The content kinds a bulk action may touch: the same seven that can be in the trash. */
+/** The content kinds a bulk action may touch: the same ten that can be in the trash. */
 export type BulkKind = TrashKind;
 
 /** More than this in one request is refused: each item is its own write and audit entry, run one after the other. */

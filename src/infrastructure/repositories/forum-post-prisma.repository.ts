@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ForumReply as ForumReplyRow, ForumThread as ForumThreadRecord } from "@prisma/client";
 
-import type { ForumAddReplyOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow } from "@/application/ports/forum.ports";
+import type { ForumAddReplyOutcome, ForumBestAnswerOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow } from "@/application/ports/forum.ports";
 import type { ForumReply, ForumThread } from "@/domain/forum";
 
 import { prisma } from "../prisma/client";
@@ -61,8 +61,20 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     return { items: rows.map((row) => ({ thread: toThread(row), authorName: row.author.displayName, replyCount: row._count.replies })), total };
   }
 
-  async updateThread(id: string, change: { title: string; body: string; at: Date }): Promise<void> {
-    await prisma.forumThread.updateMany({ where: { id }, data: { title: change.title, body: change.body, editedAt: change.at, updatedAt: change.at } });
+  async updateThread(id: string, change: { title: string; body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {
+    // One conditional statement: a lock or a hide committing first makes it match nothing.
+    const { count } = await prisma.forumThread.updateMany({
+      where: { id, authorId: change.authorId, hiddenAt: null, lockedAt: null },
+      data: { title: change.title, body: change.body, editedAt: change.at, updatedAt: change.at },
+    });
+
+    if (count > 0) {
+      return "ok";
+    }
+
+    const thread = await prisma.forumThread.findUnique({ where: { id }, select: { authorId: true, hiddenAt: true } });
+
+    return !thread || thread.hiddenAt || thread.authorId !== change.authorId ? "not-found" : "locked";
   }
 
   async addReply(reply: ForumReply): Promise<ForumAddReplyOutcome> {
@@ -86,6 +98,32 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     });
   }
 
+  async setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome> {
+    return prisma.$transaction(async (tx) => {
+      if (replyId !== null) {
+        // A shared lock on the reply while it is visible and in this thread: a hide committing first matches
+        // nothing here, and one arriving later waits for this transaction and then clears the mark.
+        const found = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumReply" WHERE "id" = ${replyId} AND "threadId" = ${threadId} AND "hiddenAt" IS NULL FOR SHARE`;
+
+        if (found.length === 0) {
+          const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
+
+          return !thread || thread.hiddenAt ? "not-found" : "invalid-reply";
+        }
+      }
+
+      const { count } = await tx.forumThread.updateMany({ where: { id: threadId, hiddenAt: null, lockedAt: null }, data: { bestReplyId: replyId } });
+
+      if (count > 0) {
+        return "ok";
+      }
+
+      const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
+
+      return !thread || thread.hiddenAt ? "not-found" : "locked";
+    });
+  }
+
   async listReplies(threadId: string): Promise<ReplyRow[]> {
     const rows = await prisma.forumReply.findMany({
       where: { threadId, hiddenAt: null },
@@ -102,8 +140,39 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     return row && toReply(row);
   }
 
-  async updateReply(id: string, change: { body: string; at: Date }): Promise<void> {
-    await prisma.forumReply.updateMany({ where: { id }, data: { body: change.body, editedAt: change.at, updatedAt: change.at } });
+  async updateReply(id: string, change: { body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {
+    return prisma.$transaction(async (tx) => {
+      // Row locks in the order every writer takes them (a hide, marking the best answer, a reaction): the
+      // reply first, then its thread. Taking the thread first could wait for a reply that a hide already
+      // holds while the hide waits for the thread, a deadlock.
+      const found = await tx.$queryRaw<{ threadId: string }[]>`SELECT "threadId" FROM "ForumReply" WHERE "id" = ${id} AND "authorId" = ${change.authorId} AND "hiddenAt" IS NULL FOR UPDATE`;
+
+      const threadId = found[0]?.threadId;
+
+      if (threadId === undefined) {
+        return "not-found";
+      }
+
+      // A shared row lock on the thread while it is open: a lock or a hide committing first matches
+      // nothing here, and one arriving later waits for this transaction.
+      const open = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "ForumThread" WHERE "id" = ${threadId} AND "lockedAt" IS NULL AND "hiddenAt" IS NULL FOR SHARE`;
+
+      if (open.length === 0) {
+        const thread = await tx.forumThread.findUnique({ where: { id: threadId }, select: { hiddenAt: true } });
+
+        return !thread || thread.hiddenAt ? "not-found" : "locked";
+      }
+
+      const { count } = await tx.forumReply.updateMany({ where: { id, hiddenAt: null }, data: { body: change.body, editedAt: change.at, updatedAt: change.at } });
+
+      if (count === 0) {
+        return "not-found";
+      }
+
+      await tx.forumThread.updateMany({ where: { id: threadId, bestReplyId: id }, data: { bestReplyId: null } });
+
+      return "ok";
+    });
   }
 
   async countPostsSince(memberId: string, since: Date): Promise<number> {

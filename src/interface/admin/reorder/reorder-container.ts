@@ -2,8 +2,11 @@ import type { ReorderKind } from "./reorder-input";
 import { getBoardMemberUseCases } from "../board/board-members-container";
 import { getCommandUseCases } from "../commands/commands-container";
 import { getFaqUseCases } from "../faqs/faqs-container";
+import { getImpactStatUseCases } from "../impact/impact-container";
 import { getPillarUseCases } from "../pillars/pillars-container";
 import { getSocialLinkUseCases } from "../socials/socials-container";
+import { getSponsorUseCases } from "../sponsors/sponsors-container";
+import { getTestimonialUseCases } from "../testimonials/testimonials-container";
 
 export interface ReorderTarget {
   reorder: { execute(command: { id: string; position: number }): Promise<void> };
@@ -22,5 +25,11 @@ export function getReorderTarget(kind: ReorderKind): ReorderTarget {
       return getPillarUseCases();
     case "board":
       return getBoardMemberUseCases();
+    case "impact":
+      return getImpactStatUseCases();
+    case "testimonial":
+      return getTestimonialUseCases();
+    case "sponsor":
+      return getSponsorUseCases();
   }
 }

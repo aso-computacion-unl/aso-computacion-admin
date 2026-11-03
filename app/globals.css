@@ -33,6 +33,8 @@
 	--color-signal-press: #9d2c34;
 	/* Red text on navy: signal itself is ~2:1 there; this tint is 5.9:1 or more on every navy step. */
 	--color-error: #ff9ba2;
+	/* Green text for "open" in the forum: 9:1 or more on every navy step. */
+	--color-ok: #7fe0b0;
 
 	--color-background: var(--color-navy);
 	--color-foreground: #fff;
@@ -74,6 +76,8 @@
 	--color-sky-press: #064e70;
 	--color-mist: #45556d;
 	--color-error: #b3202b;
+	/* 5.4:1 or more on every light surface. */
+	--color-ok: #0a6b46;
 
 	--color-foreground: #0b2447;
 	--color-primary-foreground: #ffffff;

@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -207,6 +209,53 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       expect(response.status).toBe(503);
       expect(JSON.stringify(await response.json())).not.toContain("secret");
       expect(reportErrorMock).toHaveBeenCalled();
+    });
+
+    describe("when storing fails with an error that echoes what was submitted", () => {
+      // A database error can repeat the failed statement's values: the submitted name, email and career.
+      class DatabaseLikeError extends Error {
+        readonly code = "P2010";
+        readonly meta = { target: [FORM.email], name: FORM.name };
+      }
+
+      const failure = () => new DatabaseLikeError(`Invalid create() invocation: data: { name: "${FORM.name}", email: "${FORM.email}", career: "${FORM.career}" }`);
+
+      it("logs only the error class and code: not one submitted value reaches the log line", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        vi.spyOn(testEventRegistration.registrations, "register").mockRejectedValue(failure());
+
+        expect((await post(FORM)).status).toBe(503);
+        expect(logged).toHaveBeenCalledTimes(1);
+        expect(logged.mock.calls[0]).toEqual(["Open event registration failed", "DatabaseLikeError P2010"]);
+
+        const everything = inspect(logged.mock.calls, { depth: null });
+
+        for (const value of [FORM.name, FORM.email, FORM.career, "Pérez", "ana@", "turnstile", FORM.turnstileToken]) {
+          expect(everything).not.toContain(value);
+        }
+      });
+
+      it("still reports to Sentry through the reporter, with the route tag, and the report carries no submitted value either", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        vi.spyOn(testEventRegistration.registrations, "register").mockRejectedValue(failure());
+
+        await post(FORM);
+
+        expect(reportErrorMock).toHaveBeenCalledTimes(1);
+
+        const [reported, context] = reportErrorMock.mock.calls[0]!;
+
+        expect(context).toEqual({ route: "public-event-registration" });
+        expect(reported).toBeInstanceOf(Error);
+        expect(reported.message).toBe("DatabaseLikeError P2010");
+
+        const everything = inspect(reported, { depth: null }) + JSON.stringify(reported) + String(reported.stack);
+
+        for (const value of [FORM.name, FORM.email, FORM.career, "Pérez", "ana@"]) {
+          expect(everything).not.toContain(value);
+        }
+      });
     });
   });
 

@@ -22,6 +22,11 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     return [...this.rows];
   }
 
+  /** Stores a row as is, bypassing the registration rules: for tests that need people registered for past events. */
+  seed(row: EventRegistrationRecord): void {
+    this.rows.push(row);
+  }
+
   async register(input: NewEventRegistration, now: Date): Promise<RegisterOutcome> {
     const event = await this.events.getById(input.eventId);
 

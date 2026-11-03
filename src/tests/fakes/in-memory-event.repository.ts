@@ -1,4 +1,5 @@
 import type { EventRepository } from "@/application/ports/event-repository.port";
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { Event } from "@/domain/event";
 
@@ -24,15 +25,24 @@ export class InMemoryEventRepository implements EventRepository {
     return [...this.events.values()].some((event) => event.props.slug === slug && event.props.id !== excludeId);
   }
 
-  async list(): Promise<Event[]> {
-    return [...this.events.values()].sort((a, b) => {
-      if (a.props.date !== b.props.date) {
-        if (a.props.date === null) return 1;
-        if (b.props.date === null) return -1;
-        return a.props.date < b.props.date ? 1 : -1;
-      }
-      return b.props.createdAt.getTime() - a.props.createdAt.getTime();
-    });
+  async countByStatus(): Promise<PublicationCounts> {
+    const all = [...this.events.values()];
+    const published = all.filter((event) => event.props.isPublished).length;
+
+    return { published, draft: all.length - published };
+  }
+
+  async list(criteria: ListCriteria = {}): Promise<Event[]> {
+    return [...this.events.values()]
+      .filter((event) => criteria.status === undefined || event.props.isPublished === (criteria.status === "published"))
+      .sort((a, b) => {
+        if (a.props.date !== b.props.date) {
+          if (a.props.date === null) return 1;
+          if (b.props.date === null) return -1;
+          return a.props.date < b.props.date ? 1 : -1;
+        }
+        return b.props.createdAt.getTime() - a.props.createdAt.getTime();
+      });
   }
 
   async update(event: Event): Promise<Event> {

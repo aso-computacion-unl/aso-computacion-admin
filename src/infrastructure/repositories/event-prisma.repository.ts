@@ -2,12 +2,14 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 
 import type { EventRepository } from "@/application/ports/event-repository.port";
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./event.mapper";
+import { publicationWhere, toPublicationCounts } from "./publication-filter";
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -42,8 +44,16 @@ export class EventPrismaRepository implements EventRepository {
     return record !== null;
   }
 
-  async list(): Promise<Event[]> {
+  async countByStatus(): Promise<PublicationCounts> {
+    // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
+    const groups = await prisma.event.groupBy({ by: ["isPublished"], _count: { _all: true } });
+
+    return toPublicationCounts(groups);
+  }
+
+  async list(criteria?: ListCriteria): Promise<Event[]> {
     const records = await prisma.event.findMany({
+      where: publicationWhere(criteria),
       orderBy: [{ date: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     });
 

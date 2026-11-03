@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
+import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { deactivateEventPhoto, moveEventPhoto, updateEventPhotoAlt } from "@/interface/admin/events/actions";
 
 import { Panel } from "../../_components/page-head";
@@ -42,7 +43,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
 
     const formData = new FormData();
     formData.set("alt", alt);
-    altAction.run(() => updateEventPhotoAlt(eventId, photo.id, null, formData));
+    altAction.run(() => updateEventPhotoAlt(eventId, photo.id, null, formData), undefined, "Descripción guardada.");
   }
 
   const message = resultMessage(altAction.result);
@@ -50,9 +51,9 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
   return (
     <li className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 rounded bg-muted p-2.5 sm:grid-cols-1 sm:p-2 sm:pb-2.5">
       <div className="relative aspect-4/3 self-start overflow-hidden rounded-xs bg-navy">
-        {/* Remote Cloudinary asset shown as-is in the admin; no image optimisation needed. */}
+        {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo.url} alt={photo.alt} width={320} height={Math.round((320 * photo.height) / photo.width)} className="size-full object-cover" />
+        <img src={thumbnailUrl(photo.url, 320)} alt={photo.alt} loading="lazy" decoding="async" width={320} height={Math.round((320 * photo.height) / photo.width)} className="size-full object-cover" />
         <span className="absolute top-1 left-1 bg-muted px-1.5 py-0.75 font-mono text-[0.6875rem] leading-none">
           <span className="sr-only">Foto </span>
           {String(position).padStart(2, "0")}
@@ -95,6 +96,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
             note="El archivo se conserva."
             triggerLabel="Quitar"
             confirmLabel="Sí, quitar"
+            successMessage="Foto quitada."
             action={() => deactivateEventPhoto(eventId, photo.id)}
           />
         </div>

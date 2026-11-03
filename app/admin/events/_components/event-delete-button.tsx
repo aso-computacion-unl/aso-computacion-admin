@@ -3,7 +3,7 @@
 import { trashEvent } from "@/interface/admin/events/actions";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
-import { DeleteButton } from "../../_components/row-actions";
+import { TrashButton } from "../../_components/row-actions";
 
 interface EventDeleteButtonProps {
   eventId: string;
@@ -12,7 +12,7 @@ interface EventDeleteButtonProps {
 
 export function EventDeleteButton({ eventId, title }: EventDeleteButtonProps) {
   return (
-    <DeleteButton
+    <TrashButton
       label={title}
       warning="¿Mover este evento a la papelera? Sus fotos se conservan."
       action={() => trashEvent(eventId)}

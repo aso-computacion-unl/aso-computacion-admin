@@ -104,7 +104,7 @@ describe("event photo use cases", () => {
         await attach.execute({ eventId, file: imageFile(`p${i}.jpg`), alt: "Foto" });
       }
 
-      await new DeactivateEventPhotoUseCase(photos).execute({ eventId, photoId: first.id });
+      await new DeactivateEventPhotoUseCase(events, photos).execute({ eventId, photoId: first.id });
 
       await expect(attach.execute({ eventId, file: imageFile("new.jpg"), alt: "Nueva" })).resolves.toMatchObject({
         alt: "Nueva",
@@ -162,7 +162,7 @@ describe("event photo use cases", () => {
 
     it("moves a photo up and down by swapping with its neighbour", async () => {
       const [a, b, c] = await seed(3);
-      const reorder = new ReorderEventPhotosUseCase(photos);
+      const reorder = new ReorderEventPhotosUseCase(events, photos);
 
       await reorder.execute({ eventId, photoId: c!, direction: "up" });
       expect(await order()).toEqual([a, c, b]);
@@ -173,7 +173,7 @@ describe("event photo use cases", () => {
 
     it("keeps the order when the photo is already at the edge", async () => {
       const [a, b] = await seed(2);
-      const reorder = new ReorderEventPhotosUseCase(photos);
+      const reorder = new ReorderEventPhotosUseCase(events, photos);
 
       await reorder.execute({ eventId, photoId: a!, direction: "up" });
       await reorder.execute({ eventId, photoId: b!, direction: "down" });
@@ -185,7 +185,7 @@ describe("event photo use cases", () => {
       await seed(1);
 
       await expect(
-        new ReorderEventPhotosUseCase(photos).execute({ eventId, photoId: MISSING_ID, direction: "up" }),
+        new ReorderEventPhotosUseCase(events, photos).execute({ eventId, photoId: MISSING_ID, direction: "up" }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
   });
@@ -194,7 +194,7 @@ describe("event photo use cases", () => {
     it("deactivates the photo but keeps the stored asset", async () => {
       const photo = await attach.execute({ eventId, file: imageFile("a.jpg"), alt: "Foto" });
 
-      await new DeactivateEventPhotoUseCase(photos).execute({ eventId, photoId: photo.id });
+      await new DeactivateEventPhotoUseCase(events, photos).execute({ eventId, photoId: photo.id });
 
       expect(await photos.listActiveByEventId(eventId)).toEqual([]);
       expect((await photos.getById(photo.id))?.props.isActive).toBe(false);
@@ -205,7 +205,7 @@ describe("event photo use cases", () => {
       const photo = await attach.execute({ eventId, file: imageFile("a.jpg"), alt: "Foto" });
 
       await expect(
-        new DeactivateEventPhotoUseCase(photos).execute({ eventId: MISSING_ID, photoId: photo.id }),
+        new DeactivateEventPhotoUseCase(events, photos).execute({ eventId: MISSING_ID, photoId: photo.id }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect((await photos.getById(photo.id))?.props.isActive).toBe(true);
     });
@@ -214,7 +214,7 @@ describe("event photo use cases", () => {
   describe("UpdateEventPhotoAltUseCase", () => {
     it("updates the alt text and rejects an empty one", async () => {
       const photo = await attach.execute({ eventId, file: imageFile("a.jpg"), alt: "Foto" });
-      const updateAlt = new UpdateEventPhotoAltUseCase(photos);
+      const updateAlt = new UpdateEventPhotoAltUseCase(events, photos);
 
       expect((await updateAlt.execute({ eventId, photoId: photo.id, alt: "Nueva descripción" })).alt).toBe(
         "Nueva descripción",
@@ -225,8 +225,38 @@ describe("event photo use cases", () => {
 
     it("throws NotFoundError for an unknown photo", async () => {
       await expect(
-        new UpdateEventPhotoAltUseCase(photos).execute({ eventId, photoId: MISSING_ID, alt: "x" }),
+        new UpdateEventPhotoAltUseCase(events, photos).execute({ eventId, photoId: MISSING_ID, alt: "x" }),
       ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe("an event in the trash", () => {
+    it("rejects every photo action with NotFoundError and changes nothing", async () => {
+      const [a, b] = [
+        await attach.execute({ eventId, file: imageFile("a.jpg"), alt: "A" }),
+        await attach.execute({ eventId, file: imageFile("b.jpg"), alt: "B" }),
+      ];
+      await events.trash(eventId);
+
+      await expect(new ReorderEventPhotosUseCase(events, photos).execute({ eventId, photoId: b.id, direction: "up" })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(new DeactivateEventPhotoUseCase(events, photos).execute({ eventId, photoId: a.id })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(new UpdateEventPhotoAltUseCase(events, photos).execute({ eventId, photoId: a.id, alt: "Nueva" })).rejects.toBeInstanceOf(NotFoundError);
+      await expect(attach.execute({ eventId, file: imageFile("c.jpg"), alt: "C" })).rejects.toBeInstanceOf(NotFoundError);
+
+      const kept = await photos.listActiveByEventId(eventId);
+      expect(kept.map((photo) => [photo.props.id, photo.props.alt, photo.props.sortOrder])).toEqual([
+        [a.id, "A", 0],
+        [b.id, "B", 1],
+      ]);
+    });
+
+    it("lets the photos be managed again once the event is restored", async () => {
+      const photo = await attach.execute({ eventId, file: imageFile("a.jpg"), alt: "A" });
+      await events.trash(eventId);
+      const trashed = await events.getTrashed(eventId);
+      await events.restore(trashed!.entity);
+
+      await expect(new UpdateEventPhotoAltUseCase(events, photos).execute({ eventId, photoId: photo.id, alt: "Nueva" })).resolves.toMatchObject({ alt: "Nueva" });
     });
   });
 });

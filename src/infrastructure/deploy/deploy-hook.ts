@@ -2,6 +2,7 @@
 // public, and the guard would force every action test to mock it.
 import { after } from "next/server";
 
+import { reportError } from "../observability/report-error";
 import { recordDeployOutcome, type DeployOutcome } from "./deploy-status";
 
 export const DEPLOY_HOOK_URL_ENV_VAR = "CLOUDFLARE_DEPLOY_HOOK_URL";
@@ -25,6 +26,11 @@ export const DEPLOY_HOOK_DEBOUNCE_MS = 8_000;
 export const DEPLOY_HOOK_MAX_WAIT_MS = 15_000;
 /** The hook only has to accept the request; Cloudflare builds asynchronously. */
 export const DEPLOY_HOOK_TIMEOUT_MS = 5_000;
+/**
+ * Longest the status write may hold `after()` open once the hook was called. It is best effort: a
+ * database that does not answer costs the status row, never the release of the invocation.
+ */
+export const DEPLOY_STATUS_WRITE_TIMEOUT_MS = 3_000;
 
 interface PendingRebuild {
   /** When the first edit of this burst arrived. */
@@ -104,10 +110,27 @@ async function postHook(url: string): Promise<void> {
     clearTimeout(timeout);
   }
 
+  await recordWithin(outcome, DEPLOY_STATUS_WRITE_TIMEOUT_MS);
+}
+
+/** Records the outcome, giving up after `timeoutMs`: a timeout is logged and reported, never thrown. */
+async function recordWithin(outcome: DeployOutcome, timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), timeoutMs);
+  });
+
   try {
-    await recordDeployOutcome(outcome);
+    const winner = await Promise.race([recordDeployOutcome(outcome).then(() => "recorded" as const), timedOut]);
+
+    if (winner === "timeout") {
+      console.warn("Recording the landing deploy status timed out.");
+      reportError(new Error("Recording the landing deploy status timed out"), { area: "deploy-status" });
+    }
   } catch {
     // The recorder swallows its own failures; this keeps a misbehaving one from ever blocking the release of the invocation.
+  } finally {
+    clearTimeout(timer);
   }
 }
 

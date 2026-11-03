@@ -23,21 +23,33 @@ describe("ToastProvider", () => {
   });
 });
 
-describe("DeleteButton copy (S4)", () => {
-  it("offers to move to the trash by default, not to delete", async () => {
-    const { DeleteButton } = await import("../../../../app/admin/_components/row-actions");
+describe("TrashButton copy (S4)", () => {
+  it("offers to move to the trash, not to delete", async () => {
+    const { TrashButton } = await import("../../../../app/admin/_components/row-actions");
 
-    const html = renderToStaticMarkup(createElement(DeleteButton, { label: "¿Costo?", warning: "¿Mover?", action: async () => ({ success: true as const }) }));
+    const html = renderToStaticMarkup(createElement(TrashButton, { label: "¿Costo?", warning: "¿Mover?", action: async () => ({ success: true as const }) }));
 
     expect(html).toContain("Mover a la papelera");
     expect(html).toContain('aria-label="Mover a la papelera: ¿Costo?"');
     expect(html).not.toMatch(/Eliminar/);
   });
+});
 
-  it("keeps the image-removal wording when the caller sets its own", async () => {
+describe("DeleteButton copy", () => {
+  it("carries no trash wording of its own: it shows exactly the copy the caller sets", async () => {
     const { DeleteButton } = await import("../../../../app/admin/_components/row-actions");
 
-    const html = renderToStaticMarkup(createElement(DeleteButton, { label: "Foto", warning: "w", triggerLabel: "Quitar", action: async () => ({ success: true as const }) }));
+    const html = renderToStaticMarkup(
+      createElement(DeleteButton, {
+        label: "Foto",
+        warning: "w",
+        note: "El archivo se conserva.",
+        triggerLabel: "Quitar",
+        confirmLabel: "Sí, quitar",
+        successMessage: "Foto quitada.",
+        action: async () => ({ success: true as const }),
+      }),
+    );
 
     expect(html).toContain("Quitar");
     expect(html).not.toContain("papelera");

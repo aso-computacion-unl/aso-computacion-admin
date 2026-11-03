@@ -1,13 +1,14 @@
 import type { SettingsValues } from "@/interface/admin/settings/settings-editor-state";
 
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 
 /**
  * Approximate: where each text lands on the public site, in the admin's own type and colours. The tagline
  * only shows in the browser tab title; the description is the hero lead; "Acerca de" is the README block.
  * The visible mock is hidden from screen readers, who already have the same text in the fields.
+ * It follows the typing only while the fields are open; otherwise it shows the saved texts and nothing moves.
  */
-export function SettingsPreview({ values }: { values: SettingsValues }) {
+export function SettingsPreview({ values, editing }: { values: SettingsValues; editing: boolean }) {
   const tagline = values.tagline.trim();
   const description = values.description.trim();
   const about = values.about.trim();
@@ -17,11 +18,13 @@ export function SettingsPreview({ values }: { values: SettingsValues }) {
     <Panel aria-label="Vista previa" className="grid gap-4 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-lg font-bold font-stretch-[112%]">Vista previa</h2>
-        <p className="font-mono text-[0.8125rem] text-mist">se actualiza al escribir</p>
+        <p className="font-mono text-[0.8125rem] text-mist">{editing ? "se actualiza al escribir" : "con los textos guardados"}</p>
       </div>
       {empty ? (
         <p role="status" className="text-mist">
-          Escriba el lema, la descripción o el texto «Acerca de» para ver cómo se lee en el sitio.
+          {editing
+            ? "Escriba el lema, la descripción o el texto «Acerca de» para ver cómo se lee en el sitio."
+            : "Cuando se guarden el lema, la descripción y el texto «Acerca de», aquí se verá cómo se leen en el sitio."}
         </p>
       ) : (
         <div aria-hidden="true" className="overflow-hidden rounded">

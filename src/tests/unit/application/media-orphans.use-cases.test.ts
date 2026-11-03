@@ -36,7 +36,7 @@ describe("FindOrphanImagesUseCase (the dry run)", () => {
   });
 
   it("never offers an image whose folder holds content the usage reader does not count, and says how many it left out", async () => {
-    const { find } = build([asset("a"), asset("testimonials/t", OLD, "testimonials"), asset("sponsors/s", OLD, "sponsors"), asset("root-file", OLD, ""), asset("events/nested", OLD, "events/nested")]);
+    const { find } = build([asset("a"), asset("ambassadors/t", OLD, "ambassadors"), asset("gallery/s", OLD, "gallery"), asset("root-file", OLD, ""), asset("events/nested", OLD, "events/nested")]);
 
     const scan = await find.execute();
 
@@ -52,7 +52,7 @@ describe("FindOrphanImagesUseCase (the dry run)", () => {
   });
 
   it("does not even ask the usage reader about the images it will not manage", async () => {
-    const { find, usage } = build([asset("a"), asset("t", OLD, "testimonials")]);
+    const { find, usage } = build([asset("a"), asset("t", OLD, "ambassadors")]);
 
     await find.execute();
 
@@ -96,7 +96,7 @@ describe("DeleteOrphanImagesUseCase", () => {
     expect(fixture.storage.destroy).not.toHaveBeenCalled();
   });
 
-  it.each(["testimonials", "sponsors", "", "events/nested"])("refuses an image in the %j folder even when its id is posted directly", async (folder) => {
+  it.each(["ambassadors", "gallery", "", "events/nested"])("refuses an image in the %j folder even when its id is posted directly", async (folder) => {
     const { remove, storage, usage } = build([asset("posted", OLD, folder)]);
 
     expect(await remove.execute({ publicIds: ["posted"] })).toEqual([{ publicId: "posted", outcome: "not_managed" }]);

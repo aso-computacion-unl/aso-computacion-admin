@@ -19,12 +19,14 @@ export type RegistrationState = "open" | "full" | "closed";
 
 /** What the registration page and the landing need about one event: no personal data, only counts. */
 export interface EventRegistrationStatus {
-  event: Pick<EventResult, "slug" | "title" | "date" | "datePrecision" | "hora" | "lugar">;
+  event: Pick<EventResult, "slug" | "title" | "description" | "date" | "datePrecision" | "hora" | "lugar">;
   mode: RegistrationMode;
   state: RegistrationState;
   /** This person (by email) is already registered. */
   alreadyRegistered: boolean;
   capacity: number | null;
+  /** People registered so far: with `capacity`, the seats left. */
+  registered: number;
   deadline: Date | null;
 }
 
@@ -58,11 +60,12 @@ export class GetEventRegistrationStatusUseCase {
     }
 
     return {
-      event: { slug: event.slug, title: event.title, date: event.date, datePrecision: event.datePrecision, hora: event.hora, lugar: event.lugar },
+      event: { slug: event.slug, title: event.title, description: event.description, date: event.date, datePrecision: event.datePrecision, hora: event.hora, lugar: event.lugar },
       mode,
       state: refusal === "full" ? "full" : refusal === null ? "open" : "closed",
       alreadyRegistered,
       capacity: event.registrationCapacity,
+      registered,
       deadline: event.registrationDeadline,
     };
   }

@@ -72,12 +72,20 @@ export type ForumBestAnswerOutcome = "ok" | "not-found" | "locked" | "invalid-re
 /** "not-found" also covers a hidden post (or one in a hidden thread) and one that is not the author's. */
 export type ForumEditOutcome = "ok" | "not-found" | "locked";
 
+/** The two tabs of the thread list: a thread with a best answer is solved, every other visible thread is open (a locked one too). */
+export type ForumThreadState = "open" | "solved";
+
 export interface ForumPostRepository {
   create(thread: ForumThread): Promise<void>;
   /** Hidden threads included: whether a student may see one is the use case's decision. */
   findThread(id: string): Promise<ForumThreadRow | null>;
   /** Not hidden, most recent activity first. */
   listThreads(categoryId: string, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; total: number }>;
+  /**
+   * Not hidden threads of one category, or of every category when `categoryId` is omitted, in the given state,
+   * most recent activity first. `counts` are the visible threads of the same scope in each state, whichever is listed.
+   */
+  listFeed(scope: { categoryId?: string; state: ForumThreadState }, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; counts: Record<ForumThreadState, number> }>;
   /**
    * Sets the title and body and stamps `editedAt` and `updatedAt` with `at`, atomically with the check that
    * the thread is the author's, not hidden and not locked: a moderator's lock or hide that landed after

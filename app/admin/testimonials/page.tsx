@@ -7,27 +7,30 @@ import { moveTestimonial, setTestimonialPublished, trashTestimonial } from "@/in
 import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonials-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
 export default async function AdminTestimonialsPage() {
   const testimonials = await getAdminTestimonials();
+  const tools = showListTools(testimonials.length);
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Testimonios"
-        meta={`main · ${publicationSummary(testimonials)}`}
+        status={`main · ${publicationSummary(testimonials)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/testimonials/new">
               <Icon name="plus" />
               Nuevo testimonio
@@ -37,6 +40,7 @@ export default async function AdminTestimonialsPage() {
       />
       {testimonials.length === 0 ? (
         <EmptyState
+          icon="news"
           action={
             <Button asChild>
               <Link href="/admin/testimonials/new">
@@ -49,7 +53,7 @@ export default async function AdminTestimonialsPage() {
           Todavía no hay testimonios. Cada uno lleva una cita, el nombre y el cargo de quien la dijo, y una foto opcional.
         </EmptyState>
       ) : (
-        <BulkSelection kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))}>
+        <BulkSelection kind="testimonial" enabled={tools} items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))}>
           <ReorderableList kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))} offset={0} total={testimonials.length} enabled={true} label="Testimonios, en el orden en que se muestran">
           {testimonials.map((testimonial, index) => (
             <OrderedRow
@@ -95,6 +99,7 @@ export default async function AdminTestimonialsPage() {
             </OrderedRow>
           ))}
         </ReorderableList>
+          {tools ? null : <AddRow href="/admin/testimonials/new">Agregar testimonio</AddRow>}
         </BulkSelection>
       )}
     </div>

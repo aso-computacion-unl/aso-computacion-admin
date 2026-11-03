@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ForumReply as ForumReplyRow, ForumThread as ForumThreadRecord } from "@prisma/client";
 
-import type { ForumAddReplyOutcome, ForumBestAnswerOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow } from "@/application/ports/forum.ports";
+import type { ForumAddReplyOutcome, ForumBestAnswerOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow, ForumThreadState } from "@/application/ports/forum.ports";
 import type { ForumReply, ForumThread } from "@/domain/forum";
 
 import { prisma } from "../prisma/client";
@@ -59,6 +59,20 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     ]);
 
     return { items: rows.map((row) => ({ thread: toThread(row), authorName: row.author.displayName, replyCount: row._count.replies })), total };
+  }
+
+  async listFeed(scope: { categoryId?: string; state: ForumThreadState }, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; counts: Record<ForumThreadState, number> }> {
+    const base = { hiddenAt: null, ...(scope.categoryId === undefined ? {} : { categoryId: scope.categoryId }) };
+    // A thread is solved while it has a best answer: setting and clearing the mark is what moves it between tabs.
+    const open = { ...base, bestReplyId: null };
+    const solved = { ...base, bestReplyId: { not: null } };
+    const [rows, openCount, solvedCount] = await prisma.$transaction([
+      prisma.forumThread.findMany({ where: scope.state === "solved" ? solved : open, orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }], skip: page.offset, take: page.limit, include: WITH_AUTHOR_NAME }),
+      prisma.forumThread.count({ where: open }),
+      prisma.forumThread.count({ where: solved }),
+    ]);
+
+    return { items: rows.map((row) => ({ thread: toThread(row), authorName: row.author.displayName, replyCount: row._count.replies })), counts: { open: openCount, solved: solvedCount } };
   }
 
   async updateThread(id: string, change: { title: string; body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {

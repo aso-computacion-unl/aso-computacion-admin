@@ -9,7 +9,7 @@ import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 import { deactivateEventPhoto, moveEventPhoto, updateEventPhotoAlt } from "@/interface/admin/events/actions";
 
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 import { FieldError } from "../../_components/form-parts";
 import { DeleteButton, MoveButtons } from "../../_components/row-actions";
 import { resultMessage, useRunAction } from "../../_components/use-run-action";

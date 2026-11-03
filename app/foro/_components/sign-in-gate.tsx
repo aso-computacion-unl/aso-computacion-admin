@@ -1,7 +1,10 @@
 import { Icon } from "@/components/icons";
 import { FORUM_LOGIN_ERROR_MESSAGES, type ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
 
-import { GoogleMark } from "./google-mark";
+import { GoogleButton } from "../../_components/google-button";
+
+import { CategoryChip } from "./category-chip";
+import { ThreadStatusIcon } from "./thread-status-icon";
 
 // The guard answers the same for a visitor, an expired session and a suspended member, so the one place a
 // suspended student learns why they are out is the "denied" sign-in error.
@@ -14,35 +17,92 @@ interface SignInGateProps {
   next?: string;
 }
 
-/** What a visitor sees at /foro: the forum's purpose and the only way in. */
+/**
+ * Made-up threads that show what the forum looks like inside. Reading the real ones needs a session, so the
+ * preview never comes from the database.
+ */
+const SAMPLE_THREADS = [
+  { status: "open", title: "¿Cómo preparo el examen de Estructuras de Datos?", category: { slug: "materias", name: "Materias" }, meta: "hace 2 h", replies: 6 },
+  { status: "solved", title: "Error al conectar Postgres desde Docker en el laboratorio", category: { slug: "materias", name: "Materias" }, meta: "hace 5 h", replies: 9 },
+  { status: "open", title: "Propuesta: taller de Docker para primeros ciclos", category: { slug: "propuestas", name: "Propuestas" }, meta: "ayer", replies: 14 },
+  { status: "open", title: "Busco equipo para el hackathon (backend con Node)", category: { slug: "general", name: "General" }, meta: "ayer", replies: 3 },
+  { status: "solved", title: "¿Qué electivas recomiendan para 7.º ciclo?", category: { slug: "general", name: "General" }, meta: "hace 3 días", replies: 21 },
+  { status: "locked", title: "Horario del laboratorio abierto los sábados", category: { slug: "general", name: "General" }, meta: "hace 1 semana", replies: 4 },
+] as const;
+
+/** What a visitor sees at /foro: what the forum is, a look inside, and the only way in. */
 export function SignInGate({ problem, next }: SignInGateProps) {
   return (
-    <section aria-labelledby="gate-title" className="mx-auto grid max-w-xl gap-5 rounded-xl border border-border bg-muted p-6 sm:p-8">
-      <h1 id="gate-title" className="font-display text-[1.75rem] leading-[1.15] text-balance">
-        {problem ? "No pudimos entrar" : "Entre al foro con su cuenta de Google"}
-      </h1>
-      {problem ? (
-        <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
-          <Icon name="alert" className="mt-0.5 size-4.5 text-error" />
-          <div className="grid gap-1.5">
-            <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
-            {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
+    <div className="grid items-center gap-10 lg:min-h-[calc(100dvh-11rem)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-14">
+      <section aria-labelledby="gate-title" className="grid gap-6">
+        <h1 id="gate-title" className="text-[clamp(2rem,4.2vw,2.75rem)] leading-[1.1] font-bold font-stretch-[106%] tracking-tight text-balance">
+          {problem ? "No pudimos entrar" : "El foro de Computación"}
+        </h1>
+
+        {problem ? (
+          <div role="alert" className="flex gap-2.5 rounded-lg border border-error/45 bg-signal/15 p-3.5 text-[0.9375rem]">
+            <Icon name="alert" className="mt-0.5 size-4.5 shrink-0 text-error" />
+            <div className="grid gap-1.5">
+              <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
+              {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
+            </div>
           </div>
+        ) : (
+          <p className="max-w-[34ch] text-lg leading-relaxed text-mist">
+            Pregunte sobre materias, proponga talleres y arme equipo para el próximo evento. Es el espacio de los estudiantes de la UNL.
+          </p>
+        )}
+
+        <div className="grid gap-3">
+          <GoogleButton href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}>{problem ? "Entrar de nuevo con Google" : "Entrar con Google"}</GoogleButton>
+          <p className="text-sm text-mist">
+            Solo con su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>. La primera vez se crea su cuenta: no hay que registrarse.
+          </p>
         </div>
-      ) : (
-        <p className="text-mist">
-          El foro es el espacio de estudiantes de la UNL para preguntar, responder y compartir. Use su correo institucional <strong className="font-semibold text-foreground">@unl.edu.ec</strong>: no hay que
-          registrarse, la primera vez se crea su cuenta sola. Para leer los hilos también hay que haber entrado.
-        </p>
-      )}
-      {/* A plain link, not next/link: it starts a redirect flow and must not be prefetched. */}
-      <a
-        href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}
-        className="inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded border border-white bg-white px-5 font-bold text-[#1f1f1f] transition-colors hover:bg-[#e9eef5]"
-      >
-        <GoogleMark className="size-5" />
-        {problem ? "Entrar de nuevo con Google" : "Entrar con Google"}
-      </a>
-    </section>
+      </section>
+
+      <ForumPreview />
+    </div>
+  );
+}
+
+/** A still picture of the thread list: decoration for sighted visitors, hidden from assistive technology and inert. */
+function ForumPreview() {
+  return (
+    <div aria-hidden="true" inert className="relative select-none">
+      <div className="overflow-hidden rounded-xl border border-border bg-muted shadow-[0_24px_60px_-28px_rgb(0_0_0/0.6)] [mask-image:linear-gradient(to_bottom,black_62%,transparent)]">
+        <div className="flex items-center gap-5 border-b border-border px-4 py-3 text-sm">
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Icon name="dot" className="size-4 text-ok" />
+            24 abiertos
+          </span>
+          <span className="flex items-center gap-1.5 text-mist">
+            <Icon name="check" className="size-4" />
+            87 resueltos
+          </span>
+          <span className="ml-auto font-mono text-xs text-mist">vista de ejemplo</span>
+        </div>
+        <ul className="divide-y divide-border/50">
+          {SAMPLE_THREADS.map((thread) => (
+            <li key={thread.title} className="flex items-start gap-3 px-4 py-3">
+              <span className="mt-0.5 [&_svg]:size-4">
+                <ThreadStatusIcon status={thread.status} />
+              </span>
+              <div className="grid min-w-0 flex-1 gap-1">
+                <p className="truncate font-semibold">{thread.title}</p>
+                <p className="flex items-center gap-2 text-xs text-mist">
+                  <CategoryChip category={thread.category} />
+                  {thread.meta}
+                </p>
+              </div>
+              <span className="flex items-center gap-1 text-xs text-mist">
+                <Icon name="msg" className="size-3.5" />
+                {thread.replies}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

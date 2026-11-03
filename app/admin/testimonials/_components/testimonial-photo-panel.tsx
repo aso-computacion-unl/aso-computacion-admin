@@ -20,8 +20,8 @@ export function TestimonialPhotoPanel({ testimonialId, photo }: TestimonialPhoto
       remove={() => removeTestimonialPhoto(testimonialId)}
       copy={{
         empty: "Este testimonio no tiene foto. Se publica igual, solo con el texto.",
-        add: "Agregar foto",
-        replace: "Reemplazar foto",
+        add: "Elegir foto",
+        replace: "Elegir otra foto",
         altLabel: "Descripción de la foto nueva",
         removeTrigger: "Quitar foto",
         removeWarning: "¿Quitar la foto? El testimonio sigue como está, sin foto.",

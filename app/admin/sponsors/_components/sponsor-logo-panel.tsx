@@ -20,8 +20,8 @@ export function SponsorLogoPanel({ sponsorId, logo }: SponsorLogoPanelProps) {
       remove={() => removeSponsorLogo(sponsorId)}
       copy={{
         empty: "Este aliado no tiene logo.",
-        add: "Agregar logo",
-        replace: "Reemplazar logo",
+        add: "Elegir logo",
+        replace: "Elegir otro logo",
         altLabel: "Descripción del logo nuevo",
         removeTrigger: "Quitar logo",
         removeWarning: "¿Quitar el logo? Si el aliado está publicado, pasa a borrador.",

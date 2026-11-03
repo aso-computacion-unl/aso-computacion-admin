@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 export interface CommandFormValues {

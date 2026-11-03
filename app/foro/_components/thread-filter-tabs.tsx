@@ -2,13 +2,13 @@ import Link from "next/link";
 
 import { Icon } from "@/components/icons";
 import type { ThreadFilter } from "@/interface/forum/forum-display";
-import { categoryHref } from "@/interface/forum/forum-links";
 import { cn } from "@/lib/utils";
 
 interface ThreadFilterTabsProps {
-  slug: string;
   active: ThreadFilter;
-  /** Per-filter counts of the shown page; omitted when the category spans several pages (they would mislead). */
+  /** The URL of each tab: the list decides which parameters travel with it. */
+  hrefFor: (filter: ThreadFilter) => string;
+  /** Per-filter counts; omitted when they would mislead (a category list spanning several pages). */
   counts?: Record<ThreadFilter, number>;
 }
 
@@ -18,7 +18,7 @@ const TABS = [
 ] as const;
 
 /** Abiertos / Resueltos as two links: the filter lives in the URL, works without scripts and can be shared. */
-export function ThreadFilterTabs({ slug, active, counts }: ThreadFilterTabsProps) {
+export function ThreadFilterTabs({ active, hrefFor, counts }: ThreadFilterTabsProps) {
   return (
     <nav aria-label="Estado de los hilos" className="flex gap-1">
       {TABS.map(({ filter, label, icon }) => {
@@ -27,7 +27,7 @@ export function ThreadFilterTabs({ slug, active, counts }: ThreadFilterTabsProps
         return (
           <Link
             key={filter}
-            href={categoryHref(slug, { filter })}
+            href={hrefFor(filter)}
             aria-current={current ? "page" : undefined}
             className={cn(
               "inline-flex min-h-11 items-center gap-2 rounded-lg px-3 font-semibold transition-colors",

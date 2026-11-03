@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAbsoluteTime, formatRelativeTime, initialsOf, parsePageParam, parseThreadFilter, threadStatus } from "@/interface/forum/forum-display";
+import { CATEGORY_HUES, categoryHue, formatAbsoluteTime, formatRelativeTime, initialsOf, parsePageParam, parseThreadFilter, threadStatus } from "@/interface/forum/forum-display";
 
 const NOW = new Date("2026-10-26T15:00:00Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
@@ -85,5 +85,21 @@ describe("parsePageParam", () => {
     ["99999999999999999999", 1],
   ])("%j -> %i", (raw, expected) => {
     expect(parsePageParam(raw)).toBe(expected);
+  });
+});
+
+describe("categoryHue", () => {
+  it("gives the three seeded categories distinct fixed slots", () => {
+    const slots = ["general", "materias", "propuestas"].map(categoryHue);
+
+    expect(new Set(slots).size).toBe(3);
+  });
+
+  it("gives any other category a stable slot inside the palette", () => {
+    for (const slug of ["eventos", "proyectos", "x", "una-categoria-con-un-nombre-largo"]) {
+      expect(categoryHue(slug)).toBe(categoryHue(slug));
+      expect(categoryHue(slug)).toBeGreaterThanOrEqual(0);
+      expect(categoryHue(slug)).toBeLessThan(CATEGORY_HUES);
+    }
   });
 });

@@ -2,15 +2,13 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
 
-import { BulkCheckbox } from "./bulk-selection";
+import { ListRow, type ListRowProps } from "./list-row";
 import { useReorderable } from "./reorderable-list";
-import { Stamp, TimelineItem } from "./timeline-parts";
+import { Stamp } from "./timeline-parts";
 
 interface OrderedRowProps {
   /** The item's id: what a bulk selection and a reorder name it by. */
@@ -31,35 +29,6 @@ interface OrderedRowProps {
   remove: ReactNode;
 }
 
-function RowBody({ id, position, label, editHref, media, children, toggle, move, remove, handle }: OrderedRowProps & { handle?: ReactNode }) {
-  return (
-    <div className="grid gap-2.5 p-4 md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-3.5">
-      <div className="flex items-center justify-between gap-3 lg:contents">
-        <div className="flex items-center gap-2 lg:order-1">
-          {handle}
-          <BulkCheckbox id={id} label={label} />
-          <Stamp>{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>
-        </div>
-        <div className="lg:order-3">{move}</div>
-      </div>
-      <div className="flex min-w-0 items-start gap-4 lg:order-2 lg:items-center">
-        {media}
-        <div className="grid min-w-0 flex-1 gap-1">{children}</div>
-      </div>
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:order-4 lg:mt-0 lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-        {toggle}
-        <Button asChild variant="line" size="sm" className="ml-auto">
-          <Link href={editHref} aria-label={`Editar: ${label}`}>
-            <Icon name="edit" className="size-4" />
-            Editar
-          </Link>
-        </Button>
-        {remove}
-      </div>
-    </div>
-  );
-}
-
 /** The grip of a draggable row: the only part that starts a drag, so links and buttons in the row keep working. */
 function SortableRow(props: OrderedRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: props.id });
@@ -77,26 +46,22 @@ function SortableRow(props: OrderedRowProps) {
     </button>
   );
 
-  return (
-    <TimelineItem published={props.published} lane="trunk" itemRef={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} dragging={isDragging}>
-      <RowBody {...props} handle={handle} />
-    </TimelineItem>
-  );
+  return <OrderedListRow {...props} handle={handle} itemRef={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} dragging={isDragging} />;
+}
+
+/** The shared row, with the row's number as its lead: the place it has on the public site. */
+function OrderedListRow({ position, handle, itemRef, style, dragging, ...row }: OrderedRowProps & Pick<ListRowProps, "handle" | "itemRef" | "style" | "dragging">) {
+  return <ListRow {...row} lane="trunk" lead={<Stamp>{position === null ? "··" : String(position).padStart(2, "0")}</Stamp>} handle={handle} itemRef={itemRef} style={style} dragging={dragging} />;
 }
 
 /**
- * One commit of an ordered list (FAQ, pillars, socials, board, news): content on top, the four
- * things you can do below. On lg+ the same four parts sit in one row (number, content, move,
- * actions) so a wide card is not a tall one. Inside a `ReorderableList` it also has a drag handle.
+ * One commit of an ordered list (FAQ, pillars, socials, board...): a `ListRow` whose lead is the row's
+ * number. Inside a `ReorderableList` it also has a drag handle.
  */
 export function OrderedRow(props: OrderedRowProps) {
   const reorderable = useReorderable();
 
   if (reorderable) return <SortableRow {...props} />;
 
-  return (
-    <TimelineItem published={props.published} lane="trunk">
-      <RowBody {...props} />
-    </TimelineItem>
-  );
+  return <OrderedListRow {...props} />;
 }

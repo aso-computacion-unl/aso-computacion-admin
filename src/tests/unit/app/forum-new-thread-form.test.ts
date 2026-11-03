@@ -42,7 +42,7 @@ describe("the new-thread form", () => {
     expect(host.textContent).toContain("Texto (Markdown)");
     expect(host.querySelectorAll('[role="toolbar"] button')).toHaveLength(5);
     expect(host.textContent).toContain("Vista previa");
-    expect(host.querySelector('a[href="/foro/c/programacion"]')?.textContent).toBe("Cancelar");
+    expect(host.querySelector('a[href="/foro?categoria=programacion"]')?.textContent).toBe("Cancelar");
   });
 
   it("previews the Markdown while typing", async () => {

@@ -1,5 +1,6 @@
 import type { ForumActor } from "@/application";
 import type { EventRegistrationStatus } from "@/application";
+import type { OpenUnlEvent } from "@/application/event-registration/list-open-unl-events.use-case";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
 import { getForumMember } from "./require-forum-member";
@@ -16,4 +17,20 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   const status = await getEventRegistrationServices().status.execute({ slug, now, memberId: member?.memberId });
 
   return status && status.mode === "unl" ? { member, status } : null;
+}
+
+export type { OpenUnlEvent };
+
+/**
+ * The events the forum home offers to register for. The aside is a bonus on the thread list, so a failed
+ * read leaves it out (and is logged) instead of taking the whole home down.
+ */
+export async function getOpenRegistrationEvents(now: Date = new Date()): Promise<OpenUnlEvent[]> {
+  try {
+    return await getEventRegistrationServices().openUnl.execute({ now });
+  } catch (error) {
+    console.error("Could not list the events open for registration", error);
+
+    return [];
+  }
 }

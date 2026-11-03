@@ -6,6 +6,7 @@ import { useEffect, useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { feedHref } from "@/interface/forum/forum-links";
 import { createForumThread } from "@/interface/forum/forum-posting";
 
 import { ForumField, SubmitError } from "./form-feedback";
@@ -85,7 +86,7 @@ export function NewThreadForm({ categorySlug }: { categorySlug: string }) {
           {values.body.length} / {BODY_MAX}
         </span>
         <Button asChild variant="line">
-          <Link href={`/foro/c/${categorySlug}`}>Cancelar</Link>
+          <Link href={feedHref({ category: categorySlug })}>Cancelar</Link>
         </Button>
         <Button type="submit" busy={pending || published} aria-disabled={pending || published || undefined} className="min-h-12">
           {pending || published ? "Publicando…" : "Publicar hilo"}

@@ -60,7 +60,7 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
         aria-busy={pending || undefined}
         aria-label={`Publicado: ${label}`}
         onClick={toggle}
-        className="group inline-flex min-h-11 items-center gap-2.5 rounded pr-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground aria-checked:text-foreground"
+        className="group inline-flex min-h-11 items-center min-[84rem]:min-w-34 gap-2.5 rounded pr-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground aria-checked:text-foreground"
       >
         <span
           aria-hidden="true"
@@ -143,6 +143,8 @@ interface DeleteButtonProps {
   triggerClassName?: string;
   /** In a crowded row the trigger shrinks to its icon on a phone; set false where there is room for the word. */
   compactOnMobile?: boolean;
+  /** The trigger is always just its icon (the word stays for assistive tech and as a tooltip): for a row's action area. */
+  iconOnly?: boolean;
   confirmLabel: string;
   note: string;
   /** Toast shown once the removal went through. */
@@ -158,6 +160,7 @@ export function DeleteButton({
   triggerLabel,
   triggerClassName,
   compactOnMobile = true,
+  iconOnly = false,
   confirmLabel,
   note,
   successMessage,
@@ -169,9 +172,16 @@ export function DeleteButton({
 
   if (!confirming) {
     return (
-      <Button variant="quiet" size="sm" aria-label={`${triggerLabel}: ${label}`} onClick={() => setConfirming(true)} className={cn(compactOnMobile && "max-sm:min-w-10 max-sm:px-0", triggerClassName)}>
+      <Button
+        variant="quiet"
+        size="sm"
+        aria-label={`${triggerLabel}: ${label}`}
+        title={iconOnly ? triggerLabel : undefined}
+        onClick={() => setConfirming(true)}
+        className={cn(iconOnly ? "min-w-10 px-0" : compactOnMobile && "max-sm:min-w-10 max-sm:px-0", triggerClassName)}
+      >
         <Icon name="trash" className="size-4" />
-        <span className={cn(compactOnMobile && "max-sm:sr-only")}>{triggerLabel}</span>
+        <span className={cn(iconOnly ? "sr-only" : compactOnMobile && "max-sm:sr-only")}>{triggerLabel}</span>
       </Button>
     );
   }
@@ -202,6 +212,7 @@ export function TrashButton(props: TrashButtonProps) {
     <DeleteButton
       {...props}
       triggerLabel="Mover a la papelera"
+      iconOnly
       confirmLabel="Sí, mover"
       note="Podrá restaurarlo desde la papelera; volverá como borrador."
       successMessage="Movido a la papelera"

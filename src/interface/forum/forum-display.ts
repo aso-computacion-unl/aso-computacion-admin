@@ -61,3 +61,21 @@ export function parsePageParam(raw: string | string[] | undefined): number {
 
   return Math.max(1, Number(raw));
 }
+
+/** Hues in the category chip palette (`.chip[data-hue]` in forum.css). */
+export const CATEGORY_HUES = 5;
+
+// The three seeded categories get fixed, distinct slots so they never share a colour.
+const SEEDED_HUES: Record<string, number> = { general: 0, materias: 1, propuestas: 2 };
+
+/** The palette slot of a category chip: fixed for the seeded categories, a stable hash of the slug for any other. */
+export function categoryHue(slug: string): number {
+  const seeded = SEEDED_HUES[slug];
+
+  if (seeded !== undefined) return seeded;
+
+  let hash = 0;
+  for (const char of slug) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 9973;
+
+  return hash % CATEGORY_HUES;
+}

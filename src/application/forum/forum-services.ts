@@ -3,6 +3,7 @@ import type { ForumReactionRepository } from "../ports/forum-reactions.ports";
 import type { ForumCategoryRepository, ForumMemberRepository, ForumPostRepository, ForumSessionRepository } from "../ports/forum.ports";
 import { CloseForumSessionUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase, type ForumLoginConfig } from "./forum-auth.use-cases";
 import { CreateForumCategoryUseCase, DeleteForumCategoryUseCase, ListForumCategoriesUseCase, UpdateForumCategoryUseCase } from "./forum-categories.use-cases";
+import { ListForumFeedUseCase } from "./forum-feed.use-case";
 import {
   CreateForumThreadUseCase,
   EditForumReplyUseCase,
@@ -46,6 +47,7 @@ export function buildForumServices({ members, sessions, categories, posts, moder
     updateCategory: new UpdateForumCategoryUseCase(categories, now),
     deleteCategory: new DeleteForumCategoryUseCase(categories),
     listThreads: new ListForumThreadsUseCase(categories, posts),
+    listFeed: new ListForumFeedUseCase(categories, posts),
     getThread: new GetForumThreadUseCase(categories, posts),
     createThread: new CreateForumThreadUseCase(members, categories, posts, throttle, now),
     reply: new ReplyToForumThreadUseCase(members, posts, throttle, now),

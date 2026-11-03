@@ -19,7 +19,7 @@ export default function AdminError({ error, reset }: AdminErrorProps) {
   }, [error]);
 
   return (
-    <div role="alert" className="mt-8 grid max-w-xl justify-items-start gap-4 border-l-2 border-dashed border-signal pl-5">
+    <div role="alert" className="mx-auto mt-8 grid max-w-xl justify-items-center gap-4 border-t-2 border-dashed border-signal pt-5 text-center">
       <h1 className="font-display text-[2rem] leading-[1.1]">Algo salió mal</h1>
       <p className="text-mist">No pudimos cargar esta página. Sus cambios guardados no se perdieron. Intente nuevamente en unos segundos.</p>
       {error.digest ? <p className="font-mono text-[0.8125rem] text-mist">Código: {error.digest}</p> : null}

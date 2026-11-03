@@ -20,8 +20,8 @@ export function BoardMemberPhotoPanel({ memberId, photo }: BoardMemberPhotoPanel
       remove={() => removeBoardMemberPhoto(memberId)}
       copy={{
         empty: "Este integrante no tiene foto.",
-        add: "Agregar foto",
-        replace: "Reemplazar foto",
+        add: "Elegir foto",
+        replace: "Elegir otra foto",
         altLabel: "Descripción de la foto nueva",
         removeTrigger: "Quitar foto",
         removeWarning: "¿Quitar la foto? Si el integrante está publicado, pasa a borrador.",

@@ -50,4 +50,75 @@
 		bottom: auto;
 		height: 1rem;
 	}
+
+	/*
+	 * Category chips: one hue per category (`categoryHue` picks the slot), always with the name as text.
+	 * Row labels are spans; the filter above the list uses `data-size="lg"` links with a larger target and
+	 * `data-current` for the chosen one. Light values are the dark hues darkened until the text passes 4.5:1
+	 * on its own tint.
+	 */
+	.chip {
+		--hue: #5cc6ee;
+		display: inline-flex;
+		align-items: center;
+		min-height: 1.5rem;
+		padding: 0 0.6rem;
+		border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--hue) 14%, var(--color-navy));
+		color: var(--hue);
+		font-size: 0.75rem;
+		font-weight: 600;
+		white-space: nowrap;
+		text-decoration: none;
+	}
+
+	.chip[data-hue="0"] { --hue: #bcd0ea; }
+	.chip[data-hue="1"] { --hue: #c8b6ff; }
+	.chip[data-hue="2"] { --hue: #f4c76b; }
+	.chip[data-hue="3"] { --hue: #ffa6c4; }
+	.chip[data-hue="4"] { --hue: #8fe3c4; }
+
+	:root[data-theme="light"] .chip { --hue: #085f87; }
+	:root[data-theme="light"] .chip[data-hue="0"] { --hue: #3a516f; }
+	:root[data-theme="light"] .chip[data-hue="1"] { --hue: #5b3fb5; }
+	:root[data-theme="light"] .chip[data-hue="2"] { --hue: #7a5000; }
+	:root[data-theme="light"] .chip[data-hue="3"] { --hue: #a3224f; }
+	:root[data-theme="light"] .chip[data-hue="4"] { --hue: #0a6b46; }
+
+	.chip[data-size="lg"] {
+		min-height: 2.25rem;
+		padding: 0 0.9rem;
+		font-size: 0.875rem;
+		transition: background-color 0.15s ease-out;
+	}
+
+	@media (pointer: coarse) {
+		.chip[data-size="lg"] {
+			min-height: 2.75rem;
+		}
+	}
+
+	.chip[data-size="lg"]:hover {
+		background: color-mix(in srgb, var(--hue) 24%, var(--color-navy));
+	}
+
+	.chip[data-current="true"] {
+		border-color: var(--hue);
+		background: color-mix(in srgb, var(--hue) 26%, var(--color-navy));
+		font-weight: 700;
+	}
+}
+
+/*
+ * Light theme surfaces. Out of the box a card (`muted`) is the pale blue-grey #e4ebf4 on the #f4f7fb page
+ * with a sky hairline: it barely separates and reads darker than the page, not as a surface. Inside the
+ * forum's column the roles are swapped: cards, lists and forms are white, the bands and hovers inside them
+ * take the pale blue-grey, and the border is navy ink at low strength, a visible edge in either direction.
+ * Dark keeps the brand's layers untouched.
+ */
+:root[data-theme="light"] #main {
+	--color-muted: #ffffff;
+	--color-card: var(--color-navy-deep);
+	--color-border: color-mix(in srgb, var(--color-foreground) 24%, transparent);
 }

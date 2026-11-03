@@ -1,30 +1,33 @@
+import { formatStamp } from "@/interface/admin/day-groups";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-read";
 import { describeUserAgent } from "@/interface/admin/sessions/user-agent";
 
-import { PageHead } from "../_components/page-head";
-import { EmptyState } from "../_components/timeline-parts";
+import { PageHeader } from "../_components/page-header";
+import { EmptyState } from "../_components/empty-state";
 import { RevokeSessionButton } from "./_components/revoke-session-button";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
-const WHEN = new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Guayaquil" });
-
 export default async function AdminSessionsPage() {
   const { actor, sessions } = await getActiveSessions();
   const isAdmin = actor.role === "ADMIN";
+  const now = new Date();
 
   return (
     <div>
-      <PageHead title="Sesiones activas" meta={pluralize(sessions.length, "sesión abierta", "sesiones abiertas")} />
-      <p className="mt-4 max-w-2xl text-mist">
-        {isAdmin
-          ? "Todas las sesiones abiertas en el panel. Al cerrar una, ese dispositivo tendrá que iniciar sesión de nuevo."
-          : "Los dispositivos donde su cuenta tiene la sesión abierta. Cierre los que no reconozca."}
-      </p>
+      <PageHeader
+        title="Sesiones activas"
+        status={pluralize(sessions.length, "sesión abierta", "sesiones abiertas")}
+        description={
+          isAdmin
+            ? "Todas las sesiones abiertas en el panel. Al cerrar una, ese dispositivo tendrá que iniciar sesión de nuevo."
+            : "Los dispositivos donde su cuenta tiene la sesión abierta. Cierre los que no reconozca."
+        }
+      />
       {sessions.length === 0 ? (
-        <EmptyState>No hay sesiones abiertas.</EmptyState>
+        <EmptyState icon="lock">No hay sesiones abiertas.</EmptyState>
       ) : (
         <ul className="mt-6 grid gap-3" aria-label="Sesiones activas">
           {sessions.map((session) => {
@@ -43,9 +46,20 @@ export default async function AdminSessionsPage() {
                       {session.kind === "break_glass" ? "Acceso de emergencia con contraseña" : `${session.userName} · ${session.userEmail}`}
                     </p>
                   ) : null}
-                  <p className="font-mono text-[0.8125rem] text-mist">
-                    Iniciada: {WHEN.format(session.createdAt)} · Última actividad: {WHEN.format(session.lastSeenAt)} · Vence: {WHEN.format(session.expiresAt)}
-                  </p>
+                  <dl className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.8125rem] text-mist">
+                    {(
+                      [
+                        ["Última actividad", session.lastSeenAt],
+                        ["Iniciada", session.createdAt],
+                        ["Vence", session.expiresAt],
+                      ] as const
+                    ).map(([label, at]) => (
+                      <div key={label} className="flex gap-1.5 whitespace-nowrap">
+                        <dt>{label}</dt>
+                        <dd className="text-foreground tabular-nums">{formatStamp(at, now)}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
                 <RevokeSessionButton sessionId={session.id} label={device} isCurrent={session.isCurrent} />
               </li>

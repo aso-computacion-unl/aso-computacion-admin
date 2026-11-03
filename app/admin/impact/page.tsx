@@ -6,27 +6,30 @@ import { moveImpactStat, setImpactStatPublished, trashImpactStat } from "@/inter
 import { getAdminImpactStats } from "@/interface/admin/impact/impact-admin-read";
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
 export default async function AdminImpactPage() {
   const stats = await getAdminImpactStats();
+  const tools = showListTools(stats.length);
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Impacto"
-        meta={`main · ${publicationSummary(stats)}`}
+        status={`main · ${publicationSummary(stats)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/impact/new">
               <Icon name="plus" />
               Nueva cifra
@@ -36,6 +39,7 @@ export default async function AdminImpactPage() {
       />
       {stats.length === 0 ? (
         <EmptyState
+          icon="star"
           action={
             <Button asChild>
               <Link href="/admin/impact/new">
@@ -48,7 +52,7 @@ export default async function AdminImpactPage() {
           Todavía no hay cifras de impacto. Cada una lleva un número y lo que cuenta, por ejemplo «120+ · Estudiantes en la comunidad».
         </EmptyState>
       ) : (
-        <BulkSelection kind="impact" items={stats.map((stat) => ({ id: stat.id, label: `${stat.value} ${stat.label}` }))}>
+        <BulkSelection kind="impact" enabled={tools} items={stats.map((stat) => ({ id: stat.id, label: `${stat.value} ${stat.label}` }))}>
           <ReorderableList kind="impact" items={stats.map((stat) => ({ id: stat.id, label: `${stat.value} ${stat.label}` }))} offset={0} total={stats.length} enabled={true} label="Cifras de impacto, en el orden en que se muestran">
           {stats.map((stat, index) => {
             const name = `${stat.value} ${stat.label}`;
@@ -84,6 +88,7 @@ export default async function AdminImpactPage() {
             );
           })}
         </ReorderableList>
+          {tools ? null : <AddRow href="/admin/impact/new">Agregar cifra</AddRow>}
         </BulkSelection>
       )}
     </div>

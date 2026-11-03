@@ -20,8 +20,8 @@ export function PillarImagePanel({ pillarId, image }: PillarImagePanelProps) {
       remove={() => removePillarImage(pillarId)}
       copy={{
         empty: "Este pilar no tiene imagen.",
-        add: "Agregar imagen",
-        replace: "Reemplazar imagen",
+        add: "Elegir imagen",
+        replace: "Elegir otra imagen",
         altLabel: "Descripción de la imagen nueva",
         removeTrigger: "Quitar imagen",
         removeWarning: "¿Quitar la imagen?",

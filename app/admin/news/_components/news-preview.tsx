@@ -4,7 +4,7 @@ import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { parseMarkdownSubset, type InlineNode } from "@/interface/admin/markdown-subset";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
-import { Panel } from "../../_components/page-head";
+import { Panel } from "../../_components/form-layout";
 
 export interface NewsPreviewValues {
   title: string;

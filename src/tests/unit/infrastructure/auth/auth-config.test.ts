@@ -58,7 +58,6 @@ describe("a half-set Google configuration is an error, not 'not configured'", ()
   const partial = [
     ["only the client id", { GOOGLE_CLIENT_ID: GOOGLE.GOOGLE_CLIENT_ID }, ["GOOGLE_CLIENT_SECRET", "AUTH_URL"]],
     ["only the client secret", { GOOGLE_CLIENT_SECRET: GOOGLE.GOOGLE_CLIENT_SECRET }, ["GOOGLE_CLIENT_ID", "AUTH_URL"]],
-    ["only AUTH_URL", { AUTH_URL: GOOGLE.AUTH_URL }, ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]],
     ["id and secret, no AUTH_URL", { ...GOOGLE, AUTH_URL: undefined }, ["AUTH_URL"]],
     ["all three, AUTH_URL not a URL", { ...GOOGLE, AUTH_URL: "not a url" }, ["AUTH_URL"]],
     ["all three, AUTH_URL plain http", { ...GOOGLE, AUTH_URL: "http://admin.example.org" }, ["AUTH_URL"]],
@@ -72,6 +71,16 @@ describe("a half-set Google configuration is an error, not 'not configured'", ()
   it.each(partial)("keeps the password login off when %s is set", (_label, env) => {
     expect(isBreakGlassEnabled(env)).toBe(false);
     expect(isBreakGlassEnabled({ ...env, BREAK_GLASS_PASSWORD_LOGIN: "1" })).toBe(true);
+  });
+
+  it("treats AUTH_URL alone as panel configuration, not a half-set Google login", () => {
+    // Invitations, preview links and registration links need AUTH_URL before Google is set up.
+    for (const AUTH_URL of [GOOGLE.AUTH_URL, "not a url"]) {
+      expect(googleConfigProblems({ AUTH_URL })).toEqual([]);
+      expect(isGoogleConfigured({ AUTH_URL })).toBe(false);
+      expect(isBreakGlassEnabled({ AUTH_URL })).toBe(true);
+      expect(loginAvailability({ AUTH_URL })).toEqual({ google: false, emergency: true, problems: [] });
+    }
   });
 
   it("is no problem when none of the three is set, or when all are valid", () => {

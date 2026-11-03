@@ -47,7 +47,8 @@ export default async function EventRegistrationsPage({ params }: { params: Promi
       {registrations.length === 0 ? (
         <RegistrationsEmptyState eventId={id} slug={event.slug} mode={event.registrationMode} isPublished={event.isPublished} adminOrigin={adminOrigin} />
       ) : (
-        <Panel className="mt-6 overflow-x-auto" aria-label="Lista de inscripciones">
+        // `relative` keeps the screen-reader-only text inside the scroll area instead of widening the page.
+        <Panel className="relative mt-6 overflow-x-auto" aria-label="Lista de inscripciones">
           <table className="w-full min-w-176 border-collapse text-left text-sm">
             <caption className="sr-only">Inscripciones de {event.title}</caption>
             <thead>

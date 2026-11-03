@@ -29,6 +29,8 @@ export interface EventRegistrationRepository {
   /** Oldest first. */
   list(eventId: string): Promise<EventRegistrationRecord[]>;
   count(eventId: string): Promise<number>;
+  /** Registrations per event in ONE query; an event with none is absent from the map. For lists, where `count` per event would be N+1. */
+  countByEvents(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>>;
   exists(eventId: string, email: string): Promise<boolean>;
   /** True when a registration of that event was removed; false when there was none. */
   delete(eventId: string, id: string): Promise<boolean>;

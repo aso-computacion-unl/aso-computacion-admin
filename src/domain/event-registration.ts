@@ -64,6 +64,29 @@ export interface RegistrableEvent {
 
 export type RegistrationRefusal = "not_found" | "mode_mismatch" | "closed" | "full" | "duplicate";
 
+/** The deadline instant has passed, or the event day is before today in Ecuador (a month-only or missing date never closes). */
+function isClosed(event: RegistrableEvent, now: Date): boolean {
+  if (event.registrationDeadline && now.getTime() >= event.registrationDeadline.getTime()) {
+    return true;
+  }
+
+  return event.date !== null && event.datePrecision === "day" && event.date < todayInEcuador(now);
+}
+
+export type RegistrationState = "open" | "full" | "closed";
+
+/**
+ * Where an event stands for registration, whoever is asking: closed (deadline or past day) wins over full, the
+ * same order `registrationRefusal` applies. It ignores visibility and mode: callers decide which events to ask about.
+ */
+export function registrationState(event: RegistrableEvent, registered: number, now: Date): RegistrationState {
+  if (isClosed(event, now)) {
+    return "closed";
+  }
+
+  return event.registrationCapacity !== null && registered >= event.registrationCapacity ? "full" : "open";
+}
+
 export interface RegistrationContext {
   event: RegistrableEvent;
   /** The way this person is trying to register. */
@@ -89,11 +112,7 @@ export function registrationRefusal({ event, mode, registered, alreadyRegistered
     return "mode_mismatch";
   }
 
-  if (event.registrationDeadline && now.getTime() >= event.registrationDeadline.getTime()) {
-    return "closed";
-  }
-
-  if (event.date && event.datePrecision === "day" && event.date < todayInEcuador(now)) {
+  if (isClosed(event, now)) {
     return "closed";
   }
 

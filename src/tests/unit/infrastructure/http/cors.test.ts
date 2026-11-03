@@ -8,13 +8,15 @@ import { NextResponse } from "next/server";
 let handlePreflight: typeof import("@/infrastructure/http/cors").handlePreflight;
 let parseAllowedOrigins: typeof import("@/infrastructure/http/cors").parseAllowedOrigins;
 let withCors: typeof import("@/infrastructure/http/cors").withCors;
+let withOpenCors: typeof import("@/infrastructure/http/cors").withOpenCors;
+let handleOpenPreflight: typeof import("@/infrastructure/http/cors").handleOpenPreflight;
 
 const LANDING = "https://aso-computacion.pages.dev";
 const request = (origin?: string) => new Request("https://admin.test/api/public/content", { headers: origin ? { origin } : {} });
 
 beforeEach(async () => {
   vi.resetModules();
-  ({ handlePreflight, parseAllowedOrigins, withCors } = await import("@/infrastructure/http/cors"));
+  ({ handlePreflight, handleOpenPreflight, parseAllowedOrigins, withCors, withOpenCors } = await import("@/infrastructure/http/cors"));
 });
 
 afterEach(() => {
@@ -140,5 +142,27 @@ describe("handlePreflight", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(response.headers.get("Access-Control-Allow-Methods")).toBeNull();
     expect(response.headers.get("Vary")).toBe("Origin");
+  });
+});
+
+describe("open CORS, for answers with no personal data", () => {
+  it("lets any site read the answer, with no allowlist, no Vary and no credentials", () => {
+    vi.stubEnv("PUBLIC_CORS_ORIGINS", LANDING);
+
+    const response = withOpenCors(NextResponse.json({ ok: true }));
+
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Vary")).toBeNull();
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+  });
+
+  it("answers the preflight with a 204 that allows reading with GET from anywhere", () => {
+    const response = handleOpenPreflight();
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+    expect(response.headers.get("Access-Control-Max-Age")).toBe("86400");
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
   });
 });

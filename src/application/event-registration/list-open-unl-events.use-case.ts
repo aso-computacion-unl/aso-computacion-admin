@@ -1,5 +1,6 @@
 import { registrationRefusal } from "@/domain/event-registration";
 
+import { soonestFirst } from "./soonest-first";
 import type { EventResult } from "../dto/event-result.dto";
 import type { EventRegistrationRepository } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
@@ -38,12 +39,4 @@ export class ListOpenUnlEventsUseCase {
 
     return open;
   }
-}
-
-function soonestFirst(a: { date: string | null; title: string }, b: { date: string | null; title: string }): number {
-  if (a.date === b.date) return a.title.localeCompare(b.title);
-  if (a.date === null) return 1;
-  if (b.date === null) return -1;
-
-  return a.date < b.date ? -1 : 1;
 }

@@ -9,13 +9,14 @@ import {
   parseOpenRegistration,
   registrationRefusal,
   type RegistrationMode,
+  type RegistrationState,
 } from "@/domain/event-registration";
 import { emailDomain, normalizeEmail } from "@/domain/user";
 import { ValidationError } from "@/domain/domain-error";
 
 type IdGenerator = () => string;
 
-export type RegistrationState = "open" | "full" | "closed";
+export type { RegistrationState };
 
 /** What the registration page and the landing need about one event: no personal data, only counts. */
 export interface EventRegistrationStatus {

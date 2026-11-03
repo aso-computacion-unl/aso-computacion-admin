@@ -31,6 +31,9 @@ export function toDomain(record: PrismaEvent): Event {
     isPublished: record.isPublished,
     publishAt: record.publishAt,
     unpublishAt: record.unpublishAt,
+    registrationMode: record.registrationMode,
+    registrationCapacity: record.registrationCapacity,
+    registrationDeadline: record.registrationDeadline,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   });

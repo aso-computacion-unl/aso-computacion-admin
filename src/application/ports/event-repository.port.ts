@@ -7,6 +7,8 @@ import type { TrashableRepository } from "./trashable-repository.port";
 export interface EventRepository extends PublicationCounter, TrashableRepository<Event> {
   create(event: Event): Promise<Event>;
   getById(id: string): Promise<Event | null>;
+  /** The live (not trashed) event with this slug, drafts and windows included: the caller decides what is visible. */
+  findLiveBySlug(slug: string): Promise<Event | null>;
   /** True when another event (not `excludeId`) already uses the slug. */
   slugExists(slug: string, excludeId?: string): Promise<boolean>;
   /** Every event, drafts included unless `criteria` narrows it: date descending (undated last), then newest first. */

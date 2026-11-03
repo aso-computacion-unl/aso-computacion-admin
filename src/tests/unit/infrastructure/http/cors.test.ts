@@ -119,6 +119,18 @@ describe("handlePreflight", () => {
     expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
   });
 
+  it("lets a write route name its own methods and headers, and still grants nothing to other origins", () => {
+    vi.stubEnv("PUBLIC_CORS_ORIGINS", LANDING);
+
+    const allowed = handlePreflight(request(LANDING), { methods: "POST, OPTIONS", headers: "Content-Type" });
+    const refused = handlePreflight(request("https://evil.example"), { methods: "POST, OPTIONS", headers: "Content-Type" });
+
+    expect(allowed.headers.get("Access-Control-Allow-Methods")).toBe("POST, OPTIONS");
+    expect(allowed.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type");
+    expect(refused.headers.get("Access-Control-Allow-Methods")).toBeNull();
+    expect(refused.headers.get("Access-Control-Allow-Headers")).toBeNull();
+  });
+
   it("answers any other origin with a bare 204 that grants nothing", () => {
     vi.stubEnv("PUBLIC_CORS_ORIGINS", LANDING);
 

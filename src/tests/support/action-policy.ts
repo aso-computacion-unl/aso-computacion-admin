@@ -23,6 +23,10 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     moveEventPhoto: { role: "EDITOR", audit: "event.photo_move" },
     deactivateEventPhoto: { role: "EDITOR", audit: "event.photo_remove" },
   },
+  "src/interface/admin/event-registrations/actions.ts": {
+    // Registrations hold personal data: editors may look, only an ADMIN may delete one.
+    deleteEventRegistration: { role: "ADMIN", audit: "event.registration_delete" },
+  },
   "src/interface/admin/news/actions.ts": {
     createNewsItem: { role: "EDITOR", audit: "news.create" },
     updateNewsItem: { role: "EDITOR", audit: "news.update" },

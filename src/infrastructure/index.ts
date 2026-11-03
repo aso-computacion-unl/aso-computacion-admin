@@ -21,3 +21,4 @@ export { ForumCategoryPrismaRepository } from "./repositories/forum-category-pri
 export { ForumMemberPrismaRepository } from "./repositories/forum-member-prisma.repository";
 export { ForumPostPrismaRepository } from "./repositories/forum-post-prisma.repository";
 export { ForumSessionPrismaRepository } from "./repositories/forum-session-prisma.repository";
+export { EventRegistrationPrismaRepository } from "./repositories/event-registration-prisma.repository";

@@ -44,6 +44,29 @@ describe("event use cases", () => {
     });
   });
 
+  describe("registration settings", () => {
+    const DEADLINE = new Date("2026-11-27T23:00:00.000Z");
+
+    it("are stored on create, kept by unrelated updates and publishing, and changed or cleared on update", async () => {
+      const created = await new CreateEventUseCase(events).execute({ title: "Taller", registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+      const update = new UpdateEventUseCase(events);
+
+      expect(created).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+      expect(await new SetEventPublishedUseCase(events).execute({ id: created.id, isPublished: true })).toMatchObject({ registrationMode: "open", registrationCapacity: 30 });
+      expect(await update.execute({ id: created.id, title: "Taller 2" })).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+      expect(await update.execute({ id: created.id, registrationMode: "unl", registrationCapacity: null })).toMatchObject({ registrationMode: "unl", registrationCapacity: null, registrationDeadline: DEADLINE });
+      expect(await update.execute({ id: created.id, registrationMode: "none" })).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    });
+
+    it("refuse an unknown mode or a bad capacity and keep what was stored", async () => {
+      const created = await new CreateEventUseCase(events).execute({ title: "Taller", registrationMode: "open", registrationCapacity: 30 });
+
+      await expect(new UpdateEventUseCase(events).execute({ id: created.id, registrationMode: "both" })).rejects.toThrow(expect.objectContaining({ field: "registrationMode" }));
+      await expect(new UpdateEventUseCase(events).execute({ id: created.id, registrationCapacity: 0 })).rejects.toThrow(expect.objectContaining({ field: "registrationCapacity" }));
+      expect((await events.getById(created.id))?.props).toMatchObject({ registrationMode: "open", registrationCapacity: 30 });
+    });
+  });
+
   describe("CreateEventUseCase", () => {
     it("creates an unpublished event with a slug derived from the title", async () => {
       const result = await new CreateEventUseCase(events).execute({ title: "Hackatón 24h", date: "2026-11-28" });

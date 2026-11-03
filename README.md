@@ -36,7 +36,7 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 
 | Sección | Qué se administra |
 |---|---|
-| **Eventos** | Fechas (o solo el mes), tipo, enlace y galería de fotos; se pueden dejar como borrador |
+| **Eventos** | Fechas (o solo el mes), tipo, enlace y galería de fotos; se pueden dejar como borrador. Cada evento elige cómo se inscribe la gente (sin inscripción, con cuenta de Google de la UNL o con un formulario abierto), con cupos y fecha límite opcionales; las inscripciones se ven por evento y solo un administrador puede exportarlas o eliminarlas |
 | **Novedades** | Noticias con portada, fecha de publicación y vista previa en vivo |
 | **FAQ** | Preguntas y respuestas, con el orden que se desee |
 | **Directiva** | Nombre, cargo y foto de cada integrante (nunca datos de contacto) |

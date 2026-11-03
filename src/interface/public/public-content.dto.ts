@@ -14,6 +14,33 @@ export interface PublicImage {
   alt: string;
 }
 
+/**
+ * S8: how a person registers for an event. Additive: a landing built against an admin without it treats it as `null`.
+ * `unl`: send the person to `url` (a page on this admin: they sign in with their @unl.edu.ec Google account there).
+ * `open`: show the landing's own form, protected by Turnstile, and POST it to `endpoint`.
+ * The seats left are deliberately not published (they change on every registration, the landing is static):
+ * the endpoint and the page answer `full` / `closed` when it is too late.
+ */
+export interface PublicEventRegistration {
+  mode: "unl" | "open";
+  /** Seats; `null` is unlimited. */
+  capacity: number | null;
+  /** ISO UTC instant after which registration is closed (exclusive); `null`: it closes with the event day. */
+  deadline: string | null;
+  url: string | null;
+  endpoint: string | null;
+}
+
+/** The values for a schema.org `Event`, ready to put in JSON-LD. Ecuador time (-05:00). */
+export interface PublicEventStructuredData {
+  /** `YYYY-MM-DD` when the time is unknown, else `YYYY-MM-DDTHH:mm:00-05:00`. */
+  startDate: string;
+  endDate: string | null;
+  location: string | null;
+  /** The registration page when this admin hosts it (`unl`); `null` otherwise (the landing uses its own page). */
+  registrationUrl: string | null;
+}
+
 export interface PublicEvent {
   slug: string;
   title: string;
@@ -33,6 +60,12 @@ export interface PublicEvent {
   highlights: string[];
   /** Active photos in gallery order; empty when the event has none. */
   photos: PublicImage[];
+  /** Additive (S8): `null` when the event takes no registration. */
+  registration: PublicEventRegistration | null;
+  /** Additive (S8): the `.ics` download, `null` without an exact day. */
+  calendarUrl: string | null;
+  /** Additive (S8): `null` without an exact day. */
+  structuredData: PublicEventStructuredData | null;
 }
 
 export interface PublicFaq {

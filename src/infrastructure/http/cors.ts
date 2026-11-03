@@ -79,12 +79,24 @@ export function withCors(request: Request, response: NextResponse): NextResponse
   return response;
 }
 
+export interface PreflightOptions {
+  /** Methods the route accepts; the default is the read API's `GET, OPTIONS`. */
+  methods?: string;
+  /** Request headers the browser may send (a JSON body needs `Content-Type`); none by default. */
+  headers?: string;
+}
+
 /** An origin off the allowlist gets a bare 204 that grants nothing, so its browser blocks the request. */
-export function handlePreflight(request: Request): NextResponse {
+export function handlePreflight(request: Request, { methods = "GET, OPTIONS", headers }: PreflightOptions = {}): NextResponse {
   const response = new NextResponse(null, { status: 204 });
 
   if (grantedOrigin(request)) {
-    response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    response.headers.set("Access-Control-Allow-Methods", methods);
+
+    if (headers) {
+      response.headers.set("Access-Control-Allow-Headers", headers);
+    }
+
     response.headers.set("Access-Control-Max-Age", String(PREFLIGHT_MAX_AGE_SECONDS));
   }
 

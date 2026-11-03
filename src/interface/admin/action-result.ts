@@ -64,6 +64,9 @@ const FIELD_MESSAGES: Record<string, string> = {
   email: "Escriba un correo válido.",
   publishAt: "Indique una fecha y hora válidas.",
   unpublishAt: "La fecha de retiro debe ser posterior a la de publicación.",
+  registrationMode: "Elija una forma de inscripción de la lista.",
+  registrationCapacity: "Indique un número entero de 1 a 5000.",
+  registrationDeadline: "Indique una fecha y hora válidas.",
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
 };
 
@@ -77,6 +80,7 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "User not found": "No se encontró el usuario.",
   "Session not found": "La sesión ya no está activa.",
   "Invite not found": "La invitación ya no está pendiente.",
+  "Registration not found": "No se encontró la inscripción.",
 };
 
 const COMMAND_CONFLICT_MESSAGES = {

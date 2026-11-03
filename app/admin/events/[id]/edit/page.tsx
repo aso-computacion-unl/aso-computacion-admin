@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EVENT_PHOTO_MIN_WIDTH } from "@/application";
+import { Button } from "@/components/ui/button";
 import { updateEvent } from "@/interface/admin/events/actions";
 import { eventToFormValues } from "@/interface/admin/events/event-form-values";
 import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
@@ -38,6 +40,14 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       <Panel aria-label="Datos del evento">
         <EventForm action={updateEvent.bind(null, id)} submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} />
       </Panel>
+      {event.registrationMode === "none" ? null : (
+        <Panel aria-label="Inscripciones" className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-mist">Las personas inscritas y sus datos están en una página aparte.</p>
+          <Button asChild variant="line">
+            <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
+          </Button>
+        </Panel>
+      )}
     </FormPage>
   );
 }

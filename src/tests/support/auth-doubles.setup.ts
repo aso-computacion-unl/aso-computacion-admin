@@ -18,7 +18,15 @@ vi.mock("@/interface/forum/forum-container", async () => {
   return { getForumServices: () => testForum.services };
 });
 
+// And for event registration: the real use cases over in-memory repositories (see test-event-registration.ts).
+vi.mock("@/interface/public/event-registration-container", async () => {
+  const { testEventRegistration } = await import("./test-event-registration");
+
+  return { getEventRegistrationServices: () => testEventRegistration.services };
+});
+
 beforeEach(async () => {
   (await import("./test-auth")).resetTestAuth();
   (await import("./test-forum")).resetTestForum();
+  (await import("./test-event-registration")).resetTestEventRegistration();
 });

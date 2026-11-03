@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { checkPublicRateLimit } from "@/infrastructure/http/rate-limiter";
 import { reportError } from "@/infrastructure/observability/report-error";
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const snapshot = await getPublicContentUseCase().execute({ now, includeUnpublished: true });
-    const body: PublicContentResponse & { preview: true } = { ...toPublicContentResponse(snapshot, now), preview: true };
+    const body: PublicContentResponse & { preview: true } = { ...toPublicContentResponse(snapshot, now, { adminOrigin: publicOrigin(process.env.AUTH_URL) }), preview: true };
 
     return NextResponse.json(body, { status: 200, headers: { "Cache-Control": NO_STORE } });
   } catch (error) {

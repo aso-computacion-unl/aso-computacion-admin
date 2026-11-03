@@ -18,6 +18,7 @@ import {
 
 import { ActionBar, Field, FieldError, FormFeedback, FormSection } from "../../_components/form-parts";
 import { ScheduleFields } from "../../_components/schedule-fields";
+import { RegistrationFields } from "./registration-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
@@ -226,6 +227,16 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
 
       <FormSection legend="Programación (opcional)" className="@xl:grid-cols-2">
         <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} subject="el evento" />
+      </FormSection>
+
+      <FormSection legend="Inscripción" className="@xl:grid-cols-2">
+        <RegistrationFields
+          mode={values.registrationMode}
+          onModeChange={(registrationMode) => setValues((previous) => ({ ...previous, registrationMode }))}
+          capacity={bind("registrationCapacity")}
+          deadline={bind("registrationDeadline")}
+          errors={errors}
+        />
       </FormSection>
 
       <ActionBar status={<FormFeedback state={state} />}>

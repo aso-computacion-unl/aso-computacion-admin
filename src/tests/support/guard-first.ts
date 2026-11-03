@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect } from "vitest";
 
-/** `requireSession()` lets any signed-in user through; `requireRole("ADMIN")` only admins. */
-const GUARD = /^(?:const actor = )?await (requireSession\(\)|requireRole\("ADMIN"\));/;
+/** `requireSession()` lets any signed-in user through; `requireRole("EDITOR")` says so explicitly; `requireRole("ADMIN")` only admins. */
+const GUARD = /^(?:const actor = )?await (requireSession\(\)|requireRole\("EDITOR"\)|requireRole\("ADMIN"\));/;
 const UNINITIALISED_LETS = /^(\s*let\s+\w+\s*(:[^=;]+)?;)*/;
 
 /**
@@ -18,7 +18,7 @@ export function expectGuardFirstInEveryAction(path: string): string[] {
   return Object.keys(guardsOfEveryAction(path));
 }
 
-export type GuardCall = "requireSession()" | 'requireRole("ADMIN")';
+export type GuardCall = "requireSession()" | 'requireRole("EDITOR")' | 'requireRole("ADMIN")';
 
 /** Same check as `expectGuardFirstInEveryAction`, returning which guard each action starts with. */
 export function guardsOfEveryAction(path: string): Record<string, GuardCall> {
@@ -37,7 +37,7 @@ export function guardsOfEveryAction(path: string): Record<string, GuardCall> {
 
     const guard = GUARD.exec(firstStatement)?.[1];
 
-    expect(guard, `${name} must start with a session guard (requireSession, requireRole("ADMIN"))`).toBeDefined();
+    expect(guard, `${name} must start with a session guard (requireSession, requireRole("EDITOR"), requireRole("ADMIN"))`).toBeDefined();
     guards[name] = guard as GuardCall;
   }
 

@@ -8,7 +8,7 @@ import { verifyPreviewToken } from "@/infrastructure/preview/preview-token";
 import * as actions from "@/interface/admin/preview/actions";
 import { registerPolicyCases } from "@/tests/support/action-policy";
 import { cookieJar } from "@/tests/support/action-policy";
-import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
+import { expectGuardFirstInEveryAction, guardsOfEveryAction } from "@/tests/support/guard-first";
 import { signInAs, testAuth } from "@/tests/support/test-auth";
 
 const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
@@ -36,6 +36,10 @@ describe("preview token server action", () => {
   it("has a case for every exported action and starts each with the session guard", () => {
     expect(Object.keys(ACTION_CALLS).sort()).toEqual(Object.keys(actions).sort());
     expect(expectGuardFirstInEveryAction("src/interface/admin/preview/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
+  });
+
+  it("asks for the EDITOR role explicitly instead of accepting any session", () => {
+    expect(guardsOfEveryAction("src/interface/admin/preview/actions.ts")).toEqual({ createPreviewToken: 'requireRole("EDITOR")' });
   });
 
   it.each([

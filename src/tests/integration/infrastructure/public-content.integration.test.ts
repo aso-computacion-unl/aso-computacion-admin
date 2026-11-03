@@ -111,4 +111,23 @@ describe("public content (integration)", () => {
     expect(body).toMatchObject({ events: [], faqs: [], pillars: [], socials: [], board: [], news: [], commands: [] });
     expect(JSON.stringify(body)).not.toMatch(/Evento|Pregunta|Representamos|Instagram|Ana Pérez|Noticia|libre|costo/);
   });
+
+  it("serves a scheduled event and news item only inside their window, judged by the stored instants", async () => {
+    const open = new Date("2026-11-02T13:00:00.000Z");
+    const close = new Date("2026-11-09T13:00:00.000Z");
+    const text = { summary: "Resumen", body: "Cuerpo", publishedAt: "2026-11-02", isPublished: true, publishAt: open, unpublishAt: close };
+    await events.create(Event.create({ title: "Programado", isPublished: true, publishAt: open, unpublishAt: close }));
+    await news.create(NewsItem.create({ ...text, title: "Programada" }));
+    await events.create(Event.create({ title: "Sin ventana", isPublished: true }));
+    const at = async (now: Date) => {
+      const body = toPublicContentResponse(await useCase.execute({ now }), now);
+
+      return [body.events.map((event) => event.title).sort(), body.news.map((item) => item.title)];
+    };
+
+    expect(await at(new Date(open.getTime() - 1))).toEqual([["Sin ventana"], []]);
+    expect(await at(open)).toEqual([["Programado", "Sin ventana"], ["Programada"]]);
+    expect(await at(new Date(close.getTime() - 1))).toEqual([["Programado", "Sin ventana"], ["Programada"]]);
+    expect(await at(close)).toEqual([["Sin ventana"], []]);
+  });
 });

@@ -1,4 +1,5 @@
 import { ValidationError } from "./domain-error";
+import { assertPublicationWindow } from "./publication-window";
 import { assertSlug, slugify } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
 
@@ -38,6 +39,10 @@ export interface EventProps {
   /** Ordered short strings; the landing draws them as the entry's branch sub-items. */
   readonly highlights: readonly string[];
   readonly isPublished: boolean;
+  /** Public from this instant (inclusive) while published; `null` is already open. */
+  readonly publishAt: Date | null;
+  /** Public until this instant (exclusive) while published; `null` never closes. */
+  readonly unpublishAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -59,6 +64,8 @@ export interface EventFields {
   linkLabel: string | null;
   highlights: readonly string[];
   isPublished: boolean;
+  publishAt: Date | null;
+  unpublishAt: Date | null;
 }
 
 export type CreateEventInput = Pick<EventFields, "title"> & Partial<Omit<EventFields, "title">>;
@@ -162,6 +169,7 @@ function build(
     ...validateLink(fields.linkUrl, fields.linkLabel),
     highlights: validateHighlights(fields.highlights),
     isPublished: fields.isPublished ?? false,
+    ...assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
   };
 }
 

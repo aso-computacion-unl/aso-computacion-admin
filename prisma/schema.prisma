@@ -35,6 +35,10 @@ model Event {
   linkLabel     String?
   highlights    String[]     @default([])
   isPublished   Boolean      @default(false)
+  // Optional publish window, instants in UTC (the admin edits them in Ecuador time). A published event is
+  // public from publishAt (inclusive) until unpublishAt (exclusive); null is open on that side. CHECK: unpublishAt > publishAt.
+  publishAt     DateTime?
+  unpublishAt   DateTime?
   // Set when moved to the trash (never published then); null while live. Its photos stay attached.
   deletedAt     DateTime?
   createdAt     DateTime     @default(now())
@@ -152,6 +156,10 @@ model NewsItem {
   coverHeight   Int?
   coverAlt      String?
   isPublished   Boolean   @default(false)
+  // Optional publish window, same rules as Event (publishAt inclusive, unpublishAt exclusive, UTC instants).
+  // Not `publishedAt` above: that one is the date shown on the landing, this one gates visibility.
+  publishAt     DateTime?
+  unpublishAt   DateTime?
   // Set when moved to the trash (never published then); null while live.
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
@@ -172,11 +180,13 @@ model SiteSettings {
 // Singleton: the outcome of the LAST landing deploy-hook attempt, id "landing" (CHECK in the migration).
 // Never stores the hook URL (it carries a secret token): only the time, the result and a coarse reason.
 model DeployStatus {
-  id          String   @id
-  attemptedAt DateTime
-  ok          Boolean
-  httpStatus  Int?
-  errorKind   String?
+  id            String    @id
+  attemptedAt   DateTime
+  ok            Boolean
+  httpStatus    Int?
+  errorKind     String?
+  // When the hook was last ACCEPTED (not just attempted): the scheduled-content cron rebuilds only if an item crossed its window after it.
+  lastSuccessAt DateTime?
 }
 
 // S4: name, role and photo only. No contact column may be added here.

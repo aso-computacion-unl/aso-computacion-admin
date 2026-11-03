@@ -73,6 +73,8 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
 | `CLOUDINARY_FOLDER` | no | Base folder for every upload. Default `aso-computacion`. Letters, digits, `_`, `-`, `/`. |
 | `PUBLIC_CORS_ORIGINS` | no | Comma-separated **exact** browser origins allowed to read `/api/public/content`, e.g. `https://aso.example,http://localhost:4321`. No path, no trailing slash, no `*` (such entries are ignored and logged once). Unset grants no browser origin. The landing's build-time fetch runs in Node and needs no CORS, so this only matters if a browser reads the API. |
+| `PREVIEW_TOKEN_SECRET` | for previews | Signs the draft-preview tokens generated on `/admin/vista-previa`. At least 32 characters and different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`. Unset or invalid: no token can be generated or accepted (the page says so). Rotating it invalidates every token. Mark it Sensitive. |
+| `CRON_SECRET` | for scheduled content | Bearer secret of the cron that rebuilds the landing when scheduled content comes due (section 6a). At least 32 characters. Vercel sends it automatically as `Authorization: Bearer …` once the variable exists. Unset or invalid: the endpoint refuses everything, so scheduled content only appears with the next edit or the daily rebuild. Mark it Sensitive. |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | no | Cloudflare Pages deploy hook of the landing. POSTed 8 s after the last edit of a burst. `https` only. The token is part of the URL: it is a secret and is never logged. Empty or unset: no rebuilds on edit (the daily cron remains). |
 | `SENTRY_DSN` | no | Sentry DSN for the server and edge runtimes. Unset: error tracking is off (no network, no warnings). |
 | `NEXT_PUBLIC_SENTRY_DSN` | no | The same DSN, for the browser. Public by design (it ends up in the client bundle). When set, the CSP `connect-src` also allows that DSN's ingest origin. Set it **at build time** (a Vercel build variable), not only at runtime. |
@@ -206,6 +208,17 @@ The landing's own deployment (Cloudflare Pages, `ADMIN_CONTENT_URL`, the daily r
 
 Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"schemaVersion": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
 
+## 6a. Scheduled content and previews
+
+Events and news can carry a publish window (`publishAt` / `unpublishAt`, edited in Ecuador time). The landing is static, so scheduled content only shows up after a rebuild that happens after the boundary. `vercel.json` registers a **Vercel Cron** that does this:
+
+1. Set `CRON_SECRET` (≥ 32 random characters, Sensitive) in Vercel Production and redeploy. Vercel then calls `GET /api/cron/scheduled-rebuild` every 15 minutes with `Authorization: Bearer <CRON_SECRET>`.
+2. The endpoint asks Cloudflare for a build (`CLOUDFLARE_DEPLOY_HOOK_URL`) **only** when a published event or news item opened or closed since the hook was last accepted; otherwise it does nothing, so an idle site costs no builds. It answers 502 when the hook refuses, which shows as a failed run in Vercel → Cron Jobs.
+3. **Plan limit.** Vercel's free (Hobby) plan only allows cron jobs that run once a day, and rejects a deployment whose `vercel.json` asks for more. On Hobby, change `schedule` in `vercel.json` to a daily one (for example `"0 11 * * *"`, 06:00 in Ecuador) and accept that scheduled content appears up to a day late, or use Pro for the 15-minute schedule.
+4. Check it by hand: `curl -i -H "Authorization: Bearer $CRON_SECRET" https://<your-vercel-domain>/api/cron/scheduled-rebuild` returns `{"crossed":N,"outcome":...}`; without the header it returns 401.
+
+Previews: set `PREVIEW_TOKEN_SECRET` (≥ 32 characters, different from the other secrets, Sensitive). Editors then generate a code on **Vista previa**; it is sent as the `X-Preview-Token` header to `GET /api/public/preview`. See "Scheduling and preview" in [REFERENCIA.md](REFERENCIA.md) for the contract.
+
 ## 7. Error tracking (Sentry)
 
 The code is wired and does nothing until you do this, once, by hand:
@@ -227,6 +240,13 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances. The password login and the Google callback spend the same throttle.
 - Sessions live in the `Session` table (24 h, revocable). Only a keyed hash of the client address and a shortened user agent are stored. Old rows are not purged automatically; they are small and expired ones are never listed.
 - The audit log (`AuditLog`) holds who did what to which record, by name and id: never content bodies, passwords, tokens or emails. A failure to write an entry never fails the action it describes; it is logged and reported to Sentry.
+
+### The publication window migration (`20261026180000_add_publication_window`)
+
+Purely additive: it adds nullable `publishAt` / `unpublishAt` to `Event` and `NewsItem` (each with a `CHECK` that the window closes after it opens) and a nullable `lastSuccessAt` to `DeployStatus`. Catalog-only changes, no rewrite, every existing row keeps `NULL`, so everything stays exactly as published today and the previous admin keeps working against it (it ignores the columns).
+
+- Deploy order: run the migration first, then deploy the new code (the reverse fails: the new code reads the columns).
+- Rollback, only if scheduling is abandoned (roll the app back first): `ALTER TABLE "Event" DROP CONSTRAINT "Event_publication_window_check", DROP COLUMN "publishAt", DROP COLUMN "unpublishAt"; ALTER TABLE "NewsItem" DROP CONSTRAINT "NewsItem_publication_window_check", DROP COLUMN "publishAt", DROP COLUMN "unpublishAt"; ALTER TABLE "DeployStatus" DROP COLUMN "lastSuccessAt"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026180000_add_publication_window';`, with the **direct** connection string. Every window is lost with it, and anything that was scheduled turns visible as soon as it is published.
 
 ### The users, sessions and audit migration (`20261026120000_add_users_sessions_audit`)
 
@@ -306,5 +326,6 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.
+- [ ] Optional, for scheduled content (section 6a): `CRON_SECRET` set, and `vercel.json`'s schedule matches the Vercel plan (daily on Hobby). Optional, for previews: `PREVIEW_TOKEN_SECRET` set.
 - [ ] Optional: Sentry project created and `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set (section 7).
 - [ ] Plan's `maxDuration` limit checked against the `30` in `app/admin/layout.tsx`.

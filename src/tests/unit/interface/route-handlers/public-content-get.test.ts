@@ -50,6 +50,16 @@ describe("GET /api/public/content", () => {
     expect(response.headers.get("Set-Cookie")).toBeNull();
   });
 
+  it("reads the snapshot at the current time, so scheduled items are judged at the moment of the request", async () => {
+    const before = Date.now();
+    await route.GET(get());
+
+    const [options] = executeMock.mock.calls[0] ?? [];
+
+    expect(options.now.getTime()).toBeGreaterThanOrEqual(before);
+    expect(options.now.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
   it("serves the versioned snapshot with the settings null when never saved", async () => {
     const body = await (await route.GET(get())).json();
 

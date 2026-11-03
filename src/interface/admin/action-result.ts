@@ -62,6 +62,8 @@ const FIELD_MESSAGES: Record<string, string> = {
   alt: "Describa la foto en 1 a 200 caracteres.",
   file: IMAGE_FORMAT_MESSAGE,
   email: "Escriba un correo válido.",
+  publishAt: "Indique una fecha y hora válidas.",
+  unpublishAt: "La fecha de retiro debe ser posterior a la de publicación.",
   photos: `El evento ya tiene ${MAX_ACTIVE_EVENT_PHOTOS} fotos activas. Quite una para subir otra.`,
 };
 

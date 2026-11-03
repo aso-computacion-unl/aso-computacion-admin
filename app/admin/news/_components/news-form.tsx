@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
+import { ScheduleFields } from "../../_components/schedule-fields";
 import { FormColumns, Panel } from "../../_components/page-head";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { NewsPreview } from "./news-preview";
@@ -23,9 +24,23 @@ export interface NewsFormValues {
   /** Alt of the current cover; the field shows only when `cover` exists, and a blank one is ignored without a cover. */
   coverAlt: string;
   isPublished: boolean;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no start. Not `publishedAt`: that is only the date the site shows. */
+  publishAt: string;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no end. */
+  unpublishAt: string;
 }
 
-export const EMPTY_NEWS_FORM_VALUES: NewsFormValues = { title: "", slug: "", summary: "", body: "", publishedAt: "", coverAlt: "", isPublished: false };
+export const EMPTY_NEWS_FORM_VALUES: NewsFormValues = {
+  title: "",
+  slug: "",
+  summary: "",
+  body: "",
+  publishedAt: "",
+  coverAlt: "",
+  isPublished: false,
+  publishAt: "",
+  unpublishAt: "",
+};
 
 interface NewsFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -85,6 +100,9 @@ export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_
               {(control) => <Input {...control} {...bind("coverAlt")} required maxLength={200} />}
             </Field>
           ) : null}
+          <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
+            <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} subject="la noticia" />
+          </div>
           <SwitchField
             label="Publicada"
             description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."

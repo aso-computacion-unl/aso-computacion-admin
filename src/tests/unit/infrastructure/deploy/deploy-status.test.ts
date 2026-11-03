@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { record, findLast, reportError } = vi.hoisted(() => ({ record: vi.fn(), findLast: vi.fn(), reportError: vi.fn() }));
+const { record, findLast, findLastSuccessAt, reportError } = vi.hoisted(() => ({ record: vi.fn(), findLast: vi.fn(), findLastSuccessAt: vi.fn(), reportError: vi.fn() }));
 
 vi.mock("@/infrastructure/repositories/deploy-status-prisma.repository", () => ({
   DeployStatusPrismaRepository: class {
     record = record;
     findLast = findLast;
+    findLastSuccessAt = findLastSuccessAt;
   },
 }));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError }));
 
-import { readLastDeployStatus, recordDeployOutcome } from "@/infrastructure/deploy/deploy-status";
+import { readLastDeployStatus, readLastSuccessAt, recordDeployOutcome } from "@/infrastructure/deploy/deploy-status";
 
 const NOW = new Date("2026-10-25T12:00:00.000Z");
 
@@ -52,5 +53,15 @@ describe("readLastDeployStatus", () => {
     findLast.mockResolvedValue(status);
 
     expect(await readLastDeployStatus()).toEqual(status);
+  });
+});
+
+describe("readLastSuccessAt", () => {
+  it("returns when the hook was last accepted, null when never", async () => {
+    findLastSuccessAt.mockResolvedValueOnce(NOW);
+    expect(await readLastSuccessAt()).toEqual(NOW);
+
+    findLastSuccessAt.mockResolvedValueOnce(null);
+    expect(await readLastSuccessAt()).toBeNull();
   });
 });

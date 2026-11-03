@@ -97,6 +97,29 @@ describe("news use cases", () => {
     });
   });
 
+  describe("publish window", () => {
+    const OPEN = new Date("2026-11-02T13:00:00.000Z");
+    const CLOSE = new Date("2026-11-09T13:00:00.000Z");
+
+    it("is stored on create, changed and cleared on update, and kept by publishing", async () => {
+      const created = await create.execute({ ...TEXT, publishAt: OPEN, unpublishAt: CLOSE });
+      const update = new UpdateNewsItemUseCase(news);
+
+      expect(created).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+      expect(await new SetNewsItemPublishedUseCase(news).execute({ id: created.id, isPublished: true })).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+      expect(await update.execute({ id: created.id, publishAt: null, unpublishAt: null })).toMatchObject({ publishAt: null, unpublishAt: null });
+    });
+
+    it("refuses an inverted window on create and on update, keeping the stored one", async () => {
+      await expect(create.execute({ ...TEXT, publishAt: CLOSE, unpublishAt: OPEN })).rejects.toThrow(ValidationError);
+
+      const created = await create.execute({ ...TEXT, publishAt: OPEN, unpublishAt: CLOSE });
+
+      await expect(new UpdateNewsItemUseCase(news).execute({ id: created.id, publishAt: CLOSE })).rejects.toThrow(ValidationError);
+      expect((await news.getById(created.id))?.props).toMatchObject({ publishAt: OPEN, unpublishAt: CLOSE });
+    });
+  });
+
   describe("SetNewsItemPublishedUseCase", () => {
     it("publishes and unpublishes, and fails for an unknown id", async () => {
       const { id } = await create.execute(TEXT);

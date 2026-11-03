@@ -70,6 +70,9 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     trashCommand: { role: "EDITOR", audit: "command.trash" },
     moveCommand: { role: "EDITOR", audit: "command.move" },
   },
+  "src/interface/admin/preview/actions.ts": {
+    createPreviewToken: { role: "EDITOR", audit: "preview.token_create" },
+  },
   "src/interface/admin/settings/actions.ts": {
     updateSiteSettings: { role: "ADMIN", audit: "settings.update" },
   },

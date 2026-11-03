@@ -47,6 +47,15 @@ describe("scrubSentryEvent", () => {
     expect(event.request?.headers).toEqual({ "user-agent": "curl", accept: "*/*" });
   });
 
+  it("drops the preview token header, so a token never reaches the error tracker", () => {
+    const event = scrubSentryEvent({
+      request: { url: "https://admin.test/api/public/preview", headers: { "X-Preview-Token": "eyJ.preview.token", accept: "*/*" } },
+    });
+
+    expect(event.request?.headers).toEqual({ accept: "*/*" });
+    expect(JSON.stringify(event)).not.toContain("eyJ.preview.token");
+  });
+
   it("reduces URLs in breadcrumbs to their origin, so the deploy hook token never leaves", () => {
     const event = scrubSentryEvent({
       breadcrumbs: [

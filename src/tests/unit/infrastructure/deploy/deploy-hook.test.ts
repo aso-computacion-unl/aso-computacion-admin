@@ -15,6 +15,7 @@ import {
 
 // A fresh module per test: the pending rebuild and the "reported once" latches live in the module.
 let requestSiteRebuild: typeof import("@/infrastructure/deploy/deploy-hook").requestSiteRebuild;
+let triggerSiteRebuildNow: typeof import("@/infrastructure/deploy/deploy-hook").triggerSiteRebuildNow;
 
 const HOOK_URL = "https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/0123456789abcdef-secret-token";
 
@@ -28,7 +29,7 @@ const logged = () => [...info.mock.calls, ...warn.mock.calls, ...error.mock.call
 beforeEach(async () => {
   vi.useFakeTimers();
   vi.resetModules();
-  ({ requestSiteRebuild } = await import("@/infrastructure/deploy/deploy-hook"));
+  ({ requestSiteRebuild, triggerSiteRebuildNow } = await import("@/infrastructure/deploy/deploy-hook"));
   afterMock.mockReset();
   recordMock.mockReset();
   recordMock.mockResolvedValue(undefined);
@@ -353,5 +354,36 @@ describe("deploy outcome recording", () => {
   it("keeps the status write short enough to fit the admin function with the longest burst", () => {
     expect(DEPLOY_STATUS_WRITE_TIMEOUT_MS).toBe(3_000);
     expect(DEPLOY_HOOK_MAX_WAIT_MS + DEPLOY_HOOK_TIMEOUT_MS + DEPLOY_STATUS_WRITE_TIMEOUT_MS).toBeLessThan(30_000);
+  });
+});
+
+describe("triggerSiteRebuildNow (the scheduled-content cron)", () => {
+  it("calls the hook at once, with no quiet window, records the outcome and says it was accepted", async () => {
+    expect(await triggerSiteRebuildNow()).toBe("accepted");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(HOOK_URL, expect.objectContaining({ method: "POST" }));
+    expect(recordMock).toHaveBeenCalledWith({ ok: true, httpStatus: 200 });
+  });
+
+  it("says failed, and records why, when the hook answers an error or cannot be reached", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+    expect(await triggerSiteRebuildNow()).toBe("failed");
+    expect(recordMock).toHaveBeenLastCalledWith({ ok: false, httpStatus: 500 });
+
+    fetchMock.mockRejectedValueOnce(new TypeError(`fetch failed ${HOOK_URL}`));
+    expect(await triggerSiteRebuildNow()).toBe("failed");
+    expect(recordMock).toHaveBeenLastCalledWith({ ok: false, errorKind: "network" });
+    expect(logged()).not.toContain("secret-token");
+  });
+
+  it("says disabled, without calling anything, when the URL is unset or not https", async () => {
+    for (const value of ["", "http://api.cloudflare.com/hook/abc"]) {
+      vi.stubEnv("CLOUDFLARE_DEPLOY_HOOK_URL", value);
+
+      expect(await triggerSiteRebuildNow()).toBe("disabled");
+    }
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

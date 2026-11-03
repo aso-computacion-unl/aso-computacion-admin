@@ -28,3 +28,33 @@ export function assertCalendarDate(field: string, value: string): string {
 export function todayInEcuador(now: Date): string {
   return new Date(now.getTime() + ECUADOR_UTC_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+const LOCAL_DATE_TIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/**
+ * Reads what a `datetime-local` input sends (`YYYY-MM-DDTHH:mm`, no zone) as Ecuador wall-clock time and
+ * returns the instant. It never uses the server's own zone, so the result is the same on every host.
+ */
+export function parseEcuadorDateTime(field: string, value: string): Date {
+  const match = LOCAL_DATE_TIME_PATTERN.exec(value.trim());
+  const [year, month, day, hour, minute] = match ? match.slice(1).map(Number) : [];
+  const utc = match ? new Date(Date.UTC(year!, month! - 1, day!, hour!, minute!)) : null;
+
+  if (
+    !utc ||
+    utc.getUTCFullYear() !== year ||
+    utc.getUTCMonth() !== month! - 1 ||
+    utc.getUTCDate() !== day ||
+    hour! > 23 ||
+    minute! > 59
+  ) {
+    throw new ValidationError(field, `${field} must be a valid date and time (YYYY-MM-DDTHH:mm, Ecuador time)`);
+  }
+
+  return new Date(utc.getTime() - ECUADOR_UTC_OFFSET_MS);
+}
+
+/** The inverse of `parseEcuadorDateTime`: the Ecuador wall-clock `YYYY-MM-DDTHH:mm` of an instant. */
+export function formatEcuadorDateTime(instant: Date): string {
+  return new Date(instant.getTime() + ECUADOR_UTC_OFFSET_MS).toISOString().slice(0, 16);
+}

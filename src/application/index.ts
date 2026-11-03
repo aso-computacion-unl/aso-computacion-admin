@@ -81,6 +81,9 @@ export {
 export { UpdateBoardMemberUseCase } from "./use-cases/update-board-member.use-case";
 export type { PublicContentSnapshot } from "./dto/public-content.dto";
 export { GetPublicContentUseCase } from "./use-cases/get-public-content.use-case";
+export { RebuildOnWindowCrossingUseCase } from "./use-cases/rebuild-on-window-crossing.use-case";
+export type { WindowCrossingResult } from "./use-cases/rebuild-on-window-crossing.use-case";
+export type { LastBuildMarker, SiteRebuildTrigger } from "./ports/site-rebuild.port";
 export { parseLandingSeedContent, SeedSourceError } from "./seed/landing-seed-content";
 export type { LandingSeedContent } from "./seed/landing-seed-content";
 export { SeedLandingContentUseCase, SeedPlanInvalidError, emptyExistingKeys } from "./seed/seed-landing-content.use-case";

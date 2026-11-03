@@ -15,7 +15,21 @@ export class DeployStatusPrismaRepository {
       errorKind: outcome.ok ? null : (outcome.errorKind ?? null),
     };
 
-    await prisma.deployStatus.upsert({ where: { id: DEPLOY_STATUS_ID }, create: { id: DEPLOY_STATUS_ID, ...data }, update: data });
+    // A failed attempt must not erase when the hook was last accepted: the scheduled-content cron relies on it.
+    const accepted = outcome.ok ? { lastSuccessAt: now } : {};
+
+    await prisma.deployStatus.upsert({
+      where: { id: DEPLOY_STATUS_ID },
+      create: { id: DEPLOY_STATUS_ID, ...data, ...accepted },
+      update: { ...data, ...accepted },
+    });
+  }
+
+  /** When the hook was last ACCEPTED, or null if never since this was recorded. */
+  async findLastSuccessAt(): Promise<Date | null> {
+    const record = await prisma.deployStatus.findUnique({ where: { id: DEPLOY_STATUS_ID }, select: { lastSuccessAt: true } });
+
+    return record?.lastSuccessAt ?? null;
   }
 
   async findLast(): Promise<LastDeployStatus | null> {

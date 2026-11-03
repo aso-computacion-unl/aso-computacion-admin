@@ -21,6 +21,20 @@ const make = (title: string, overrides: Partial<Parameters<typeof NewsItem.creat
 describe("NewsPrismaRepository (integration)", () => {
   const repository = new NewsPrismaRepository();
 
+  it("round-trips the publish window to the millisecond, apart from the displayed date, and an update can clear it", async () => {
+    const publishAt = new Date("2026-11-02T13:00:00.123Z");
+    const unpublishAt = new Date("2026-11-09T13:00:00.000Z");
+    const item = make("Programada", { publishedAt: "2026-11-01", isPublished: true, publishAt, unpublishAt });
+
+    await repository.create(item);
+
+    expect((await repository.getById(item.props.id))?.props).toMatchObject({ publishedAt: "2026-11-01", publishAt, unpublishAt });
+
+    await repository.update(item.update({ publishAt: null, unpublishAt: null }));
+
+    expect((await repository.getById(item.props.id))?.props).toMatchObject({ publishAt: null, unpublishAt: null });
+  });
+
   it("round-trips an item without a cover and with one, body and accents intact", async () => {
     const bare = make("Sin portada", { publishedAt: "2026-03-14" });
     const full = make("Con portada", {

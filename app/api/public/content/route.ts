@@ -46,8 +46,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const snapshot = await getPublicContentUseCase().execute();
-    const body = toPublicContentResponse(snapshot, new Date());
+    const now = new Date();
+    const snapshot = await getPublicContentUseCase().execute({ now });
+    const body = toPublicContentResponse(snapshot, now);
     const etag = strongEtag(JSON.stringify(withoutGeneratedAt(body)));
     // 304 and 200 share these headers: a 304 must repeat the ones that would have been on the 200.
     const headers = { "Cache-Control": PUBLIC_CONTENT_CACHE_CONTROL, ETag: etag };

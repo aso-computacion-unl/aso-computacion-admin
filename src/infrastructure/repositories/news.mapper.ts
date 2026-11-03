@@ -33,6 +33,8 @@ export function toDomain(record: PrismaNewsItem): NewsItem {
     publishedAt: toDateString(record.publishedAt),
     cover,
     isPublished: record.isPublished,
+    publishAt: record.publishAt,
+    unpublishAt: record.unpublishAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   });

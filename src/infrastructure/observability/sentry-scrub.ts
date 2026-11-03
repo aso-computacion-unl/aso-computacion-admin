@@ -11,7 +11,8 @@ interface ScrubbableEvent {
 }
 
 // `referer` goes too: on the Google start request it is the invitation page URL, whose path is the invite token.
-const SENSITIVE_HEADERS = /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key|referer)$/i;
+// `x-preview-token` is the bearer of the draft preview (`/api/public/preview`).
+const SENSITIVE_HEADERS = /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key|referer|x-preview-token)$/i;
 const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
 const INVITE_PATH = /\/invitacion\/[^/?#\s"'<>]+/g;
 

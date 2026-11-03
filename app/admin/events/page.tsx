@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import type { EventListItemResult } from "@/application";
 import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
 import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
+import { windowBadge } from "@/interface/admin/publication-window-badge";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { parseStatusFilter, statusCriteria } from "@/interface/admin/status-filter";
 
 import { EmptyState, Stamp, TimelineItem } from "../_components/timeline-parts";
+import { WindowBadge } from "../_components/window-badge";
 import { PageHead } from "../_components/page-head";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EventDeleteButton } from "./_components/event-delete-button";
@@ -57,6 +59,7 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
             </Link>
           </h3>
           {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-sky">$ {event.commitMessage}</p> : null}
+          <WindowBadge badge={windowBadge(event, new Date())} />
         </div>
         {event.description ? <p className="hidden line-clamp-3 text-sm text-mist lg:block">{event.description}</p> : <span className="hidden lg:block" />}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 lg:mt-0 lg:flex-nowrap lg:w-96 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">

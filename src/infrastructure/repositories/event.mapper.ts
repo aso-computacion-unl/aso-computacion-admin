@@ -29,6 +29,8 @@ export function toDomain(record: PrismaEvent): Event {
     linkLabel: record.linkLabel,
     highlights: record.highlights,
     isPublished: record.isPublished,
+    publishAt: record.publishAt,
+    unpublishAt: record.unpublishAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   });

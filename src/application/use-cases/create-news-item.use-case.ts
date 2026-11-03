@@ -6,7 +6,7 @@ import type { NewsRepository } from "../ports/news-repository.port";
 import { resolveNewsSlug } from "./resolve-news-slug";
 
 /** The cover is added afterwards with `SetNewsCoverUseCase`, once the item has an id. */
-export type CreateNewsItemCommand = Pick<CreateNewsItemInput, "title" | "summary" | "body" | "slug" | "publishedAt" | "isPublished">;
+export type CreateNewsItemCommand = Pick<CreateNewsItemInput, "title" | "summary" | "body" | "slug" | "publishedAt" | "isPublished" | "publishAt" | "unpublishAt">;
 
 export class CreateNewsItemUseCase {
   constructor(private readonly news: NewsRepository) {}

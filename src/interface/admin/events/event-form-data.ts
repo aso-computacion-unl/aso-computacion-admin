@@ -7,6 +7,8 @@ import {
   EVENT_TITLE_MAX_LENGTH,
 } from "@/domain/event";
 
+import { publicationWindowFields } from "../publication-window-fields";
+
 const shortText = (message: string) => z.string().trim().max(EVENT_SHORT_TEXT_MAX_LENGTH, message);
 const checkbox = z.string().transform((value) => value === "on" || value === "true");
 const HINT_80 = "Admite hasta 80 caracteres.";
@@ -49,12 +51,18 @@ const eventFormSchema = z.object({
       .filter(Boolean),
   ),
   isPublished: checkbox,
+  ...publicationWindowFields,
 });
+
+/** Keys read only when the form sent them: an absent window means "leave it as it is", a blank one clears it. */
+const OPTIONAL_KEYS = new Set(["publishAt", "unpublishAt"]);
 
 /** Reads the event form. Blank optional fields stay as "" and the domain turns them into null. */
 export function parseEventFormData(formData: FormData) {
   const raw = Object.fromEntries(
-    Object.keys(eventFormSchema.shape).map((key) => [key, String(formData.get(key) ?? "")]),
+    Object.keys(eventFormSchema.shape)
+      .filter((key) => !OPTIONAL_KEYS.has(key) || formData.has(key))
+      .map((key) => [key, String(formData.get(key) ?? "")]),
   );
 
   return eventFormSchema.parse(raw);

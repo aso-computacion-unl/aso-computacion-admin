@@ -28,8 +28,9 @@ export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home"
 /** Where deleted content waits for a restore. Not a content module: it has no card on the home. */
 export const TRASH_NAV: NavItem = { href: "/admin/papelera", label: "Papelera", icon: "trash" };
 
-/** Sessions are for everyone (an editor sees and revokes their own); users and the audit log are the admin's. */
+/** Preview codes and sessions are for everyone (an editor sees and revokes their own sessions); users and the audit log are the admin's. */
 export const ACCOUNT_NAV: readonly NavItem[] = [
+  { href: "/admin/vista-previa", label: "Vista previa", icon: "eye" },
   { href: "/admin/sesiones", label: "Sesiones", icon: "eye" },
   { href: "/admin/usuarios", label: "Usuarios", icon: "board", adminOnly: true },
   { href: "/admin/registro", label: "Registro", icon: "news", adminOnly: true },

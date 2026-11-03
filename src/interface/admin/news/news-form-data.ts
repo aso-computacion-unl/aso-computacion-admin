@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { checkbox, formText, parseStrictForm } from "../form-fields";
+import { publicationWindowFields } from "../publication-window-fields";
 
 // Blank means "derive it / keep the current one": the slug is derived from the
 // title on create and the date defaults to today in Ecuador; on update both
@@ -18,6 +19,7 @@ const newsFormSchema = z.strictObject({
   publishedAt: optionalText,
   coverAlt: optionalText,
   isPublished: checkbox,
+  ...publicationWindowFields,
 });
 
 export function parseNewsFormData(formData: FormData) {

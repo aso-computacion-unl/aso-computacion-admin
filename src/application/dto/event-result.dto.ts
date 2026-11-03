@@ -20,6 +20,10 @@ export interface EventResult {
   linkLabel: string | null;
   highlights: string[];
   isPublished: boolean;
+  /** Public from this instant (inclusive) while published; `null` is already open. */
+  publishAt: Date | null;
+  /** Public until this instant (exclusive) while published; `null` never closes. */
+  unpublishAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

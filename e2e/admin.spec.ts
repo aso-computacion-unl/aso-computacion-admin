@@ -229,3 +229,83 @@ test("a session revoked in Sesiones activas stops working at once", async ({ pag
 
   await editorContext.close();
 });
+
+test("scheduled events: a future window reads Programado and stays out of the public API until it is cleared; a closed one reads Vencido and stays out", async ({ page, request }) => {
+  const scheduled = `E2E programado ${Date.now()}`;
+  const expired = `E2E vencido ${Date.now()}`;
+  const publicTitles = async () =>
+    ((await (await request.get("/api/public/content")).json()).events as { title: string }[]).map((event) => event.title);
+
+  await logInAsAdmin(page);
+
+  await page.goto("/admin/events/new");
+  await page.getByLabel("Título").fill(scheduled);
+  await page.getByLabel("Publicar el").fill("2999-01-01T08:00");
+  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  await page.getByRole("button", { name: "Crear evento" }).click();
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
+
+  // Published but not open yet: not public, and the list says why.
+  expect(await publicTitles()).not.toContain(scheduled);
+  await page.goto("/admin/events");
+  const row = page.getByRole("listitem").filter({ hasText: scheduled });
+  await expect(row.getByText("Programado", { exact: true })).toBeVisible();
+  await expect(row.getByText(/Se publica el 1 ene 2999/)).toBeVisible();
+
+  // Clearing the start opens it at once.
+  await row.getByRole("link", { name: `Editar: ${scheduled}` }).click();
+  await page.getByLabel("Publicar el").fill("");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByText("Cambios guardados.")).toBeVisible();
+  expect(await publicTitles()).toContain(scheduled);
+
+  // A window that already closed: published, yet retired.
+  await page.goto("/admin/events/new");
+  await page.getByLabel("Título").fill(expired);
+  await page.getByLabel("Publicar el").fill("2019-01-01T08:00");
+  await page.getByLabel("Retirar el").fill("2020-01-01T08:00");
+  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  await page.getByRole("button", { name: "Crear evento" }).click();
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+
+  expect(await publicTitles()).not.toContain(expired);
+  await page.goto("/admin/events");
+  await expect(page.getByRole("listitem").filter({ hasText: expired }).getByText("Vencido", { exact: true })).toBeVisible();
+});
+
+test("a window that closes before it opens is refused with a message on the field", async ({ page }) => {
+  await logInAsAdmin(page);
+  await page.goto("/admin/news/new");
+  await page.getByLabel("Título").fill(`E2E ventana ${Date.now()}`);
+  await page.getByLabel("Resumen").fill("Resumen");
+  await page.getByLabel("Texto").fill("Cuerpo");
+  await page.getByLabel("Publicar el").fill("2030-02-01T08:00");
+  await page.getByLabel("Retirar el").fill("2030-01-01T08:00");
+  await page.getByRole("button", { name: "Crear noticia" }).click();
+
+  await expect(page.getByText("La fecha de retiro debe ser posterior a la de publicación.")).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/news\/new$/);
+});
+
+test("previews and the cron fail closed: no token, no secret and no session reveal or trigger anything", async ({ page, request }) => {
+  const preview = await request.get("/api/public/preview");
+
+  expect(preview.status()).toBe(401);
+  expect(preview.headers()["cache-control"]).toBe("no-store");
+  expect(await preview.json()).toEqual({ error: "Invalid or expired preview token" });
+  expect((await request.get("/api/public/preview", { headers: { "X-Preview-Token": "forged.token.value" } })).status()).toBe(401);
+
+  const cron = await request.get("/api/cron/scheduled-rebuild");
+
+  expect(cron.status()).toBe(401);
+  expect((await request.get("/api/cron/scheduled-rebuild", { headers: { authorization: "Bearer not-the-secret" } })).status()).toBe(401);
+
+  // The page that generates codes is admin-only territory and says plainly when the server has no secret.
+  await page.goto("/admin/vista-previa");
+  await expect(page).toHaveURL(/\/login$/);
+  await logInAsAdmin(page);
+  await page.goto("/admin/vista-previa");
+  await expect(page.getByRole("heading", { name: "Vista previa", level: 1 })).toBeVisible();
+  await expect(page.getByText(/falta|no está configurada/i).first()).toBeVisible();
+});

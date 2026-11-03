@@ -17,6 +17,8 @@
  *   slug (optional: blank derives it from the title on create, keeps it on update),
  *   publishedAt (optional YYYY-MM-DD: blank is today in Ecuador on create, keeps it on update),
  *   coverAlt (optional: send it only when the form shows the current cover; edits its alt, 1-200)
+ *   publishAt / unpublishAt (optional `YYYY-MM-DDTHH:mm`, Ecuador time: the window the item is public in; blank clears
+ *   an end, a missing key keeps it; unpublishAt must be after publishAt). Not `publishedAt`, the date the site shows.
  * Cover upload form: file (JPEG/PNG/WebP, <= 5 MB, >= 1200 px wide) and coverAlt (1-200, required).
  *
  * Reads for pages: `getAdminNewsItems()` and `getAdminNewsItem(id)` in ./news-admin-read.

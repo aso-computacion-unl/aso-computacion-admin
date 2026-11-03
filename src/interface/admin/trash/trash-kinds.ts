@@ -9,8 +9,6 @@ export const LIST_PATH_BY_KIND: Record<TrashKind, string> = {
   social: "/admin/socials",
   pillar: "/admin/pillars",
   board: "/admin/board",
-  impact: "/admin/impact",
-  testimonial: "/admin/testimonials",
   sponsor: "/admin/sponsors",
 };
 

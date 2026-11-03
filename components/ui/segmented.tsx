@@ -40,7 +40,7 @@ export function Segmented({ legend, name, value, options, onChange, className, c
                 "grid size-full place-items-center px-1 text-sm font-semibold text-mist",
                 "transition-colors duration-150 ease-out",
                 "hover:bg-foreground/6 hover:text-foreground",
-                "peer-checked:bg-sky peer-checked:text-primary-foreground",
+                "peer-checked:bg-action peer-checked:text-on-action",
                 "peer-focus-visible:outline-2 peer-focus-visible:-outline-offset-4 peer-focus-visible:outline-foreground",
               )}
             >

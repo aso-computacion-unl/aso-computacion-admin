@@ -232,23 +232,6 @@ async function seed(prisma: Db) {
     ),
   });
 
-  await prisma.impactStat.createMany({
-    data: ordered([
-      { value: "24", label: "eventos este año" },
-      { value: "850+", label: "estudiantes alcanzados" },
-      { value: "12", label: "talleres prácticos" },
-      { value: "5", label: "aliados" },
-    ]),
-  });
-
-  await prisma.testimonial.createMany({
-    data: ordered([
-      { quote: "El taller de Git me salvó el proyecto integrador. Ahora todo mi equipo trabaja con ramas.", name: "Daniela Ríos", role: "Estudiante de 5.º ciclo", ...demoImage("photo", "samples/people/bicycle.jpg", "Foto de demostración de Daniela Ríos") },
-      { quote: "En la bienvenida conocí a mis primeros amigos de la carrera.", name: "Kevin Torres", role: "Estudiante de 1.er ciclo" },
-      { quote: "La charla con egresados me ayudó a decidir en qué especializarme.", name: "Andrea Maldonado", role: "Estudiante de 8.º ciclo" },
-    ]),
-  });
-
   await prisma.sponsor.createMany({
     data: ordered([
       { name: "Facultad de Energía", url: "https://unl.edu.ec/", ...demoImage("logo", "samples/logo.png", "Logo de demostración") },
@@ -374,6 +357,7 @@ async function clearContent(prisma: Db) {
     prisma.pillar.deleteMany(),
     prisma.socialLink.deleteMany(),
     prisma.boardMember.deleteMany(),
+    // Not seeded or managed any more, but the reset still empties their (kept) tables.
     prisma.impactStat.deleteMany(),
     prisma.testimonial.deleteMany(),
     prisma.sponsor.deleteMany(),

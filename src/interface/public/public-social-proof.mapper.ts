@@ -8,13 +8,6 @@ const toPublicImage = ({ url, width, height, alt }: PublicImage): PublicImage =>
 
 export function toPublicSocialProof(snapshot: PublicSocialProofSnapshot): PublicSocialProof {
   return {
-    impact: snapshot.impact.map((stat) => ({ value: stat.value, label: stat.label })),
-    testimonials: snapshot.testimonials.map((item) => ({
-      quote: item.quote,
-      name: item.name,
-      role: item.role,
-      photo: item.photo && toPublicImage(item.photo),
-    })),
     // A published sponsor always has a logo (domain rule and DB CHECK); the flatMap keeps the landing's type honest even if that invariant were ever broken.
     sponsors: snapshot.sponsors.flatMap((item) => (item.logo ? [{ name: item.name, logo: toPublicImage(item.logo), url: item.url }] : [])),
   };

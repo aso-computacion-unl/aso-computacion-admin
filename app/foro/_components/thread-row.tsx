@@ -18,7 +18,10 @@ interface ThreadRowProps {
   category?: { slug: string; name: string } | null;
 }
 
-/** One thread of a list: the whole row is the link, like an issue in a tracker. */
+/**
+ * One thread of a list: the whole row is the link, like an issue in a tracker. On phones the author, the activity and
+ * the state share one line under the title; from lg up each has its own column, under the header of the list.
+ */
 export function ThreadRow({ thread, now, category }: ThreadRowProps) {
   const status = threadStatus(thread);
   // A solved thread can also be locked; that is worth saying too.
@@ -28,24 +31,36 @@ export function ThreadRow({ thread, now, category }: ThreadRowProps) {
     <li>
       <Link
         href={`/foro/hilo/${thread.id}`}
-        className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-3 py-3.5 transition-colors hover:bg-card focus-visible:-outline-offset-3 sm:px-4"
+        className="thread-cols group gap-y-0.5 py-3.5 transition-colors hover:bg-card focus-visible:-outline-offset-3 xl:py-4 2xl:py-5"
       >
-        <span className="row-span-2 pt-0.5">
+        {/* On the history graph's line: the glyph covers it, in the colour of the row under it. */}
+        <span className="relative z-10 row-span-2 h-6 self-start rounded-full bg-background pt-0.5 transition-colors group-hover:bg-card">
           <ThreadStatusIcon status={status} />
         </span>
         <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <strong className="font-semibold leading-[1.35] wrap-anywhere text-foreground">{thread.title}</strong>
+          <strong className="font-semibold leading-[1.35] wrap-anywhere text-foreground xl:text-[1.0625rem]">{thread.title}</strong>
           {category ? <CategoryChip category={category} /> : null}
         </span>
-        <span className="row-span-2 inline-flex items-center gap-1.5 self-center font-mono text-sm text-mist">
+        <span className="row-span-2 inline-flex items-center gap-1.5 self-center font-mono text-sm text-mist xl:col-start-5 xl:row-start-1 xl:justify-self-end">
           <Icon name="msg" className="size-4" />
           {thread.replyCount}
           <span className="sr-only"> {thread.replyCount === 1 ? "respuesta" : "respuestas"}</span>
         </span>
-        <span className="col-start-2 text-[0.8125rem] text-mist">
-          {thread.authorName}
-          {thread.mine ? " (usted)" : null} · actividad <PostTime date={thread.lastActivityAt} now={now} /> · {STATUS_WORD[status]}
-          {closed}
+        <span className="col-start-2 text-[0.8125rem] text-mist xl:contents">
+          <span className="xl:col-start-3 xl:row-span-2 xl:row-start-1 xl:self-center xl:truncate xl:text-sm">
+            {thread.authorName}
+            {thread.mine ? " (usted)" : null}
+          </span>
+          <span className="xl:hidden"> · </span>
+          <span className="xl:col-start-4 xl:row-span-2 xl:row-start-1 xl:self-center xl:text-sm">
+            <span className="xl:hidden">actividad </span>
+            <PostTime date={thread.lastActivityAt} now={now} />
+          </span>
+          <span className="xl:hidden"> · </span>
+          <span className="xl:col-start-2 xl:row-start-2">
+            {STATUS_WORD[status]}
+            {closed}
+          </span>
         </span>
       </Link>
     </li>

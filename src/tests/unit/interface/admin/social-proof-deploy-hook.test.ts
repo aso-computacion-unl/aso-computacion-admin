@@ -29,14 +29,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 vi.mock("@/infrastructure/deploy/deploy-hook", () => ({ requestSiteRebuild: requestSiteRebuildMock }));
-vi.mock("@/interface/admin/impact/impact-container", () => ({ getImpactStatUseCases: containers }));
-vi.mock("@/interface/admin/testimonials/testimonials-container", () => ({ getTestimonialUseCases: containers }));
 vi.mock("@/interface/admin/sponsors/sponsors-container", () => ({ getSponsorUseCases: containers }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
-import * as impact from "@/interface/admin/impact/actions";
 import * as sponsors from "@/interface/admin/sponsors/actions";
-import * as testimonials from "@/interface/admin/testimonials/actions";
 import { signInAs } from "@/tests/support/test-auth";
 
 const form = (fields: Record<string, string> = {}, file = false) => {
@@ -46,20 +42,8 @@ const form = (fields: Record<string, string> = {}, file = false) => {
   return data;
 };
 
-// Every exported action of the S9 modules: each one is a mutation of what the landing shows.
+// Every exported action of the sponsors module: each one is a mutation of what the landing shows.
 const CALLS: Array<[string, () => Promise<unknown>]> = [
-  ["impact/createImpactStat", () => impact.createImpactStat(null, form({ value: "120+", label: "Estudiantes" }))],
-  ["impact/updateImpactStat", () => impact.updateImpactStat("i", null, form({ value: "120+", label: "Estudiantes" }))],
-  ["impact/setImpactStatPublished", () => impact.setImpactStatPublished("i", true)],
-  ["impact/trashImpactStat", () => impact.trashImpactStat("i")],
-  ["impact/moveImpactStat", () => impact.moveImpactStat("i", "up")],
-  ["testimonials/createTestimonial", () => testimonials.createTestimonial(null, form({ quote: "q", name: "Ana", role: "r" }))],
-  ["testimonials/updateTestimonial", () => testimonials.updateTestimonial("t", null, form({ quote: "q", name: "Ana", role: "r" }))],
-  ["testimonials/setTestimonialPublished", () => testimonials.setTestimonialPublished("t", true)],
-  ["testimonials/trashTestimonial", () => testimonials.trashTestimonial("t")],
-  ["testimonials/moveTestimonial", () => testimonials.moveTestimonial("t", "up")],
-  ["testimonials/uploadTestimonialPhoto", () => testimonials.uploadTestimonialPhoto("t", null, form({ photoAlt: "Ana" }, true))],
-  ["testimonials/removeTestimonialPhoto", () => testimonials.removeTestimonialPhoto("t")],
   ["sponsors/createSponsor", () => sponsors.createSponsor(null, form({ name: "Acme", url: "" }))],
   ["sponsors/updateSponsor", () => sponsors.updateSponsor("s", null, form({ name: "Acme", url: "" }))],
   ["sponsors/setSponsorPublished", () => sponsors.setSponsorPublished("s", true)],
@@ -86,8 +70,8 @@ beforeEach(async () => {
 });
 
 describe("deploy hook after social proof mutations", () => {
-  it("covers every exported action of the three modules", () => {
-    const exported = [...Object.keys(impact), ...Object.keys(testimonials), ...Object.keys(sponsors)];
+  it("covers every exported action of the module", () => {
+    const exported = Object.keys(sponsors);
 
     expect(CALLS.map(([name]) => name.split("/")[1]).sort()).toEqual(exported.sort());
   });

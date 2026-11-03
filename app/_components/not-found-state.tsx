@@ -28,7 +28,7 @@ const FACES = {
 export function NotFoundState({ title, children, href, actionLabel, face = "display" }: NotFoundStateProps) {
   return (
     <section data-slot="not-found-state" className="mx-auto grid max-w-xl justify-items-center gap-4 py-10 text-center md:py-16">
-      <span aria-hidden="true" className="grid size-12 place-items-center rounded bg-muted text-sky">
+      <span aria-hidden="true" className="grid size-12 place-items-center rounded bg-muted text-foreground">
         <Icon name="search" className="size-6" />
       </span>
       <h1 className={cn("text-balance", FACES[face])}>{title}</h1>

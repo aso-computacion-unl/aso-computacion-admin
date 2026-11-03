@@ -20,8 +20,6 @@ export const MODULE_NAV: readonly NavItem[] = [
   { href: "/admin/board", label: "Directiva", icon: "board", action: { href: "/admin/board/new", label: "Agregar integrante" } },
   { href: "/admin/pillars", label: "Pilares", icon: "pillars", action: { href: "/admin/pillars/new", label: "Nuevo pilar" } },
   { href: "/admin/socials", label: "Redes", icon: "share", action: { href: "/admin/socials/new", label: "Agregar red" } },
-  { href: "/admin/impact", label: "Impacto", icon: "star", action: { href: "/admin/impact/new", label: "Nueva cifra" } },
-  { href: "/admin/testimonials", label: "Testimonios", icon: "news", action: { href: "/admin/testimonials/new", label: "Nuevo testimonio" } },
   { href: "/admin/sponsors", label: "Aliados", icon: "image", action: { href: "/admin/sponsors/new", label: "Nuevo aliado" } },
   { href: "/admin/settings", label: "Sitio", icon: "site", adminOnly: true, action: { href: "/admin/settings", label: "Editar textos" } },
 ];

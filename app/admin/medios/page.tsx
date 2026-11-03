@@ -71,14 +71,24 @@ export default async function AdminMediaPage({ searchParams }: { searchParams: P
                   <p className="text-sm font-semibold text-signal">Sin uso</p>
                 ) : (
                   <ul aria-label={`Dónde se usa ${item.publicId}`} className="grid gap-1 text-sm">
-                    {item.usedBy.map((use) => (
-                      <li key={`${use.kind}-${use.id}`}>
-                        <Link href={usageHref(use)} className="rounded-xs underline-offset-4 hover:underline">
-                          {MEDIA_KIND_LABELS[use.kind]}: {use.label}
-                        </Link>
-                        {use.hidden ? <span className="text-mist"> (oculta)</span> : null}
-                      </li>
-                    ))}
+                    {item.usedBy.map((use) => {
+                      const href = usageHref(use);
+
+                      return (
+                        <li key={`${use.kind}-${use.id}`}>
+                          {href ? (
+                            <Link href={href} className="rounded-xs underline-offset-4 hover:underline">
+                              {MEDIA_KIND_LABELS[use.kind]}: {use.label}
+                            </Link>
+                          ) : (
+                            <span>
+                              {MEDIA_KIND_LABELS[use.kind]}: {use.label}
+                            </span>
+                          )}
+                          {use.hidden ? <span className="text-mist"> (oculta)</span> : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </li>

@@ -8,7 +8,6 @@ import { EventPhoto } from "@/domain/event-photo";
 import { NewsItem } from "@/domain/news-item";
 import { Pillar } from "@/domain/pillar";
 import { Sponsor } from "@/domain/sponsor";
-import { Testimonial } from "@/domain/testimonial";
 import { prisma } from "@/infrastructure/prisma/client";
 import { BoardMemberPrismaRepository } from "@/infrastructure/repositories/board-member-prisma.repository";
 import { EventPhotoPrismaRepository } from "@/infrastructure/repositories/event-photo-prisma.repository";
@@ -17,7 +16,6 @@ import { MediaUsagePrismaReader } from "@/infrastructure/repositories/media-usag
 import { NewsPrismaRepository } from "@/infrastructure/repositories/news-prisma.repository";
 import { PillarPrismaRepository } from "@/infrastructure/repositories/pillar-prisma.repository";
 import { SponsorPrismaRepository } from "@/infrastructure/repositories/sponsor-prisma.repository";
-import { TestimonialPrismaRepository } from "@/infrastructure/repositories/testimonial-prisma.repository";
 
 const image = (name: string) => ({ url: `https://res.cloudinary.test/${name}.jpg`, publicId: `aso/${name}`, width: 1200, height: 800, alt: name });
 const reader = new MediaUsagePrismaReader();
@@ -64,17 +62,19 @@ describe("media usage reader (integration)", () => {
   });
 
   it("finds the testimonial photo and the sponsor logo, and counts them as hidden uses while their rows are in the trash", async () => {
-    const testimonial = await new TestimonialPrismaRepository().create(
-      Testimonial.create({ quote: "Muy útil.", name: "Ana Pérez", role: "Egresada", sortOrder: 0, photo: image("testimonials/ana") }),
-    );
+    // Testimonials are no longer managed by the app, but their kept rows still own their photo: insert one the way it was stored.
+    const photo = image("testimonials/ana");
+    const testimonial = await prisma.testimonial.create({
+      data: { id: "testimonial-kept", quote: "Muy útil.", name: "Ana Pérez", role: "Egresada", sortOrder: 0, photoUrl: photo.url, photoPublicId: photo.publicId, photoWidth: photo.width, photoHeight: photo.height, photoAlt: photo.alt, updatedAt: new Date() },
+    });
     const sponsor = await new SponsorPrismaRepository().create(Sponsor.create({ name: "Ñandú S.A.", sortOrder: 0, logo: image("sponsors/nandu") }));
 
     const live = await reader.usagesOf(["aso/testimonials/ana", "aso/sponsors/nandu"]);
 
-    expect(live.get("aso/testimonials/ana")).toEqual([{ kind: "testimonial", id: testimonial.props.id, label: "Ana Pérez", hidden: false }]);
+    expect(live.get("aso/testimonials/ana")).toEqual([{ kind: "testimonial", id: testimonial.id, label: "Ana Pérez", hidden: false }]);
     expect(live.get("aso/sponsors/nandu")).toEqual([{ kind: "sponsor", id: sponsor.props.id, label: "Ñandú S.A.", hidden: false }]);
 
-    await markTrashed("Testimonial", testimonial.props.id);
+    await markTrashed("Testimonial", testimonial.id);
     await markTrashed("Sponsor", sponsor.props.id);
 
     const trashed = await reader.usagesOf(["aso/testimonials/ana", "aso/sponsors/nandu"]);

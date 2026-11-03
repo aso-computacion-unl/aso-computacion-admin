@@ -56,10 +56,8 @@ describe("bulk actions", () => {
     });
 
     it.each([
-      ["impact", "/admin/impact", "cifra de impacto"],
-      ["testimonial", "/admin/testimonials", "testimonio"],
       ["sponsor", "/admin/sponsors", "aliado"],
-    ])("publishes the social proof kind %s and audits it under its own name", async (kind, path, noun) => {
+    ])("publishes the sponsor kind %s and audits it under its own name", async (kind, path, noun) => {
       cookieJar(cookiesMock, await signInAs("EDITOR"));
 
       expect(await bulkSetPublished(kind, ["a"], true)).toEqual({ results: [{ id: "a", ok: true }] });

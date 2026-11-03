@@ -18,7 +18,7 @@ interface EmptyStateProps {
 export function EmptyState({ icon, children, action }: EmptyStateProps) {
   return (
     <div role="status" data-slot="empty-state" className="mt-8 grid w-full justify-items-center gap-4 rounded bg-card p-6 text-center md:p-8">
-      <span aria-hidden="true" className="grid size-11 place-items-center rounded-xs bg-muted text-sky">
+      <span aria-hidden="true" className="grid size-11 place-items-center rounded-xs bg-muted text-foreground">
         <Icon name={icon} />
       </span>
       <p className="max-w-prose text-foreground">{children}</p>

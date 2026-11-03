@@ -8,7 +8,6 @@ vi.mock("@/interface/admin/news/actions", () => ({ uploadNewsCover: vi.fn(), rem
 vi.mock("@/interface/admin/board/actions", () => ({ uploadBoardMemberPhoto: vi.fn(), removeBoardMemberPhoto: vi.fn() }));
 vi.mock("@/interface/admin/pillars/actions", () => ({ uploadPillarImage: vi.fn(), removePillarImage: vi.fn() }));
 vi.mock("@/interface/admin/sponsors/actions", () => ({ uploadSponsorLogo: vi.fn(), removeSponsorLogo: vi.fn() }));
-vi.mock("@/interface/admin/testimonials/actions", () => ({ uploadTestimonialPhoto: vi.fn(), removeTestimonialPhoto: vi.fn() }));
 vi.mock("@/interface/admin/events/actions", () => ({ uploadEventPhoto: vi.fn(), deleteEventPhoto: vi.fn(), setEventPhotoAlt: vi.fn(), moveEventPhoto: vi.fn() }));
 
 import { MediaDropzone } from "../../../../app/admin/_components/media-dropzone";
@@ -17,7 +16,6 @@ import { PhotoUploadForm } from "../../../../app/admin/events/_components/photo-
 import { NewsCoverPanel } from "../../../../app/admin/news/_components/news-cover-panel";
 import { PillarImagePanel } from "../../../../app/admin/pillars/_components/pillar-image-panel";
 import { SponsorLogoPanel } from "../../../../app/admin/sponsors/_components/sponsor-logo-panel";
-import { TestimonialPhotoPanel } from "../../../../app/admin/testimonials/_components/testimonial-photo-panel";
 import { mount, unmountAll } from "@/tests/support/dom";
 
 afterEach(async () => {
@@ -81,7 +79,6 @@ describe("every upload screen uses the shared drop zone", () => {
     ["board member", createElement(BoardMemberPhotoPanel, { memberId: "m", photo: null }), "Elegir foto"],
     ["pillar", createElement(PillarImagePanel, { pillarId: "p", image: null }), "Elegir imagen"],
     ["sponsor", createElement(SponsorLogoPanel, { sponsorId: "s", logo: null }), "Elegir logo"],
-    ["testimonial", createElement(TestimonialPhotoPanel, { testimonialId: "t", photo: null }), "Elegir foto"],
     ["news cover (replace)", createElement(NewsCoverPanel, { newsId: "n", cover: image }), "Elegir otra foto de portada"],
   ] as const;
 

@@ -9,7 +9,7 @@ describe("loginErrorMessage", () => {
   });
 
   it("tells a Google outage apart from a refusal, and says to retry", () => {
-    expect(loginErrorMessage("verification")).toBe("No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos.");
+    expect(loginErrorMessage("verification")).toBe("No pudimos verificar su cuenta de Google. Intente de nuevo en unos minutos.");
     expect(loginErrorMessage("verification")).not.toBe(loginErrorMessage("denied"));
   });
 

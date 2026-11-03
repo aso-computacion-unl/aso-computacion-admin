@@ -51,10 +51,10 @@ export function SideNav({ role }: { role: Role }) {
                     className={cn(
                       "group flex h-[clamp(1.5rem,calc((100dvh-var(--sidebar-chrome))/var(--nav-rows)),2.75rem)] items-center gap-2.5 rounded px-3",
                       "text-sm font-medium text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
-                      "aria-[current=page]:bg-navy-lift aria-[current=page]:font-semibold aria-[current=page]:text-foreground",
+                      "aria-[current=page]:bg-navy-lift aria-[current=page]:font-semibold aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_3px_0_0_var(--color-signal)]",
                     )}
                   >
-                    <Icon name={item.icon} className="size-4 shrink-0 opacity-80 group-aria-[current=page]:text-sky group-aria-[current=page]:opacity-100" />
+                    <Icon name={item.icon} className="size-4 shrink-0 opacity-80 group-aria-[current=page]:opacity-100" />
                     {item.label}
                   </Link>
                 </li>
@@ -70,7 +70,7 @@ export function SideNav({ role }: { role: Role }) {
 const TAB_LINK_CLASSES = cn(
   "flex flex-col items-center justify-center gap-1 text-xs font-semibold text-mist no-underline",
   "transition-colors duration-150 ease-out active:bg-navy-lift",
-  "aria-[current=page]:text-sky",
+  "aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_0_3px_0_var(--color-signal)]",
   "focus-visible:-outline-offset-4",
 );
 
@@ -139,10 +139,10 @@ function MoreTab({ pathname, role }: { pathname: string; role: Role }) {
                 className={cn(
                   "group flex min-h-12 items-center gap-3 rounded px-3 font-semibold text-mist",
                   "transition-colors duration-150 ease-out active:bg-navy-lift",
-                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground",
+                  "aria-[current=page]:bg-navy-lift aria-[current=page]:text-foreground aria-[current=page]:shadow-[inset_3px_0_0_var(--color-signal)]",
                 )}
               >
-                <Icon name={item.icon} className="group-aria-[current=page]:text-sky" />
+                <Icon name={item.icon} />
                 {item.label}
               </Link>
             </li>

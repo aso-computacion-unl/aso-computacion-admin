@@ -88,8 +88,6 @@ const NOT_FOUND_MESSAGES: Record<string, string> = {
   "Social link not found": "No se encontró la red social.",
   "Pillar not found": "No se encontró el pilar.",
   "Board member not found": "No se encontró al integrante de la directiva.",
-  "Impact stat not found": "No se encontró la cifra de impacto.",
-  "Testimonial not found": "No se encontró el testimonio.",
   "Sponsor not found": "No se encontró al aliado.",
   "User not found": "No se encontró el usuario.",
   "Session not found": "La sesión ya no está activa.",

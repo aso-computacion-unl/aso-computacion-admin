@@ -54,12 +54,14 @@ describe("admin navigation and the trash", () => {
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));
   });
 
-  it("lists impact, testimonials and sponsors as editor-level content modules, each with a way to add one", () => {
-    const social = MODULE_NAV.filter((item) => ["/admin/impact", "/admin/testimonials", "/admin/sponsors"].includes(item.href));
+  it("lists sponsors as an editor-level content module with a way to add one, and no longer lists impact or testimonials", () => {
+    const social = MODULE_NAV.filter((item) => item.href === "/admin/sponsors");
 
-    expect(social.map((item) => item.label)).toEqual(["Impacto", "Testimonios", "Aliados"]);
+    expect(social.map((item) => item.label)).toEqual(["Aliados"]);
     expect(social.every((item) => !item.adminOnly && item.action?.href === `${item.href}/new`)).toBe(true);
     expect(sideNav("EDITOR").map((item) => item.href)).toEqual(expect.arrayContaining(social.map((item) => item.href)));
+    expect(sideNav("ADMIN").map((item) => item.href)).not.toEqual(expect.arrayContaining(["/admin/impact"]));
+    expect(sideNav("ADMIN").map((item) => item.href)).not.toEqual(expect.arrayContaining(["/admin/testimonials"]));
   });
 
   it("groups the sidebar into the home, the landing content, the tools and the account, in the sidebar's order", () => {

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const now = new Date();
     const [snapshot, socialProof] = await Promise.all([getPublicContentUseCase().execute({ now }), getPublicSocialProofUseCase().execute()]);
-    // S9 social proof is appended after every existing key: the main document is built, and shaped, exactly as before.
+    // Social proof (sponsors) is appended after every existing key: the main document is built, and shaped, exactly as before.
     const body: PublicContentResponse & PublicSocialProof = {
       ...toPublicContentResponse(snapshot, now, { adminOrigin: publicOrigin(process.env.AUTH_URL) }),
       ...toPublicSocialProof(socialProof),

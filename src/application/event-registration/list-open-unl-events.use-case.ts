@@ -4,17 +4,14 @@ import type { EventResult } from "../dto/event-result.dto";
 import type { EventRegistrationRepository } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 
-/** How many events the forum home lists; the soonest ones. */
-export const OPEN_UNL_EVENTS_LIMIT = 5;
-
 /** What a link to a registration page needs: no personal data, only a count. */
-export interface OpenUnlEvent extends Pick<EventResult, "slug" | "title" | "date" | "datePrecision"> {
+export interface OpenUnlEvent extends Pick<EventResult, "slug" | "title" | "date" | "datePrecision" | "description"> {
   capacity: number | null;
   /** `null` when the event has no limit. */
   seatsLeft: number | null;
 }
 
-/** The public events that take a UNL-account registration right now: the forum home's "Inscripciones abiertas". */
+/** Every public event that takes a UNL-account registration right now: the forum's "Inscripciones" page and its rail count. */
 export class ListOpenUnlEventsUseCase {
   constructor(
     private readonly events: EventRepository,
@@ -31,14 +28,12 @@ export class ListOpenUnlEventsUseCase {
     const open: OpenUnlEvent[] = [];
 
     for (const event of candidates) {
-      if (open.length === OPEN_UNL_EVENTS_LIMIT) break;
-
       const capacity = event.registrationCapacity;
       const seatsLeft = capacity === null ? null : capacity - (await this.registrations.count(event.id));
 
       if (seatsLeft !== null && seatsLeft <= 0) continue;
 
-      open.push({ slug: event.slug, title: event.title, date: event.date, datePrecision: event.datePrecision, capacity, seatsLeft });
+      open.push({ slug: event.slug, title: event.title, date: event.date, datePrecision: event.datePrecision, description: event.description, capacity, seatsLeft });
     }
 
     return open;

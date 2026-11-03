@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LoginResult } from "@/interface/auth/actions";
 
+import { AuthAlert } from "../../_components/auth-alert";
+
 interface LoginFormProps {
   action: (prevState: LoginResult | null, formData: FormData) => Promise<LoginResult>;
 }
@@ -21,10 +23,9 @@ export function LoginForm({ action }: LoginFormProps) {
   return (
     <form action={formAction} className="grid gap-3">
       {formError ? (
-        <p role="alert" className="flex items-start gap-2 border-l-2 border-error bg-error/10 px-3 py-2 text-sm">
-          <Icon name="alert" className="mt-px size-4 shrink-0 text-error" />
-          {formError}
-        </p>
+        <AuthAlert>
+          <p>{formError}</p>
+        </AuthAlert>
       ) : null}
       <div className="grid gap-1.5">
         <Label htmlFor="password">Contraseña</Label>

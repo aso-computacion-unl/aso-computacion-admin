@@ -9,9 +9,7 @@ vi.mock("@/interface/admin/commands/actions", () => actions("createCommand"));
 vi.mock("@/interface/admin/pillars/actions", () => actions("createPillar"));
 vi.mock("@/interface/admin/socials/actions", () => actions("createSocialLink"));
 vi.mock("@/interface/admin/board/actions", () => actions("createBoardMember"));
-vi.mock("@/interface/admin/impact/actions", () => actions("createImpactStat"));
 vi.mock("@/interface/admin/sponsors/actions", () => actions("createSponsor"));
-vi.mock("@/interface/admin/testimonials/actions", () => actions("createTestimonial"));
 vi.mock("@/interface/admin/events/actions", () => actions("createEvent"));
 vi.mock("@/interface/admin/news/actions", () => actions("createNewsItem"));
 vi.mock("@/interface/admin/settings/actions", () => actions("updateSiteSettings"));
@@ -21,13 +19,11 @@ import NewBoardMemberPage from "../../../../app/admin/board/new/page";
 import NewCommandPage from "../../../../app/admin/commands/new/page";
 import NewEventPage from "../../../../app/admin/events/new/page";
 import NewFaqPage from "../../../../app/admin/faqs/new/page";
-import NewImpactStatPage from "../../../../app/admin/impact/new/page";
 import NewNewsPage from "../../../../app/admin/news/new/page";
 import NewPillarPage from "../../../../app/admin/pillars/new/page";
 import AdminSettingsPage from "../../../../app/admin/settings/page";
 import NewSocialLinkPage from "../../../../app/admin/socials/new/page";
 import NewSponsorPage from "../../../../app/admin/sponsors/new/page";
-import NewTestimonialPage from "../../../../app/admin/testimonials/new/page";
 
 vi.mock("@/interface/admin/settings/settings-admin-read", () => ({ getAdminSiteSettings: vi.fn().mockResolvedValue({ tagline: "t", description: "d", about: "a" }) }));
 
@@ -89,9 +85,7 @@ describe("every create page ends in the same save bar", () => {
     ["pillars", NewPillarPage],
     ["socials", NewSocialLinkPage],
     ["board", NewBoardMemberPage],
-    ["impact", NewImpactStatPage],
     ["sponsors", NewSponsorPage],
-    ["testimonials", NewTestimonialPage],
     ["events", NewEventPage],
     ["news", NewNewsPage],
   ] as const;

@@ -3,12 +3,10 @@ import { getBoardMemberUseCases } from "../board/board-members-container";
 import { getCommandUseCases } from "../commands/commands-container";
 import { getEventUseCases } from "../events/events-container";
 import { getFaqUseCases } from "../faqs/faqs-container";
-import { getImpactStatUseCases } from "../impact/impact-container";
 import { getNewsUseCases } from "../news/news-container";
 import { getPillarUseCases } from "../pillars/pillars-container";
 import { getSocialLinkUseCases } from "../socials/socials-container";
 import { getSponsorUseCases } from "../sponsors/sponsors-container";
-import { getTestimonialUseCases } from "../testimonials/testimonials-container";
 
 /** The two single-item use cases a bulk action repeats, whatever the kind. */
 export interface BulkTarget {
@@ -33,10 +31,6 @@ export function getBulkTarget(kind: BulkKind): BulkTarget {
       return getPillarUseCases();
     case "board":
       return getBoardMemberUseCases();
-    case "impact":
-      return getImpactStatUseCases();
-    case "testimonial":
-      return getTestimonialUseCases();
     case "sponsor":
       return getSponsorUseCases();
   }

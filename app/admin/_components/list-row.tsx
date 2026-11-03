@@ -90,9 +90,9 @@ export function AddRow({ href, children }: { href: string; children: ReactNode }
       <Link
         href={href}
         data-slot="add-row"
-        className="ml-(--lane) flex min-h-14 items-center gap-3 rounded border border-dashed border-sky/70 px-5 font-semibold text-mist transition-colors duration-150 ease-out hover:border-sky hover:bg-sky/10 hover:text-foreground"
+        className="ml-(--lane) flex min-h-14 items-center gap-3 rounded border border-dashed border-foreground/45 px-5 font-semibold text-mist transition-colors duration-150 ease-out hover:border-sky hover:bg-sky/10 hover:text-foreground"
       >
-        <Icon name="plus" className="size-4 text-sky" />
+        <Icon name="plus" className="size-4 text-foreground" />
         {children}
       </Link>
     </div>

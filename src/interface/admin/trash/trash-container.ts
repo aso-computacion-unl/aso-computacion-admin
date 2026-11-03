@@ -6,7 +6,6 @@ import {
   PurgeNewsItemUseCase,
   PurgePillarUseCase,
   PurgeSponsorUseCase,
-  PurgeTestimonialUseCase,
   RestoreEventUseCase,
   RestoreFaqUseCase,
   RestoreNewsItemUseCase,
@@ -19,13 +18,11 @@ import {
   CommandNamePrismaRegistry,
   EventPrismaRepository,
   FaqPrismaRepository,
-  ImpactStatPrismaRepository,
   NewsPrismaRepository,
   PillarPrismaRepository,
   SocialLinkPrismaRepository,
   SponsorPrismaRepository,
   TerminalCommandPrismaRepository,
-  TestimonialPrismaRepository,
 } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
 import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
@@ -43,14 +40,12 @@ function createTrashUseCases() {
   const socials = new SocialLinkPrismaRepository();
   const pillars = new PillarPrismaRepository();
   const board = new BoardMemberPrismaRepository();
-  const impact = new ImpactStatPrismaRepository();
-  const testimonials = new TestimonialPrismaRepository();
   const sponsors = new SponsorPrismaRepository();
   const commandNames = new CommandNamePrismaRegistry();
   const storage = new LazyMediaStorage(() => new CloudinaryMediaStorage());
 
   return {
-    list: new ListTrashUseCase({ events, news, faqs, commands, socials, pillars, board, impact, testimonials, sponsors }),
+    list: new ListTrashUseCase({ events, news, faqs, commands, socials, pillars, board, sponsors }),
     restore: {
       event: new RestoreEventUseCase(events),
       news: new RestoreNewsItemUseCase(news),
@@ -59,8 +54,6 @@ function createTrashUseCases() {
       social: new RestoreOrderedContentUseCase(socials, "Social link not found"),
       pillar: new RestoreOrderedContentUseCase(pillars, "Pillar not found"),
       board: new RestoreOrderedContentUseCase(board, "Board member not found"),
-      impact: new RestoreOrderedContentUseCase(impact, "Impact stat not found"),
-      testimonial: new RestoreOrderedContentUseCase(testimonials, "Testimonial not found"),
       sponsor: new RestoreOrderedContentUseCase(sponsors, "Sponsor not found"),
     } satisfies Record<TrashKind, TrashOperation>,
     purge: {
@@ -71,8 +64,6 @@ function createTrashUseCases() {
       social: new PurgeContentUseCase(socials, "Social link not found"),
       pillar: new PurgePillarUseCase(pillars, storage),
       board: new PurgeBoardMemberUseCase(board, storage),
-      impact: new PurgeContentUseCase(impact, "Impact stat not found"),
-      testimonial: new PurgeTestimonialUseCase(testimonials, storage),
       sponsor: new PurgeSponsorUseCase(sponsors, storage),
     } satisfies Record<TrashKind, TrashOperation>,
   };

@@ -133,6 +133,14 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     updateForumCategory: { role: "ADMIN", audit: "forum.category.update" },
     deleteForumCategory: { role: "ADMIN", audit: "forum.category.delete" },
   },
+  // Moderation (S10d): Admin and Editor both moderate; the audit entry names the variant that was done.
+  "src/interface/admin/forum/moderation-actions.ts": {
+    setForumThreadHidden: { role: "EDITOR", audit: "forum.thread.hide" },
+    setForumReplyHidden: { role: "EDITOR", audit: "forum.reply.hide" },
+    setForumThreadLocked: { role: "EDITOR", audit: "forum.thread.lock" },
+    setForumMemberSuspended: { role: "EDITOR", audit: "forum.member.suspend" },
+    closeForumReport: { role: "EDITOR", audit: "forum.report.resolve" },
+  },
   "src/interface/admin/sessions/actions.ts": {
     // Anyone may revoke their own sessions; revoking someone else's takes ADMIN (checked by the use case).
     revokeSession: { role: "EDITOR", audit: "session.revoke" },

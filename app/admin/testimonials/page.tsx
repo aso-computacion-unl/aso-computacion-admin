@@ -8,10 +8,12 @@ import { getAdminTestimonials } from "@/interface/admin/testimonials/testimonial
 import { publicationSummary } from "@/interface/admin/publication-summary";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
+import { BulkSelection } from "../_components/bulk-selection";
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
+import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
-import { EmptyState, OrderedList } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/timeline-parts";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -47,10 +49,12 @@ export default async function AdminTestimonialsPage() {
           Todavía no hay testimonios. Cada uno lleva una cita, el nombre y el cargo de quien la dijo, y una foto opcional.
         </EmptyState>
       ) : (
-        <OrderedList label="Testimonios, en el orden en que se muestran">
+        <BulkSelection kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))}>
+          <ReorderableList kind="testimonial" items={testimonials.map((testimonial) => ({ id: testimonial.id, label: testimonial.name }))} offset={0} total={testimonials.length} enabled={true} label="Testimonios, en el orden en que se muestran">
           {testimonials.map((testimonial, index) => (
             <OrderedRow
               key={testimonial.id}
+              id={testimonial.id}
               published={testimonial.isPublished}
               position={index + 1}
               label={testimonial.name}
@@ -90,7 +94,8 @@ export default async function AdminTestimonialsPage() {
               <p className="line-clamp-2 text-sm wrap-anywhere">«{testimonial.quote}»</p>
             </OrderedRow>
           ))}
-        </OrderedList>
+        </ReorderableList>
+        </BulkSelection>
       )}
     </div>
   );

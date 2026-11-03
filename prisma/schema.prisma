@@ -528,9 +528,11 @@ model ForumReaction {
   @@index([replyId])
 }
 
-// A student's report of a thread or a reply: exactly one target (CHECK), one open-or-closed report per
-// member per target. `status` OPEN until a moderator closes it: RESOLVED (acted on) or DISMISSED, with the
-// moderator's id and optional note. The reporter's identity is for moderators only.
+// A student's report of a thread or a reply: exactly one target (CHECK), and one OPEN report per member per
+// target (partial unique indexes "ForumReport_open_thread_key" and "ForumReport_open_reply_key", raw SQL in the
+// forum_moderation_rules migration; a closed report frees the slot). `status` OPEN until a moderator closes it:
+// RESOLVED (acted on) or DISMISSED, with the moderator's id and optional note. The reporter's identity is for
+// moderators only.
 model ForumReport {
   id             String            @id
   reporterId     String
@@ -547,8 +549,6 @@ model ForumReport {
   thread         ForumThread?      @relation(fields: [threadId], references: [id], onDelete: Cascade)
   reply          ForumReply?       @relation(fields: [replyId], references: [id], onDelete: Cascade)
 
-  @@unique([reporterId, threadId])
-  @@unique([reporterId, replyId])
   @@index([status, createdAt])
   @@index([threadId])
   @@index([replyId])

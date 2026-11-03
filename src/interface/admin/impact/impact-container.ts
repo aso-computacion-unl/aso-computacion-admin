@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   TrashContentUseCase,
   UpdateImpactStatUseCase,
@@ -23,6 +24,7 @@ function createImpactStatUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(stats, toImpactStatResult, NOT_FOUND),
     trash: new TrashContentUseCase(stats, NOT_FOUND),
     move: new MoveOrderedContentUseCase(stats, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(stats, NOT_FOUND),
   };
 }
 

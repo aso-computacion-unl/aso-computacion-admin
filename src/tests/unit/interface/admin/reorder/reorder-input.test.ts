@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseReorderKind, parseReorderRequest, REORDER_KIND_MESSAGE, REORDER_MAX_POSITION } from "@/interface/admin/reorder/reorder-input";
 
 describe("parseReorderKind", () => {
-  it.each(["faq", "command", "social", "pillar", "board"])("accepts %s", (kind) => {
+  it.each(["faq", "command", "social", "pillar", "board", "impact", "testimonial", "sponsor"])("accepts %s", (kind) => {
     expect(parseReorderKind(kind)).toBe(kind);
   });
 

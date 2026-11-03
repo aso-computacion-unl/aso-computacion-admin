@@ -34,7 +34,7 @@ describe("parseBulkIds", () => {
 });
 
 describe("parseBulkKind", () => {
-  it.each(["event", "news", "faq", "command", "social", "pillar", "board"])("accepts %s", (kind) => {
+  it.each(["event", "news", "faq", "command", "social", "pillar", "board", "impact", "testimonial", "sponsor"])("accepts %s", (kind) => {
     expect(parseBulkKind(kind)).toBe(kind);
   });
 

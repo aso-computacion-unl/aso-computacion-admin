@@ -1,5 +1,5 @@
-/** The content kinds that have an order of their own: the five ordered lists. Events and news are sorted by date. */
-export const REORDER_KINDS = ["faq", "command", "social", "pillar", "board"] as const;
+/** The content kinds that have an order of their own: the eight ordered lists. Events and news are sorted by date. */
+export const REORDER_KINDS = ["faq", "command", "social", "pillar", "board", "impact", "testimonial", "sponsor"] as const;
 
 export type ReorderKind = (typeof REORDER_KINDS)[number];
 

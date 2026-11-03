@@ -26,6 +26,9 @@ const NOUN_BY_KIND = {
   social: "red social",
   pillar: "pilar",
   board: "integrante de la directiva",
+  impact: "cifra de impacto",
+  testimonial: "testimonio",
+  sponsor: "aliado",
 } as const;
 
 export async function bulkSetPublished(kind: string, ids: string[], isPublished: boolean): Promise<BulkResult> {

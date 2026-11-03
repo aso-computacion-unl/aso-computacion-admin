@@ -13,6 +13,8 @@ export const MEDIA_KIND_LABELS: Record<MediaUsageKind, string> = {
   news: "Novedad",
   pillar: "Pilar",
   board: "Directiva",
+  testimonial: "Testimonio",
+  sponsor: "Aliado",
 };
 
 const EDIT_PATH: Record<MediaUsageKind, string> = {
@@ -20,6 +22,8 @@ const EDIT_PATH: Record<MediaUsageKind, string> = {
   news: "/admin/news",
   pillar: "/admin/pillars",
   board: "/admin/board",
+  testimonial: "/admin/testimonials",
+  sponsor: "/admin/sponsors",
 };
 
 export function usageHref(usage: Pick<MediaUsage, "kind" | "id">): string {

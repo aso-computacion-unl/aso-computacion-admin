@@ -1,0 +1,106 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { cookiesMock, getImpactStatUseCasesMock, revalidatePathMock, redirectMock, useCases } = vi.hoisted(() => {
+  const execute = () => vi.fn(async () => ({ id: "stat-1" }));
+  const useCases = {
+    create: { execute: execute() },
+    update: { execute: execute() },
+    setPublished: { execute: execute() },
+    trash: { execute: execute() },
+    move: { execute: execute() },
+  };
+
+  return {
+    cookiesMock: vi.fn(),
+    getImpactStatUseCasesMock: vi.fn(() => useCases),
+    revalidatePathMock: vi.fn(),
+    redirectMock: vi.fn(() => {
+      throw new Error("REDIRECT");
+    }),
+    useCases,
+  };
+});
+
+vi.mock("next/headers", () => ({ cookies: cookiesMock }));
+vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
+vi.mock("@/interface/admin/impact/impact-container", () => ({ getImpactStatUseCases: getImpactStatUseCasesMock }));
+
+import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { signInAs } from "@/tests/support/test-auth";
+import * as actions from "@/interface/admin/impact/actions";
+import { registerPolicyCases } from "@/tests/support/action-policy";
+import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
+
+const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." };
+
+function statForm(): FormData {
+  const form = new FormData();
+  form.set("value", "120+");
+  form.set("label", "Estudiantes");
+  return form;
+}
+
+// One entry per exported action: the test below fails when an action is added without a case here.
+const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
+  createImpactStat: () => actions.createImpactStat(null, statForm()),
+  updateImpactStat: () => actions.updateImpactStat("stat-1", null, statForm()),
+  setImpactStatPublished: () => actions.setImpactStatPublished("stat-1", true),
+  trashImpactStat: () => actions.trashImpactStat("stat-1"),
+  moveImpactStat: () => actions.moveImpactStat("stat-1", "up"),
+};
+
+function cookieJar(value: string | undefined) {
+  cookiesMock.mockResolvedValue({
+    get: (name: string) => (name === AUTH_COOKIE_NAME && value !== undefined ? { name, value } : undefined),
+  });
+}
+
+describe("stat server actions require an admin session (L9)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("ADMIN_SECRET", "test-secret-test-secret-test-secret-1234");
+  });
+
+  it("has an auth case for every exported action", () => {
+    expect(Object.keys(ACTION_CALLS).sort()).toEqual(Object.keys(actions).sort());
+  });
+
+  describe.each([
+    ["no cookie", undefined],
+    ["a forged token", "forged.token.value"],
+  ])("with %s", (_label, cookie) => {
+    beforeEach(() => cookieJar(cookie));
+
+    it.each(Object.entries(ACTION_CALLS))("%s rejects and performs no write", async (_name, call) => {
+      expect(await call()).toEqual(SESSION_EXPIRED);
+      expect(getImpactStatUseCasesMock).not.toHaveBeenCalled();
+      for (const useCase of Object.values(useCases)) {
+        expect(useCase.execute).not.toHaveBeenCalled();
+      }
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("positive control: a valid session reaches the use cases", async () => {
+    cookieJar(await signInAs("ADMIN"));
+
+    await expect(actions.trashImpactStat("stat-1")).resolves.toEqual({ success: true });
+
+    expect(useCases.trash.execute).toHaveBeenCalledWith({ id: "stat-1" });
+  });
+
+  it("the guard is the first statement of every action", () => {
+    expect(expectGuardFirstInEveryAction("src/interface/admin/impact/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
+  });
+
+  describe("role matrix and audit", () => {
+    registerPolicyCases({
+      actionsPath: "src/interface/admin/impact/actions.ts",
+      actionCalls: ACTION_CALLS,
+      cookiesMock,
+      untouchedMocks: [getImpactStatUseCasesMock, revalidatePathMock, redirectMock],
+    });
+  });
+});

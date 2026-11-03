@@ -15,6 +15,9 @@ export { SocialLinkPrismaRepository } from "./repositories/social-link-prisma.re
 export { PillarPrismaRepository } from "./repositories/pillar-prisma.repository";
 export { SiteSettingsPrismaRepository } from "./repositories/site-settings-prisma.repository";
 export { BoardMemberPrismaRepository } from "./repositories/board-member-prisma.repository";
+export { ImpactStatPrismaRepository } from "./repositories/impact-stat-prisma.repository";
+export { TestimonialPrismaRepository } from "./repositories/testimonial-prisma.repository";
+export { SponsorPrismaRepository } from "./repositories/sponsor-prisma.repository";
 export { DeployStatusPrismaRepository } from "./repositories/deploy-status-prisma.repository";
 export { NewsPrismaRepository } from "./repositories/news-prisma.repository";
 export { ForumCategoryPrismaRepository } from "./repositories/forum-category-prisma.repository";

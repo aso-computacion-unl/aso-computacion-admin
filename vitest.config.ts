@@ -19,5 +19,16 @@ export default defineConfig({
     environment: "node",
     include: ["src/tests/**/*.test.ts"],
     exclude: [...INTEGRATION_SUITES],
+    coverage: {
+      provider: "v8",
+      // Floor of the coverage measured when the gate was added. Raise these as
+      // coverage grows; never lower them to make a change pass.
+      thresholds: {
+        lines: 56,
+        statements: 56,
+        branches: 93,
+        functions: 78,
+      },
+    },
   },
 });

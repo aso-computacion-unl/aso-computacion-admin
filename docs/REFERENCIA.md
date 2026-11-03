@@ -24,6 +24,7 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `next typegen` + `tsc --noEmit` (genera los tipos de imágenes y rutas de Next, que no se versionan) |
 | `npm test` | Unit tests |
+| `npm run test:coverage` | Unit tests with the coverage thresholds in `vitest.config.ts` (what CI runs) |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
 

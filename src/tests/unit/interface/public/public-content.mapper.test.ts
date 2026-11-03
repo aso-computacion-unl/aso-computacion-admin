@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublicContentSnapshot } from "@/application/dto/public-content.dto";
-import { PUBLIC_CONTENT_VERSION, toPublicContentResponse } from "@/interface/public/public-content.mapper";
+import { PUBLIC_CONTENT_SCHEMA_VERSION, toPublicContentResponse } from "@/interface/public/public-content.mapper";
 
 const AT = new Date("2026-10-22T16:00:00.000Z");
 const image = { url: "https://res.cloudinary.test/a.jpg", width: 1200, height: 800, alt: "Foto" };
@@ -86,8 +86,10 @@ describe("toPublicContentResponse", () => {
   const body = toPublicContentResponse(snapshot, AT);
 
   it("pins the top-level keys, the format version and the generation time", () => {
-    expect(keys(body)).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
-    expect(body.version).toBe(PUBLIC_CONTENT_VERSION);
+    expect(keys(body)).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "schemaVersion", "settings", "socials", "version"]);
+    expect(body.version).toBe(PUBLIC_CONTENT_SCHEMA_VERSION);
+    expect(body.schemaVersion).toBe(PUBLIC_CONTENT_SCHEMA_VERSION);
+    expect(PUBLIC_CONTENT_SCHEMA_VERSION).toBe(1);
     expect(body.generatedAt).toBe("2026-10-22T16:00:00.000Z");
   });
 

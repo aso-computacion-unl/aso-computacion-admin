@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { afterMock } = vi.hoisted(() => ({ afterMock: vi.fn() }));
+const { afterMock, recordMock } = vi.hoisted(() => ({ afterMock: vi.fn(), recordMock: vi.fn() }));
+
+vi.mock("@/infrastructure/deploy/deploy-status", () => ({ recordDeployOutcome: recordMock }));
 
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), after: afterMock }));
 
@@ -27,6 +29,8 @@ beforeEach(async () => {
   vi.resetModules();
   ({ requestSiteRebuild } = await import("@/infrastructure/deploy/deploy-hook"));
   afterMock.mockReset();
+  recordMock.mockReset();
+  recordMock.mockResolvedValue(undefined);
   fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
   vi.stubEnv("CLOUDFLARE_DEPLOY_HOOK_URL", HOOK_URL);
@@ -258,5 +262,73 @@ describe("requestSiteRebuild", () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("deploy outcome recording", () => {
+  const fire = async () => {
+    requestSiteRebuild();
+    await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS);
+  };
+
+  it("records a success with the HTTP status", async () => {
+    await fire();
+
+    expect(recordMock).toHaveBeenCalledTimes(1);
+    expect(recordMock).toHaveBeenCalledWith({ ok: true, httpStatus: 200 });
+  });
+
+  it("records a rejection by the hook with its HTTP status", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+
+    await fire();
+
+    expect(recordMock).toHaveBeenCalledWith({ ok: false, httpStatus: 500 });
+  });
+
+  it("records a network failure as an error kind, never its message", async () => {
+    fetchMock.mockRejectedValue(new TypeError(`fetch failed ${HOOK_URL}`));
+
+    await fire();
+
+    expect(recordMock).toHaveBeenCalledWith({ ok: false, errorKind: "network" });
+  });
+
+  it("records an aborted request as a timeout", async () => {
+    fetchMock.mockRejectedValue(Object.assign(new Error("This operation was aborted"), { name: "AbortError" }));
+
+    await fire();
+
+    expect(recordMock).toHaveBeenCalledWith({ ok: false, errorKind: "timeout" });
+  });
+
+  it("never hands the hook URL to the recorder", async () => {
+    for (const reply of [new Response(null, { status: 200 }), new Response(null, { status: 502 })]) {
+      fetchMock.mockResolvedValueOnce(reply);
+      await fire();
+    }
+    fetchMock.mockRejectedValueOnce(new TypeError(`fetch failed ${HOOK_URL}`));
+    await fire();
+
+    expect(JSON.stringify(recordMock.mock.calls)).not.toContain("secret-token");
+  });
+
+  it("records nothing when the hook is not configured", async () => {
+    vi.stubEnv("CLOUDFLARE_DEPLOY_HOOK_URL", "");
+
+    await fire();
+
+    expect(recordMock).not.toHaveBeenCalled();
+  });
+
+  it("survives a recorder that throws: the build was requested and the invocation is released", async () => {
+    recordMock.mockRejectedValue(new Error("db down"));
+    requestSiteRebuild();
+    const [settled] = afterMock.mock.calls[0] as [Promise<void>];
+
+    await vi.advanceTimersByTimeAsync(DEPLOY_HOOK_DEBOUNCE_MS);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await expect(settled).resolves.toBeUndefined();
   });
 });

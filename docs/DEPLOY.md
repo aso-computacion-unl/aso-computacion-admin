@@ -66,6 +66,10 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `CLOUDINARY_FOLDER` | no | Base folder for every upload. Default `aso-computacion`. Letters, digits, `_`, `-`, `/`. |
 | `PUBLIC_CORS_ORIGINS` | no | Comma-separated **exact** browser origins allowed to read `/api/public/content`, e.g. `https://aso.example,http://localhost:4321`. No path, no trailing slash, no `*` (such entries are ignored and logged once). Unset grants no browser origin. The landing's build-time fetch runs in Node and needs no CORS, so this only matters if a browser reads the API. |
 | `CLOUDFLARE_DEPLOY_HOOK_URL` | no | Cloudflare Pages deploy hook of the landing. POSTed 8 s after the last edit of a burst. `https` only. The token is part of the URL: it is a secret and is never logged. Empty or unset: no rebuilds on edit (the daily cron remains). |
+| `SENTRY_DSN` | no | Sentry DSN for the server and edge runtimes. Unset: error tracking is off (no network, no warnings). |
+| `NEXT_PUBLIC_SENTRY_DSN` | no | The same DSN, for the browser. Public by design (it ends up in the client bundle). When set, the CSP `connect-src` also allows that DSN's ingest origin. Set it **at build time** (a Vercel build variable), not only at runtime. |
+| `SENTRY_TRACES_SAMPLE_RATE` / `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | no | Share of requests traced, 0 to 1. Default `0.1`. |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | no | Source-map upload during `next build`. Maps are uploaded only when `SENTRY_AUTH_TOKEN` is set (mark it Sensitive); without it the build touches nothing. |
 
 ### Generating the secrets
 
@@ -120,15 +124,29 @@ The landing's own deployment (Cloudflare Pages, `ADMIN_CONTENT_URL`, the daily r
 1. Create a **Deploy hook** in the Cloudflare Pages project (Settings → Builds → Deploy hooks) and put its URL in `CLOUDFLARE_DEPLOY_HOOK_URL`.
 2. Give the landing the public API URL, `https://<your-vercel-domain>/api/public/content`, and add the landing's production origin to `PUBLIC_CORS_ORIGINS` if a browser will read it.
 
-Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"version": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
+Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"schemaVersion": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
 
-## 7. Operating notes
+## 7. Error tracking (Sentry)
+
+The code is wired and does nothing until you do this, once, by hand:
+
+1. Create a free account and a project on sentry.io (platform **Next.js**). Copy its **DSN** (Project Settings → Client Keys).
+2. In Vercel (Settings → Environment Variables, Production) set `SENTRY_DSN` **and** `NEXT_PUBLIC_SENTRY_DSN` to that DSN, then redeploy.
+3. Optional, for readable stack traces: create an organization auth token (Settings → Developer Settings → Organization Tokens) and set `SENTRY_AUTH_TOKEN` (Sensitive), `SENTRY_ORG` and `SENTRY_PROJECT` in Vercel.
+4. Check it: cause a harmless error (for example an action with the database unreachable) and look for it in Sentry.
+
+What is reported: unhandled errors in server components, route handlers and server actions (`onRequestError`), the unexpected failures the server actions and API handlers already log with `console.error` (one helper, `reportError`), the public API's 503s, and browser render errors. What is not: validation errors and other user mistakes.
+
+What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubber removes request bodies, cookies and `authorization`/`cookie`/`set-cookie` headers, and reduces every URL in breadcrumbs, spans and messages to its origin (the deploy hook URL carries a secret token). The trace sample rate defaults to 0.1.
+
+## 8. Operating notes
 
 - A wrong or missing variable shows up in the Vercel function logs, never on screen: `ADMIN_PASSWORD is not set...`, `ADMIN_SECRET is invalid...`. If nobody can log in right after a deploy, read the logs first.
 - Failed deletes in Cloudinary never fail an admin action; the leftover `publicId`s are logged and can be removed in the Cloudinary console.
+- The dashboard shows the outcome of the last landing rebuild request ("Último despliegue"). A failure there means the content is saved but the site was not asked to rebuild: wait for the daily cron or save another change. Check `CLOUDFLARE_DEPLOY_HOOK_URL` if it keeps failing. Remember to run `prisma migrate deploy` (the `DeployStatus` table) before the first deploy that includes this.
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances.
 
-## 8. First-deploy checklist
+## 9. First-deploy checklist
 
 - [ ] Neon project created; pooled and direct URLs copied.
 - [ ] `DATABASE_URL='<direct>' npx prisma migrate deploy` ran without errors.
@@ -142,4 +160,5 @@ Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content`
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.
+- [ ] Optional: Sentry project created and `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set (section 7).
 - [ ] Plan's `maxDuration` limit checked against the `30` in `app/admin/layout.tsx`.

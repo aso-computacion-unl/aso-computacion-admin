@@ -18,6 +18,7 @@ import { readKnownDeviceToken, setKnownDeviceCookie } from "@/infrastructure/aut
 import { comparePassword, getAdminPassword, reportAdminPasswordMisconfiguration } from "@/infrastructure/auth/password";
 import { clientKeyFromHeaders, UNKNOWN_CLIENT_KEY } from "@/infrastructure/http/client-ip";
 import { clearSessionCookie, setSessionCookie } from "@/infrastructure/auth/session-cookies";
+import { reportError } from "@/infrastructure/observability/report-error";
 import {
   reportSessionSecretMisconfiguration,
   SessionSecretError,
@@ -102,6 +103,7 @@ export async function login(prevState: LoginResult | null, formData: FormData): 
   } catch (error) {
     // Without the throttle there is no brute-force protection: refuse rather than log in unprotected.
     console.error("Could not read the login throttle; login is unavailable.", error);
+    reportError(error, { action: "login-throttle" });
     return { error: AUTH_SERVICE_UNAVAILABLE_ERROR };
   }
 

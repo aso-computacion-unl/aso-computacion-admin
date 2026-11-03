@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 import { SECURITY_HEADERS } from "@/infrastructure/http/security-headers";
@@ -26,4 +27,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Source maps are uploaded only when SENTRY_AUTH_TOKEN is set (a Vercel build); anywhere else the plugin
+// does nothing and says nothing. SENTRY_ORG and SENTRY_PROJECT name the project the maps belong to.
+const uploadSourceMaps = Boolean(process.env.SENTRY_AUTH_TOKEN);
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  telemetry: false,
+  sourcemaps: { disable: !uploadSourceMaps },
+  release: { create: uploadSourceMaps },
+});

@@ -6,10 +6,17 @@ import "server-only";
  * (`src/infrastructure/auth/login-rate-limiter.ts`) but counts every
  * request within a window rather than only failures.
  *
- * State is per-process and in-memory: a first line of defence, not a
- * distributed limiter. Behind multiple instances each replica throttles
- * independently; cache headers on the public read API are the primary
- * control against public read-load abuse.
+ * BEST EFFORT, NOT A GUARANTEE. The counters live in the memory of one
+ * serverless instance. Vercel runs many instances and recycles them at will,
+ * so the counts are neither shared nor durable: a client spread over several
+ * instances, or one that waits for a cold start, gets a fresh budget each time.
+ * This guard only stops a single client hammering a single warm instance.
+ *
+ * The real protection of the public read API is the CDN cache
+ * (`Cache-Control: s-maxage` on the route): a flood of identical GETs is
+ * answered at the edge and never reaches Postgres. Do not rely on this limiter
+ * for anything the cache does not already cover. Making it truly global would
+ * need a shared store (Redis, the database), which the cache makes unnecessary.
  *
  * The map is bounded: records of elapsed windows are swept once per window,
  * and at most `maxKeys` clients are tracked (the oldest is evicted first), so

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TURNSTILE_SITEVERIFY_URL, verifyTurnstile } from "@/infrastructure/http/turnstile";
+import { TURNSTILE_SITEVERIFY_URL, turnstileSiteKey, verifyTurnstile } from "@/infrastructure/http/turnstile";
 
 const SECRET = "secret-key-for-tests";
 const answer = (body: unknown, status = 200) => vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status }));
@@ -62,5 +62,17 @@ describe("verifyTurnstile", () => {
 
     expect(await verifyTurnstile(undefined, { env: { NODE_ENV: "development" }, fetch: fetchMock })).toBe("valid");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("turnstileSiteKey", () => {
+  it("is the public site key the widget needs, trimmed", () => {
+    expect(turnstileSiteKey({ TURNSTILE_SITE_KEY: " 0x4AAAAAAAbcdEF-_12 " })).toBe("0x4AAAAAAAbcdEF-_12");
+  });
+
+  it("is undefined when it is missing, blank, a placeholder or not shaped like a key", () => {
+    for (const value of [undefined, "", "   ", "__REPLACE_TURNSTILE_SITE_KEY__", "key with spaces", '"><script>', "a".repeat(101)]) {
+      expect(turnstileSiteKey({ TURNSTILE_SITE_KEY: value })).toBeUndefined();
+    }
   });
 });

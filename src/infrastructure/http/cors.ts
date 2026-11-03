@@ -102,3 +102,23 @@ export function handlePreflight(request: Request, { methods = "GET, OPTIONS", he
 
   return withCors(request, response);
 }
+
+/**
+ * For an answer that carries no personal data and never reads cookies (the seats of an event): any site may
+ * read it, so a landing preview on a new origin works without touching `PUBLIC_CORS_ORIGINS`. Never use it
+ * on a route that returns anything about a person.
+ */
+export function withOpenCors(response: NextResponse): NextResponse {
+  response.headers.set("Access-Control-Allow-Origin", "*");
+
+  return response;
+}
+
+export function handleOpenPreflight(): NextResponse {
+  const response = new NextResponse(null, { status: 204 });
+
+  response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  response.headers.set("Access-Control-Max-Age", String(PREFLIGHT_MAX_AGE_SECONDS));
+
+  return withOpenCors(response);
+}

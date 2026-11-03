@@ -13,7 +13,11 @@
  *  - `img-src` allows Cloudinary because uploaded images are served from there.
  *  - `connect-src 'self'` keeps the admin talking only to its own origin, plus the Sentry ingest
  *    origin of the DSN when error tracking is configured (the browser SDK posts there). No DSN, no extra origin.
+ *  - Cloudflare Turnstile (the open registration form's antispam widget) needs its own origin as a script, a frame
+ *    and a connection; `frame-src` is otherwise `default-src 'self'`, which would block the challenge.
  */
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
 // A dotted DNS name only: the origin lands verbatim in the CSP, so a `;`, a wildcard or an
 // encoded separator in the DSN must never reach it.
 const INGEST_HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
@@ -39,11 +43,12 @@ function contentSecurityPolicyDirectives(nodeEnv: string | undefined, sentryDsn:
 
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${devEval}`,
+    `script-src 'self' 'unsafe-inline'${devEval} ${TURNSTILE_ORIGIN}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://res.cloudinary.com",
     "font-src 'self' data:",
-    sentryOrigin ? `connect-src 'self' ${sentryOrigin}` : "connect-src 'self'",
+    `connect-src 'self'${sentryOrigin ? ` ${sentryOrigin}` : ""} ${TURNSTILE_ORIGIN}`,
+    `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

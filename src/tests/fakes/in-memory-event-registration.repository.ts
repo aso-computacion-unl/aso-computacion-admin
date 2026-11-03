@@ -61,6 +61,16 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     return this.rows.filter((row) => row.eventId === eventId).length;
   }
 
+  async countByEvents(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>> {
+    const counts = new Map<string, number>();
+
+    for (const row of this.rows) {
+      if (eventIds.includes(row.eventId)) counts.set(row.eventId, (counts.get(row.eventId) ?? 0) + 1);
+    }
+
+    return counts;
+  }
+
   async exists(eventId: string, email: string): Promise<boolean> {
     return this.rows.some((row) => row.eventId === eventId && row.email === email);
   }

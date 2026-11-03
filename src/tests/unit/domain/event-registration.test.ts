@@ -6,6 +6,7 @@ import {
   assertRegistrationSettings,
   parseOpenRegistration,
   registrationRefusal,
+  registrationState,
   type RegistrationContext,
 } from "@/domain/event-registration";
 
@@ -109,6 +110,42 @@ describe("registrationRefusal", () => {
     const event = eventWith({ registrationCapacity: 1 });
 
     expect(registrationRefusal(context({ event, registered: 1, alreadyRegistered: true }))).toBe("duplicate");
+  });
+});
+
+describe("registrationState", () => {
+  const state = (overrides: Partial<CreateEventInput> = {}, registered = 0, now = NOW) => registrationState(eventWith(overrides), registered, now);
+
+  it("is open while there is time and, when limited, a seat left", () => {
+    expect(state()).toBe("open");
+    expect(state({ registrationCapacity: 10 }, 9)).toBe("open");
+  });
+
+  it("is full when the registered people reach the capacity", () => {
+    expect(state({ registrationCapacity: 10 }, 10)).toBe("full");
+    expect(state({ registrationCapacity: 10 }, 12)).toBe("full");
+  });
+
+  it("is closed once the deadline instant has passed, even with seats left", () => {
+    expect(state({ registrationDeadline: new Date("2026-11-20T15:00:00.001Z") })).toBe("open");
+    expect(state({ registrationDeadline: new Date("2026-11-20T15:00:00.000Z") })).toBe("closed");
+  });
+
+  it("is closed when the event day is before today in Ecuador, and open on the day itself", () => {
+    expect(state({ date: "2026-11-19" })).toBe("closed");
+    expect(state({ date: "2026-11-20" })).toBe("open");
+    // 02:00 UTC of the 21st is still the 20th at 21:00 in Ecuador.
+    expect(state({ date: "2026-11-20" }, 0, new Date("2026-11-21T02:00:00.000Z"))).toBe("open");
+    expect(state({ date: "2026-11-20" }, 0, new Date("2026-11-21T05:00:00.000Z"))).toBe("closed");
+  });
+
+  it("never closes by date when only the month is known, or when there is no date", () => {
+    expect(state({ date: "2026-11-01", datePrecision: "month" })).toBe("open");
+    expect(state({ date: null })).toBe("open");
+  });
+
+  it("says closed rather than full when both apply, like the registration itself", () => {
+    expect(state({ registrationCapacity: 1, date: "2026-11-19" }, 1)).toBe("closed");
   });
 });
 

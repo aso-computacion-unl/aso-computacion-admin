@@ -109,22 +109,63 @@ describe("registerForEvent", () => {
 });
 
 describe("getEventRegistrationPage", () => {
-  it("shows a visitor the state without personal data, and a member whether they are already in", async () => {
+  it("shows a visitor the UNL state without personal data, and a member whether they are already in", async () => {
     jar({});
 
-    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ member: null, status: { mode: "unl", state: "open", alreadyRegistered: false } });
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: null, status: { mode: "unl", state: "open", alreadyRegistered: false } });
 
     await signIn({ id: "m1" });
     await registration.registerForEvent("taller-de-git");
 
-    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ member: { memberId: "m1" }, status: { alreadyRegistered: true } });
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1" }, status: { alreadyRegistered: true } });
   });
 
-  it("is null for an unknown event, one without registration and one that uses the open form", async () => {
-    await addTestEvent({ title: "Sin", registrationMode: "none" });
+  it("offers the open form to anyone, without a session, with the live seats and the widget key when there is one", async () => {
+    await addTestEvent({ title: "Abierto", registrationMode: "open", registrationCapacity: 2 });
+    vi.stubEnv("TURNSTILE_SITE_KEY", "0x4AAAA-site_key");
+    jar({});
+
+    const page = await getEventRegistrationPage("abierto");
+
+    expect(page).toMatchObject({ kind: "open", siteKey: "0x4AAAA-site_key", status: { mode: "open", state: "open", capacity: 2, registered: 0 } });
+
+    vi.stubEnv("TURNSTILE_SITE_KEY", "");
+    expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", siteKey: undefined });
+  });
+
+  it("keeps showing an open event that is full or closed, so the page can say so instead of hiding it", async () => {
+    await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
+    await addTestEvent({ title: "Pasado", registrationMode: "open", date: "2000-01-01" });
+    await testEventRegistration.services.registerOpen.execute({ slug: "lleno", form: { name: "Ana", email: "ana@example.com", career: "Computación", semester: 3 } });
+    jar({});
+
+    expect(await getEventRegistrationPage("lleno")).toMatchObject({ kind: "open", status: { state: "full", registered: 1 } });
+    expect(await getEventRegistrationPage("pasado")).toMatchObject({ kind: "open", status: { state: "closed" } });
+  });
+
+  it("explains an event without registration and offers its calendar only while it has an upcoming exact day", async () => {
+    await addTestEvent({ title: "Sin", registrationMode: "none", lugar: "Auditorio" });
+    await addTestEvent({ title: "Sin día", registrationMode: "none", date: "2099-12-01", datePrecision: "month" });
+    await addTestEvent({ title: "Ya pasó", registrationMode: "none", date: "2000-01-01" });
+    jar({});
+
+    expect(await getEventRegistrationPage("sin")).toMatchObject({ kind: "none", calendarHref: "/api/public/events/sin/calendar.ics", event: { title: "Sin", lugar: "Auditorio" } });
+    expect(await getEventRegistrationPage("sin-dia")).toMatchObject({ kind: "none", calendarHref: null });
+    expect(await getEventRegistrationPage("ya-paso")).toMatchObject({ kind: "none", calendarHref: null });
+  });
+
+  it("gives the calendar link to an open event too, for the confirmation", async () => {
     await addTestEvent({ title: "Abierto", registrationMode: "open" });
     jar({});
 
-    for (const slug of ["nada", "sin", "abierto"]) expect(await getEventRegistrationPage(slug), slug).toBeNull();
+    expect(await getEventRegistrationPage("abierto")).toMatchObject({ kind: "open", calendarHref: "/api/public/events/abierto/calendar.ics" });
+  });
+
+  it("is null for an unknown event and one that is not public", async () => {
+    await addTestEvent({ title: "Borrador", registrationMode: "open", isPublished: false });
+    await addTestEvent({ title: "Borrador sin", registrationMode: "none", isPublished: false });
+    jar({});
+
+    for (const slug of ["nada", "borrador", "borrador-sin"]) expect(await getEventRegistrationPage(slug), slug).toBeNull();
   });
 });

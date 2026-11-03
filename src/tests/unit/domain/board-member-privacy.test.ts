@@ -34,6 +34,7 @@ describe("board member privacy (S4)", () => {
 
     expect(model?.fields.map(({ name }) => name).sort()).toEqual([
       "createdAt",
+      "deletedAt",
       "id",
       "isPublished",
       "name",

@@ -325,7 +325,8 @@ describe("SeedLandingContentUseCase", () => {
     it("only creates what is missing", async () => {
       await seed.apply(content());
       const luis = (await board.list()).find((member) => member.props.name === "Luis Gómez")!;
-      await board.delete(luis.props.id);
+      await board.trash(luis.props.id);
+      await board.purge(luis.props.id);
       storage.destroyedPublicIds.length = 0;
 
       const rerun = await seed.apply(content());

@@ -8,6 +8,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 
 import { requireAdminSession } from "../../auth/require-admin-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { TRASH_PATH } from "../trash/paths";
 import { parseBoardMemberFormData } from "./board-member-form-data";
 import { getBoardMemberUseCases } from "./board-members-container";
 
@@ -59,12 +60,18 @@ export async function setBoardMemberPublished(id: string, isPublished: boolean):
   }
 }
 
-export async function deleteBoardMember(id: string): Promise<ActionResult> {
+/** "Delete" is a move to the trash; the site only needs a rebuild when the item was visible on it. */
+export async function trashBoardMember(id: string): Promise<ActionResult> {
   try {
     await requireAdminSession();
-    await getBoardMemberUseCases().delete.execute({ id });
-    requestSiteRebuild();
+    const { wasPublished } = await getBoardMemberUseCases().trash.execute({ id });
+
+    if (wasPublished) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
+    revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error);

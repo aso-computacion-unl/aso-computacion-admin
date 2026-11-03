@@ -100,17 +100,21 @@ describe("NewsPrismaRepository (integration)", () => {
     await expect(prisma.newsItem.create({ data: { ...half, id: crypto.randomUUID(), slug: "medio-2", coverAlt: "solo alt" } })).rejects.toThrow();
   });
 
-  it("throws NotFoundError when updating or deleting an unknown item", async () => {
+  it("throws NotFoundError when updating, trashing or purging an unknown item", async () => {
     await expect(repository.update(make("Fantasma"))).rejects.toThrow("News item not found");
-    await expect(repository.delete(MISSING_ID)).rejects.toThrow("News item not found");
+    await expect(repository.trash(MISSING_ID)).rejects.toThrow("News item not found");
+    await expect(repository.purge(MISSING_ID)).rejects.toThrow("News item not found");
   });
 
-  it("deletes an item", async () => {
+  it("trash hides an item and purge removes it for good", async () => {
     const created = await repository.create(make("Borrar"));
 
-    await repository.delete(created.props.id);
-
+    await repository.trash(created.props.id);
     expect(await repository.getById(created.props.id)).toBeNull();
+    expect((await repository.getTrashed(created.props.id))?.entity.props.title).toBe("Borrar");
+
+    await repository.purge(created.props.id);
+    expect(await repository.getTrashed(created.props.id)).toBeNull();
   });
 
   it("slugExists ignores the excluded item", async () => {

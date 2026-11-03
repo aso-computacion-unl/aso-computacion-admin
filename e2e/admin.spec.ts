@@ -49,3 +49,43 @@ test("an event published in the admin appears in the public content API", async 
   const revalidated = await request.get("/api/public/content", { headers: { "If-None-Match": etag ?? "" } });
   expect(revalidated.status()).toBe(304);
 });
+
+test("a published event moved to the trash leaves the public API, undo brings it back as a draft, and it can be deleted for good", async ({ page, request }) => {
+  const title = `E2E papelera ${Date.now()}`;
+  const publicTitles = async () =>
+    ((await (await request.get("/api/public/content")).json()).events as { title: string }[]).map((event) => event.title);
+
+  await logIn(page, PASSWORD);
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto("/admin/events/new");
+  await page.getByLabel("Título").fill(title);
+  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  await page.getByRole("button", { name: "Crear evento" }).click();
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  expect(await publicTitles()).toContain(title);
+
+  // Move to the trash: gone from the public content at once, and the toast offers to undo.
+  await page.goto("/admin/events");
+  await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
+  await page.getByRole("button", { name: "Sí, mover" }).click();
+  await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+  expect(await publicTitles()).not.toContain(title);
+
+  // Undo restores it, but as a draft: still not public.
+  await page.getByRole("button", { name: "Deshacer" }).click();
+  await expect(page.getByRole("status").getByText("Restaurado como borrador.")).toBeVisible();
+  await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+  expect(await publicTitles()).not.toContain(title);
+
+  // Trash it again, restore from the trash page, then delete it for good with the irreversible confirmation.
+  await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
+  await page.getByRole("button", { name: "Sí, mover" }).click();
+  await page.goto("/admin/papelera");
+  await expect(page.getByText(title)).toBeVisible();
+  await page.getByRole("button", { name: `Eliminar definitivamente: ${title}` }).click();
+  await expect(page.getByText("no se puede deshacer", { exact: false }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Sí, eliminar definitivamente" }).click();
+  await expect(page.getByRole("status").getByText("Eliminado definitivamente.")).toBeVisible();
+  await expect(page.getByText(title)).toHaveCount(0);
+});

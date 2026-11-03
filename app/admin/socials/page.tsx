@@ -3,9 +3,10 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { publicationSummary } from "@/interface/admin/publication-summary";
-import { deleteSocialLink, moveSocialLink, setSocialLinkPublished } from "@/interface/admin/socials/actions";
+import { trashSocialLink, moveSocialLink, setSocialLinkPublished } from "@/interface/admin/socials/actions";
 import { socialPlatformLabel } from "@/interface/admin/socials/platform-labels";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
+import { restoreTrashed } from "@/interface/admin/trash/actions";
 
 import { OrderedRow } from "../_components/ordered-row";
 import { PageHead } from "../_components/page-head";
@@ -65,7 +66,7 @@ export default async function AdminSocialLinksPage() {
                   action={moveSocialLink.bind(null, link.id)}
                 />
               }
-              remove={<DeleteButton label={link.label} warning="¿Eliminar esta red?" action={deleteSocialLink.bind(null, link.id)} />}
+              remove={<DeleteButton label={link.label} warning="¿Mover esta red a la papelera?" action={trashSocialLink.bind(null, link.id)} undo={restoreTrashed.bind(null, "social", link.id)} />}
             >
               <h2 className="font-display text-lg leading-tight wrap-anywhere">
                 <Link href={`/admin/socials/${link.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">

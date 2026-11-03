@@ -63,7 +63,7 @@ describe("landing content seed (integration)", () => {
     expect(first.failed).toBe(false);
     expect(await rowCounts()).toEqual({ events: 2, faqs: 1, pillars: 1, socials: 1, board: 2, settings: 1 });
     expect(storage.size).toBe(3);
-    expect(await prisma.event.findUniqueOrThrow({ where: { slug: "semana" } })).toMatchObject({ datePrecision: "month", isPublished: true, highlights: ["FLISOL"] });
+    expect(await prisma.event.findFirstOrThrow({ where: { slug: "semana" } })).toMatchObject({ datePrecision: "month", isPublished: true, highlights: ["FLISOL"] });
     expect(await prisma.boardMember.findMany({ orderBy: { sortOrder: "asc" } })).toMatchObject([
       { name: "Ana Pérez", isPublished: true, photoPublicId: "board/ana.jpg", photoAlt: "Foto de Ana" },
       { name: "Luis Gómez", isPublished: true, photoPublicId: "board/luis.jpg" },

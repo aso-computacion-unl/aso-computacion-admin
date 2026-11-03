@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Event as PrismaEvent } from "@prisma/client";
 
 import type { EventRepository } from "@/application/ports/event-repository.port";
 import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
@@ -9,7 +9,8 @@ import type { Event } from "@/domain/event";
 
 import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./event.mapper";
-import { publicationWhere, toPublicationCounts } from "./publication-filter";
+import { LIVE, publicationWhere, toPublicationCounts } from "./publication-filter";
+import { TrashablePrismaRepository } from "./trashable-prisma.repository";
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -20,7 +21,18 @@ function rethrowSlugCollision(error: unknown): never {
   throw error;
 }
 
-export class EventPrismaRepository implements EventRepository {
+export class EventPrismaRepository
+  extends TrashablePrismaRepository<Event, PrismaEvent>
+  implements EventRepository
+{
+  protected readonly delegate = prisma.event;
+  protected readonly trashConfig = {
+    notFound: "Event not found",
+    toDomain,
+    toUpdate: toPrismaUpdate,
+    mapConflict: rethrowSlugCollision,
+  };
+
   async create(event: Event): Promise<Event> {
     try {
       return toDomain(await prisma.event.create({ data: toPrismaCreate(event) }));
@@ -30,14 +42,14 @@ export class EventPrismaRepository implements EventRepository {
   }
 
   async getById(id: string): Promise<Event | null> {
-    const record = await prisma.event.findUnique({ where: { id } });
+    const record = await prisma.event.findUnique({ where: { id, ...LIVE } });
 
     return record ? toDomain(record) : null;
   }
 
   async slugExists(slug: string, excludeId?: string): Promise<boolean> {
     const record = await prisma.event.findFirst({
-      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      where: { slug, ...LIVE, ...(excludeId ? { id: { not: excludeId } } : {}) },
       select: { id: true },
     });
 
@@ -46,7 +58,7 @@ export class EventPrismaRepository implements EventRepository {
 
   async countByStatus(): Promise<PublicationCounts> {
     // Typed on its own: as an argument, Prisma infers its generic error type from the parameter instead.
-    const groups = await prisma.event.groupBy({ by: ["isPublished"], _count: { _all: true } });
+    const groups = await prisma.event.groupBy({ by: ["isPublished"], where: LIVE, _count: { _all: true } });
 
     return toPublicationCounts(groups);
   }
@@ -63,7 +75,7 @@ export class EventPrismaRepository implements EventRepository {
   async update(event: Event): Promise<Event> {
     try {
       const [record] = await prisma.event.updateManyAndReturn({
-        where: { id: event.props.id },
+        where: { id: event.props.id, ...LIVE },
         data: toPrismaUpdate(event),
       });
 
@@ -77,13 +89,13 @@ export class EventPrismaRepository implements EventRepository {
     }
   }
 
-  async delete(id: string): Promise<string[]> {
+  /** Removes a trashed event with its photo rows and returns their storage ids. */
+  async purge(id: string): Promise<string[]> {
     return prisma.$transaction(async (tx) => {
-      // The same lock `EventPhotoPrismaRepository.add` takes: an attach either
-      // committed its photo before this point (so it is read below) or waits
-      // for this transaction and then finds no event.
+      // The same lock `EventPhotoPrismaRepository.add` takes, but only a trashed event qualifies: an attach
+      // never lands on one (it needs a live event), so every photo is read below or was never stored.
       const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE
+        SELECT "id" FROM "Event" WHERE "id" = ${id} AND "deletedAt" IS NOT NULL FOR UPDATE
       `;
 
       if (locked.length === 0) {

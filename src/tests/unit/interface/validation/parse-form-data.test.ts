@@ -47,6 +47,19 @@ describe("parseFormData", () => {
     );
   });
 
+  it("rejects a request without a Content-Type header", async () => {
+    const request = { headers: new Headers(), formData: vi.fn() } as unknown as Request;
+
+    await expect(parseFormData(request)).rejects.toEqual(new HttpError(400, "Content-Type must be multipart/form-data"));
+    expect(request.formData).not.toHaveBeenCalled();
+  });
+
+  it("rejects a media type that only mentions multipart/form-data in a parameter", async () => {
+    await expect(parseFormData(mockRequest("text/plain; note=multipart/form-data; boundary=abc", new FormData()))).rejects.toEqual(
+      new HttpError(400, "Content-Type must be multipart/form-data with a valid boundary"),
+    );
+  });
+
   it("rejects a non-multipart request before reading form data", async () => {
     await expect(parseFormData(mockRequest("application/json", new FormData()))).rejects.toEqual(
       new HttpError(400, "Content-Type must be multipart/form-data"),

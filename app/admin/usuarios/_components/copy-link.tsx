@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const COPY_FAILED = "No se pudo copiar. Seleccione el link y cópielo a mano.";
 
-export function CopyLink({ link }: { link: string }) {
+export function CopyLink({ link, label = "Link de invitación" }: { link: string; label?: string }) {
   const [copied, setCopied] = useState<"yes" | "failed" | null>(null);
 
   async function copy() {
@@ -26,7 +26,7 @@ export function CopyLink({ link }: { link: string }) {
         <input
           readOnly
           value={link}
-          aria-label="Link de invitación"
+          aria-label={label}
           onFocus={(event) => event.currentTarget.select()}
           className="min-h-11 min-w-0 flex-1 basis-72 rounded border border-border bg-card px-3 font-mono text-[0.8125rem]"
         />

@@ -13,7 +13,7 @@ import {
   type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Children, createContext, isValidElement, useContext, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { Children, createContext, isValidElement, useContext, useId, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import { dropResult, placeMessage } from "@/interface/admin/reorder/reorder-drag";
 import { reorderContent } from "@/interface/admin/reorder/actions";
@@ -41,7 +41,7 @@ const INSTRUCTIONS: ScreenReaderInstructions = {
 
 interface ReorderableListProps {
   kind: ReorderKind;
-  /** The rows of the page, in order. The key of each child is its id. */
+  /** The rows of the page, in order. */
   items: readonly { id: string; label: string }[];
   /** How many items come before this page, so a drop on a later page sends its place in the whole list. */
   offset: number;
@@ -50,11 +50,23 @@ interface ReorderableListProps {
   /** Off while the list is searched: a place in the whole list is not known for a subset. */
   enabled: boolean;
   label: string;
-  /** The rows, each keyed by its item id. */
+  /** The rows: elements whose `id` prop (or key) is the id of their item. */
   children?: ReactNode;
 }
 
-const keyOf = (child: ReactNode) => (isValidElement(child) && child.key !== null ? String(child.key).replace(/^\.\$/, "") : null);
+/**
+ * The item a row stands for: its `id` prop, else its key. The key alone is not enough: in development the server streams
+ * rows past the first few as separate chunks and the browser hands them over keyed by index (".3"), not by id.
+ */
+const keyOf = (child: ReactNode) => {
+  if (!isValidElement(child)) return null;
+
+  const { id } = child.props as { id?: unknown };
+
+  if (typeof id === "string") return id;
+
+  return child.key !== null ? String(child.key).replace(/^\.\$/, "") : null;
+};
 
 /**
  * An ordered list whose rows can be dragged to a new place with the mouse, a finger or the
@@ -68,6 +80,8 @@ export function ReorderableList({ kind, items, offset, total, enabled, label, ch
   const [problem, setProblem] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { notify } = useToast();
+  // dnd-kit numbers its aria ids with a module-level counter: the server keeps counting across requests and the browser starts at zero.
+  const dndId = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: DRAG_DISTANCE },
@@ -129,6 +143,7 @@ export function ReorderableList({ kind, items, offset, total, enabled, label, ch
       ) : null}
       <div className="tl mt-6">
         <DndContext
+          id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
           modifiers={[verticalOnly]}

@@ -48,14 +48,16 @@ export function isGoogleConfigured(env: Env = process.env): boolean {
 }
 
 const GOOGLE_VARIABLES = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "AUTH_URL"] as const;
+const GOOGLE_CLIENT_VARIABLES = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] as const;
 
 /**
- * The variables to fix when the Google setup is half done: none of the three set is a deliberate
- * "no Google" (empty list), any of them set without the whole being valid is a mistake. Only names,
- * never values.
+ * The variables to fix when the Google setup is half done. Only the client id and secret say "Google is
+ * being set up": neither set is a deliberate "no Google" (empty list), either set without the whole being
+ * valid is a mistake. AUTH_URL alone is not a Google signal, because invitations, preview links and
+ * registration links need it too. Only names, never values.
  */
 export function googleConfigProblems(env: Env = process.env): string[] {
-  if (GOOGLE_VARIABLES.every((name) => value(env, name) === undefined) || googleConfig(env)) {
+  if (GOOGLE_CLIENT_VARIABLES.every((name) => value(env, name) === undefined) || googleConfig(env)) {
     return [];
   }
 
@@ -63,8 +65,8 @@ export function googleConfigProblems(env: Env = process.env): string[] {
 }
 
 /**
- * The shared-password emergency login. Implicitly on only when none of the Google variables is set
- * (local development, and production until Google is set up). Once Google is configured, or half
+ * The shared-password emergency login. Implicitly on only when neither Google client variable is set
+ * (local development, and production until Google is set up; AUTH_URL alone does not count). Once Google is configured, or half
  * configured (an error that must not silently re-open the password), only the explicit flag turns it
  * on. Turning it off also makes the guard reject every break-glass session that is still open.
  */

@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { updateBoardMember } from "@/interface/admin/board/actions";
 import { getAdminBoardMember } from "@/interface/admin/board/board-members-admin-read";
 
-import { FormPage, Panel } from "../../../_components/page-head";
+import { recordStatus } from "../../../_components/page-header";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { BoardMemberForm } from "../../_components/board-member-form";
 import { BoardMemberPhotoPanel } from "../../_components/board-member-photo-panel";
 
@@ -20,10 +21,11 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
   if (!member) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/board"
       backLabel="Volver a la directiva"
       title="Editar integrante"
+      status={recordStatus(member.name, member.isPublished, "m")}
       aside={<BoardMemberPhotoPanel key={member.photo?.url ?? "no-photo"} memberId={id} photo={member.photo} />}
     >
       {/* Keyed by the photo so the alt field and the panel start fresh after a replace or remove. */}
@@ -41,6 +43,6 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

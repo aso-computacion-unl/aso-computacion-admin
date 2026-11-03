@@ -11,6 +11,7 @@ import type {
   ForumSessionRecord,
   ForumSessionRepository,
   ForumThreadRow,
+  ForumThreadState,
 } from "@/application/ports/forum.ports";
 import type { ForumReactionRepository, ForumThreadReactions } from "@/application/ports/forum-reactions.ports";
 import type {
@@ -243,6 +244,16 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     const items = await Promise.all(visible.slice(page.offset, page.offset + page.limit).map(async (thread) => this.row(thread, await this.nameOf(thread.authorId))));
 
     return { items, total: visible.length };
+  }
+
+  async listFeed(scope: { categoryId?: string; state: ForumThreadState }, page: { offset: number; limit: number }) {
+    const inScope = [...this.store.threads.values()].filter((thread) => !thread.hiddenAt && (scope.categoryId === undefined || thread.categoryId === scope.categoryId));
+    const solved = inScope.filter((thread) => thread.bestReplyId !== null);
+    const open = inScope.filter((thread) => thread.bestReplyId === null);
+    const listed = (scope.state === "solved" ? solved : open).sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
+    const items = await Promise.all(listed.slice(page.offset, page.offset + page.limit).map(async (thread) => this.row(thread, await this.nameOf(thread.authorId))));
+
+    return { items, counts: { open: open.length, solved: solved.length } };
   }
 
   async updateThread(id: string, change: { title: string; body: string; at: Date; authorId: string }): Promise<ForumEditOutcome> {

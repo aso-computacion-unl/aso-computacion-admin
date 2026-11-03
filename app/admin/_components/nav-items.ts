@@ -54,9 +54,25 @@ const TAB_HREFS = ["/admin/events", "/admin/news", "/admin/board", "/admin/faqs"
 
 export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NAV.filter((item) => item.href === href));
 
+export interface NavGroup {
+  /** Shown above the group in the sidebar; the home stands alone, without one. */
+  label: string | null;
+  items: NavItem[];
+}
+
+/** The sidebar in groups: the home, what the landing shows, the tools around it, and the account. */
+export function sideNavGroups(role: Role): NavGroup[] {
+  return [
+    { label: null, items: [HOME_NAV] },
+    { label: "landing", items: visibleTo(MODULE_NAV, role) },
+    { label: "herramientas", items: [MEDIA_NAV, TRASH_NAV, FORUM_NAV] },
+    { label: "cuenta", items: visibleTo(ACCOUNT_NAV, role) },
+  ];
+}
+
 /** The whole sidebar, in order. */
 export function sideNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role), MEDIA_NAV, TRASH_NAV, FORUM_NAV, ...visibleTo(ACCOUNT_NAV, role)];
+  return sideNavGroups(role).flatMap((group) => group.items);
 }
 
 /** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */

@@ -53,6 +53,6 @@ describe("the new-thread page", () => {
     expect(html).toContain('name="title"');
     expect(html).toContain('name="body"');
     expect(html).toContain("Publicar hilo");
-    expect(html).toContain('href="/foro/c/programacion"');
+    expect(html).toContain('href="/foro?categoria=programacion"');
   });
 });

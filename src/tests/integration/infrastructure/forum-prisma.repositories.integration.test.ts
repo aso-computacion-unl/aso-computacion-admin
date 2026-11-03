@@ -151,6 +151,29 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect([first.total, second.total]).toEqual([3, 3]);
   });
 
+  it("lists the feed per state across categories, counts both states, leaves hidden threads out and can narrow to one category", async () => {
+    await seed();
+    await categories.create(makeForumCategory({ id: "c2", slug: "materias", sortOrder: 2 }));
+    await posts.create(makeForumThread({ id: "open-1", categoryId: "c1", authorId: "ana", lastActivityAt: later(1) }));
+    await posts.create(makeForumThread({ id: "open-2", categoryId: "c2", authorId: "beto", lastActivityAt: later(3) }));
+    await posts.create(makeForumThread({ id: "solved-1", categoryId: "c2", authorId: "ana", lastActivityAt: later(2) }));
+    await posts.create(makeForumThread({ id: "hidden", categoryId: "c1", authorId: "ana", hiddenAt: T0, lastActivityAt: later(9) }));
+    await posts.addReply(makeForumReply({ id: "r1", threadId: "solved-1", authorId: "beto", createdAt: later(2) }));
+    await prisma.forumThread.update({ where: { id: "solved-1" }, data: { bestReplyId: "r1" } });
+
+    const open = await posts.listFeed({ state: "open" }, { offset: 0, limit: 1 });
+    const rest = await posts.listFeed({ state: "open" }, { offset: 1, limit: 1 });
+    const solved = await posts.listFeed({ state: "solved" }, { offset: 0, limit: 20 });
+    const narrowed = await posts.listFeed({ categoryId: "c1", state: "open" }, { offset: 0, limit: 20 });
+
+    expect(open.items.map((row) => row.thread.id)).toEqual(["open-2"]);
+    expect(rest.items.map((row) => row.thread.id)).toEqual(["open-1"]);
+    expect(open.counts).toEqual({ open: 2, solved: 1 });
+    expect(solved.items.map((row) => [row.thread.id, row.authorName, row.replyCount])).toEqual([["solved-1", "Ana", 1]]);
+    expect(narrowed.items.map((row) => row.thread.id)).toEqual(["open-1"]);
+    expect(narrowed.counts).toEqual({ open: 1, solved: 0 });
+  });
+
   it("adds a reply, moves the thread's activity and lists replies oldest first without the hidden ones", async () => {
     await seed();
     await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));

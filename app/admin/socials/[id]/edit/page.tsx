@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { updateSocialLink } from "@/interface/admin/socials/actions";
 import { getAdminSocialLink } from "@/interface/admin/socials/socials-admin-read";
 
-import { FormPage, Panel } from "../../../_components/page-head";
+import { recordStatus } from "../../../_components/page-header";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { SocialForm } from "../../_components/social-form";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,12 @@ export default async function EditSocialLinkPage({ params }: EditSocialLinkPageP
   if (!link) notFound();
 
   return (
-    <FormPage backHref="/admin/socials" backLabel="Volver a redes" title="Editar red">
+    <FormLayout
+      backHref="/admin/socials"
+      backLabel="Volver a redes"
+      title="Editar red"
+      status={recordStatus(link.label, link.isPublished, "f")}
+    >
       <Panel>
         <SocialForm
           action={updateSocialLink.bind(null, id)}
@@ -35,6 +41,6 @@ export default async function EditSocialLinkPage({ params }: EditSocialLinkPageP
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

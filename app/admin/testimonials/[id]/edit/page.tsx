@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { updateTestimonial } from "@/interface/admin/testimonials/actions";
 import { getAdminTestimonial } from "@/interface/admin/testimonials/testimonials-admin-read";
 
-import { FormPage, Panel } from "../../../_components/page-head";
+import { recordStatus } from "../../../_components/page-header";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { TestimonialForm } from "../../_components/testimonial-form";
 import { TestimonialPhotoPanel } from "../../_components/testimonial-photo-panel";
 
@@ -20,10 +21,11 @@ export default async function EditTestimonialPage({ params }: EditTestimonialPag
   if (!testimonial) notFound();
 
   return (
-    <FormPage
+    <FormLayout
       backHref="/admin/testimonials"
       backLabel="Volver a los testimonios"
       title="Editar testimonio"
+      status={recordStatus(testimonial.name, testimonial.isPublished, "m")}
       aside={<TestimonialPhotoPanel key={testimonial.photo?.url ?? "no-photo"} testimonialId={id} photo={testimonial.photo} />}
     >
       {/* Keyed by the photo so the alt field and the panel start fresh after a replace or remove. */}
@@ -42,6 +44,6 @@ export default async function EditTestimonialPage({ params }: EditTestimonialPag
           }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

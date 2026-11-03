@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { updateFaq } from "@/interface/admin/faqs/actions";
 import { getAdminFaq } from "@/interface/admin/faqs/faqs-admin-read";
 
-import { FormPage, Panel } from "../../../_components/page-head";
+import { recordStatus } from "../../../_components/page-header";
+import { FormLayout, Panel } from "../../../_components/form-layout";
 import { FaqForm } from "../../_components/faq-form";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,12 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
   if (!faq) notFound();
 
   return (
-    <FormPage backHref="/admin/faqs" backLabel="Volver a preguntas" title="Editar pregunta">
+    <FormLayout
+      backHref="/admin/faqs"
+      backLabel="Volver a preguntas"
+      title="Editar pregunta"
+      status={recordStatus(faq.question, faq.isPublished, "f")}
+    >
       <Panel>
         <FaqForm
           action={updateFaq.bind(null, id)}
@@ -27,6 +33,6 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
           initialValues={{ question: faq.question, answer: faq.answer, command: faq.command ?? "", isPublished: faq.isPublished }}
         />
       </Panel>
-    </FormPage>
+    </FormLayout>
   );
 }

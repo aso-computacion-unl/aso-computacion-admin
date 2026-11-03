@@ -7,27 +7,30 @@ import { trashSocialLink, moveSocialLink, setSocialLinkPublished } from "@/inter
 import { socialPlatformLabel } from "@/interface/admin/socials/platform-labels";
 import { getAdminSocialLinks } from "@/interface/admin/socials/socials-admin-read";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
+import { showListTools } from "@/interface/admin/list-params";
 
 import { BulkSelection } from "../_components/bulk-selection";
+import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
 
 export default async function AdminSocialLinksPage() {
   const links = await getAdminSocialLinks();
+  const tools = showListTools(links.length);
 
   return (
     <div>
-      <PageHead
+      <PageHeader
         title="Redes sociales"
-        meta={`main · ${publicationSummary(links)}`}
+        status={`main · ${publicationSummary(links)}`}
         action={
-          <Button asChild className="min-h-12 flex-none">
+          <Button asChild>
             <Link href="/admin/socials/new">
               <Icon name="plus" />
               Agregar red
@@ -37,6 +40,7 @@ export default async function AdminSocialLinksPage() {
       />
       {links.length === 0 ? (
         <EmptyState
+          icon="share"
           action={
             <Button asChild>
               <Link href="/admin/socials/new">
@@ -49,7 +53,7 @@ export default async function AdminSocialLinksPage() {
           Todavía no hay redes. Se muestran en el sitio en el orden de esta lista.
         </EmptyState>
       ) : (
-        <BulkSelection kind="social" items={links.map((link) => ({ id: link.id, label: link.label }))}>
+        <BulkSelection kind="social" enabled={tools} items={links.map((link) => ({ id: link.id, label: link.label }))}>
           <ReorderableList kind="social" items={links.map((link) => ({ id: link.id, label: link.label }))} offset={0} total={links.length} enabled={true} label="Redes sociales, en el orden en que se muestran">
             {links.map((link, index) => (
               <OrderedRow
@@ -82,6 +86,7 @@ export default async function AdminSocialLinksPage() {
               </OrderedRow>
             ))}
           </ReorderableList>
+          {tools ? null : <AddRow href="/admin/socials/new">Agregar red</AddRow>}
         </BulkSelection>
       )}
     </div>

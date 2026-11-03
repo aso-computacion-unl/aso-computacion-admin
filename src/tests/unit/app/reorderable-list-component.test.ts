@@ -28,6 +28,17 @@ describe("ReorderableList", () => {
     expect(html).toContain("aria-describedby=");
   });
 
+  it("renders the same ids every time, so the server and the client markup agree", () => {
+    // dnd-kit numbers its aria ids with a module-level counter unless it is given an id: the server keeps
+    // counting across requests while the browser starts at zero, and hydration reports a mismatch.
+    const first = list(true);
+    const second = list(true);
+
+    expect(second).toBe(first);
+    expect(first).toContain("aria-describedby=");
+    expect(first).not.toMatch(/DndDescribedBy-\d+/);
+  });
+
   it("keeps the rows in the order they were given", () => {
     const html = list(true);
 
@@ -40,6 +51,16 @@ describe("ReorderableList", () => {
 
     expect(html).not.toContain("Arrastrar para reordenar");
     expect(html).toContain("Primera");
+  });
+
+  it("finds a row by its id when the key is lost on the way from the server", () => {
+    // In development the server streams rows past the first few as separate chunks, and the browser hands them over
+    // with an index key (".3") instead of their id: a list keyed by key alone silently lost them.
+    const unkeyed = ITEMS.map((item, index) => createElement(OrderedRow, { id: item.id, published: true, position: index + 1, label: item.label, editHref: `/x/${item.id}`, toggle: null, remove: null }, createElement("h2", null, item.label)));
+    const html = renderToStaticMarkup(createElement(ReorderableList, { kind: "faq", items: ITEMS, offset: 0, total: ITEMS.length, enabled: true, label: "Preguntas" }, ...unkeyed));
+
+    expect(html).toContain("Primera");
+    expect(html).toContain("Segunda");
   });
 
   it("drops a child that is not one of the items instead of rendering a hole", () => {

@@ -6,9 +6,9 @@ import { purgeTrashed, restoreTrashed } from "@/interface/admin/trash/actions";
 import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
 import { formatDeletedAt, groupTrash, purgeWarning, TRASH_KIND_LABELS } from "@/interface/admin/trash/trash-labels";
 
-import { PageHead } from "../_components/page-head";
+import { PageHeader } from "../_components/page-header";
 import { DeleteButton, RestoreButton } from "../_components/row-actions";
-import { EmptyState } from "../_components/timeline-parts";
+import { EmptyState } from "../_components/empty-state";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -20,15 +20,19 @@ export default async function AdminTrashPage() {
 
   return (
     <div>
-      <PageHead title="Papelera" meta={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`} />
-      <p className="mt-4 max-w-2xl text-mist">
-        Lo que se mueve a la papelera deja de mostrarse en el sitio y se conserva aquí. Al restaurarlo vuelve como borrador: nada se publica por sí solo.
-        {canPurge
-          ? "Eliminar definitivamente borra el elemento y sus archivos, y no se puede deshacer."
-          : "Solo un administrador puede eliminar definitivamente."}
-      </p>
+      <PageHeader
+        title="Papelera"
+        status={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`}
+        description={
+          <>
+            Lo que está aquí no se muestra en el sitio y, al restaurarlo, vuelve como borrador.{" "}
+            {canPurge ? "Eliminar definitivamente borra también sus archivos y no se puede deshacer." : "Solo un administrador puede eliminar definitivamente."}
+          </>
+        }
+      />
       {items.length === 0 ? (
         <EmptyState
+          icon="trash"
           action={
             <Button asChild variant="line">
               <Link href="/admin">Volver al inicio</Link>

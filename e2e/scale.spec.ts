@@ -26,10 +26,12 @@ async function createFaq(page: Page, question: string) {
 test("a list can be searched, and the rows selected on it can be unpublished and trashed in one step", async ({ page, request }) => {
   const stamp = Date.now();
   const questions = [`Alfa ${stamp}`, `Beta ${stamp}`, `Gamma ${stamp}`];
+  // A list under five rows is short and hides its search and select-all bar: two more rows make this one long enough to have them.
+  const fillers = [`Relleno uno ${stamp}`, `Relleno dos ${stamp}`];
   const publicQuestions = async () => ((await (await request.get("/api/public/content")).json()).faqs as { question: string }[]).map((faq) => faq.question);
 
   await logInAsAdmin(page);
-  for (const question of questions) await createFaq(page, question);
+  for (const question of [...questions, ...fillers]) await createFaq(page, question);
   expect(await publicQuestions()).toEqual(expect.arrayContaining(questions));
 
   // Search narrows the list to what matches, with the count, and clearing it brings the rest back.
@@ -59,13 +61,11 @@ test("a list can be searched, and the rows selected on it can be unpublished and
   expect(afterUnpublish).not.toContain(questions[0]);
   expect(afterUnpublish).not.toContain(questions[2]);
 
-  // Trash all three with one confirmation: they leave the list and show up in the trash.
-  await page.getByRole("checkbox", { name: `Seleccionar: ${questions[0]}` }).check();
-  await page.getByRole("checkbox", { name: `Seleccionar: ${questions[1]}` }).check();
-  await page.getByRole("checkbox", { name: `Seleccionar: ${questions[2]}` }).check();
+  // Trash all of them with one confirmation: they leave the list and show up in the trash.
+  for (const question of [...questions, ...fillers]) await page.getByRole("checkbox", { name: `Seleccionar: ${question}` }).check();
   await page.getByRole("button", { name: "Mover a la papelera", exact: true }).click();
   await page.getByRole("button", { name: "Sí, mover" }).click();
-  await expect(page.getByRole("status").getByText("3 elementos movidos a la papelera.")).toBeVisible();
+  await expect(page.getByRole("status").getByText("5 elementos movidos a la papelera.")).toBeVisible();
   await expect(page.getByRole("link", { name: questions[0]! })).toHaveCount(0);
   expect(await publicQuestions()).not.toEqual(expect.arrayContaining([questions[1]!]));
   await page.goto("/admin/papelera");

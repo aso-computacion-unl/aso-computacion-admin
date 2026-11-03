@@ -69,7 +69,7 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
   const context = await memberContext(browser);
   const page = await context.newPage();
 
-  for (const path of ["/foro", "/foro/c/programacion", "/foro/hilo/t-solved", "/foro/hilo/t-locked", "/foro/c/programacion/nuevo", "/foro/hilo/does-not-exist"]) {
+  for (const path of ["/foro", "/foro?categoria=programacion", "/foro/hilo/t-solved", "/foro/hilo/t-locked", "/foro/c/programacion/nuevo", "/foro/hilo/does-not-exist"]) {
     await page.goto(path);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -78,14 +78,29 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
     if (SCREENSHOT_DIR) await page.screenshot({ path: `${SCREENSHOT_DIR}/${path.replace(/\W+/g, "_")}.png`, fullPage: true });
   }
 
+  // The old category URL lands on the home list with that category active.
   await page.goto("/foro/c/programacion");
+  await expect(page).toHaveURL(/\/foro\?categoria=programacion$/);
   await expect(page.getByRole("link", { name: /¿Cómo configuro WSL2\?/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Segmentation fault/ })).toHaveCount(0);
 
   await page.getByRole("link", { name: /Resueltos/ }).click();
-  await expect(page).toHaveURL(/estado=resueltos$/);
+  await expect(page).toHaveURL(/\/foro\?categoria=programacion&estado=resueltos$/);
   await expect(page.getByRole("link", { name: /Segmentation fault/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /¿Cómo configuro WSL2\?/ })).toHaveCount(0);
+
+  // The home is the same list across categories, with the same tabs.
+  await page.goto("/foro");
+  await expect(page.getByRole("heading", { level: 1, name: "Hilos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /¿Cómo configuro WSL2\?/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Segmentation fault/ })).toHaveCount(0);
+  await page.getByRole("link", { name: /Resueltos/ }).click();
+  await expect(page).toHaveURL(/\/foro\?estado=resueltos$/);
+  await expect(page.getByRole("link", { name: /Segmentation fault/ })).toBeVisible();
+
+  // An open thread says so in words, like a solved one.
+  await page.goto("/foro/hilo/t-open");
+  await expect(page.getByText("Abierto", { exact: true })).toBeVisible();
 
   await page.goto("/foro/hilo/t-locked");
   await expect(page.getByText("Hilo cerrado por la moderación")).toBeVisible();
@@ -148,7 +163,7 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   const page = await context.newPage();
 
   await page.goto("/foro");
-  await page.getByRole("link", { name: /Programación/ }).click();
+  await page.getByRole("link", { name: "Programación", exact: true }).click();
   await page.getByRole("link", { name: "Nuevo hilo" }).click();
   await page.getByLabel("Título").fill("Hilo creado desde el e2e");
   await page.getByLabel("Texto (Markdown)").fill("Un texto con **negrita** y\n\n```js\nconsole.log(1);\n```");
@@ -164,6 +179,7 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await page.getByRole("button", { name: "Responder" }).click();
   await expect(page.getByLabel("Su respuesta")).toHaveAttribute("aria-invalid", "true");
 
+  await page.getByRole("button", { name: /^Menú de cuenta: Daniela P\./ }).click();
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 

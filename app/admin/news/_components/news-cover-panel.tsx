@@ -20,8 +20,8 @@ export function NewsCoverPanel({ newsId, cover }: NewsCoverPanelProps) {
       remove={() => removeNewsCover(newsId)}
       copy={{
         empty: "Esta noticia no tiene foto de portada. Es opcional.",
-        add: "Agregar foto de portada",
-        replace: "Reemplazar foto de portada",
+        add: "Elegir foto de portada",
+        replace: "Elegir otra foto de portada",
         altLabel: "Descripción de la foto nueva",
         removeTrigger: "Quitar portada",
         removeWarning: "¿Quitar la foto de portada?",

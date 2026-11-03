@@ -40,6 +40,8 @@ export async function createPreviewToken(_prevState: PreviewTokenResult | null, 
     await recordAudit(actor, {
       action: "preview.token_create",
       entityType: "preview",
+      // The lifetime key, so the preview page can say when each code expires. Never the token.
+      entityId: lifetime,
       summary: `Código de vista previa generado (${previewLifetimeLabel(lifetime)})`,
     });
     const origin = publicOrigin(process.env.AUTH_URL);

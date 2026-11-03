@@ -12,6 +12,7 @@ describe("entityTypeLabel", () => {
     expect(entityTypeLabel("forum_reply")).toBe("Respuesta del foro");
     expect(entityTypeLabel("forum_member")).toBe("Cuenta del foro");
     expect(entityTypeLabel("forum_report")).toBe("Reporte del foro");
+    expect(entityTypeLabel("preview")).toBe("Vista previa");
     expect(entityTypeLabel("whatever")).toBe("whatever");
   });
 });

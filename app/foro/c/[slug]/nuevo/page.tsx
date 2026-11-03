@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Icon } from "@/components/icons";
-import { categoryHref } from "@/interface/forum/forum-links";
+import { feedHref } from "@/interface/forum/forum-links";
 import { getForumCategories } from "@/interface/forum/forum-read";
 
 import { NewThreadForm } from "../../../_components/new-thread-form";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewThreadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = (await getForumCategories(`${categoryHref(slug)}/nuevo`)).find((candidate) => candidate.slug === slug);
+  const category = (await getForumCategories(`/foro/c/${slug}/nuevo`)).find((candidate) => candidate.slug === slug);
 
   if (!category) {
     notFound();
@@ -23,7 +23,7 @@ export default async function NewThreadPage({ params }: { params: Promise<{ slug
 
   return (
     <>
-      <Link href={categoryHref(category.slug)} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
+      <Link href={feedHref({ category: category.slug })} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
         <Icon name="left" className="size-4" />
         {category.name}
       </Link>

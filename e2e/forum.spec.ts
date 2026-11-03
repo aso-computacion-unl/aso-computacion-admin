@@ -15,12 +15,13 @@ test("a visitor at /foro sees the sign-in and none of the forum, on a phone too"
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto("/foro");
 
-  await expect(page.getByRole("heading", { level: 1, name: "Entre al foro con su cuenta de Google" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "El foro de Computación" })).toBeVisible();
   const signIn = page.getByRole("link", { name: "Entrar con Google" });
   await expect(signIn).toBeVisible();
   await expect(signIn).toHaveAttribute("href", "/foro/auth/google/start");
   await expect(page.getByRole("link", { name: "Cerrar sesión" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Categorías" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Menú de cuenta/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Hilos" })).toHaveCount(0);
   await expectNoHorizontalScroll(page);
 });
 
@@ -54,7 +55,7 @@ test("an admin session is not a forum member", async ({ page }) => {
   await page.goto("/foro");
 
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Categorías" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Hilos" })).toHaveCount(0);
 
   await page.goto("/foro/c/programacion");
   await expect(page).toHaveURL(`/foro?next=${encodeURIComponent("/foro/c/programacion")}`);

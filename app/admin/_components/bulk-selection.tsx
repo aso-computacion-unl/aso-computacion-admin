@@ -44,6 +44,8 @@ interface BulkSelectionProps {
   kind: BulkKind;
   /** The rows on the page, in order: the "select all" of the bar covers exactly these. */
   items: readonly { id: string; label: string }[];
+  /** False on a short list: no select-all bar and no row checkboxes, only the rows. */
+  enabled?: boolean;
   children?: ReactNode;
 }
 
@@ -54,7 +56,7 @@ const OPERATION_VARIANT = { publish: "line", unpublish: "line", trash: "quiet" }
  * all ask for a confirmation; the server reports a result per item, and what failed stays
  * selected with its reason so it can be retried.
  */
-export function BulkSelection({ kind, items, children }: BulkSelectionProps) {
+export function BulkSelection({ kind, items, enabled = true, children }: BulkSelectionProps) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState<BulkOperation | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export function BulkSelection({ kind, items, children }: BulkSelectionProps) {
     [selected, pending],
   );
 
-  if (items.length === 0) return <>{children}</>;
+  if (items.length === 0 || !enabled) return <>{children}</>;
 
   return (
     <SelectionContext.Provider value={api}>

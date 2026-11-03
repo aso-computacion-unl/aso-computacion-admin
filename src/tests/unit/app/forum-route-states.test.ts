@@ -31,6 +31,16 @@ describe("the forum error boundary", () => {
     expect(log).toHaveBeenCalledWith("Forum route error", "abc123");
   });
 
+  it("sets its title in the forum's Mona Sans title style, not the brand display face (S9)", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const title = render(new Error("boom")).match(/<h1[^>]*>/)?.[0] ?? "";
+
+    expect(title).not.toContain("font-display");
+    expect(title).toContain("font-bold");
+    expect(title).toContain("font-stretch-[106%]");
+  });
+
   it("shows no reference when the error has no digest", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
@@ -45,6 +55,12 @@ describe("the forum not-found page", () => {
     expect(html).toContain("No encontrado");
     expect(html).toContain("ya no está disponible");
     expect(html).toContain('href="/foro"');
+  });
+
+  it("does not name a kind of page, because categories, threads and events all end here", () => {
+    const html = renderToStaticMarkup(createElement(ForumNotFound));
+
+    expect(html).not.toMatch(/categor[ií]a|hilo/i);
   });
 });
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ImageUploadFile, MediaStoragePort, UploadOptions, UploadResult } from "@/application/ports/media-storage.port";
+import type { DestroyOutcome, ImageUploadFile, MediaStoragePort, UploadOptions, UploadResult } from "@/application/ports/media-storage.port";
 
 /**
  * Builds the real adapter on the first upload or destroy, not when a container is
@@ -17,7 +17,7 @@ export class LazyMediaStorage implements MediaStoragePort {
     return this.resolve().then((storage) => storage.upload(file, options));
   }
 
-  destroy(publicId: string): Promise<void> {
+  destroy(publicId: string): Promise<DestroyOutcome> {
     return this.resolve().then((storage) => storage.destroy(publicId));
   }
 

@@ -279,11 +279,35 @@ describe("CloudinaryMediaStorage", () => {
     stubCloudinaryEnvironment();
     cloudinaryMocks.destroy.mockResolvedValue({ result: "ok" });
 
-    await new CloudinaryMediaStorage().destroy("aso-computacion/events/photo");
+    await expect(new CloudinaryMediaStorage().destroy("aso-computacion/events/photo")).resolves.toBe("deleted");
 
     expect(cloudinaryMocks.destroy).toHaveBeenCalledWith("aso-computacion/events/photo", {
       resource_type: "image",
     });
+  });
+});
+
+describe("CloudinaryMediaStorage.destroy result", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("reports a file the provider no longer has as not_found, not as a failure", async () => {
+    stubCloudinaryEnvironment();
+    cloudinaryMocks.destroy.mockResolvedValue({ result: "not found" });
+
+    await expect(new CloudinaryMediaStorage().destroy("aso-computacion/events/photo")).resolves.toBe("not_found");
+  });
+
+  it.each([
+    ["an error result", { result: "error" }],
+    ["no result", {}],
+    ["nothing at all", undefined],
+  ])("fails when the provider answers %s: it is no deletion at all", async (_label, answer) => {
+    stubCloudinaryEnvironment();
+    cloudinaryMocks.destroy.mockResolvedValue(answer);
+
+    await expect(new CloudinaryMediaStorage().destroy("aso-computacion/events/photo")).rejects.toThrow("aso-computacion/events/photo");
   });
 });
 

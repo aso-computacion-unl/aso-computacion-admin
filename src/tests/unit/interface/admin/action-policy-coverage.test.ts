@@ -40,6 +40,7 @@ describe("server action policy", () => {
       "forum:createForumCategory",
       "forum:deleteForumCategory",
       "forum:updateForumCategory",
+      "media:deleteOrphanImages",
       "settings:updateSiteSettings",
       "trash:purgeTrashed",
       "users:changeUserRole",

@@ -22,7 +22,8 @@ export type {
   EventResult,
 } from "./dto/event-result.dto";
 export type { EventPhotoRepository } from "./ports/event-photo-repository.port";
-export type { ListCriteria, PublicationCounts, PublicationStatus } from "./ports/list-criteria";
+export type { ListCriteria, Page, PageableRepository, PageRequest, PublicationCounts, PublicationStatus } from "./ports/list-criteria";
+export { fetchPage } from "./ports/list-criteria";
 export { CountByStatusUseCase } from "./use-cases/count-by-status.use-case";
 export type { EventRepository } from "./ports/event-repository.port";
 export {
@@ -39,11 +40,26 @@ export { SetEventPublishedUseCase } from "./use-cases/set-event-published.use-ca
 export { UpdateEventPhotoAltUseCase } from "./use-cases/update-event-photo-alt.use-case";
 export { UpdateEventUseCase } from "./use-cases/update-event.use-case";
 export type { FaqResult } from "./dto/faq-result.dto";
+export type { MediaLibraryPort, MediaUsage, MediaUsageKind, MediaUsageReader, StoredAsset, StoredAssetPage } from "./ports/media-library.port";
+export { MANAGED_MEDIA_FOLDERS, MEDIA_OWNERS } from "./media-owners";
+export type { MediaOwner } from "./media-owners";
+export { ListMediaLibraryUseCase, MEDIA_PAGE_SIZE } from "./use-cases/list-media-library.use-case";
+export type { MediaLibraryItem, MediaLibraryPage } from "./use-cases/list-media-library.use-case";
+export {
+  DeleteOrphanImagesUseCase,
+  FindOrphanImagesUseCase,
+  ORPHAN_DELETE_MAX,
+  ORPHAN_MIN_AGE_MS,
+  ORPHAN_SCAN_PAGE_SIZE,
+} from "./use-cases/media-orphans.use-cases";
+export type { OrphanCandidate, OrphanDeletion, OrphanOutcome, OrphanScan } from "./use-cases/media-orphans.use-cases";
 export type { OrderedContent, OrderedContentRepository } from "./ports/ordered-content-repository.port";
 export {
   GetOrderedContentUseCase,
+  ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   nextSortOrder,
 } from "./use-cases/ordered-content.use-cases";

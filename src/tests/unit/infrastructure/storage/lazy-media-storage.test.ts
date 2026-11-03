@@ -6,7 +6,7 @@ import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
 function fakeStorage(): MediaStoragePort {
   return {
     upload: vi.fn().mockResolvedValue({ url: "u", publicId: "p", width: 1, height: 1 }),
-    destroy: vi.fn().mockResolvedValue(undefined),
+    destroy: vi.fn().mockResolvedValue("deleted"),
   };
 }
 
@@ -53,7 +53,7 @@ describe("LazyMediaStorage", () => {
     const storage = new LazyMediaStorage(factory);
 
     await expect(storage.destroy("p")).rejects.toThrow("Cloudinary configuration is invalid.");
-    await expect(storage.destroy("p")).resolves.toBeUndefined();
+    await expect(storage.destroy("p")).resolves.toBe("deleted");
     expect(factory).toHaveBeenCalledTimes(2);
   });
 });

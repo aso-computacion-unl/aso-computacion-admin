@@ -1,10 +1,10 @@
 import type { Event } from "@/domain/event";
 
-import type { ListCriteria, PublicationCounter } from "./list-criteria";
+import type { ListCriteria, PageableRepository, PublicationCounter } from "./list-criteria";
 import type { TrashableRepository } from "./trashable-repository.port";
 
 /** Persistence port for events. Implemented by the Prisma adapter and by in-memory fakes in tests. */
-export interface EventRepository extends PublicationCounter, TrashableRepository<Event> {
+export interface EventRepository extends PublicationCounter, PageableRepository<Event>, TrashableRepository<Event> {
   create(event: Event): Promise<Event>;
   getById(id: string): Promise<Event | null>;
   /** The live (not trashed) event with this slug, drafts and windows included: the caller decides what is visible. */
@@ -13,6 +13,7 @@ export interface EventRepository extends PublicationCounter, TrashableRepository
   slugExists(slug: string, excludeId?: string): Promise<boolean>;
   /** Every event, drafts included unless `criteria` narrows it: date descending (undated last), then newest first. */
   list(criteria?: ListCriteria): Promise<Event[]>;
+  // `listPage` (from `PageableRepository`) is the same list in the same order, one window of it, narrowed by `criteria.search` too.
   update(event: Event): Promise<Event>;
   /**
    * Removes a TRASHED event and, by cascade, its photo rows, and returns the

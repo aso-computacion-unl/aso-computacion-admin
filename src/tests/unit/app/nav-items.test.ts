@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_NAV, HOME_NAV, MODULE_NAV, TAB_NAV, TRASH_NAV, moreNav, sideNav } from "../../../../app/admin/_components/nav-items";
+import { ACCOUNT_NAV, HOME_NAV, MEDIA_NAV, MODULE_NAV, TAB_NAV, TRASH_NAV, moreNav, sideNav } from "../../../../app/admin/_components/nav-items";
 
 describe("admin navigation and the trash", () => {
   it("links to the trash page, outside the content modules (it has no home card)", () => {
     expect(TRASH_NAV).toMatchObject({ href: "/admin/papelera", label: "Papelera" });
     expect(MODULE_NAV.map((item) => item.href)).not.toContain(TRASH_NAV.href);
+  });
+
+  it("links to the media library for everyone, outside the content modules", () => {
+    expect(MEDIA_NAV).toMatchObject({ href: "/admin/medios", label: "Medios" });
+    expect(MODULE_NAV.map((item) => item.href)).not.toContain(MEDIA_NAV.href);
+    expect(sideNav("EDITOR").map((item) => item.href)).toContain(MEDIA_NAV.href);
+    expect(moreNav("EDITOR").map((item) => item.href)).toContain(MEDIA_NAV.href);
   });
 
   it("reaches the trash on the phone through the «Más» sheet", () => {
@@ -30,7 +37,7 @@ describe("admin navigation and the trash", () => {
   });
 
   it("shows an admin everything, in the sidebar and in the phone's «Más» sheet", () => {
-    const all = [...MODULE_NAV, TRASH_NAV, ...ACCOUNT_NAV].map((item) => item.href);
+    const all = [...MODULE_NAV, MEDIA_NAV, TRASH_NAV, ...ACCOUNT_NAV].map((item) => item.href);
 
     expect(sideNav("ADMIN").map((item) => item.href)).toEqual([HOME_NAV.href, ...all]);
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));

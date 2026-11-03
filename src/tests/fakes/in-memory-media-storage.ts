@@ -1,4 +1,5 @@
 import type {
+  DestroyOutcome,
   ImageUploadFile,
   MediaStoragePort,
   UploadOptions,
@@ -32,13 +33,15 @@ export class InMemoryMediaStorage implements MediaStoragePort {
     return { url: `https://storage.test/${publicId}`, publicId, width, height };
   }
 
-  async destroy(publicId: string): Promise<void> {
+  async destroy(publicId: string): Promise<DestroyOutcome> {
     if (this.destroyError) {
       throw this.destroyError;
     }
 
     this.destroyedPublicIds.push(publicId);
     this.images.delete(publicId);
+
+    return "deleted";
   }
 
   has(publicId: string): boolean {

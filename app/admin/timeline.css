@@ -90,6 +90,16 @@
 		padding-block: 0.4375rem;
 	}
 
+	/* The row being dragged floats above its neighbours. */
+	.tl-item[data-dragging] {
+		z-index: 10;
+	}
+
+	.tl-item[data-dragging] .tl-card {
+		box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+		outline: 2px solid var(--color-sky);
+	}
+
 	.tl-node {
 		position: absolute;
 		z-index: 2;

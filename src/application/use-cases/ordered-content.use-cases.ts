@@ -1,3 +1,4 @@
+import type { ListCriteria, Page, PageableRepository, PageRequest } from "../ports/list-criteria";
 import type { OrderedContent, OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { NotFoundError } from "./use-case-error";
 
@@ -19,6 +20,20 @@ export class ListOrderedContentUseCase<E extends OrderedContent<E>, R> {
 
   async execute(): Promise<R[]> {
     return (await this.repository.list()).map(this.toResult);
+  }
+}
+
+/** Admin listing in pages, optionally narrowed by a search: display order, drafts included. */
+export class ListOrderedContentPageUseCase<E extends OrderedContent<E>, R> {
+  constructor(
+    private readonly repository: OrderedContentRepository<E> & PageableRepository<E>,
+    private readonly toResult: (entity: E) => R,
+  ) {}
+
+  async execute(criteria: ListCriteria, request: PageRequest): Promise<Page<R>> {
+    const page = await this.repository.listPage(criteria, request);
+
+    return { ...page, items: page.items.map(this.toResult) };
   }
 }
 
@@ -81,6 +96,28 @@ export class MoveOrderedContentUseCase<E extends OrderedContent<E>> {
       ids[target] = id;
       ids[index] = neighbour;
     }
+
+    await this.repository.saveOrder(ids);
+  }
+}
+
+/** Puts one item at a place (0-based, clamped to the list) and renumbers the list 0..n-1: what a drag and drop asks for. */
+export class ReorderOrderedContentUseCase<E extends OrderedContent<E>> {
+  constructor(
+    private readonly repository: OrderedContentRepository<E>,
+    private readonly notFoundMessage: string,
+  ) {}
+
+  async execute({ id, position }: { id: string; position: number }): Promise<void> {
+    const ids = (await this.repository.list()).map((entity) => entity.props.id);
+    const index = ids.indexOf(id);
+
+    if (index === -1) {
+      throw new NotFoundError(this.notFoundMessage);
+    }
+
+    ids.splice(index, 1);
+    ids.splice(Math.min(Math.max(position, 0), ids.length), 0, id);
 
     await this.repository.saveOrder(ids);
   }

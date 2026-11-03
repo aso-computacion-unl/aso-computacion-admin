@@ -74,6 +74,19 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     trashCommand: { role: "EDITOR", audit: "command.trash" },
     moveCommand: { role: "EDITOR", audit: "command.move" },
   },
+  "src/interface/admin/bulk/actions.ts": {
+    // Same level as the single-item actions they repeat: an editor may publish, unpublish and trash. One audit entry per item.
+    bulkSetPublished: { role: "EDITOR", audit: "faq.publish" },
+    bulkTrash: { role: "EDITOR", audit: "faq.trash" },
+  },
+  "src/interface/admin/media/actions.ts": {
+    // Destroys stored files for good, like purging from the trash: ADMIN only. One audit entry per file destroyed.
+    deleteOrphanImages: { role: "ADMIN", audit: "media.delete_orphan" },
+  },
+  "src/interface/admin/reorder/actions.ts": {
+    // Drag and drop is the single-step move with a destination: an editor may reorder, audited as `<kind>.move`.
+    reorderContent: { role: "EDITOR", audit: "faq.move" },
+  },
   "src/interface/admin/preview/actions.ts": {
     createPreviewToken: { role: "EDITOR", audit: "preview.token_create" },
   },

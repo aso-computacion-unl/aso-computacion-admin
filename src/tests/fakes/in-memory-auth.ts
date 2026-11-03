@@ -155,6 +155,6 @@ export class InMemoryAuditLog implements AuditRecorder, AuditLogReader {
   }
 
   async entityTypes() {
-    return [...new Set(this.entries.map((entry) => entry.entityType))].sort();
+    return [...new Set(this.entries.map((entry) => entry.entityType))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   }
 }

@@ -8,7 +8,23 @@ describe("normalizeEmail", () => {
     expect(normalizeEmail("  Ana.Perez@Example.ORG ")).toBe("ana.perez@example.org");
   });
 
-  it.each(["", "ana", "ana@", "@example.org", "ana@example", "a na@example.org", "a@b@example.org", `${"a".repeat(250)}@example.org`])(
+  it.each(["ana@sub.unl.edu.ec", "a@b.c", "a@b..c", "a@b.c."])("accepts %j", (value) => {
+    expect(normalizeEmail(value)).toBe(value);
+  });
+
+  it.each([
+    "",
+    "ana",
+    "ana@",
+    "@example.org",
+    "ana@example",
+    "ana@.example.org",
+    "ana@example.",
+    "ana@exa\tmple.org",
+    "a na@example.org",
+    "a@b@example.org",
+    `${"a".repeat(250)}@example.org`,
+  ])(
     "rejects %j",
     (value) => {
       expect(() => normalizeEmail(value)).toThrow(ValidationError);

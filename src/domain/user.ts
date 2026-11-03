@@ -18,12 +18,22 @@ export interface User {
 export const EMAIL_MAX_LENGTH = 254;
 export const USER_NAME_MAX_LENGTH = 120;
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@.][^\s@]*\.[^\s@]+$/;
+// One @, a non-empty local part, and a domain that does not start with a dot and has a dot
+// before its last character. Checked without a regex so the cost stays linear.
+function isEmailShape(email: string): boolean {
+  const at = email.indexOf("@");
+  if (at < 1 || email.indexOf("@", at + 1) !== -1 || /\s/.test(email)) {
+    return false;
+  }
+
+  const domain = email.slice(at + 1);
+  return !domain.startsWith(".") && domain.slice(1, -1).includes(".");
+}
 
 export function normalizeEmail(raw: string): string {
   const email = raw.trim().toLowerCase();
 
-  if (email.length > EMAIL_MAX_LENGTH || !EMAIL_PATTERN.test(email)) {
+  if (email.length > EMAIL_MAX_LENGTH || !isEmailShape(email)) {
     throw new ValidationError("email", "email must be a valid address");
   }
 

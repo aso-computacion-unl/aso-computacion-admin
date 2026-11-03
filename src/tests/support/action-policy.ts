@@ -114,7 +114,7 @@ async function outcomeOf(call: () => Promise<unknown>): Promise<unknown> {
 /** Registers, inside the caller's describe, the role matrix and audit cases for one actions module. */
 export function registerPolicyCases(suite: PolicySuite): void {
   const policy = ACTION_POLICY[suite.actionsPath] ?? {};
-  const names = Object.keys(suite.actionCalls).sort();
+  const names = Object.keys(suite.actionCalls).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const adminOnly = names.filter((name) => policy[name]?.role === "ADMIN");
   const editorLevel = names.filter((name) => policy[name]?.role === "EDITOR");
 
@@ -127,7 +127,7 @@ export function registerPolicyCases(suite: PolicySuite): void {
   it("the policy table covers every action, and each action's guard is the one the table says", () => {
     const guards = guardsOfEveryAction(suite.actionsPath);
 
-    expect(Object.keys(policy).sort()).toEqual(names);
+    expect(Object.keys(policy).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))).toEqual(names);
     expect(Object.fromEntries(Object.entries(guards).map(([name, guard]) => [name, guard === 'requireRole("ADMIN")' ? "ADMIN" : "EDITOR"]))).toEqual(
       Object.fromEntries(names.map((name) => [name, policy[name]?.role])),
     );

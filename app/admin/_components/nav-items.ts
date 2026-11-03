@@ -25,6 +25,9 @@ export const MODULE_NAV: readonly NavItem[] = [
 
 export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home" };
 
+/** Every stored image and where it is used. Read only for everyone; not a content module, so no home card. */
+export const MEDIA_NAV: NavItem = { href: "/admin/medios", label: "Medios", icon: "image" };
+
 /** Where deleted content waits for a restore. Not a content module: it has no card on the home. */
 export const TRASH_NAV: NavItem = { href: "/admin/papelera", label: "Papelera", icon: "trash" };
 
@@ -47,10 +50,10 @@ export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NA
 
 /** The whole sidebar, in order. */
 export function sideNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role), TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
+  return [HOME_NAV, ...visibleTo(MODULE_NAV, role), MEDIA_NAV, TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
 }
 
 /** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */
 export function moreNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role).filter((item) => !TAB_HREFS.includes(item.href)), TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
+  return [HOME_NAV, ...visibleTo(MODULE_NAV, role).filter((item) => !TAB_HREFS.includes(item.href)), MEDIA_NAV, TRASH_NAV, ...visibleTo(ACCOUNT_NAV, role)];
 }

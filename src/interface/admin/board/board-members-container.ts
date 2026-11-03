@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   RemoveBoardMemberPhotoUseCase,
   SetBoardMemberPhotoUseCase,
   SetOrderedContentPublishedUseCase,
@@ -29,6 +30,7 @@ function createBoardMemberUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(members, toBoardMemberResult, NOT_FOUND),
     trash: new TrashContentUseCase(members, NOT_FOUND),
     move: new MoveOrderedContentUseCase(members, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(members, NOT_FOUND),
     setPhoto: new SetBoardMemberPhotoUseCase(members, new UploadImageUseCase(storage), storage),
     removePhoto: new RemoveBoardMemberPhotoUseCase(members, storage),
   };

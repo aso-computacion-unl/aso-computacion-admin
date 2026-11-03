@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma, type NewsItem as PrismaNewsItem } from "@prisma/client";
 
-import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
+import { fetchPage, type ListCriteria, type Page, type PageRequest, type PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
@@ -11,6 +11,10 @@ import { prisma } from "../prisma/client";
 import { toDomain, toPrismaCreate, toPrismaUpdate } from "./news.mapper";
 import { LIVE, publicationWhere, toPublicationCounts } from "./publication-filter";
 import { PurgeableTrashPrismaRepository } from "./trashable-prisma.repository";
+
+const SEARCH_FIELDS = ["title", "summary", "body"] as const;
+// id breaks the last tie so the order is total and stable between reads and between pages.
+const LIST_ORDER = [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }] satisfies Prisma.NewsItemOrderByWithRelationInput[];
 
 /** The slug check in the use case is advisory; the unique index is what actually decides a race. */
 function rethrowSlugCollision(error: unknown): never {
@@ -64,13 +68,19 @@ export class NewsPrismaRepository
   }
 
   async list(criteria?: ListCriteria): Promise<NewsItem[]> {
-    // id breaks the last tie so the order is stable between reads.
-    const records = await prisma.newsItem.findMany({
-      where: publicationWhere(criteria),
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-    });
+    const records = await prisma.newsItem.findMany({ where: publicationWhere(criteria, SEARCH_FIELDS), orderBy: LIST_ORDER });
 
     return records.map(toDomain);
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<NewsItem>> {
+    const where = publicationWhere(criteria, SEARCH_FIELDS);
+
+    return fetchPage(
+      request,
+      () => prisma.newsItem.count({ where }),
+      async (take, skip) => (await prisma.newsItem.findMany({ where, orderBy: LIST_ORDER, take, skip })).map(toDomain),
+    );
   }
 
   async update(item: NewsItem): Promise<NewsItem> {

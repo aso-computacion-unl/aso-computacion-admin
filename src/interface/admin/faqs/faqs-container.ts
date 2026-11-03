@@ -1,8 +1,11 @@
 import {
+  CountByStatusUseCase,
   CreateFaqUseCase,
   GetOrderedContentUseCase,
+  ListOrderedContentPageUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateFaqUseCase,
   TrashContentUseCase,
@@ -18,12 +21,15 @@ function createFaqUseCases() {
 
   return {
     list: new ListOrderedContentUseCase(faqs, toFaqResult),
+    listPage: new ListOrderedContentPageUseCase(faqs, toFaqResult),
+    count: new CountByStatusUseCase(faqs),
     get: new GetOrderedContentUseCase(faqs, toFaqResult, NOT_FOUND),
     create: new CreateFaqUseCase(faqs, commandNames),
     update: new UpdateFaqUseCase(faqs, commandNames),
     setPublished: new SetOrderedContentPublishedUseCase(faqs, toFaqResult, NOT_FOUND),
     trash: new TrashContentUseCase(faqs, NOT_FOUND),
     move: new MoveOrderedContentUseCase(faqs, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(faqs, NOT_FOUND),
   };
 }
 

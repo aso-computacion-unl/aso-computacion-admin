@@ -4,6 +4,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   nextSortOrder,
 } from "@/application/use-cases/ordered-content.use-cases";
@@ -114,6 +115,56 @@ describe("ordered content use cases", () => {
       await expect(
         new MoveOrderedContentUseCase(repo, "Faq not found").execute({ id: MISSING_ID, direction: "up" }),
       ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe("ReorderOrderedContentUseCase", () => {
+    it("moves an item to a place, forwards or backwards, and renumbers 0..n-1", async () => {
+      await seed(4);
+      const reorder = new ReorderOrderedContentUseCase(repo, "Faq not found");
+
+      await reorder.execute({ id: ids[0]!, position: 2 });
+      expect(await order()).toEqual([ids[1], ids[2], ids[0], ids[3]]);
+
+      await reorder.execute({ id: ids[3]!, position: 0 });
+      expect(await order()).toEqual([ids[3], ids[1], ids[2], ids[0]]);
+      expect((await repo.list()).map((faq) => faq.props.sortOrder)).toEqual([0, 1, 2, 3]);
+    });
+
+    it("clamps a place past either end instead of failing", async () => {
+      await seed(3);
+      const reorder = new ReorderOrderedContentUseCase(repo, "Faq not found");
+
+      await reorder.execute({ id: ids[0]!, position: 99 });
+      expect(await order()).toEqual([ids[1], ids[2], ids[0]]);
+
+      await reorder.execute({ id: ids[0]!, position: -5 });
+      expect(await order()).toEqual([ids[0], ids[1], ids[2]]);
+    });
+
+    it("leaves the order alone when the item is already there", async () => {
+      await seed(3);
+
+      await new ReorderOrderedContentUseCase(repo, "Faq not found").execute({ id: ids[1]!, position: 1 });
+
+      expect(await order()).toEqual(ids);
+    });
+
+    it("counts places among live items only", async () => {
+      await seed(3);
+      await repo.trash(ids[1]!);
+
+      await new ReorderOrderedContentUseCase(repo, "Faq not found").execute({ id: ids[0]!, position: 1 });
+
+      expect(await order()).toEqual([ids[2], ids[0]]);
+      expect((await repo.list()).map((faq) => faq.props.sortOrder)).toEqual([0, 1]);
+    });
+
+    it("throws NotFoundError for an unknown id and writes nothing", async () => {
+      await seed(2);
+
+      await expect(new ReorderOrderedContentUseCase(repo, "Faq not found").execute({ id: MISSING_ID, position: 0 })).rejects.toBeInstanceOf(NotFoundError);
+      expect(await order()).toEqual(ids);
     });
   });
 });

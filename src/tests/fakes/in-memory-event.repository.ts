@@ -1,11 +1,12 @@
 import type { EventRepository } from "@/application/ports/event-repository.port";
-import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
+import type { ListCriteria, Page, PageRequest, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
 
 import type { InMemoryEventPhotoRepository } from "./in-memory-event-photo.repository";
+import { matchesSearch, pageOf } from "./in-memory-page";
 import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `EventRepository`; `list()` mirrors the Prisma ordering (date desc, nulls last, then newest). */
@@ -48,14 +49,19 @@ export class InMemoryEventRepository implements EventRepository {
   async list(criteria: ListCriteria = {}): Promise<Event[]> {
     return [...this.events.values()]
       .filter((event) => criteria.status === undefined || event.props.isPublished === (criteria.status === "published"))
+      .filter((event) => matchesSearch(criteria.search, [event.props.title, event.props.description, event.props.commitMessage, event.props.lugar]))
       .sort((a, b) => {
         if (a.props.date !== b.props.date) {
           if (a.props.date === null) return 1;
           if (b.props.date === null) return -1;
           return a.props.date < b.props.date ? 1 : -1;
         }
-        return b.props.createdAt.getTime() - a.props.createdAt.getTime();
+        return b.props.createdAt.getTime() - a.props.createdAt.getTime() || a.props.id.localeCompare(b.props.id);
       });
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Event>> {
+    return pageOf(await this.list(criteria), request);
   }
 
   async update(event: Event): Promise<Event> {

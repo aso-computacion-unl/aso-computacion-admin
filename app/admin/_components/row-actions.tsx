@@ -30,8 +30,12 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
   const { pending, result, run } = useRunAction();
   // `published` is what the server confirmed; `shown` flips at once while the action runs and
   // falls back to `published` by itself if the action fails, leaving the inline error to explain.
-  const [published, setPublished] = useState(isPublished);
+  // When the list brings a different value (a bulk action changed the row, or another tab did), that value wins.
+  const [confirmed, setConfirmed] = useState({ fromList: isPublished, value: isPublished });
+  const published = confirmed.fromList === isPublished ? confirmed.value : isPublished;
   const [shown, setShown] = useOptimistic(published);
+
+  if (confirmed.fromList !== isPublished) setConfirmed({ fromList: isPublished, value: isPublished });
 
   function toggle() {
     if (pending) return;
@@ -42,7 +46,7 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
         setShown(next);
         return action(next);
       },
-      () => setPublished(next),
+      () => setConfirmed({ fromList: isPublished, value: next }),
       next ? `«${label}» publicado.` : `«${label}» pasó a borrador.`,
     );
   }

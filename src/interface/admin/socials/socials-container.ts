@@ -3,6 +3,7 @@ import {
   GetOrderedContentUseCase,
   ListOrderedContentUseCase,
   MoveOrderedContentUseCase,
+  ReorderOrderedContentUseCase,
   SetOrderedContentPublishedUseCase,
   UpdateSocialLinkUseCase,
   TrashContentUseCase,
@@ -23,6 +24,7 @@ function createSocialLinkUseCases() {
     setPublished: new SetOrderedContentPublishedUseCase(links, toSocialLinkResult, NOT_FOUND),
     trash: new TrashContentUseCase(links, NOT_FOUND),
     move: new MoveOrderedContentUseCase(links, NOT_FOUND),
+    reorder: new ReorderOrderedContentUseCase(links, NOT_FOUND),
   };
 }
 

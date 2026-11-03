@@ -9,7 +9,7 @@ import { find } from "@/tests/support/source-files";
  * client navigation, so a page that read without checking would keep showing data after a revoke.
  */
 const READS = find("src/interface/admin", /-admin-read\.ts$/);
-const ADMIN_ONLY = ["settings-admin-read.ts", "users-admin-read.ts", "audit-admin-read.ts", "forum-admin-read.ts"];
+const ADMIN_ONLY = ["settings-admin-read.ts", "users-admin-read.ts", "audit-admin-read.ts", "forum-admin-read.ts", "media-cleanup-admin-read.ts"];
 const GUARD = /^\s*(?:const actor = )?await requirePageSession\((?:"ADMIN")?\);/;
 
 describe("admin page reads", () => {

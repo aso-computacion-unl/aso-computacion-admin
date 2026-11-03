@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,13 +23,17 @@ interface TimelineItemProps {
   when?: "next";
   /** `trunk` keeps a draft on the main line (ordered lists); events put drafts on their own branch. */
   lane?: "trunk";
+  /** For a row that can be dragged: the list item is what moves. */
+  itemRef?: Ref<HTMLLIElement>;
+  style?: CSSProperties;
+  dragging?: boolean;
   children: ReactNode;
 }
 
 /** One commit: a node on the line, a link to the card, and the card itself. */
-export function TimelineItem({ published, when, lane, children }: TimelineItemProps) {
+export function TimelineItem({ published, when, lane, itemRef, style, dragging, children }: TimelineItemProps) {
   return (
-    <li className="tl-item" data-state={published ? "published" : "draft"} data-when={when} data-lane={lane}>
+    <li ref={itemRef} style={style} className="tl-item" data-state={published ? "published" : "draft"} data-when={when} data-lane={lane} data-dragging={dragging ? "" : undefined}>
       <span className="tl-node" aria-hidden="true" />
       <span className="tl-link" aria-hidden="true" />
       <article className="tl-card">{children}</article>

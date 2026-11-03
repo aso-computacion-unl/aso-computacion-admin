@@ -1,10 +1,11 @@
-import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
+import type { ListCriteria, Page, PageRequest, PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { ValidationError } from "@/domain/domain-error";
 import type { NewsItem } from "@/domain/news-item";
 
+import { matchesSearch, pageOf } from "./in-memory-page";
 import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `NewsRepository`; `list()` mirrors the Prisma ordering (publishedAt desc, then newest created). */
@@ -35,12 +36,17 @@ export class InMemoryNewsRepository implements NewsRepository {
   async list(criteria: ListCriteria = {}): Promise<NewsItem[]> {
     return [...this.items.values()]
       .filter((item) => criteria.status === undefined || item.props.isPublished === (criteria.status === "published"))
+      .filter((item) => matchesSearch(criteria.search, [item.props.title, item.props.summary, item.props.body]))
       .sort(
       (a, b) =>
         b.props.publishedAt.localeCompare(a.props.publishedAt) ||
         b.props.createdAt.getTime() - a.props.createdAt.getTime() ||
         b.props.id.localeCompare(a.props.id),
     );
+  }
+
+  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<NewsItem>> {
+    return pageOf(await this.list(criteria), request);
   }
 
   async update(item: NewsItem): Promise<NewsItem> {

@@ -85,6 +85,16 @@ describe("scrubSentryEvent", () => {
     expect(scrubSentryEvent({ ...event })).toEqual(event);
   });
 
+  it("hides a request URL with no origin, such as a file URL", () => {
+    expect(scrubSentryEvent({ request: { url: "file:///home/aso/.env" } }).request?.url).toBe("[url]");
+  });
+
+  it("replaces a URL in a text that cannot be parsed instead of keeping it", () => {
+    const event = scrubSentryEvent({ breadcrumbs: [{ message: "bad target http://[ in config" }] });
+
+    expect(event.breadcrumbs?.[0]?.message).toBe("bad target [url] in config");
+  });
+
   it("strips credentials and paths from non-http URLs such as a database connection string", () => {
     const event = scrubSentryEvent({
       exception: { values: [{ value: "connect failed: postgresql://admin:s3cret@db.internal:5432/aso?schema=public" }] },

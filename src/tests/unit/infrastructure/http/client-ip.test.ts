@@ -148,3 +148,21 @@ describe("clientKeyFromHeaders (IPv6 /64)", () => {
     expect(key("not-an-ip:at:all")).toBe("not-an-ip:at:all");
   });
 });
+
+// Anything that is not a well-formed IPv6 address must reach the throttle as it
+// came: guessing a /64 for garbage would merge unrelated clients into one bucket.
+describe("clientKeyFromHeaders (malformed IPv6)", () => {
+  const key = (ip: string) => clientKeyFromHeaders(new Headers({ "x-real-ip": ip }));
+
+  it.each([
+    ["an embedded IPv4 tail with an octet above 255", "::ffff:999.0.0.1"],
+    ["more than one ::", "2001::db8::1"],
+    ["too few groups without ::", "2001:db8:1:2"],
+    ["too many groups", "1:2:3:4:5:6:7:8:9"],
+    ["a :: that stands for no group at all", "1:2:3:4:5:6:7:8::"],
+    ["a group that is not hexadecimal", "2001:db8:xyz::1"],
+    ["a group longer than four digits", "2001:db8:12345::1"],
+  ])("returns %s as it came", (_label, ip) => {
+    expect(key(ip)).toBe(ip);
+  });
+});

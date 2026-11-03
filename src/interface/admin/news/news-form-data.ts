@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { checkbox, formText, parseStrictForm } from "../form-fields";
+import { checkbox, formText, multilineText, parseStrictForm } from "../form-fields";
 import { publicationWindowFields } from "../publication-window-fields";
 
 // Blank means "derive it / keep the current one": the slug is derived from the
@@ -13,9 +13,8 @@ const optionalText = formText.optional().transform((value) => value || undefined
 const newsFormSchema = z.strictObject({
   title: formText,
   slug: optionalText,
-  summary: formText,
-  // The browser submits line breaks as CRLF; they count as one character in the limit, so store LF.
-  body: formText.transform((value) => value.replaceAll("\r\n", "\n")),
+  summary: multilineText,
+  body: multilineText,
   publishedAt: optionalText,
   coverAlt: optionalText,
   isPublished: checkbox,

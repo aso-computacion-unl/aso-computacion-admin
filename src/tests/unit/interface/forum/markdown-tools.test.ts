@@ -31,6 +31,15 @@ describe("applyMarkdownTool", () => {
     expect(run(input, "fence")).toBe(expected);
   });
 
+  it.each([
+    ["Use [printf] ya", "Use `[printf]` ya"],
+    ["Use [] ya", "Use `[código]` ya"],
+    ["Un [a`b] raro", "Un `` [a`b] `` raro"],
+    ["[uno\ndos]", "```\n[uno\ndos]\n```"],
+  ])("code wraps a one-line selection in backticks and turns several lines into a block (%j)", (input, expected) => {
+    expect(run(input, "code")).toBe(expected);
+  });
+
   it("fence on an empty selection leaves the caret inside the block", () => {
     const result = applyMarkdownTool("", 0, 0, "fence");
 

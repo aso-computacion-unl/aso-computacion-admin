@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { checkbox, formText, parseStrictForm } from "../form-fields";
+import { checkbox, formText, multilineText, parseStrictForm } from "../form-fields";
 
 const commandFormSchema = z.strictObject({
   command: formText,
   description: formText,
-  output: formText,
+  output: multilineText,
   isPublished: checkbox,
 });
 

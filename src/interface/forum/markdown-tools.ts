@@ -1,7 +1,7 @@
 // The composer's formatting buttons, as pure text edits so they can be tested without a browser. They only
-// produce what `markdown-subset` understands: bold, italic, "- " lists, https links and fenced code.
+// produce what `markdown-subset` understands: bold, italic, "- " lists, https links, inline and fenced code.
 
-export type MarkdownTool = "bold" | "italic" | "fence" | "list" | "link";
+export type MarkdownTool = "bold" | "italic" | "code" | "fence" | "list" | "link";
 
 export interface MarkdownEdit {
   value: string;
@@ -10,6 +10,7 @@ export interface MarkdownEdit {
 }
 
 const PLACEHOLDER = "texto";
+const CODE_PLACEHOLDER = "código";
 const LINK_TARGET = "https://";
 
 function wrap(value: string, start: number, end: number, mark: string): MarkdownEdit {
@@ -20,6 +21,23 @@ function wrap(value: string, start: number, end: number, mark: string): Markdown
     selectionStart: start + mark.length,
     selectionEnd: start + mark.length + inner.length,
   };
+}
+
+/** Inline code for a one-line selection; a selection over several lines becomes a block instead. */
+function code(value: string, start: number, end: number): MarkdownEdit {
+  const inner = value.slice(start, end);
+  if (inner.includes("\n")) return fence(value, start, end);
+  if (!inner.includes("`")) {
+    const text = inner || CODE_PLACEHOLDER;
+
+    return { value: `${value.slice(0, start)}\`${text}\`${value.slice(end)}`, selectionStart: start + 1, selectionEnd: start + 1 + text.length };
+  }
+
+  // A backtick inside needs a longer run around it, padded so the run does not touch it.
+  const run = "`".repeat(Math.max(...(inner.match(/`+/g) ?? []).map((ticks) => ticks.length)) + 1);
+  const textStart = start + run.length + 1;
+
+  return { value: `${value.slice(0, start)}${run} ${inner} ${run}${value.slice(end)}`, selectionStart: textStart, selectionEnd: textStart + inner.length };
 }
 
 function fence(value: string, start: number, end: number): MarkdownEdit {
@@ -72,6 +90,8 @@ export function applyMarkdownTool(value: string, start: number, end: number, too
       return wrap(value, start, end, "**");
     case "italic":
       return wrap(value, start, end, "*");
+    case "code":
+      return code(value, start, end);
     case "fence":
       return fence(value, start, end);
     case "list":

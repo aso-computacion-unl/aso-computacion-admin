@@ -23,6 +23,15 @@ describe("a forum post body", () => {
     expect(html).toContain("free(nodo);\n\nnodo = nodo-&gt;siguiente;");
   });
 
+  it("renders inline code as code, without the backticks, and keeps HTML inside it as text", () => {
+    const html = render("Revise los `free` y `<b>`");
+
+    expect(html).toContain("Revise los <code");
+    expect(html).toContain(">free</code>");
+    expect(html).toContain(">&lt;b&gt;</code>");
+    expect(html).not.toContain("`");
+  });
+
   it("never lets a student's HTML through: it stays text", () => {
     const html = render('<script>alert(1)</script> <img src=x onerror="alert(2)">\n\n```\n<b>no</b>\n```');
 

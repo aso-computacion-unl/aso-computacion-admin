@@ -10,6 +10,12 @@ export const checkbox = z
 export const formText = z.string({ error: "Complete este campo." }).trim();
 
 /**
+ * Text from a textarea. A form post carries line breaks as CRLF, and the limits count a break as one
+ * character (the browser's own `maxlength` does too), so line breaks are stored as LF.
+ */
+export const multilineText = formText.transform((value) => value.replaceAll("\r\n", "\n"));
+
+/**
  * Reads a whole form through a strict schema: a field the schema does not
  * declare is an error, never silently ignored, so nothing extra can ride along
  * into a use case.

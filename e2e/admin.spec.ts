@@ -46,7 +46,9 @@ test("an event published in the admin appears in the public content API", async 
 
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(title);
-  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
 
   // Creating continues on the edit page of the new event.
@@ -75,7 +77,9 @@ test("a published event moved to the trash leaves the public API, undo brings it
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(title);
-  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
   expect(await publicTitles()).toContain(title);
@@ -287,7 +291,9 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(scheduled);
   await page.getByLabel("Publicar el").fill("2999-01-01T08:00");
-  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
   await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
@@ -311,7 +317,9 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await page.getByLabel("Título").fill(expired);
   await page.getByLabel("Publicar el").fill("2019-01-01T08:00");
   await page.getByLabel("Retirar el").fill("2020-01-01T08:00");
-  await page.getByRole("switch", { name: /Publicado/ }).setChecked(true, { force: true });
+  // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
 

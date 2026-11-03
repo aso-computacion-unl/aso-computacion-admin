@@ -21,9 +21,10 @@ export async function resolveNewsSlug(
     return explicitSlug;
   }
 
-  const base = slugify(title);
+  // A title with no Latin letters or digits (日本語, 🚀) slugifies to nothing; the item still needs an address.
+  const base = slugify(title) || "noticia";
 
-  if (base === "" || !(await news.slugExists(base, excludeId))) {
+  if (!(await news.slugExists(base, excludeId))) {
     return base;
   }
 

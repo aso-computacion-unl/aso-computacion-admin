@@ -2,18 +2,22 @@ import type { Metadata } from "next";
 
 import { getOpenRegistrationEvents } from "@/interface/forum/event-registration-read";
 import { parseForumLoginError } from "@/interface/forum/forum-login-errors";
-import { parsePageParam, parseThreadFilter } from "@/interface/forum/forum-display";
+import { parsePageParam, parseThreadFilter, type ThreadFilter } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { parseForumReturnPath } from "@/interface/forum/forum-return-path";
-import { getForumFeed } from "@/interface/forum/forum-read";
+import { getForumCategories, getForumFeed } from "@/interface/forum/forum-read";
 import { getForumMember } from "@/interface/forum/require-forum-member";
 
 import { CategoryFilter } from "./_components/category-filter";
+import { ForumHowItWorks } from "./_components/forum-how-it-works";
+import { ForumRail } from "./_components/forum-rail";
+import { ForumShell } from "./_components/forum-shell";
 import { NewThreadMenu } from "./_components/new-thread-menu";
-import { OpenRegistrationsAside } from "./_components/open-registrations-aside";
 import { Pagination } from "./_components/pagination";
+import { RegistrationsLink } from "./_components/registrations-link";
 import { SignInGate } from "./_components/sign-in-gate";
+import { StartThreadRow } from "./_components/start-thread-row";
 import { ThreadFilterTabs } from "./_components/thread-filter-tabs";
 import { ThreadListEmpty } from "./_components/thread-list-empty";
 import { ThreadRow } from "./_components/thread-row";
@@ -39,56 +43,94 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   const filter = parseThreadFilter(estado);
   const categorySlug = typeof categoria === "string" && categoria !== "" ? categoria : undefined;
-  const [feed, openEvents] = await Promise.all([orNotFound(getForumFeed({ categorySlug, state: filter, page: parsePageParam(pagina) })), getOpenRegistrationEvents()]);
+  // The feed carries only the names; the rail also shows what each category is for and how many threads it has.
+  const [feed, openEvents, railCategories] = await Promise.all([
+    orNotFound(getForumFeed({ categorySlug, state: filter, page: parsePageParam(pagina) })),
+    getOpenRegistrationEvents(),
+    orNotFound(getForumCategories()),
+  ]);
   const { categories, category, items, counts, page, pageCount } = feed;
   const now = new Date();
+  const hrefForFilter = (target: ThreadFilter) => feedHref({ category: category?.slug, filter: target });
 
-  return (
-    <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <h1 className="min-w-0 text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
-        {categories.length > 0 ? <NewThreadMenu categories={categories} currentSlug={category?.slug} /> : null}
-      </div>
-
-      {categories.length === 0 ? (
+  if (categories.length === 0) {
+    return (
+      <div data-wide className="px-4 py-8 sm:px-6">
+        <h1 className="mb-5 text-[clamp(1.5rem,3.2vw,2rem)] leading-[1.2] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
         <div className="rounded-xl border border-border bg-muted">
           <ThreadListEmpty title="Todavía no hay categorías.">La directiva las irá creando. Vuelva pronto.</ThreadListEmpty>
         </div>
-      ) : (
-        <div className={openEvents.length > 0 ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]" : undefined}>
-          <div className="min-w-0">
-            <div className="overflow-hidden rounded-xl border border-border bg-muted">
-              <div className="border-b border-border px-2 py-1.5">
-                <ThreadFilterTabs active={filter} hrefFor={(target) => feedHref({ category: category?.slug, filter: target })} counts={counts} />
+      </div>
+    );
+  }
+
+  return (
+    // The list fills the width under the top bar: the rail of filters as tall as the screen, then the list and the guide on its side.
+    <ForumShell
+      rail={<ForumRail section="threads" filter={filter} counts={counts} categories={railCategories} category={category?.slug} registrationsCount={openEvents.length} />}
+    >
+      <div className="mx-auto grid max-w-[100rem] gap-x-10 gap-y-12 2xl:min-h-[calc(100dvh-3.5rem-5rem)] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className="min-w-0">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:mb-6">
+            <h1 className="min-w-0 text-[clamp(1.75rem,3.2vw,2.5rem)] leading-[1.15] font-bold font-stretch-[106%] tracking-tight">Hilos</h1>
+            <NewThreadMenu categories={categories} currentSlug={category?.slug} />
+          </div>
+
+          <div className="mb-4 overflow-hidden rounded-xl border border-border bg-muted lg:hidden">
+            <div className="border-b border-border px-2 py-1.5">
+              <ThreadFilterTabs active={filter} hrefFor={hrefForFilter} counts={counts} />
+            </div>
+            {categories.length > 1 ? (
+              <div className="px-3 py-2.5 sm:px-4">
+                <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
               </div>
-              {categories.length > 1 ? (
-                <div className="border-b border-border px-3 py-2.5 sm:px-4">
-                  <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
-                </div>
-              ) : null}
-              {category?.description ? (
-                <p data-slot="category-description" className="border-b border-border px-3 py-2.5 text-sm text-mist wrap-anywhere sm:px-4">
-                  {category.description}
-                </p>
-              ) : null}
-              {items.length === 0 ? (
+            ) : null}
+            <div className="border-t border-border px-2 py-1.5">
+              <RegistrationsLink count={openEvents.length} current={false} orientation="horizontal" />
+            </div>
+          </div>
+
+          {category?.description ? (
+            <p data-slot="category-description" className="mb-4 max-w-[65ch] text-mist wrap-anywhere">
+              {category.description}
+            </p>
+          ) : null}
+
+          <div className="thread-graph">
+            {items.length === 0 ? (
+              <div className="rounded-xl border border-border bg-muted">
                 <ThreadListEmpty title={emptyTitle(filter, counts.open + counts.solved, category?.name)} action={<NewThreadMenu categories={categories} currentSlug={category?.slug} variant="line" align="center" />}>
                   {emptyHint(filter, counts.open + counts.solved)}
                 </ThreadListEmpty>
-              ) : (
-                <ul className="divide-y divide-border/50">
+              </div>
+            ) : (
+              <>
+                <div aria-hidden="true" className="thread-cols hidden border-b border-border pb-2.5 text-xs font-semibold text-mist xl:grid">
+                  <span className="col-start-2">Hilo</span>
+                  <span>Autor</span>
+                  <span>Última actividad</span>
+                  <span className="justify-self-end">Respuestas</span>
+                </div>
+                <ul>
                   {items.map((thread) => (
                     <ThreadRow key={thread.id} thread={thread} now={now} category={category ? null : thread.category} />
                   ))}
                 </ul>
-              )}
-            </div>
-            <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
+                <StartThreadRow categories={categories} currentSlug={category?.slug} />
+              </>
+            )}
           </div>
-          {openEvents.length > 0 ? <OpenRegistrationsAside events={openEvents} /> : null}
+          <Pagination page={page} pageCount={pageCount} hrefFor={(target) => feedHref({ category: category?.slug, filter, page: target })} />
         </div>
-      )}
-    </>
+
+        {/* The column runs the height of the screen, with its divider; its guide stays in view while the list scrolls. */}
+        <div className="2xl:border-l 2xl:border-border 2xl:pl-10">
+          <div className="2xl:sticky 2xl:top-24">
+            <ForumHowItWorks />
+          </div>
+        </div>
+      </div>
+    </ForumShell>
   );
 }
 

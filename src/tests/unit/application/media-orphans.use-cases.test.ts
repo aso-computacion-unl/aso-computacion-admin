@@ -51,6 +51,22 @@ describe("FindOrphanImagesUseCase (the dry run)", () => {
     expect((await find.execute()).orphans).toHaveLength(1);
   });
 
+  it("never reports the photo of a testimonial as an orphan: the section is gone from the admin, but its kept row still owns the file", async () => {
+    const testimonialUse: MediaUsage = { kind: "testimonial", id: "t1", label: "Ana Pérez", hidden: false };
+    const photo = asset("testimonials/ana", OLD, "testimonials");
+    const library: MediaLibraryPort = { listAssets: vi.fn(async () => ({ assets: [photo, asset("a")], nextCursor: null })), getAsset: vi.fn(async () => photo) };
+    const usage: MediaUsageReader = { usagesOf: vi.fn(async (ids: readonly string[]) => new Map<string, MediaUsage[]>(ids.filter((id) => id === photo.publicId).map((id) => [id, [testimonialUse]]))) };
+    const storage: MediaStoragePort = { upload: vi.fn(), destroy: vi.fn(async () => "deleted" as const) };
+
+    const scan = await new FindOrphanImagesUseCase(library, usage, () => NOW).execute();
+    const removal = await new DeleteOrphanImagesUseCase(library, usage, storage, () => NOW).execute({ publicIds: [photo.publicId] });
+
+    expect(usage.usagesOf).toHaveBeenCalledWith([photo.publicId, "a"]);
+    expect(scan.orphans.map((orphan) => orphan.publicId)).toEqual(["a"]);
+    expect(removal).toEqual([{ publicId: photo.publicId, outcome: "in_use" }]);
+    expect(storage.destroy).not.toHaveBeenCalled();
+  });
+
   it("does not even ask the usage reader about the images it will not manage", async () => {
     const { find, usage } = build([asset("a"), asset("t", OLD, "ambassadors")]);
 

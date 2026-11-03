@@ -4,14 +4,12 @@ import {
   EventPhotoPrismaRepository,
   EventPrismaRepository,
   FaqPrismaRepository,
-  ImpactStatPrismaRepository,
   NewsPrismaRepository,
   PillarPrismaRepository,
   SiteSettingsPrismaRepository,
   SocialLinkPrismaRepository,
   SponsorPrismaRepository,
   TerminalCommandPrismaRepository,
-  TestimonialPrismaRepository,
 } from "@/infrastructure";
 
 let useCase: GetPublicContentUseCase | undefined;
@@ -37,7 +35,7 @@ let socialProofUseCase: GetPublicSocialProofUseCase | undefined;
 
 /** The S9 social proof, read next to the main snapshot. Same rules: built on first use, read-only. */
 export function getPublicSocialProofUseCase(): GetPublicSocialProofUseCase {
-  socialProofUseCase ??= new GetPublicSocialProofUseCase(new ImpactStatPrismaRepository(), new TestimonialPrismaRepository(), new SponsorPrismaRepository());
+  socialProofUseCase ??= new GetPublicSocialProofUseCase(new SponsorPrismaRepository());
 
   return socialProofUseCase;
 }

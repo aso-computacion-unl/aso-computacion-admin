@@ -121,7 +121,7 @@ describe("the identity chip in the forum top bar", () => {
 
 describe("one brand in both top bars", () => {
   it("sets the product name in the same class in the admin and in the forum", async () => {
-    const productName = (html: string) => topBar(html).match(/<span class="([^"]*font-display[^"]*)">(Admin ASO|Foro)</);
+    const productName = (html: string) => topBar(html).match(/<span class="([^"]*font-brand[^"]*)">(Admin ASO|Foro)</);
     const admin = productName(await renderAdmin(actor()));
     const forum = productName(await renderForum());
 

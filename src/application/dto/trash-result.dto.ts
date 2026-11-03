@@ -1,5 +1,5 @@
 /** The kinds of content that can be in the trash. */
-export const TRASH_KINDS = ["event", "news", "faq", "command", "social", "pillar", "board", "impact", "testimonial", "sponsor"] as const;
+export const TRASH_KINDS = ["event", "news", "faq", "command", "social", "pillar", "board", "sponsor"] as const;
 
 export type TrashKind = (typeof TRASH_KINDS)[number];
 

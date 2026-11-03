@@ -41,13 +41,13 @@ export function MediaDropzone({ title, rules, accept, multiple = false, disabled
     <label
       data-slot="media-dropzone"
       className={cn(
-        "relative grid cursor-pointer justify-items-center gap-1.5 rounded border-2 border-dashed border-sky/70 bg-muted/55 px-4 py-5 text-center",
-        "transition-colors duration-150 ease-out hover:border-sky hover:bg-sky/14 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-sky",
+        "relative grid cursor-pointer justify-items-center gap-1.5 rounded border-2 border-dashed border-foreground/45 bg-muted/55 px-4 py-5 text-center",
+        "transition-colors duration-150 ease-out hover:border-action hover:bg-foreground/8 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-sky",
         invalid && "border-error/70",
         disabled && "pointer-events-none opacity-50",
       )}
     >
-      <Icon name={chosen ? "check" : "upload"} className="size-7 text-sky" />
+      <Icon name={chosen ? "check" : "upload"} className="size-7" />
       {chosen ? (
         <span className="max-w-full">
           <strong className="block truncate font-bold font-stretch-[112%]">{chosen.name}</strong>

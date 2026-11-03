@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   }),
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
 }));
-vi.mock("../../../../app/_components/brand-mark", () => ({ BrandIsotype: () => null }));
+vi.mock("../../../../app/_components/brand-mark", () => ({ BrandIsotype: () => null, BrandLogo: () => null }));
 vi.mock("../../../../app/_components/theme-toggle", () => ({ ThemeToggle: () => null }));
 
 import ForumLayout from "../../../../app/foro/layout";
@@ -27,7 +27,7 @@ import { FORUM_THREADS_PAGE_SIZE } from "@/application/forum/forum-threads.use-c
 import { makeForumCategory, makeForumMember, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { cookieJar, forumMemberJar, stubForumSecrets } from "@/tests/support/forum-page";
 import { signInAs } from "@/tests/support/test-auth";
-import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
+import { addTestEvent } from "@/tests/support/test-event-registration";
 import { testForum } from "@/tests/support/test-forum";
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 
@@ -57,16 +57,31 @@ describe("/foro as a visitor", () => {
     expect(html).not.toContain('role="alert"');
   });
 
-  it("draws the Google button from the shared style, not from colours of its own, and the title in the forum's title face", async () => {
+  it("draws the Google button from the shared style, not from colours of its own, and the title in the shared title face", async () => {
     const html = await renderHome();
     const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start"[^>]*>/)?.[0] ?? "";
     const title = html.match(/<h1[^>]*id="gate-title"[^>]*>/)?.[0] ?? "";
 
     expect(button).toContain('class="google-button');
     expect(button).not.toMatch(/#[0-9a-f]{3,6}|bg-white|border-white|rgb\(/i);
-    expect(title).not.toContain("font-display");
-    expect(title).toContain("font-bold");
+    expect(title).toContain("font-display");
     expect(html).toMatch(/<h1[^>]*>El foro de Computación<\/h1>/);
+  });
+
+  it("sets the sign-in as the first node of a branch, followed by sample threads hidden from assistive technology", async () => {
+    const html = await renderHome();
+    const branch = html.match(/<ol class="branch">[\s\S]*?<\/ol>\s*<\/section>/)?.[0] ?? "";
+    const head = branch.match(/<li>[\s\S]*?<\/li>/)?.[0] ?? "";
+
+    expect(head).toContain("HEAD → foro");
+    expect(head).toContain("Entrar con Google");
+    expect(branch).toContain("materias");
+    expect(branch).toContain("¿Cómo preparo el examen de Estructuras de Datos?");
+    expect(branch).toMatch(/<li aria-hidden="true" inert="">/);
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html.match(/<h2/g)).toBeNull();
+    expect(html).toContain("Hilos de ejemplo");
+    expect(html).toContain("data-bleed");
   });
 
   it("passes the path the visitor came for to the sign-in as next", async () => {
@@ -158,8 +173,8 @@ describe("/foro as a member", () => {
     const html = await renderQuery({});
 
     expect(html).toMatch(/<span class="chip"[^>]*data-hue="\d"[^>]*>Materias<\/span>/);
-    expect(html).toContain("· abierto");
-    expect(html).toContain("· cerrado por la moderación");
+    expect(html).toContain(">abierto</span>");
+    expect(html).toContain(">cerrado por la moderación</span>");
     expect(html).toContain('<span class="sr-only">Abierto</span>');
   });
 
@@ -174,7 +189,7 @@ describe("/foro as a member", () => {
     expect(open).toMatch(/aria-current="page"[^>]*href="\/foro"/);
     expect(open).toContain('href="/foro?estado=resueltos"');
     expect(solved).toContain("Segfault al liberar la lista");
-    expect(solved).toContain("· resuelto");
+    expect(solved).toContain(">resuelto</span>");
     expect(solved).not.toContain("¿Cómo configuro WSL2?");
     expect(solved).toMatch(/aria-current="page"[^>]*href="\/foro\?estado=resueltos"/);
   });
@@ -201,9 +216,11 @@ describe("/foro as a member", () => {
     const all = await renderQuery({});
 
     expect(one).toMatch(/<p[^>]*>Dudas de las materias<\/p>/);
-    expect(one.indexOf("Dudas de las materias")).toBeGreaterThan(one.indexOf('aria-label="Categoría"'));
-    expect(one.indexOf("Dudas de las materias")).toBeLessThan(one.indexOf('href="/foro/hilo/'));
-    expect(all).not.toContain("Dudas de las materias");
+    expect(one).toContain('data-slot="category-description"');
+    // The line sits between the header and the list, after the rail that carries the same words.
+    expect(one.indexOf('data-slot="category-description"')).toBeLessThan(one.indexOf('href="/foro/hilo/'));
+    // The whole forum has no line of its own; the rail still says what each category is for.
+    expect(all).not.toContain('data-slot="category-description"');
   });
 
   it("shows no description line for a category that has none", async () => {
@@ -241,7 +258,8 @@ describe("/foro as a member", () => {
     expect(solved).toContain("No hay hilos resueltos.");
     expect(solved).toContain("Nuevo hilo");
     expect(solved).toContain("Estado de los hilos");
-    expect(solved).not.toContain("<ul");
+    expect(solved).not.toContain('href="/foro/hilo/');
+    expect(solved).not.toContain("¿No encuentra su duda?");
   });
 
   it("says so when the forum has no threads yet, and still offers the first one", async () => {
@@ -251,6 +269,7 @@ describe("/foro as a member", () => {
 
     expect(html).toContain("Todavía no hay hilos.");
     expect(html).toContain('href="/foro/c/general/nuevo"');
+    expect(html).not.toContain("¿No encuentra su duda?");
   });
 
   it("says there are no categories yet instead of offering a thread nobody can place", async () => {
@@ -259,6 +278,7 @@ describe("/foro as a member", () => {
     expect(html).toContain("Todavía no hay categorías.");
     expect(html).not.toContain("Nuevo hilo");
     expect(html).not.toContain("<ul");
+    expect(html).not.toContain('aria-label="Categoría"');
   });
 
   it("paginates and keeps the tab and the category in the links", async () => {
@@ -276,33 +296,119 @@ describe("/foro as a member", () => {
     expect(last).toContain('href="/foro?categoria=propuestas"');
   });
 
-  it("lists the events open for UNL registration in an aside, each linking to its page with date and seats", async () => {
+  it("does not offer registrations as a block of the home: no aside, no event links, whatever is open", async () => {
     seedForum();
-    const taller = await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", registrationCapacity: 60, date: "2099-11-28" });
-    testEventRegistration.registrations.seed({ id: "r1", eventId: taller.id, mode: "unl", name: "Ana", email: "ana@unl.edu.ec", career: null, semester: null, createdAt: new Date() });
+    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", registrationCapacity: 60, date: "2099-11-28" });
+
+    const html = await renderQuery({});
+
+    expect(html).not.toContain("Inscripciones abiertas");
+    expect(html).not.toContain('href="/foro/eventos/');
+    expect(html).not.toContain("Taller de Docker");
+    expect(html).not.toContain("open-registrations-title");
+    expect(html.match(/<aside/g)).toHaveLength(1);
+  });
+
+  it("puts Inscripciones in its own group of the rail, with the number of events open, apart from the categories", async () => {
+    seedForum();
+    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
+    await addTestEvent({ title: "Hackathon UNL", registrationMode: "unl", date: "2099-12-05" });
     await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
     await addTestEvent({ title: "Taller que ya pasó", registrationMode: "unl", date: "2020-01-10" });
 
     const html = await renderQuery({});
-    const aside = html.match(/<aside[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+    const group = html.match(/<h2[^>]*>Eventos<\/h2><nav aria-label="Eventos">[\s\S]*?<\/nav>/)?.[0] ?? "";
 
-    expect(aside).toContain("Inscripciones abiertas");
-    expect(aside).toContain('href="/foro/eventos/taller-de-docker"');
-    expect(aside).toContain("Taller de Docker");
-    expect(aside).toContain("28 nov 2099");
-    expect(aside).toContain("Quedan 59 cupos");
-    expect(aside).not.toContain("Charla abierta");
-    expect(aside).not.toContain("ya pasó");
+    expect(group).toMatch(/<a [^>]*href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>2<span class="sr-only"> abiertas<\/span><\/span>/);
+    expect(group).not.toContain("aria-current");
+    expect(html.indexOf("Categorías</h2>")).toBeLessThan(html.indexOf("Eventos</h2>"));
+    expect(html.indexOf('href="/foro?categoria=propuestas"')).toBeLessThan(html.indexOf("Eventos</h2>"));
   });
 
-  it("renders no aside at all while no event is open for registration", async () => {
+  it("says Inscripciones with a count of zero while no event is open, and keeps the guide to the forum", async () => {
     seedForum();
     await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
 
     const html = await renderQuery({});
 
-    expect(html).not.toContain("<aside");
-    expect(html).not.toContain("Inscripciones abiertas");
+    expect(html).toMatch(/href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>0<span class="sr-only"> abiertas<\/span>/);
+    expect(html).toContain("Cómo funciona el foro");
+  });
+
+  it("keeps a way to Inscripciones on phones, under the filters that lg up move to the rail", async () => {
+    seedForum();
+    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
+
+    const html = await renderQuery({});
+    const phones = html.match(/<div class="[^"]*\blg:hidden\b[^"]*">[\s\S]*?<\/nav><\/div><\/div>/)?.[0] ?? "";
+
+    expect(html.match(/aria-label="Eventos"/g)).toHaveLength(2);
+    expect(phones).toContain('href="/foro/eventos"');
+    expect(phones).toContain("Inscripciones");
+  });
+
+  it("is a rail with the filters and the categories beside the list, with the guide after it", async () => {
+    seedForum();
+    testForum.store.categories.set("c2", makeForumCategory({ id: "c2", slug: "materias", name: "Materias", sortOrder: 2, description: "Dudas de las materias" }));
+
+    const html = await renderQuery({});
+    const rail = html.match(/<h2[^>]*>Categorías<\/h2>[\s\S]*?<\/nav>/)?.[0] ?? "";
+
+    expect(html).toContain("data-wide");
+    expect(rail).toContain('aria-label="Categoría"');
+    expect(rail).toMatch(/href="\/foro"[^>]*>[\s\S]*?Todas/);
+    expect(rail).toMatch(/href="\/foro\?categoria=materias"[^>]*>[\s\S]*?Materias[\s\S]*?<span class="font-mono[^>]*>2<span class="sr-only"> hilos<\/span>[\s\S]*?Dudas de las materias/);
+    expect(rail).toContain('href="/foro?categoria=propuestas"');
+    expect(html.indexOf("Categorías</h2>")).toBeLessThan(html.indexOf('href="/foro/hilo/'));
+    expect(html.indexOf('href="/foro/hilo/')).toBeLessThan(html.indexOf("Cómo funciona el foro"));
+  });
+
+  it("explains how the forum works with what it really does: ask, mark the best answer, report", async () => {
+    seedForum();
+
+    const guide = (await renderQuery({})).match(/<aside[^>]*aria-labelledby="how-it-works-title"[^>]*>[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+    expect(guide).toContain("Cómo funciona el foro");
+    expect(guide).toContain("Pregunte");
+    expect(guide).toContain("Marque la mejor respuesta");
+    expect(guide).toContain("Reporte lo que incumpla las reglas");
+    expect(guide.match(/<li/g)).toHaveLength(3);
+  });
+
+  it("keeps the filters on top of the list for phones and moves them to the rail from lg up", async () => {
+    seedForum();
+
+    const html = await renderQuery({});
+
+    expect(html.match(/aria-label="Estado de los hilos"/g)).toHaveLength(2);
+    expect(html.match(/aria-label="Categoría"/g)).toHaveLength(2);
+    expect(html).toMatch(/<div class="[^"]*\blg:hidden\b[^"]*">[\s\S]*?<nav aria-label="Estado de los hilos"/);
+    expect(html).toMatch(/class="[^"]*\bhidden\b[^"]*\blg:grid\b[^"]*"><nav aria-label="Estado de los hilos"/);
+  });
+
+  it("ends a list that has threads with a prompt to start one, after the list on its branch line, and not on an empty list", async () => {
+    seedForum();
+
+    const html = await renderQuery({});
+    const prompt = html.match(/<div class="thread-graph-end[^"]*">[\s\S]*?¿No encuentra su duda\?[\s\S]*?Nuevo hilo/)?.[0] ?? "";
+
+    expect(prompt).toContain("Abra un hilo");
+    expect(html.indexOf("</ul>")).toBeLessThan(html.indexOf("thread-graph-end"));
+    expect(html.lastIndexOf('href="/foro/hilo/')).toBeLessThan(html.indexOf("¿No encuentra su duda?"));
+    expect(await renderQuery({ categoria: "propuestas" })).not.toContain("¿No encuentra su duda?");
+  });
+
+  it("sets the list as a branch of the history graph with a header over its columns, and says each column in words", async () => {
+    seedForum();
+
+    const html = await renderQuery({});
+    const header = html.match(/<div aria-hidden="true" class="thread-cols[^"]*">[\s\S]*?<\/div>/)?.[0] ?? "";
+
+    expect(html).toContain('class="thread-graph"');
+    for (const column of ["Hilo", "Autor", "Última actividad", "Respuestas"]) expect(header).toContain(`>${column}<`);
+    // Phones read the same words in one line under the title; from xl up each has its own column.
+    expect(html).toContain("Kevin L.");
+    expect(html).toContain("actividad </span>");
   });
 
   it("falls back to the sign-in when the session was revoked", async () => {
@@ -332,5 +438,13 @@ describe("the forum layout", () => {
     expect(html).not.toContain("Cerrar sesión");
     expect(html).toContain('href="#main"');
     expect(html).toContain('<main id="main"');
+  });
+
+  it("is a reading column by default and widens only for the pages that mark themselves", async () => {
+    const main = (await renderLayout()).match(/<main[^>]*>/)?.[0] ?? "";
+
+    expect(main).toContain("max-w-[62rem]");
+    expect(main).toContain("has-[[data-wide]]:max-w-none");
+    expect(main).toContain("has-[[data-bleed]]:max-w-none");
   });
 });

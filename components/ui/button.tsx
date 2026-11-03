@@ -22,8 +22,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-sky-bright active:bg-sky-press",
-        line: "border-sky text-foreground hover:bg-sky/15 active:bg-sky/30",
+        primary: "bg-primary text-primary-foreground hover:bg-action-hover active:bg-action-press",
+        line: "border-action text-foreground hover:bg-foreground/10 active:bg-foreground/18",
         quiet: "font-semibold font-stretch-100 text-mist hover:bg-foreground/8 hover:text-foreground",
         danger: "bg-destructive text-destructive-foreground hover:bg-signal-press",
       },

@@ -23,7 +23,7 @@ import { toPublicContentResponse } from "@/interface/public/public-content.mappe
 let route: typeof import("../../../../../app/api/public/content/route");
 
 const LANDING = "https://aso-computacion.pages.dev";
-const emptySocialProof = { impact: [], testimonials: [], sponsors: [] };
+const emptySocialProof = { sponsors: [] };
 const emptySnapshot = { events: [], faqs: [], pillars: [], socials: [], board: [], settings: null, news: [], commands: [] };
 
 function get(headers: Record<string, string> = {}): NextRequest {
@@ -68,7 +68,7 @@ describe("GET /api/public/content", () => {
   it("serves the versioned snapshot with the settings null when never saved", async () => {
     const body = await (await route.GET(get())).json();
 
-    expect(Object.keys(body).sort()).toEqual(["board", "commands", "events", "faqs", "generatedAt", "impact", "news", "pillars", "schemaVersion", "settings", "socials", "sponsors", "testimonials", "version"]);
+    expect(Object.keys(body).sort()).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "schemaVersion", "settings", "socials", "sponsors", "version"]);
     expect(body).toMatchObject({ version: 1, schemaVersion: 1, settings: null, events: [], board: [] });
     expect(Number.isNaN(Date.parse(body.generatedAt))).toBe(false);
   });
@@ -83,10 +83,10 @@ describe("GET /api/public/content", () => {
   it("keeps every pre-existing field and shape: schemaVersion is the only addition", async () => {
     executeMock.mockResolvedValue({ ...emptySnapshot, faqs: [{ question: "¿Cuesta?", answer: "No.", command: null }] });
 
-    const { schemaVersion, impact, testimonials, sponsors, ...rest } = await (await route.GET(get())).json();
+    const { schemaVersion, sponsors, ...rest } = await (await route.GET(get())).json();
 
     expect(schemaVersion).toBe(1);
-    expect([impact, testimonials, sponsors]).toEqual([[], [], []]);
+    expect(sponsors).toEqual([]);
     expect(rest).toMatchObject({ version: 1, faqs: [{ question: "¿Cuesta?", answer: "No.", command: null }], settings: null });
     expect(Object.keys(rest).sort()).toEqual(["board", "commands", "events", "faqs", "generatedAt", "news", "pillars", "settings", "socials", "version"]);
   });
@@ -104,7 +104,7 @@ describe("GET /api/public/content", () => {
     expect(unconfigured).toMatchObject({ calendarUrl: null, registration: { mode: "open", endpoint: null } });
   });
 
-  it("adds the social proof lists without changing a single previous field", async () => {
+  it("adds the sponsors list without changing a single previous field", async () => {
     const at = { createdAt: new Date(), updatedAt: new Date() };
     const snapshot = {
       ...emptySnapshot,
@@ -113,25 +113,22 @@ describe("GET /api/public/content", () => {
       settings: { tagline: "T", description: "D", about: "A", updatedAt: new Date() },
     };
     executeMock.mockResolvedValue(snapshot);
-    socialProofMock.mockResolvedValue({
-      impact: [{ id: "i1", value: "120+", label: "Estudiantes", sortOrder: 0, isPublished: true, ...at }],
-      testimonials: [],
-      sponsors: [],
-    });
+    socialProofMock.mockResolvedValue({ sponsors: [] });
 
     const body = await (await route.GET(get())).json();
-    const { impact, testimonials, sponsors } = body;
+    const { sponsors } = body;
     const without = (document: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(document).filter(([key]) => !keys.includes(key)));
     const expected = JSON.parse(JSON.stringify(toPublicContentResponse(snapshot as never, new Date())));
 
-    expect(without(body, ["generatedAt", "impact", "testimonials", "sponsors"])).toEqual(without(expected, ["generatedAt"]));
-    expect(impact).toEqual([{ value: "120+", label: "Estudiantes" }]);
-    expect([testimonials, sponsors]).toEqual([[], []]);
+    expect(without(body, ["generatedAt", "sponsors"])).toEqual(without(expected, ["generatedAt"]));
+    expect(sponsors).toEqual([]);
+    expect(body).not.toHaveProperty("impact");
+    expect(body).not.toHaveProperty("testimonials");
   });
 
   it("moves the ETag when only the social proof changes", async () => {
     const first = (await route.GET(get())).headers.get("ETag");
-    socialProofMock.mockResolvedValue({ ...emptySocialProof, impact: [{ id: "i1", value: "1", label: "x", sortOrder: 0, isPublished: true, createdAt: new Date(), updatedAt: new Date() }] });
+    socialProofMock.mockResolvedValue({ sponsors: [{ id: "s1", name: "x", logo: { url: "https://res.cloudinary.test/a.png", publicId: "aso/a", width: 600, height: 300, alt: "x" }, url: null, sortOrder: 0, isPublished: true, createdAt: new Date(), updatedAt: new Date() }] });
 
     expect((await route.GET(get())).headers.get("ETag")).not.toBe(first);
   });

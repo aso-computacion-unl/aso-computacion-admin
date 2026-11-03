@@ -58,7 +58,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
             </span>
           ) : null}
           {status === "solved" ? (
-            <a href="#mejor" className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-sky px-3 font-bold text-primary-foreground no-underline hover:bg-sky-bright">
+            <a href="#mejor" className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-action px-3 font-bold text-on-action no-underline hover:bg-action-hover">
               <Icon name="merge" className="size-4" />
               Resuelto
             </a>

@@ -44,22 +44,6 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     uploadBoardMemberPhoto: { role: "EDITOR", audit: "board.photo_set" },
     removeBoardMemberPhoto: { role: "EDITOR", audit: "board.photo_remove" },
   },
-  "src/interface/admin/impact/actions.ts": {
-    createImpactStat: { role: "EDITOR", audit: "impact.create" },
-    updateImpactStat: { role: "EDITOR", audit: "impact.update" },
-    setImpactStatPublished: { role: "EDITOR", audit: "impact.publish" },
-    trashImpactStat: { role: "EDITOR", audit: "impact.trash" },
-    moveImpactStat: { role: "EDITOR", audit: "impact.move" },
-  },
-  "src/interface/admin/testimonials/actions.ts": {
-    createTestimonial: { role: "EDITOR", audit: "testimonial.create" },
-    updateTestimonial: { role: "EDITOR", audit: "testimonial.update" },
-    setTestimonialPublished: { role: "EDITOR", audit: "testimonial.publish" },
-    trashTestimonial: { role: "EDITOR", audit: "testimonial.trash" },
-    moveTestimonial: { role: "EDITOR", audit: "testimonial.move" },
-    uploadTestimonialPhoto: { role: "EDITOR", audit: "testimonial.photo_set" },
-    removeTestimonialPhoto: { role: "EDITOR", audit: "testimonial.photo_remove" },
-  },
   "src/interface/admin/sponsors/actions.ts": {
     createSponsor: { role: "EDITOR", audit: "sponsor.create" },
     updateSponsor: { role: "EDITOR", audit: "sponsor.update" },

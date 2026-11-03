@@ -26,10 +26,8 @@ describe("reorderContent", () => {
   });
 
   it.each([
-    ["impact", "/admin/impact", "Cifra de impacto reordenada"],
-    ["testimonial", "/admin/testimonials", "Testimonio reordenado"],
     ["sponsor", "/admin/sponsors", "Aliado reordenado"],
-  ])("reorders the social proof list %s the same way", async (kind, path, summary) => {
+  ])("reorders the sponsor list %s the same way", async (kind, path, summary) => {
     cookieJar(cookiesMock, await signInAs("EDITOR"));
 
     expect(await reorderContent(kind, "x-1", 0)).toEqual({ success: true });

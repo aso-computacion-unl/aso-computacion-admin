@@ -17,17 +17,20 @@ export const MEDIA_KIND_LABELS: Record<MediaUsageKind, string> = {
   sponsor: "Aliado",
 };
 
-const EDIT_PATH: Record<MediaUsageKind, string> = {
+/** Kinds with no admin page (testimonials are kept in the database but no longer managed) have no edit path. */
+const EDIT_PATH: Record<MediaUsageKind, string | null> = {
   event: "/admin/events",
   news: "/admin/news",
   pillar: "/admin/pillars",
   board: "/admin/board",
-  testimonial: "/admin/testimonials",
+  testimonial: null,
   sponsor: "/admin/sponsors",
 };
 
-export function usageHref(usage: Pick<MediaUsage, "kind" | "id">): string {
-  return `${EDIT_PATH[usage.kind]}/${usage.id}/edit`;
+export function usageHref(usage: Pick<MediaUsage, "kind" | "id">): string | null {
+  const path = EDIT_PATH[usage.kind];
+
+  return path === null ? null : `${path}/${usage.id}/edit`;
 }
 
 /** "340 KB", "1,2 MB": sizes are for judging weight, not for exact accounting. */

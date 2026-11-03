@@ -67,7 +67,7 @@ export function PublishedToggle({ label, isPublished, action }: PublishedToggleP
           className={cn(
             "relative block h-6 w-11 shrink-0 rounded-full border border-mist/55 bg-muted transition-colors duration-200 ease-out",
             "after:absolute after:top-0.5 after:left-0.5 after:size-[1.125rem] after:rounded-full after:bg-mist after:transition-[translate,background-color] after:duration-200 after:ease-(--ease-reveal) after:content-['']",
-            "group-aria-checked:border-sky group-aria-checked:bg-sky group-aria-checked:after:translate-x-5 group-aria-checked:after:bg-muted",
+            "group-aria-checked:border-action group-aria-checked:bg-action group-aria-checked:after:translate-x-5 group-aria-checked:after:bg-muted",
             pending && "opacity-60",
           )}
         />

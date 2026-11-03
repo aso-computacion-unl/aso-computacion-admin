@@ -14,9 +14,10 @@
  *
  * ASO Computación brand tokens: the same values as the landing's `src/styles/global.css`.
  * - navy:   page background and text on light fills.
- * - sky:    the line of the history graph, links, primary actions and focus.
+ * - sky:    the line of the history graph, links, terminal lines and focus.
+ * - action: buttons, toggles and the selected state: white on navy (navy on the light theme).
  * - mist:   metadata and secondary text.
- * - signal: accent for dates and "what comes next". Only as a fill with white text:
+ * - signal: accent for dates, "what comes next" and the current section. Only as a fill, bar or with white text:
  *           on navy it is ~2:1 (use `error` for red text).
  * - navy-deep / navy-lift: darker and lighter steps of the same navy, flat layers.
  * The semantic names below (background, card, primary...) are what the shadcn/ui primitives read.
@@ -35,14 +36,19 @@
 	--color-error: #ff9ba2;
 	/* Green text for "open" in the forum: 9:1 or more on every navy step. */
 	--color-ok: #7fe0b0;
+	/* Actions: white on navy, as on the landing. Hover and press step toward the page. */
+	--color-action: #fff;
+	--color-on-action: #03224a;
+	--color-action-hover: color-mix(in srgb, var(--color-action) 86%, var(--color-navy));
+	--color-action-press: color-mix(in srgb, var(--color-action) 74%, var(--color-navy));
 
 	--color-background: var(--color-navy);
 	--color-foreground: #fff;
 	--color-card: var(--color-navy-lift);
 	--color-muted: var(--color-navy-deep);
 	--color-muted-foreground: var(--color-mist);
-	--color-primary: var(--color-sky);
-	--color-primary-foreground: var(--color-navy-deep);
+	--color-primary: var(--color-action);
+	--color-primary-foreground: var(--color-on-action);
 	--color-destructive: var(--color-signal);
 	--color-destructive-foreground: #fff;
 	--color-border: color-mix(in srgb, var(--color-sky) 28%, transparent);
@@ -50,8 +56,10 @@
 	--color-input: color-mix(in srgb, var(--color-mist) 50%, transparent);
 	--color-ring: var(--color-sky);
 
-	/* Display: titles and headers only. Body: text. Mono: dates, branch names, short hashes. */
-	--font-display: "Audiowide", ui-sans-serif, system-ui, sans-serif;
+	/* Brand: the wordmark only. Display: titles, Mona Sans expanded (see the utility below). Body: text.
+	   Mono: dates, branch names, short hashes. */
+	--font-brand: "Audiowide", ui-sans-serif, system-ui, sans-serif;
+	--font-display: "Mona Sans Variable", ui-sans-serif, system-ui, sans-serif;
 	--font-sans: "Mona Sans Variable", ui-sans-serif, system-ui, sans-serif;
 	--font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
@@ -64,6 +72,7 @@
  * - foreground #0b2447 is 12.9:1 or more on every surface; mist #45556d is 6.3:1 or more.
  * - sky #0a6f9e is 4.6:1 or more as text; white on sky, sky-bright and sky-press is 5.5:1 or more.
  * - hover and press go darker here (lighter would fade into the page).
+ * - action is navy ink with white text (15:1); its hover and press stay 11:1 or more.
  * - signal stays a fill with white text (5.9:1); error is its text form, 5.5:1 or more on every surface.
  * - input outlines are 3.2:1 or more against the field (WCAG 1.4.11).
  */
@@ -80,7 +89,8 @@
 	--color-ok: #0a6b46;
 
 	--color-foreground: #0b2447;
-	--color-primary-foreground: #ffffff;
+	--color-action: #0b2447;
+	--color-on-action: #ffffff;
 	--color-border: color-mix(in srgb, var(--color-sky) 35%, transparent);
 	--color-input: color-mix(in srgb, var(--color-mist) 70%, transparent);
 	color-scheme: light;
@@ -167,7 +177,7 @@
 	input[type="file"]::file-selector-button {
 		margin-right: 0.75rem;
 		padding: 0.5rem 0.875rem;
-		border: 1px solid var(--color-sky);
+		border: 1px solid var(--color-action);
 		border-radius: 4px;
 		background: transparent;
 		color: var(--color-foreground);
@@ -187,4 +197,11 @@
 		transition-duration: 0.001ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+
+/* The `font-display` utility only sets the family; titles also take the expanded heavy cut. */
+@utility font-display {
+	font-family: var(--font-display);
+	font-stretch: 125%;
+	font-weight: 800;
 }

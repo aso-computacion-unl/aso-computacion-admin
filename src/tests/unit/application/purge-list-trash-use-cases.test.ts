@@ -31,7 +31,7 @@ describe("purge and list-trash use cases", () => {
   let socials: InMemoryOrderedRepository<SocialLink>;
   let pillars: InMemoryOrderedRepository<Pillar>;
   let board: InMemoryOrderedRepository<BoardMember>;
-  let socialProof: Pick<TrashSources, "impact" | "testimonials" | "sponsors">;
+  let socialProof: Pick<TrashSources, "sponsors">;
   let storage: InMemoryMediaStorage;
 
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe("purge and list-trash use cases", () => {
     socials = new InMemoryOrderedRepository();
     pillars = new InMemoryOrderedRepository();
     board = new InMemoryOrderedRepository();
-    socialProof = { impact: new InMemoryOrderedRepository(), testimonials: new InMemoryOrderedRepository(), sponsors: new InMemoryOrderedRepository() };
+    socialProof = { sponsors: new InMemoryOrderedRepository() };
     storage = new InMemoryMediaStorage();
   });
 

@@ -3,7 +3,12 @@ import { BOARD_PHOTO_FOLDER } from "./use-cases/set-board-member-photo.use-case"
 import { NEWS_COVER_FOLDER } from "./use-cases/set-news-cover.use-case";
 import { PILLAR_IMAGE_FOLDER } from "./use-cases/set-pillar-image.use-case";
 import { SPONSOR_LOGO_FOLDER } from "./use-cases/set-sponsor-logo.use-case";
-import { TESTIMONIAL_PHOTO_FOLDER } from "./use-cases/set-testimonial-photo.use-case";
+
+/**
+ * Testimonials are no longer managed in the admin, but their rows (and photos) are kept in the
+ * database, so their upload folder stays here: those photos must never look like orphans.
+ */
+const TESTIMONIAL_PHOTO_FOLDER = "testimonials";
 
 /** A column that stores the public id of an uploaded image, and the subfolder its uploads go to. */
 export interface MediaOwner {

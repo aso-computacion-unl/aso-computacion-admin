@@ -35,7 +35,7 @@ export function StatusFilter({ path, current, counts, search = "" }: StatusFilte
               className={cn(
                 "inline-flex min-h-11 items-center gap-2 rounded border border-input px-3.5 text-sm font-semibold text-mist",
                 "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
-                "aria-[current=true]:border-sky aria-[current=true]:bg-sky aria-[current=true]:text-primary-foreground",
+                "aria-[current=true]:border-action aria-[current=true]:bg-action aria-[current=true]:text-on-action",
               )}
             >
               {LABELS[filter]}

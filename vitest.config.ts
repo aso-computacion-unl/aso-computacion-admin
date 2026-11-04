@@ -30,7 +30,7 @@ export default defineConfig({
         "lib/**/*.{ts,tsx}",
         "src/**/*.{ts,tsx}",
         "scripts/**/*.{ts,mts,mjs}",
-        "middleware.ts",
+        "proxy.ts",
         "instrumentation*.ts",
       ],
       exclude: ["src/tests/**", "src/generated/**", "**/*.d.{ts,mts}", "scripts/**/*.config.ts"],

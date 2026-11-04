@@ -39,7 +39,7 @@ export class UnauthorizedError extends Error {
 /**
  * Server-side guard for every admin server action and protected page; returns who is acting.
  *
- * The middleware only protects the paths in its matcher and can only check the cookie's signature
+ * The proxy only protects the paths in its matcher and can only check the cookie's signature
  * (it cannot reach the database), but a server action can be POSTed to ANY page that bundles it
  * (including the public `/login`), so each mutation must re-check the session itself, as its first
  * statement and before reading any input. The cookie only names the session: the `Session` row

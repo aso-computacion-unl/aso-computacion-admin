@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { config } from "../../../../middleware";
+import { config } from "../../../../proxy";
 import { TEST_SECRET, buildRequest, matcherCovers, signTestToken } from "./support";
 
 // A fresh middleware module per test: the session secret "reported once" latch lives in the module graph.
-let middleware: typeof import("../../../../middleware").middleware;
+let proxy: typeof import("../../../../proxy").proxy;
 
 describe("middleware auth guard", () => {
   beforeEach(async () => {
     vi.resetModules();
-    ({ middleware } = await import("../../../../middleware"));
+    ({ proxy } = await import("../../../../proxy"));
   });
 
   afterEach(() => {
@@ -20,7 +20,7 @@ describe("middleware auth guard", () => {
   it("MW-001: request without cookie to /admin redirects to /login", async () => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
 
-    const response = await middleware(buildRequest("/admin"));
+    const response = await proxy(buildRequest("/admin"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
@@ -30,7 +30,7 @@ describe("middleware auth guard", () => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
     const token = await signTestToken(86400);
 
-    const response = await middleware(buildRequest("/admin", token));
+    const response = await proxy(buildRequest("/admin", token));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
@@ -40,7 +40,7 @@ describe("middleware auth guard", () => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
     const expiredToken = await signTestToken(-100);
 
-    const response = await middleware(buildRequest("/admin", expiredToken));
+    const response = await proxy(buildRequest("/admin", expiredToken));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
@@ -50,7 +50,7 @@ describe("middleware auth guard", () => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
     const forgedToken = await signTestToken(86400, "y".repeat(32));
 
-    const response = await middleware(buildRequest("/admin", forgedToken));
+    const response = await proxy(buildRequest("/admin", forgedToken));
 
     expect(response.status).toBe(307);
   });
@@ -59,7 +59,7 @@ describe("middleware auth guard", () => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
     const token = await signTestToken(86400);
 
-    const response = await middleware(buildRequest("/api/admin/example", token));
+    const response = await proxy(buildRequest("/api/admin/example", token));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
@@ -70,9 +70,9 @@ describe("middleware auth guard", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubEnv("ADMIN_SECRET", invalidSecret);
 
-    const response = await middleware(buildRequest("/api/admin/example", "invalid"));
+    const response = await proxy(buildRequest("/api/admin/example", "invalid"));
     const responseText = await response.clone().text();
-    const secondResponse = await middleware(buildRequest("/api/admin/example", "invalid"));
+    const secondResponse = await proxy(buildRequest("/api/admin/example", "invalid"));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Service unavailable" });
@@ -88,7 +88,7 @@ describe("middleware auth guard", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubEnv("ADMIN_SECRET", invalidSecret);
 
-    const response = await middleware(buildRequest("/admin", "invalid"));
+    const response = await proxy(buildRequest("/admin", "invalid"));
 
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain(invalidSecret);
@@ -98,7 +98,7 @@ describe("middleware auth guard", () => {
   it("MW-009: a missing ADMIN_SECRET returns 503 instead of unauthorized", async () => {
     vi.stubEnv("ADMIN_SECRET", undefined);
 
-    const response = await middleware(buildRequest("/api/admin/example"));
+    const response = await proxy(buildRequest("/api/admin/example"));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: "Service unavailable" });

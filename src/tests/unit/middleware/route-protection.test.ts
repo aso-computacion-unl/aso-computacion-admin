@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { config, middleware } from "../../../../middleware";
+import { config, proxy } from "../../../../proxy";
 import { buildRequest, matcherCovers } from "./support";
 
 const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
@@ -65,7 +65,7 @@ describe("route protection", () => {
     vi.stubEnv("ADMIN_SECRET", undefined);
 
     for (const route of PUBLIC_ROUTES) {
-      const response = await middleware(buildRequest(route));
+      const response = await proxy(buildRequest(route));
 
       expect(response.headers.get("x-middleware-next"), route).toBe("1");
     }

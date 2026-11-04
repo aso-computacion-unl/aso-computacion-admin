@@ -8,7 +8,7 @@
  *
  * Content-Security-Policy notes:
  *  - `script-src 'self' 'unsafe-inline'`: Next.js injects inline hydration
- *    scripts. Tightening this to nonces requires per-request middleware and is
+ *    scripts. Tightening this to nonces requires a per-request proxy and is
  *    tracked separately; the value here still blocks third-party script hosts.
  *  - `img-src` allows Cloudinary because uploaded images are served from there.
  *  - `connect-src 'self'` keeps the admin talking only to its own origin, plus the Sentry ingest

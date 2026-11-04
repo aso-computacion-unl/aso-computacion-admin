@@ -32,7 +32,7 @@ export const BREAK_GLASS_SUBJECT = "break_glass";
 /**
  * What the cookie says about the session. It only locates the `Session` row; the guard takes the
  * actor's role and whether the session is still good from the database, so `role` here is a hint
- * (the middleware cannot reach the database) and is never trusted for authorization.
+ * (the proxy cannot reach the database) and is never trusted for authorization.
  */
 export interface SessionClaims {
   sid: string;

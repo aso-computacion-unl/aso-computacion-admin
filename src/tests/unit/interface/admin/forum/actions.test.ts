@@ -58,7 +58,7 @@ describe("forum category server actions", () => {
       expect(await actions.createForumCategory(null, categoryForm({ name: " Materias y cursos ", description: "Dudas de clase" }))).toEqual({ success: true });
 
       expect([...testForum.store.categories.values()]).toMatchObject([{ slug: "materias-y-cursos", name: "Materias y cursos", description: "Dudas de clase", sortOrder: 1 }]);
-      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/foro");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/foro/categorias");
     });
 
     it("says in Spanish, on the field, what is wrong with a category", async () => {

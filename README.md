@@ -59,7 +59,7 @@ Cada elemento se puede publicar u ocultar cuando se desee, y nada llega al sitio
 
 | Capa | Herramientas |
 |---|---|
-| Aplicación | Next.js 15 · React 19 · TypeScript |
+| Aplicación | Next.js 16 · React 19 · TypeScript |
 | Datos | Prisma · PostgreSQL en Neon |
 | Imágenes | Cloudinary |
 | Identidad y antispam | Google (OAuth) · Cloudflare Turnstile en el formulario abierto de inscripción |

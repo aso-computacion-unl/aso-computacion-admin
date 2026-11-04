@@ -13,6 +13,45 @@ function isApiRequest(request: NextRequest): boolean {
   return request.nextUrl.pathname.startsWith("/api/");
 }
 
+// `/api/admin/` has no routes yet and is not in the matcher; it is listed so that a future admin API added
+// to the matcher is guarded by the existing 401 JSON / 503 logic instead of silently passing through.
+function isProtectedPathname(pathname: string): boolean {
+  return pathname === "/" || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/api/admin/");
+}
+
+// Next 16 runs the matcher and finds the page on the decoded path as well, so `/%61dmin` or
+// `/admin%2Fevents` reach an admin page: guard the raw path and its decoded, slash-collapsed form.
+function isProtectedPath(pathname: string): boolean {
+  const decoded = decodeURIComponent(pathname).replace(/\/{2,}/g, "/");
+
+  return isProtectedPathname(pathname) || isProtectedPathname(decoded);
+}
+
+function isDecodablePath(pathname: string): boolean {
+  try {
+    decodeURIComponent(pathname);
+
+    return true;
+  } catch (error) {
+    if (error instanceof URIError) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+function badRequest(request: NextRequest): NextResponse {
+  if (!isApiRequest(request)) {
+    return new NextResponse("<h1>Bad request</h1>", {
+      status: 400,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+
+  return NextResponse.json({ error: "Bad request" }, { status: 400 });
+}
+
 function denyAccess(request: NextRequest): NextResponse {
   if (!isApiRequest(request)) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -33,6 +72,18 @@ function serviceUnavailable(request: NextRequest): NextResponse {
 }
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl;
+
+  // Next 16 no longer maps a malformed percent escape to 400 on dynamic routes (it throws DecodeError, a 500),
+  // so the answer is given here, before the session secret or any route is touched.
+  if (!isDecodablePath(pathname)) {
+    return badRequest(request);
+  }
+
+  if (!isProtectedPath(pathname)) {
+    return NextResponse.next();
+  }
+
   try {
     getSessionSecret();
   } catch (error) {
@@ -71,8 +122,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 // The matcher is an allowlist: a new protected route or admin API is NOT
-// guarded until its path is added here. `/api/health` and `/api/public/*`
-// stay public by not being listed.
+// guarded until its path is added here AND `isProtectedPath` accepts it.
+// It also lists the dynamic public prefixes (`/foro`, `/invitacion`,
+// `/api/public/events`), but only for the undecodable-path check above: auth
+// is decided by `isProtectedPath`, so those requests pass through untouched.
+// `/login`, `/api/health` and `/api/public/content` stay outside it.
 export const config = {
-  matcher: ["/", "/admin/:path*"],
+  matcher: ["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+"],
 };

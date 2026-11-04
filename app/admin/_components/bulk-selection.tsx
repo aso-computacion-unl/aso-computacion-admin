@@ -69,6 +69,8 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
 
   // A row that left the page (trashed, or a new page) can no longer be acted on.
   useEffect(() => {
+    // Pruning state when the rows change is the point here, and the updater bails out unchanged.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected((previous) => {
       const kept = [...previous].filter((id) => labels.has(id));
 

@@ -107,6 +107,8 @@ export function MoveButtons({ label, isFirst, isLast, position, total, action }:
     target?.focus();
     // The toast is the announcement: the live region reads the new place aloud.
     notify(`${label}: posición ${position} de ${total}.`);
+    // Focus can only move after the reordered list has committed, so the reset belongs here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMoved(null);
   }, [moved, pending, label, position, total, notify]);
 

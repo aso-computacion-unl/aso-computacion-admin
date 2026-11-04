@@ -1,9 +1,9 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { config } from "../../../../middleware";
-import { matcherCovers } from "./support";
+import { config, middleware } from "../../../../middleware";
+import { buildRequest, matcherCovers } from "./support";
 
 const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 
@@ -40,6 +40,8 @@ function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {
 }
 
 describe("route protection", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   const routes = discoverRoutes();
 
   it("discovers the routes of the app (guards the discovery itself)", () => {
@@ -59,8 +61,21 @@ describe("route protection", () => {
     for (const route of admin) expect(matcherCovers(config.matcher, route), route).toBe(true);
   });
 
-  it("the public routes are not touched by the middleware, so they need no session", () => {
-    for (const route of PUBLIC_ROUTES) expect(matcherCovers(config.matcher, route), route).toBe(false);
+  it("the public routes are not auth-guarded: the middleware lets them through without a session, even with a misconfigured secret", async () => {
+    vi.stubEnv("ADMIN_SECRET", undefined);
+
+    for (const route of PUBLIC_ROUTES) {
+      const response = await middleware(buildRequest(route));
+
+      expect(response.headers.get("x-middleware-next"), route).toBe("1");
+    }
+  });
+
+  it("the matcher reaches a public route only for the undecodable-path check: the dynamic forum, invitation and public event routes", () => {
+    const covered = PUBLIC_ROUTES.filter((route) => matcherCovers(config.matcher, route));
+
+    expect(covered.length).toBeGreaterThan(0);
+    for (const route of covered) expect(/^\/(foro\/|invitacion\/|api\/public\/events\/)/.test(route), route).toBe(true);
   });
 
   it("no public route lives under /admin or hides behind an admin-looking prefix", () => {

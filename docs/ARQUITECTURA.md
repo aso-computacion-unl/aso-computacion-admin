@@ -34,7 +34,7 @@ flowchart LR
 
 | | Admin (`aso-computacion-admin`) | Landing (`aso-computacion-landing`) |
 |---|---|---|
-| Kind | Next.js 15 App Router, server actions, Prisma 7 | Astro 7, static output, Tailwind, GSAP |
+| Kind | Next.js 16 App Router, server actions, Prisma 7 | Astro 7, static output, Tailwind, GSAP |
 | Hosting | Vercel (Production; previews should get no production variables) | Cloudflare Pages (`dist/`) |
 | Data | Postgres on Neon (all content, users, sessions, audit log, forum, registrations) and images on Cloudinary | None. Content comes from the admin at build time; `src/data/fallback.json` is a committed snapshot used when the admin is unavailable |
 | Owns | Content model and rules (events, news, FAQ, free terminal commands, board, pillars, socials, sponsors, site texts), publication windows, trash, audit log, forum, event registration, the public JSON contract | Design, fixed copy (Spanish and `/en/`), the build-time validation of the JSON, the production content gate, preview builds, the live-seats widget |
@@ -65,7 +65,7 @@ Three unrelated ways in, each with its own cookie, secret and guard. A cookie of
 
 | Identity | Who | Sign-in | Cookie and store | Guard |
 |---|---|---|---|---|
-| **Admin user** | The board, role `ADMIN` or `EDITOR` | Google (authorization code + PKCE), only emails on the Usuarios list, added by single-use invitation link (7 days) or `ADMIN_BOOTSTRAP_EMAILS` for the first admin | `admin_session`, 24 h, signed with `ADMIN_SECRET`; each login is a revocable `Session` row; the role is read from the `User` row on every request | `requireSession()` / `requireRole("ADMIN")` on every action; `requirePageSession()` on pages; middleware (cookie signature only) on `/` and `/admin/*` |
+| **Admin user** | The board, role `ADMIN` or `EDITOR` | Google (authorization code + PKCE), only emails on the Usuarios list, added by single-use invitation link (7 days) or `ADMIN_BOOTSTRAP_EMAILS` for the first admin | `admin_session`, 24 h, signed with `ADMIN_SECRET`; each login is a revocable `Session` row; the role is read from the `User` row on every request | `requireSession()` / `requireRole("ADMIN")` on every action; `requirePageSession()` on pages; middleware (cookie signature only) on `/` and `/admin/*`; the middleware also answers `400` for any matched path with a malformed percent escape, without touching the session |
 | **Break-glass** | Anyone with the shared emergency password | `/login` with `ADMIN_PASSWORD`, available only while Google is not configured or when `BREAK_GLASS_PASSWORD_LOGIN=1`; throttled in Postgres | Same cookie, session `kind` `break_glass`, acts as a synthetic admin, banner on every page, audited | Same guards; switching it off rejects open emergency sessions |
 | **Forum member** | Students with an `@unl.edu.ec` Google account (email verified, `hd` matching `FORUM_ALLOWED_EMAIL_DOMAIN`) | Google at `/foro/auth/google/start`; the first valid login creates the member | `forum_session` (path `/foro`, 7 days, signed with `FORUM_SESSION_SECRET`); `ForumMember` / `ForumSession` tables, not `User` | `requireForumMember()` / `requireForumPageMember()` |
 

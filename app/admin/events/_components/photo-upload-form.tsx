@@ -73,7 +73,9 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
   const { notify } = useToast();
   const [inputKey, setInputKey] = useState(0);
   const queueRef = useRef(queue);
-  queueRef.current = queue;
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
   const remaining = MAX_ACTIVE_EVENT_PHOTOS - activeCount - queue.length;
   const full = activeCount >= MAX_ACTIVE_EVENT_PHOTOS;
 

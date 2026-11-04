@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 
 import { FORBIDDEN_MESSAGE, SESSION_EXPIRED_MESSAGE } from "@/interface/admin/action-result";
 import * as actions from "@/interface/admin/forum/actions";
-import { getAdminForumCategories } from "@/interface/admin/forum/forum-admin-read";
+import { getAdminForumCategories, getAdminForumCategory } from "@/interface/admin/forum/forum-admin-read";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { cookieJar, registerPolicyCases } from "@/tests/support/action-policy";
 import { makeForumCategory, makeForumThread } from "@/tests/fakes/in-memory-forum";
@@ -131,6 +131,18 @@ describe("forum category server actions", () => {
 
       cookieJar(cookiesMock, await signInAs("EDITOR"));
       await expect(getAdminForumCategories()).rejects.toThrow("REDIRECT /admin?acceso=restringido");
+    });
+
+    it("reads one category for its edit page: null when it does not exist, and an editor is sent away", async () => {
+      seed();
+      testForum.store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1" }));
+      cookieJar(cookiesMock, await signInAs("ADMIN"));
+
+      expect(await getAdminForumCategory("c1")).toMatchObject({ id: "c1", slug: "programacion", name: "Programación", description: null, threadCount: 1 });
+      expect(await getAdminForumCategory("ghost")).toBeNull();
+
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      await expect(getAdminForumCategory("c1")).rejects.toThrow("REDIRECT /admin?acceso=restringido");
     });
   });
 });

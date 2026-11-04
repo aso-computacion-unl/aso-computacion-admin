@@ -1,9 +1,10 @@
 generator client {
   provider            = "prisma-client"
   output              = "../src/generated/prisma"
-  // Explicit ".ts" imports let Node (the e2e runner, no bundler) load the generated client too.
+  // The client is loaded outside the bundler too: Node (scripts/run-e2e.mjs) needs explicit ".ts" imports,
+  // and Playwright compiles the specs to CommonJS, where the ESM output's `import.meta` is a syntax error.
   importFileExtension = "ts"
-  moduleFormat        = "esm"
+  moduleFormat        = "cjs"
 }
 
 datasource db {

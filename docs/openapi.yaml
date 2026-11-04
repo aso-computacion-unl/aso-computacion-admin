@@ -23,8 +23,9 @@ info:
 
     Solo funcionan desde el navegador los endpoints con CORS abierto. Las rutas de OAuth (redirecciones), el cron
     y la exportación con cookie no se pueden llamar desde otro origen. Probar `POST …/registrations` contra
-    producción **no** crea una inscripción: exige un token de Cloudflare Turnstile que solo emite el widget de la
-    landing.
+    producción sin un token válido de Cloudflare Turnstile (que solo emite el widget de la landing) no crea una
+    inscripción; pero un token válido sí la crea, y un servidor local sin `TURNSTILE_SECRET_KEY` fuera de
+    producción omite la verificación y **crea** la inscripción. Es una escritura real: use solo datos de prueba.
   license:
     name: MIT
     identifier: MIT
@@ -158,8 +159,8 @@ paths:
       operationId: getPublicPreview
       summary: Vista previa con borradores y contenido programado
       description: |
-        El mismo documento que `/api/public/content` más los borradores y elementos programados, con
-        `"preview": true` (no incluye `sponsors`). Pensado para una compilación de vista previa en el servidor, por
+        El documento de `/api/public/content` más los borradores y elementos programados, con `"preview": true`.
+        A diferencia de `content`, **no incluye la lista `sponsors`**. Pensado para una compilación de vista previa en el servidor, por
         lo que **no concede CORS**. El token viaja en una cabecera, nunca en la URL, y no se registra.
 
         El token es un JWT HS256 (emisor `aso-admin`, audiencia `aso-public-preview`) generado en el admin por un
@@ -285,8 +286,11 @@ paths:
         - **CORS:** lista de orígenes; el preflight permite `POST, OPTIONS` y la cabecera `Content-Type`.
         - **Caché:** `no-store` siempre.
 
-        > "Try it out" contra producción no crea inscripciones: el token solo lo emite el widget de Turnstile de la
-        > landing, así que la respuesta esperada es `400 captcha` (o `503 unavailable`).
+        > **Esta operación escribe datos reales.** Sin un token válido (que solo emite el widget de Turnstile de la
+        > landing) y con `TURNSTILE_SECRET_KEY` configurada, la respuesta esperada es `400 captcha` (o `503
+        > unavailable`). Un token válido sí crea la inscripción, también en producción, y un servidor local sin
+        > `TURNSTILE_SECRET_KEY` fuera de producción omite la verificación, así que una solicitud válida la crea.
+        > Use solo datos de prueba.
       security: []
       requestBody:
         required: true
@@ -1086,6 +1090,9 @@ components:
         output: { type: string }
     PublicContent:
       type: object
+      description: >-
+        Documento base compartido por `content` y `preview`. No incluye `sponsors`: solo `content` lo añade
+        (véase `PublicSocialProof`); `preview` añade `preview: true`.
       required: [version, schemaVersion, generatedAt, events, faqs, pillars, socials, board, settings, news, commands]
       properties:
         version:
@@ -1137,6 +1144,7 @@ components:
           description: URL https absoluta a la que puede enlazar el logo.
     PublicSocialProof:
       type: object
+      description: Claves que `GET /api/public/content` añade al documento base. `preview` no las incluye.
       required: [sponsors]
       properties:
         sponsors:

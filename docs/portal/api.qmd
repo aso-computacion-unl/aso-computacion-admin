@@ -8,8 +8,8 @@ Esta página documenta los 12 *route handlers* (`app/**/route.ts`) del panel de 
 
 | Método | Ruta | Autenticación | Propósito |
 |--------|------|---------------|-----------|
-| `GET`, `OPTIONS` | `/api/public/content` | Ninguna (CORS con lista de orígenes) | JSON de contenido público que consume la compilación de la landing |
-| `GET` | `/api/public/preview` | Cabecera `x-preview-token` | El mismo documento, con borradores y contenido programado |
+| `GET`, `OPTIONS` | `/api/public/content` | Ninguna (CORS con lista de orígenes) | JSON de contenido público (incluye `sponsors`) que consume la compilación de la landing |
+| `GET` | `/api/public/preview` | Cabecera `x-preview-token` | El documento de `content` sin `sponsors`, con borradores, contenido programado y `preview: true` |
 | `GET`, `OPTIONS` | `/api/public/events/seats` | Ninguna (CORS abierto `*`) | Cupos de los eventos públicos que admiten inscripción |
 | `POST`, `OPTIONS` | `/api/public/events/{slug}/registrations` | Ninguna; Cloudflare Turnstile en el cuerpo | Inscripción a un evento con el formulario abierto |
 | `GET`, `OPTIONS` | `/api/public/events/{slug}/calendar.ics` | Ninguna (CORS con lista de orígenes) | Descarga `.ics` de un evento público |
@@ -25,11 +25,16 @@ Esta página documenta los 12 *route handlers* (`app/**/route.ts`) del panel de 
 
 ### Sobre de error
 
-Las rutas JSON responden los errores con un objeto de una sola clave, sin detalles internos:
+Las rutas JSON responden los errores, por regla general, con un objeto de una sola clave, sin detalles internos:
 
 ```json
 { "error": "Service unavailable" }
 ```
+
+Hay dos excepciones a esa forma:
+
+- **Inscripción abierta:** un error `validation` incluye además la clave `field` con el primer campo inválido (`{ "error": "validation", "field": "semester" }`).
+- **Cron (`scheduled-rebuild`):** solo la autenticación fallida (`401`) usa `{ "error": "Unauthorized" }`. Los fallos de cada tarea no llevan `error` en el nivel superior: la respuesta tiene siempre las claves `rebuild` y `retention`, y la tarea que lanzó una excepción trae `{ "error": "Service unavailable" }` en su propia clave.
 
 El valor de `error` **no** es uniforme entre grupos; cada uno tiene su propio vocabulario:
 
@@ -76,7 +81,7 @@ Swagger UI carga `openapi.yaml` y trae activado el botón **Try it out**. Las so
 
 - **Funcionan** `GET /api/public/events/seats` (CORS abierto `*`) y los endpoints con lista de orígenes (`content`, `calendar.ics`, `registrations`) **solo si** el origen `https://aso-computacion-unl.github.io` figura en `PUBLIC_CORS_ORIGINS`; si no, el navegador bloquea la lectura de la respuesta.
 - **No se pueden llamar** desde otro origen: `preview` y `health` (sin cabeceras CORS), el cron (requiere el secreto), las cuatro rutas de Google (redirecciones de OAuth) y la exportación CSV (cookie de sesión de otro origen).
-- **`POST …/registrations` no crea inscripciones** desde aquí: exige un token de Turnstile que solo emite el widget de la landing, así que la respuesta esperada es `400 captcha` o `503 unavailable`.
+- **`POST …/registrations` escribe datos reales.** Con `TURNSTILE_SECRET_KEY` configurada, sin un token válido de Turnstile (que solo emite el widget de la landing) la respuesta esperada es `400 captcha` o `503 unavailable`. Pero un token válido sí crea una inscripción, también en producción, y un servidor local sin `TURNSTILE_SECRET_KEY` fuera de producción omite la verificación, de modo que una solicitud válida **crea** la inscripción. Use solo datos de prueba.
 :::
 
 ```{=html}
@@ -102,8 +107,8 @@ Los detalles de cada endpoint (parámetros, esquemas, ejemplos y códigos de est
 ### Público (`/api/public/*`)
 
 - Sin sesión. Los consumidores son la compilación de la landing y sus formularios.
-- `content`: `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate` y `ETag` fuerte calculado sin `generatedAt`; un `If-None-Match` coincidente devuelve `304`. El `s-maxage` debe mantenerse estrictamente menor que `DEPLOY_HOOK_DEBOUNCE_MS` (`src/infrastructure/deploy/deploy-hook.ts`); de lo contrario una compilación disparada por el *hook* podría leer una copia anterior a la edición. Los campos añadidos después de la primera versión son aditivos, y `version`/`schemaVersion` solo cambian ante un cambio incompatible.
-- `preview`: mismo documento más borradores y contenido programado, con la cabecera `x-preview-token` (JWT HS256, 1 h, 24 h o 7 d). Sin CORS, `private, no-store`. Los tokens son sin estado y solo se invalidan rotando `PREVIEW_TOKEN_SECRET` (mínimo 32 caracteres y distinto de `ADMIN_SECRET`, `FORUM_SESSION_SECRET` y `CRON_SECRET`).
+- `content`: el documento incluye la lista `sponsors` (patrocinadores y aliados publicados), que se añade al final del resto de claves; `preview` no la incluye. `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate` y `ETag` fuerte calculado sin `generatedAt`; un `If-None-Match` coincidente devuelve `304`. El `s-maxage` debe mantenerse estrictamente menor que `DEPLOY_HOOK_DEBOUNCE_MS` (`src/infrastructure/deploy/deploy-hook.ts`); de lo contrario una compilación disparada por el *hook* podría leer una copia anterior a la edición. Los campos añadidos después de la primera versión son aditivos, y `version`/`schemaVersion` solo cambian ante un cambio incompatible.
+- `preview`: mismo documento que `content`, pero sin `sponsors` y con la clave `preview: true`, más borradores y contenido programado, con la cabecera `x-preview-token` (JWT HS256, 1 h, 24 h o 7 d). Sin CORS, `private, no-store`. Los tokens son sin estado y solo se invalidan rotando `PREVIEW_TOKEN_SECRET` (mínimo 32 caracteres y distinto de `ADMIN_SECRET`, `FORUM_SESSION_SECRET` y `CRON_SECRET`).
 - `seats`: solo conteos y slugs; CORS abierto; `s-maxage=5`.
 - `registrations` (`POST`): orden de controles de menor a mayor costo (tasa, forma de la solicitud, Turnstile, caso de uso). Cuerpo JSON de hasta 4096 bytes; `name` y `career` de 1 a 120 caracteres, `email` válido de hasta 254, `semester` entero de 1 a 12. Turnstile falla cerrado en producción (`TURNSTILE_SECRET_KEY`). Límite de 5 solicitudes por 10 minutos. Los errores del servidor nunca repiten el nombre ni el correo enviados.
 - `calendar.ics`: solo datos del evento, nunca de inscritos; `s-maxage=60`.

@@ -5,6 +5,9 @@ project:
   # Swagger UI on the API page loads the spec from the published site.
   resources:
     - docs/openapi.yaml
+    # Linked from the landing README with relative paths (logo and license).
+    - landing/src/assets/brand/*
+    - landing/LICENSE
   # Only the pages listed here are published: no source code, env files or scratch.
   render:
     - index.qmd

@@ -1,0 +1,130 @@
+---
+title: "Referencia de la API"
+---
+
+Esta página documenta los 12 *route handlers* (`app/**/route.ts`) del panel de administración. La especificación es un documento OpenAPI 3.1, [`openapi.yaml`](../openapi.yaml), que se muestra más abajo con Swagger UI y un botón para probar cada endpoint. Todo se deriva del código; si el código cambia, el archivo y esta página deben actualizarse con él. Para el contexto general del sistema, véase [ARQUITECTURA.md](../ARQUITECTURA.md); para variables de entorno, reglas y decisiones, [REFERENCIA.md](../REFERENCIA.md).
+
+## Resumen
+
+| Método | Ruta | Autenticación | Propósito |
+|--------|------|---------------|-----------|
+| `GET`, `OPTIONS` | `/api/public/content` | Ninguna (CORS con lista de orígenes) | JSON de contenido público (incluye `sponsors`) que consume la compilación de la landing |
+| `GET` | `/api/public/preview` | Cabecera `x-preview-token` | El documento de `content` sin `sponsors`, con borradores, contenido programado y `preview: true` |
+| `GET`, `OPTIONS` | `/api/public/events/seats` | Ninguna (CORS abierto `*`) | Cupos de los eventos públicos que admiten inscripción |
+| `POST`, `OPTIONS` | `/api/public/events/{slug}/registrations` | Ninguna; Cloudflare Turnstile en el cuerpo | Inscripción a un evento con el formulario abierto |
+| `GET`, `OPTIONS` | `/api/public/events/{slug}/calendar.ics` | Ninguna (CORS con lista de orígenes) | Descarga `.ics` de un evento público |
+| `GET` | `/api/health` | Ninguna | Comprobación de vida (*liveness*) |
+| `GET` | `/api/cron/scheduled-rebuild` | `Authorization: Bearer <CRON_SECRET>` | Tareas diarias: reconstrucción programada de la landing y depuración de inscripciones |
+| `GET` | `/auth/google/start` | Ninguna | Inicia el inicio de sesión del admin con Google |
+| `GET` | `/auth/google/callback` | Cookie `oauth_state` + `state` | Termina el inicio de sesión del admin y abre la sesión |
+| `GET` | `/foro/auth/google/start` | Ninguna | Inicia el inicio de sesión del foro con Google |
+| `GET` | `/foro/auth/google/callback` | Cookie `forum_oauth_state` + `state` | Termina el inicio de sesión del foro y abre la sesión |
+| `GET` | `/admin/events/{id}/registrations/export` | Sesión `admin_session` con rol `ADMIN` | Exporta las inscripciones de un evento en CSV |
+
+## Convenciones compartidas
+
+### Sobre de error
+
+Las rutas JSON responden los errores, por regla general, con un objeto de una sola clave, sin detalles internos:
+
+```json
+{ "error": "Service unavailable" }
+```
+
+Hay dos excepciones a esa forma:
+
+- **Inscripción abierta:** un error `validation` incluye además la clave `field` con el primer campo inválido (`{ "error": "validation", "field": "semester" }`).
+- **Cron (`scheduled-rebuild`):** solo la autenticación fallida (`401`) usa `{ "error": "Unauthorized" }`. Los fallos de cada tarea no llevan `error` en el nivel superior: la respuesta tiene siempre las claves `rebuild` y `retention`, y la tarea que lanzó una excepción trae `{ "error": "Service unavailable" }` en su propia clave.
+
+El valor de `error` **no** es uniforme entre grupos; cada uno tiene su propio vocabulario:
+
+- **Lectura pública, preview, cron, health y exportación:** frases en inglés (`"Too Many Requests"`, `"Service unavailable"`, `"Unauthorized"`, `"Forbidden"`, `"Not found"`, `"Internal error"`).
+- **Inscripción abierta:** códigos en minúsculas (`rate_limited`, `not_found`, `validation`, `captcha`, `unavailable`, …), que el formulario de la landing traduce a mensajes.
+- **Rutas de Google:** no devuelven JSON; redirigen (véase [Autenticación](#autenticación)).
+
+Un fallo del servidor nunca se refleja al cliente: se registra con `console.error`, se reporta con `reportError` y se responde un mensaje genérico (`503`, o `500` en la exportación y el cron).
+
+### Cabeceras
+
+- **Seguridad:** `next.config` aplica a todas las rutas `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `Strict-Transport-Security` y `Content-Security-Policy` (`src/infrastructure/http/security-headers.ts`).
+- **Caché:** todas las rutas son dinámicas (`dynamic = "force-dynamic"`), salvo `/api/health`, que fija `Cache-Control: no-store`. Las respuestas de error llevan siempre `no-store`.
+- **CORS:** solo las rutas públicas lo implementan; se describe abajo.
+
+### Limitación de tasa
+
+Es *best effort*: los contadores viven en la memoria de **una** instancia serverless (ventana fija por cliente), así que no son globales ni durables. La protección real de las lecturas es la caché del CDN (`s-maxage`).
+
+| Limitador | Ventana | Máximo | Rutas |
+|-----------|---------|--------|-------|
+| Público | 60 s | 60 solicitudes | `content`, `preview`, `seats`, `calendar.ics` |
+| Inscripción | 10 min | 5 solicitudes | `POST …/registrations` |
+
+La clave del cliente es `x-real-ip` y, si falta, el primer salto de `x-forwarded-for` (válido solo detrás de Vercel). Las direcciones IPv6 se agrupan por prefijo `/64`. Si no hay cabecera, todos comparten la clave `unknown`. Al superar el límite se responde `429` con `Retry-After` en segundos.
+
+### CORS
+
+- **Lista de orígenes** (`content`, `calendar.ics`, `registrations`): se refleja el `Origin` solo si coincide exactamente con una entrada de la variable `PUBLIC_CORS_ORIGINS` (lista separada por comas; `https://host[:puerto]`, `http` solo para *loopback*, sin ruta ni comodines; las entradas inválidas se descartan y se registran una vez). Nunca se envía `*` ni credenciales, y siempre se añade `Vary: Origin`. Un origen no permitido recibe la respuesta sin `Access-Control-Allow-Origin`.
+- **Abierto** (`seats`): `Access-Control-Allow-Origin: *`, porque no contiene datos personales ni lee cookies.
+- **Sin CORS** (`preview`, `health`, `cron`, autenticación, exportación): un navegador de otro origen no puede leer la respuesta.
+- **Preflight:** `OPTIONS` responde `204`. Con origen permitido añade `Access-Control-Allow-Methods` y `Access-Control-Max-Age: 86400` (`Access-Control-Allow-Headers: Content-Type` solo en `registrations`). Con origen no permitido, el `204` no concede nada.
+
+### Slugs
+
+Donde la ruta incluye `{slug}`, debe cumplir `^[a-z0-9]+(?:-[a-z0-9]+)*$` y tener como máximo 80 caracteres. Un slug inválido se trata como inexistente (`404`). Además, el *middleware* devuelve `400 {"error":"Bad request"}` para rutas con escapes porcentuales mal formados en `/admin`, `/foro`, `/invitacion` y `/api/public/events`.
+
+## Probar la API
+
+Swagger UI carga `openapi.yaml` y trae activado el botón **Try it out**. Las solicitudes salen desde su navegador hacia el servidor de producción (`https://aso-computacion-admin.vercel.app`) o hacia `http://localhost:3000`, según el servidor que elija en el selector.
+
+::: {.callout-warning}
+## Qué se puede probar desde el navegador
+
+- **Funcionan** `GET /api/public/events/seats` (CORS abierto `*`) y los endpoints con lista de orígenes (`content`, `calendar.ics`, `registrations`) **solo si** el origen `https://aso-computacion-unl.github.io` figura en `PUBLIC_CORS_ORIGINS`; si no, el navegador bloquea la lectura de la respuesta.
+- **No se pueden llamar** desde otro origen: `preview` y `health` (sin cabeceras CORS), el cron (requiere el secreto), las cuatro rutas de Google (redirecciones de OAuth) y la exportación CSV (cookie de sesión de otro origen).
+- **`POST …/registrations` escribe datos reales.** Con `TURNSTILE_SECRET_KEY` configurada, sin un token válido de Turnstile (que solo emite el widget de la landing) la respuesta esperada es `400 captcha` o `503 unavailable`. Pero un token válido sí crea una inscripción, también en producción, y un servidor local sin `TURNSTILE_SECRET_KEY` fuera de producción omite la verificación, de modo que una solicitud válida **crea** la inscripción. Use solo datos de prueba.
+:::
+
+```{=html}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+<div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+<script>
+  window.addEventListener("load", function () {
+    window.ui = SwaggerUIBundle({
+      url: "../openapi.yaml",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      tryItOutEnabled: true
+    });
+  });
+</script>
+```
+
+## Notas por grupo
+
+Los detalles de cada endpoint (parámetros, esquemas, ejemplos y códigos de estado) están en la especificación; aquí quedan las reglas que cruzan varios endpoints.
+
+### Público (`/api/public/*`)
+
+- Sin sesión. Los consumidores son la compilación de la landing y sus formularios.
+- `content`: el documento incluye la lista `sponsors` (patrocinadores y aliados publicados), que se añade al final del resto de claves; `preview` no la incluye. `Cache-Control: public, max-age=0, s-maxage=5, must-revalidate` y `ETag` fuerte calculado sin `generatedAt`; un `If-None-Match` coincidente devuelve `304`. El `s-maxage` debe mantenerse estrictamente menor que `DEPLOY_HOOK_DEBOUNCE_MS` (`src/infrastructure/deploy/deploy-hook.ts`); de lo contrario una compilación disparada por el *hook* podría leer una copia anterior a la edición. Los campos añadidos después de la primera versión son aditivos, y `version`/`schemaVersion` solo cambian ante un cambio incompatible.
+- `preview`: mismo documento que `content`, pero sin `sponsors` y con la clave `preview: true`, más borradores y contenido programado, con la cabecera `x-preview-token` (JWT HS256, 1 h, 24 h o 7 d). Sin CORS, `private, no-store`. Los tokens son sin estado y solo se invalidan rotando `PREVIEW_TOKEN_SECRET` (mínimo 32 caracteres y distinto de `ADMIN_SECRET`, `FORUM_SESSION_SECRET` y `CRON_SECRET`).
+- `seats`: solo conteos y slugs; CORS abierto; `s-maxage=5`.
+- `registrations` (`POST`): orden de controles de menor a mayor costo (tasa, forma de la solicitud, Turnstile, caso de uso). Cuerpo JSON de hasta 4096 bytes; `name` y `career` de 1 a 120 caracteres, `email` válido de hasta 254, `semester` entero de 1 a 12. Turnstile falla cerrado en producción (`TURNSTILE_SECRET_KEY`). Límite de 5 solicitudes por 10 minutos. Los errores del servidor nunca repiten el nombre ni el correo enviados.
+- `calendar.ics`: solo datos del evento, nunca de inscritos; `s-maxage=60`.
+
+### Operación
+
+- `GET /api/health`: solo comprueba que el proceso responde; no consulta la base de datos. `no-store`.
+- `GET /api/cron/scheduled-rebuild`: `Authorization: Bearer <CRON_SECRET>` (mínimo 32 caracteres; falla cerrado). Hace dos tareas independientes: reconstrucción de la landing si un elemento programado cruzó su ventana, y depuración de inscripciones a los 90 días del evento. `200` si ambas terminan, `502` si el *hook* rechazó la reconstrucción, `500` si alguna lanzó una excepción (prevalece). `vercel.json` lo programa a las `0 11 * * *`.
+
+### Autenticación
+
+Google OAuth con código de autorización, **PKCE (S256)**, `state` y `nonce`, todo en el servidor (alcances `openid email profile`). Son navegaciones del navegador: siempre responden con una redirección y `no-store`. La cookie de flujo (`oauth_state` para el admin, `forum_oauth_state` para el foro) es sellada, `HttpOnly`, `SameSite=Lax`, `Secure` en producción, dura 600 s y se consume en cada callback, por lo que una URL de callback no se puede reutilizar. Ningún paso registra códigos, tokens ni correos. Los errores vuelven como `?error=<código>` a `/login` (admin) o a `/foro` (foro); el motivo exacto de un rechazo de cuenta se oculta para no revelar qué correos existen.
+
+- **Admin:** `invite` opcional en `start`; el callback aplica primero el límite de intentos de inicio de sesión y abre la cookie `admin_session`.
+- **Foro:** `next` opcional en `start`, solo rutas `/foro` o `/foro/**` de hasta 512 caracteres; la sesión es la cookie `forum_session` y solo admite el dominio `FORUM_ALLOWED_EMAIL_DOMAIN`. Los detalles de configuración están en [REFERENCIA.md](../REFERENCIA.md) y en [DEPLOY.md](../DEPLOY.md).
+
+### Administración
+
+- `GET /admin/events/{id}/registrations/export`: CSV con datos personales, solo para el rol `ADMIN`. El *middleware* redirige a `/login` si no hay cookie válida; el handler responde `401`, `403` (por ejemplo, `EDITOR`), `404` o `500`. Siempre `no-store`, auditado sin nombres ni correos. Las celdas que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno de carro llevan un `'` inicial para que una hoja de cálculo no las ejecute.

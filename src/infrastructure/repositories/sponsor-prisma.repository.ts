@@ -1,5 +1,5 @@
 import "server-only";
-import type { Sponsor as PrismaSponsor } from "@prisma/client";
+import type { Sponsor as PrismaSponsor } from "@/generated/prisma/client";
 
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";

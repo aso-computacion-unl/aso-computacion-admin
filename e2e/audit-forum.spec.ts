@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
@@ -10,7 +10,7 @@ import { SignJWT } from "jose";
  *   FORUM_SESSION_SECRET=<at least 32 characters> npm run e2e
  */
 const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 const CATEGORY = { id: "af-cat", slug: "audit-codigo", name: "Código (auditoría)" };
 const MEMBER = { id: "af-m1", session: "af-s1" };
 

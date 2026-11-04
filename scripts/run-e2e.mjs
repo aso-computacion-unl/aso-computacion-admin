@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { SignJWT } from "jose";
 
 import { createIntegrationEnvironment } from "./run-prisma-integration-tests.mjs";
@@ -63,7 +63,10 @@ const FEATURE_VARIABLES = [
 const E2E_EDITOR_EMAIL = "e2e-editor@example.org";
 
 async function seedEditorSessions(databaseUrl, secret) {
-  const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
+  // Plain Node cannot resolve the `@/` alias, so this reaches the generated client by path (Node strips its
+  // types); the `.ts` extensions in its imports are what `importFileExtension` in schema.prisma is for.
+  const { PrismaClient } = await import("../src/generated/prisma/client.ts");
+  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
 
   try {
     const now = new Date();

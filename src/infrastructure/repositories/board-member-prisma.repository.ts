@@ -1,5 +1,5 @@
 import "server-only";
-import type { BoardMember as PrismaBoardMember } from "@prisma/client";
+import type { BoardMember as PrismaBoardMember } from "@/generated/prisma/client";
 
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";

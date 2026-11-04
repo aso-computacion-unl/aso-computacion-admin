@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { describe, expect, it } from "vitest";
 
 import { toBoardMemberResult } from "@/application/mappers/board-member-result.mapper";
@@ -29,10 +29,10 @@ describe("board member privacy (S4)", () => {
     expect(Object.keys(result.photo ?? {}).sort()).toEqual(["alt", "height", "url", "width"]);
   });
 
-  it("the Prisma model has exactly the allowed columns (DMMF)", () => {
-    const model = Prisma.dmmf.datamodel.models.find(({ name }) => name === "BoardMember");
-
-    expect(model?.fields.map(({ name }) => name).sort()).toEqual([
+  // Prisma 7's generated client no longer exposes `Prisma.dmmf`; the scalar field enum lists the model's
+  // columns (BoardMember has no relations, so it is the whole model).
+  it("the Prisma model has exactly the allowed columns", () => {
+    expect(Object.keys(Prisma.BoardMemberScalarFieldEnum).sort()).toEqual([
       "createdAt",
       "deletedAt",
       "id",
@@ -50,8 +50,7 @@ describe("board member privacy (S4)", () => {
   });
 
   it("no column the migrations ever add to BoardMember, nor any in the model, looks like contact data", () => {
-    const model = Prisma.dmmf.datamodel.models.find(({ name }) => name === "BoardMember");
-    const modelColumns = (model?.fields ?? []).map(({ name }) => name).sort();
+    const modelColumns = Object.keys(Prisma.BoardMemberScalarFieldEnum).sort();
     // Every migration, not just the one that creates the table: a later ALTER TABLE ... ADD COLUMN counts.
     const columns = tableColumns("BoardMember", readMigrationSql());
 

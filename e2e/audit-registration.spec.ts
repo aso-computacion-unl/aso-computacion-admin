@@ -1,4 +1,5 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
@@ -18,7 +19,7 @@ const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const FORUM_SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const STAMP = Date.now().toString(36);
 const PREFIX = `ar-${STAMP}-`;
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL } } });
+const prisma = createPrismaClient(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL);
 
 const ANA = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 };
 const OPEN_ENDPOINT = "**/api/public/events/*/registrations";

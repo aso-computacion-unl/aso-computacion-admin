@@ -1,4 +1,4 @@
-import type { Event as PrismaEvent, Prisma } from "@prisma/client";
+import type { Event as PrismaEvent, Prisma } from "@/generated/prisma/client";
 
 import { Event } from "@/domain/event";
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ForumReply as ForumReplyRow, ForumThread as ForumThreadRecord } from "@prisma/client";
+import type { ForumReply as ForumReplyRow, ForumThread as ForumThreadRecord } from "@/generated/prisma/client";
 
 import type { ForumAddReplyOutcome, ForumBestAnswerOutcome, ForumEditOutcome, ForumPostRepository, ForumReplyRow as ReplyRow, ForumThreadRow, ForumThreadState } from "@/application/ports/forum.ports";
 import type { ForumReply, ForumThread } from "@/domain/forum";

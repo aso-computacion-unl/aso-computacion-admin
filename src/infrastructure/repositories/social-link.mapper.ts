@@ -1,4 +1,4 @@
-import type { SocialLink as PrismaSocialLink, Prisma } from "@prisma/client";
+import type { SocialLink as PrismaSocialLink, Prisma } from "@/generated/prisma/client";
 
 import { SocialLink, type SocialPlatform } from "@/domain/social-link";
 

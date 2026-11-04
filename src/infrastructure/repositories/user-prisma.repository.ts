@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type User as UserRow } from "@prisma/client";
+import { Prisma, type User as UserRow } from "@/generated/prisma/client";
 
 import type { UserChangeOutcome, UserRepository } from "@/application/ports/auth.ports";
 import type { Role, User } from "@/domain/user";

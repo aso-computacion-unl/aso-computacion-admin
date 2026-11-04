@@ -1,10 +1,14 @@
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  // The client is loaded outside the bundler too: Node (scripts/run-e2e.mjs) needs explicit ".ts" imports,
+  // and Playwright compiles the specs to CommonJS, where the ESM output's `import.meta` is a syntax error.
+  importFileExtension = "ts"
+  moduleFormat        = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum EventType {

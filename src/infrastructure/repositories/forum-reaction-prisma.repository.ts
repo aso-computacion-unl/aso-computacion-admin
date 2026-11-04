@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 import type { ForumPostTarget } from "@/application/ports/forum-moderation.ports";
 import type { ForumReactionRepository, ForumThreadReactions } from "@/application/ports/forum-reactions.ports";

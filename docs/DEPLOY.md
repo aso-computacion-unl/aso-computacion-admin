@@ -8,9 +8,9 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
 
 1. Create a project and a database (any region; pick the Vercel region closest to it in step 3).
 2. From **Connect**, copy two connection strings:
-   - **Pooled** (host contains `-pooler`): what the running app uses. Append `&pgbouncer=true` (Prisma needs it behind PgBouncer), e.g. `postgresql://USER:PASSWORD@ep-xxx-pooler.REGION.aws.neon.tech/DB?sslmode=require&pgbouncer=true`.
+   - **Pooled** (host contains `-pooler`): what the running app uses. Use it as copied, with `sslmode=verify-full` (what the `pg` driver does for `require` anyway, minus its warning on every start), e.g. `postgresql://USER:PASSWORD@ep-xxx-pooler.REGION.aws.neon.tech/DB?sslmode=verify-full`. No `pgbouncer=true`: since Prisma 7 the app talks to Postgres through the `pg` driver (`@prisma/adapter-pg`), which ignores that parameter and sends unnamed prepared statements, so PgBouncer's transaction mode works without it.
    - **Direct** (no `-pooler`): used only for migrations and the seed.
-3. Apply the migrations once from your machine, with the **direct** string. `prisma/schema.prisma` has a single `url = env("DATABASE_URL")` (no `directUrl`), so the direct string is passed as `DATABASE_URL` for that one command:
+3. Apply the migrations once from your machine, with the **direct** string. The Prisma CLI reads the database URL from `DATABASE_URL` in `prisma.config.ts` (the schema has no `url`, and there is no separate direct-URL variable), so the direct string is passed as `DATABASE_URL` for that one command. A `.env` in the current directory is loaded too, without overriding variables already set:
 
    ```bash
    DATABASE_URL='<direct connection string>' npx prisma migrate deploy
@@ -18,7 +18,7 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
 
    `migrate deploy` applies the committed migrations in `prisma/migrations/` and nothing else; it never resets or generates anything. Run it again after every deploy that adds a migration. It is deliberately **not** part of the Vercel build command: a build would run it through the pooler, where Prisma's migration lock can fail.
 
-The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login throttle) uses plain transactions and holds no session state, so it fits PgBouncer's transaction mode on paper. It has only been run against a local Postgres, never against Neon: check the first login and the first photo upload after deploying.
+The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login throttle) uses plain transactions and holds no session state, so it fits PgBouncer's transaction mode on paper. It has only been run against a local Postgres, never against Neon (and never through `@prisma/adapter-pg` there, the driver adapter introduced with Prisma 7): check the first login and the first photo upload after deploying. The runtime pool is the `pg` default of 10 connections per instance with a 5 second connection timeout; both are set in `src/infrastructure/prisma/client.ts`.
 
 ## 2. Cloudinary
 
@@ -38,7 +38,7 @@ The image URLs the public API returns contain the cloud name and each asset's `p
 
    | Setting | Value |
    |---------|-------|
-   | Install command | `npm ci` (its `postinstall` runs `prisma generate`; dev dependencies must be installed, Prisma's CLI is one) |
+   | Install command | `npm ci` (its `postinstall` runs `prisma generate`, which writes the client into the git-ignored `src/generated/prisma` and needs no `DATABASE_URL`; dev dependencies must be installed, Prisma's CLI is one) |
    | Build command | `npm run build` |
    | Output | Next.js default |
 
@@ -356,7 +356,7 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Google OAuth client created (section 4a), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL` and `ADMIN_BOOTSTRAP_EMAILS` set; the redirect URI in Google matches `AUTH_URL/auth/google/callback`.
 - [ ] Optional, only to open the forum (section 4b): `FORUM_ALLOWED_EMAIL_DOMAIN=unl.edu.ec` and `FORUM_SESSION_SECRET` (≥ 32 chars, different from `ADMIN_SECRET`) set, and `https://<admin domain>/foro/auth/google/callback` added to the Google client's redirect URIs.
 - [ ] Vercel project: Next.js preset, Node 22.x, `npm ci` / `npm run build`.
-- [ ] Production variables set: `DATABASE_URL` (pooled, `pgbouncer=true`), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
+- [ ] Production variables set: `DATABASE_URL` (pooled), `ADMIN_PASSWORD`, `ADMIN_SECRET`, `CLOUDINARY_*`, `PUBLIC_CORS_ORIGINS`, and `CLOUDFLARE_DEPLOY_HOOK_URL` once the hook exists. Secrets marked Sensitive.
 - [ ] Deployed; `GET /api/health` returns 200; `/admin` redirects to `/login`.
 - [ ] Logged in (with Google, or with the password while Google is not configured); the Vercel logs show no `ADMIN_*` error. **Usuarios**, **Sesiones activas** and **Registro de cambios** open for an admin, and an editor is sent back to the home page from **Usuarios**.
 - [ ] Uploaded one test photo to a draft event, moved the event to the trash and deleted it for good from `/admin/papelera` (checks Cloudinary and the pooled connection end to end).

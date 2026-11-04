@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { SignJWT } from "jose";
 
 import { FORUM_MEMBER_EMAIL } from "./config";

@@ -1,4 +1,4 @@
-import type { EventPhoto as PrismaEventPhoto } from "@prisma/client";
+import type { EventPhoto as PrismaEventPhoto } from "@/generated/prisma/client";
 
 import { EventPhoto } from "@/domain/event-photo";
 

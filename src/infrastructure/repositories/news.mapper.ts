@@ -1,4 +1,4 @@
-import type { NewsItem as PrismaNewsItem, Prisma } from "@prisma/client";
+import type { NewsItem as PrismaNewsItem, Prisma } from "@/generated/prisma/client";
 
 import { NewsItem } from "@/domain/news-item";
 

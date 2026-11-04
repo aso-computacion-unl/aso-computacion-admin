@@ -12,7 +12,7 @@ Content admin for the ASO Computación student association. It manages the conte
 
 - Next.js 15 (App Router) + React 19, TypeScript
 - Hexagonal layers: `src/domain`, `src/application`, `src/infrastructure`, `src/interface` (boundaries enforced by `architecture-boundaries.test.ts`)
-- Prisma 6 + PostgreSQL
+- Prisma 7 + PostgreSQL (`pg` driver through `@prisma/adapter-pg`; the client is generated into `src/generated/prisma`)
 - Cloudinary for images (SDK confined to `src/infrastructure/storage`)
 - Vitest 5 for unit and Prisma integration tests; Playwright (Chromium) for end-to-end
 - Sentry for optional error tracking, Cloudflare Turnstile for the open registration form, `arctic`/`jose` for Google sign-in and signed tokens

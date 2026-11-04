@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
@@ -18,7 +18,7 @@ const EDITOR = { id: "audit-admin-editor", session: "audit-admin-editor-session"
 const ROLE_USER = { id: "audit-admin-role-user", session: "audit-admin-role-session", agent: "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0" };
 const VICTIM = { id: "audit-admin-victim", session: "audit-admin-victim-session", agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15" };
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 const tokens = new Map<string, string>();
 
 // The login throttle keys on the client address: a made-up one keeps this file's wrong passwords from spending the attempts of the other specs.

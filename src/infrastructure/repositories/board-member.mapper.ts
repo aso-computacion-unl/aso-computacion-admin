@@ -1,4 +1,4 @@
-import type { BoardMember as PrismaBoardMember, Prisma } from "@prisma/client";
+import type { BoardMember as PrismaBoardMember, Prisma } from "@/generated/prisma/client";
 
 import { BoardMember } from "@/domain/board-member";
 

@@ -33,7 +33,7 @@ export default defineConfig({
         "middleware.ts",
         "instrumentation*.ts",
       ],
-      exclude: ["src/tests/**", "**/*.d.{ts,mts}", "scripts/**/*.config.ts"],
+      exclude: ["src/tests/**", "src/generated/**", "**/*.d.{ts,mts}", "scripts/**/*.config.ts"],
       // Floor of the coverage measured under Vitest 5's AST-aware v8 remapping.
       // Vitest 4 replaced v8-to-istanbul and dropped `coverage.all`, so the same
       // tests report different numbers than under v3 (branches 94 there, 74.86

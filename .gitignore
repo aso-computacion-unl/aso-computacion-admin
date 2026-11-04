@@ -4,6 +4,8 @@ out
 build
 dist
 coverage
+# Prisma Client, generated into the source tree by `prisma generate` (the postinstall)
+/src/generated/
 *.tsbuildinfo
 next-env.d.ts
 .env

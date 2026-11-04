@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma, type NewsItem as PrismaNewsItem } from "@prisma/client";
+import { Prisma, type NewsItem as PrismaNewsItem } from "@/generated/prisma/client";
 
 import { fetchPage, type ListCriteria, type Page, type PageRequest, type PublicationCounts } from "@/application/ports/list-criteria";
 import type { NewsRepository } from "@/application/ports/news-repository.port";

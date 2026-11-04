@@ -1,5 +1,5 @@
 import "server-only";
-import type { EventRegistration as PrismaEventRegistration } from "@prisma/client";
+import type { EventRegistration as PrismaEventRegistration } from "@/generated/prisma/client";
 
 import type {
   EventRegistrationRecord,

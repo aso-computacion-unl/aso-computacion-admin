@@ -78,6 +78,8 @@ npx prisma migrate deploy
 npm run dev               # http://localhost:3000
 ```
 
+`npm ci` genera el cliente de Prisma en `src/generated/prisma` (no se versiona) y `prisma.config.ts` toma `DATABASE_URL` del `.env`.
+
 Sin las variables de Google, el acceso es la contraseña de emergencia (`ADMIN_PASSWORD`). Para ver el panel con contenido de ejemplo: `npm run seed:demo` (solo funciona contra una base local).
 
 El foro de estudiantes (`/foro`) queda apagado hasta definir `FORUM_ALLOWED_EMAIL_DOMAIN=unl.edu.ec` y `FORUM_SESSION_SECRET`, y exige registrar en Google una segunda URI de redirección (`<AUTH_URL>/foro/auth/google/callback`): ver la [guía de despliegue](docs/DEPLOY.md#4b-student-forum-foro).

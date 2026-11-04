@@ -1,4 +1,4 @@
-import type { Faq as PrismaFaq, Prisma } from "@prisma/client";
+import type { Faq as PrismaFaq, Prisma } from "@/generated/prisma/client";
 
 import { Faq } from "@/domain/faq";
 

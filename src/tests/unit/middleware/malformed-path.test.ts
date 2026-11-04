@@ -111,3 +111,35 @@ describe("middleware: public paths are not auth-guarded", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");
   });
 });
+
+// Next matches the middleware and the page against the decoded path too, so an encoded spelling of an
+// admin path reaches the admin page: the guard has to recognise it the same way.
+describe("middleware: encoded admin paths are guarded", () => {
+  const ENCODED_ADMIN = ["/%61dmin", "/%61dmin/events", "/admin%2Fevents", "/%2Fadmin", "/%2F%61dmin%2Fevents"];
+
+  it.each(ENCODED_ADMIN)("ENC-001: %s with no cookie redirects to /login", async (path) => {
+    vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
+
+    const response = await middleware(buildRequest(path));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login");
+    expect(response.headers.get("x-middleware-next")).toBeNull();
+  });
+
+  it.each(ENCODED_ADMIN)("ENC-002: %s with a misconfigured secret is a 503, like the plain path", async (path) => {
+    vi.stubEnv("ADMIN_SECRET", "short");
+
+    const response = await middleware(buildRequest(path));
+
+    expect(response.status).toBe(503);
+  });
+
+  it.each(["/%61dministrator", "/foro%2Fadmin"])("ENC-003: %s does not decode to an admin path, so it passes through", async (path) => {
+    vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
+
+    const response = await middleware(buildRequest(path));
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+});

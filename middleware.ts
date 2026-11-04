@@ -15,8 +15,16 @@ function isApiRequest(request: NextRequest): boolean {
 
 // `/api/admin/` has no routes yet and is not in the matcher; it is listed so that a future admin API added
 // to the matcher is guarded by the existing 401 JSON / 503 logic instead of silently passing through.
-function isProtectedPath(pathname: string): boolean {
+function isProtectedPathname(pathname: string): boolean {
   return pathname === "/" || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/api/admin/");
+}
+
+// Next 16 runs the matcher and finds the page on the decoded path as well, so `/%61dmin` or
+// `/admin%2Fevents` reach an admin page: guard the raw path and its decoded, slash-collapsed form.
+function isProtectedPath(pathname: string): boolean {
+  const decoded = decodeURIComponent(pathname).replace(/\/{2,}/g, "/");
+
+  return isProtectedPathname(pathname) || isProtectedPathname(decoded);
 }
 
 function isDecodablePath(pathname: string): boolean {

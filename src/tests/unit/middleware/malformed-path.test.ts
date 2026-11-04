@@ -115,7 +115,22 @@ describe("middleware: public paths are not auth-guarded", () => {
 // Next matches the middleware and the page against the decoded path too, so an encoded spelling of an
 // admin path reaches the admin page: the guard has to recognise it the same way.
 describe("middleware: encoded admin paths are guarded", () => {
-  const ENCODED_ADMIN = ["/%61dmin", "/%61dmin/events", "/admin%2Fevents", "/%2Fadmin", "/%2F%61dmin%2Fevents"];
+  const ENCODED_ADMIN = [
+    "/%61dmin",
+    "/%61dmin/events",
+    "/admin%2Fevents",
+    "/admin%2fevents",
+    "/admin%2F",
+    "/%2Fadmin",
+    "/%2F%61dmin%2Fevents",
+    // Next 16 treats a decoded backslash as a slash, so these reach the admin page or the root page.
+    "/%5Cadmin",
+    "/admin%5Cevents",
+    "/%5Cadmin%5Cevents",
+    "/%5C%5Cadmin",
+    "/%2F%5Cadmin",
+    "/%5C",
+  ];
 
   it.each(ENCODED_ADMIN)("ENC-001: %s with no cookie redirects to /login", async (path) => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
@@ -135,7 +150,7 @@ describe("middleware: encoded admin paths are guarded", () => {
     expect(response.status).toBe(503);
   });
 
-  it.each(["/%61dministrator", "/foro%2Fadmin"])("ENC-003: %s does not decode to an admin path, so it passes through", async (path) => {
+  it.each(["/%61dministrator", "/foro%2Fadmin", "/%2561dmin", "/foro%5Cadmin"])("ENC-003: %s does not decode to an admin path (Next decodes once), so it passes through", async (path) => {
     vi.stubEnv("ADMIN_SECRET", TEST_SECRET);
 
     const response = await middleware(buildRequest(path));

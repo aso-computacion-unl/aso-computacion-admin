@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCOUNT_NAV,
+  FORUM_CATEGORIES_NAV,
   FORUM_NAV,
   HOME_NAV,
   MEDIA_NAV,
@@ -61,7 +62,7 @@ describe("admin navigation and the trash", () => {
   });
 
   it("shows an admin everything, in the sidebar and in the phone's «Más» sheet", () => {
-    const all = [...MODULE_NAV, MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, ...ACCOUNT_NAV].map((item) => item.href);
+    const all = [...MODULE_NAV, MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, FORUM_CATEGORIES_NAV, ...ACCOUNT_NAV].map((item) => item.href);
 
     expect(sideNav("ADMIN").map((item) => item.href)).toEqual([HOME_NAV.href, ...all]);
     expect(moreNav("ADMIN").map((item) => item.href)).toEqual(expect.arrayContaining(["/admin/settings", "/admin/usuarios", "/admin/registro", "/admin/sesiones"]));
@@ -85,7 +86,7 @@ describe("admin navigation and the trash", () => {
       expect(groups.flatMap((group) => group.items)).toEqual(sideNav(role));
     }
 
-    expect(sideNavGroups("ADMIN").slice(0, 3).map((group) => group.items)).toEqual([[HOME_NAV], MODULE_NAV, [MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV]]);
+    expect(sideNavGroups("ADMIN").slice(0, 3).map((group) => group.items)).toEqual([[HOME_NAV], MODULE_NAV, [MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, FORUM_CATEGORIES_NAV]]);
   });
 
   it("offers the forum report queue to editors and admins alike, outside the content modules, and on the phone through «Más»", () => {
@@ -95,5 +96,18 @@ describe("admin navigation and the trash", () => {
     expect(sideNav("EDITOR").map((item) => item.href)).toContain(FORUM_NAV.href);
     expect(moreNav("EDITOR").map((item) => item.href)).toContain(FORUM_NAV.href);
     expect(TAB_NAV.map((item) => item.href)).not.toContain(FORUM_NAV.href);
+  });
+
+  it("offers the forum categories to admins only, next to the report queue: not in the sidebar or «Más» of an editor", () => {
+    expect(FORUM_CATEGORIES_NAV).toMatchObject({ href: "/admin/foro/categorias", label: "Categorías del foro", adminOnly: true });
+    expect(MODULE_NAV.map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
+    expect(TAB_NAV.map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
+
+    const admin = sideNav("ADMIN").map((item) => item.href);
+
+    expect(admin.indexOf(FORUM_CATEGORIES_NAV.href)).toBe(admin.indexOf(FORUM_NAV.href) + 1);
+    expect(moreNav("ADMIN").map((item) => item.href)).toContain(FORUM_CATEGORIES_NAV.href);
+    expect(sideNav("EDITOR").map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
+    expect(moreNav("EDITOR").map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
   });
 });

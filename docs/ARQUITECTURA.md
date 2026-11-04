@@ -75,7 +75,7 @@ Anonymous callers use the public API only: no session, rate limited per client (
 
 Both live **in the admin app**, on the admin's origin, not in the landing. The landing only links to them (`<admin>/foro`, `<admin>/foro/eventos/<slug>`) and refuses links to any other origin.
 
-- **Forum** (`app/foro/**`): categories, threads, replies, reactions, best answer, reports. Moderation is in the panel (`/admin/foro/reportes`, Editor level). Forum categories can currently only be created through `npm run seed:demo` or SQL: the admin screen is a pending follow-up (close-out task T7).
+- **Forum** (`app/foro/**`): categories, threads, replies, reactions, best answer, reports. Moderation is in the panel (`/admin/foro/reportes`, Editor level). Forum categories are managed by admins at `/admin/foro/categorias` (Admin only).
 - **Event registration**: each event chooses `none`, `unl` (a signed-in forum member, no data taken from the caller) or `open` (a form on the event page with Cloudflare Turnstile that POSTs to `/api/public/events/<slug>/registrations`). Seats and deadline are enforced atomically in the database. Registrations are personal data: Admin-only export and delete, deleted automatically 90 days after the event by the daily cron.
 
 ## Environments and deploy

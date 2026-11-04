@@ -189,13 +189,14 @@ test("an editor cannot open the admin-only pages, and an action refused for thei
   await expect(page.getByRole("button", { name: /Eliminar definitivamente/ })).toHaveCount(0);
 
   // The admin-only pages send the editor back to the home page, which says why, and the sidebar does not offer them.
-  for (const path of ["/admin/usuarios", "/admin/registro", "/admin/settings"]) {
+  for (const path of ["/admin/usuarios", "/admin/registro", "/admin/settings", "/admin/foro/categorias", "/admin/foro/categorias/new"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/admin\?acceso=restringido$/);
     await expect(page.getByText("Esa sección es solo para administradores.")).toBeVisible();
   }
   await expect(page.getByRole("link", { name: "Usuarios" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Registro" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Categorías del foro" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Sesiones" }).first()).toBeVisible();
 
   // Back as an admin the event is still there, and the audit log recorded what was done.

@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma, type Event as PrismaEvent } from "@prisma/client";
+import { Prisma, type Event as PrismaEvent } from "@/generated/prisma/client";
 
 import type { EventRepository } from "@/application/ports/event-repository.port";
 import { fetchPage, type ListCriteria, type Page, type PageRequest, type PublicationCounts } from "@/application/ports/list-criteria";

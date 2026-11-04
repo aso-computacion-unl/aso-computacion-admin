@@ -1,5 +1,5 @@
 import "server-only";
-import type { SocialLink as PrismaSocialLink } from "@prisma/client";
+import type { SocialLink as PrismaSocialLink } from "@/generated/prisma/client";
 
 import type { OrderedContentRepository } from "@/application/ports/ordered-content-repository.port";
 import { NotFoundError } from "@/application/use-cases/use-case-error";

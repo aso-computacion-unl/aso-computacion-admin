@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma, type Faq as PrismaFaq } from "@prisma/client";
+import { Prisma, type Faq as PrismaFaq } from "@/generated/prisma/client";
 
 import {
   fetchPage,

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type ForumCategory as ForumCategoryRow } from "@prisma/client";
+import { Prisma, type ForumCategory as ForumCategoryRow } from "@/generated/prisma/client";
 
 import type { ForumCategoryDeleteOutcome, ForumCategoryRepository, ForumCategoryWithCount } from "@/application/ports/forum.ports";
 import { NotFoundError } from "@/application/use-cases/use-case-error";

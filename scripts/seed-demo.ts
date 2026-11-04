@@ -12,7 +12,8 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { PrismaClient, type Prisma } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@/generated/prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 
 import { SITE_SETTINGS_ID } from "@/domain/site-settings";
 
@@ -374,7 +375,7 @@ async function main() {
   const replace = args.includes("--replace");
   assertLocalDatabase();
 
-  const prisma = new PrismaClient();
+  const prisma = createPrismaClient(process.env.DATABASE_URL);
   try {
     const existing = await hasContent(prisma);
     if (existing && !replace) {

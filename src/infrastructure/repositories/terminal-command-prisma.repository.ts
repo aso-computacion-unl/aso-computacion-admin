@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma, type TerminalCommand as PrismaTerminalCommand } from "@prisma/client";
+import { Prisma, type TerminalCommand as PrismaTerminalCommand } from "@/generated/prisma/client";
 
 import {
   fetchPage,

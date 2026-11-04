@@ -1,4 +1,4 @@
-import type { Pillar as PrismaPillar, Prisma } from "@prisma/client";
+import type { Pillar as PrismaPillar, Prisma } from "@/generated/prisma/client";
 
 import { Pillar } from "@/domain/pillar";
 

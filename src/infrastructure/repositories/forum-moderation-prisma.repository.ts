@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type ForumMember as MemberRow } from "@prisma/client";
+import { Prisma, type ForumMember as MemberRow } from "@/generated/prisma/client";
 
 import type {
   ForumModerationChange,

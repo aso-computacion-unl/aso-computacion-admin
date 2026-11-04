@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext } from "@playwright/test";
 import { SignJWT } from "jose";
 
@@ -16,7 +16,7 @@ import { SignJWT } from "jose";
 const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const BASE_URL = "http://127.0.0.1:3100";
 const SCREENSHOT_DIR = process.env.FORUM_E2E_SHOTS;
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 const now = new Date();
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
 

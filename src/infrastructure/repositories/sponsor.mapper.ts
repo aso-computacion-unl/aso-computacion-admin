@@ -1,4 +1,4 @@
-import type { Sponsor as PrismaSponsor, Prisma } from "@prisma/client";
+import type { Sponsor as PrismaSponsor, Prisma } from "@/generated/prisma/client";
 
 import { Sponsor } from "@/domain/sponsor";
 

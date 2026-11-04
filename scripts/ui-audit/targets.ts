@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import type { Page } from "@playwright/test";
 
 import { MODULE_NAV, sideNav } from "../../app/admin/_components/nav-items";

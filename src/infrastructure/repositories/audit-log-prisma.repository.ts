@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 import type { AuditEntry, AuditEntryInput, AuditListCriteria, AuditLogReader, AuditRecorder } from "@/application/ports/auth.ports";
 

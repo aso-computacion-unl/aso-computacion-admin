@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Page } from "@playwright/test";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
@@ -159,7 +159,7 @@ test("the form fits a phone: one column, no sideways scroll, 44 px targets", asy
 
 test("a full or closed open event hides the form and says why", async ({ page }) => {
   const stamp = Date.now();
-  const prisma = new PrismaClient({ datasources: { db: { url: process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL } } });
+  const prisma = createPrismaClient(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL);
 
   try {
     await logInAsAdmin(page);

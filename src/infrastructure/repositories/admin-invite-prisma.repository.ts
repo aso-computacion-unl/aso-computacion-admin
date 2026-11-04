@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type AdminInvite as AdminInviteRow } from "@prisma/client";
+import { Prisma, type AdminInvite as AdminInviteRow } from "@/generated/prisma/client";
 
 import type { AdminInviteRecord, AdminInviteRepository, InviteRedemption } from "@/application/ports/auth.ports";
 import type { AdminInvite } from "@/domain/admin-invite";

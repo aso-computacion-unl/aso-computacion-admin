@@ -1,4 +1,4 @@
-import type { Prisma, TerminalCommand as PrismaTerminalCommand } from "@prisma/client";
+import type { Prisma, TerminalCommand as PrismaTerminalCommand } from "@/generated/prisma/client";
 
 import { TerminalCommand } from "@/domain/terminal-command";
 

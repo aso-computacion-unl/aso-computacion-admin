@@ -1,4 +1,4 @@
-import type { SiteSettings as PrismaSiteSettings, Prisma } from "@prisma/client";
+import type { SiteSettings as PrismaSiteSettings, Prisma } from "@/generated/prisma/client";
 
 import { SITE_SETTINGS_ID, SiteSettings } from "@/domain/site-settings";
 

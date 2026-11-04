@@ -14,7 +14,7 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 import { ADMIN_URL, DESKTOP_DARK, LOCAL_HOSTS, OUTPUT_DIR, THEME_KEY, VARIANTS, type Auth, type Capture, type Target, type Variant } from "./config";
@@ -178,7 +178,7 @@ async function capture(tracked: Tracked, target: Target, variant: Variant): Prom
 async function main(): Promise<void> {
   loadLocalEnv();
 
-  const prisma = new PrismaClient();
+  const prisma = createPrismaClient(process.env.DATABASE_URL);
   const forum = await mintForumSession(prisma);
   const browser = await chromium.launch();
   const captures: Capture[] = [];

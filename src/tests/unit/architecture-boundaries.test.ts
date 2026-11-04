@@ -18,7 +18,7 @@ function forbiddenModulePattern(moduleSpecifierPattern: string): RegExp {
 // "jose" is only allowed inside src/infrastructure/auth/, which is outside BOUNDARY_DIRS below.
 const FORBIDDEN_IMPORTS: Array<{ name: string; pattern: RegExp }> = [
   { name: "next/*", pattern: forbiddenModulePattern("next(?:/[^\"']*)?") },
-  { name: "Prisma client", pattern: forbiddenModulePattern("@prisma/client") },
+  { name: "Prisma client", pattern: forbiddenModulePattern("(?:@prisma/[^\"']*|@/generated/prisma(?:/[^\"']*)?)") },
   { name: "Cloudinary SDK", pattern: forbiddenModulePattern("cloudinary") },
   { name: "Auth.js", pattern: forbiddenModulePattern("(?:next-auth|@auth/[^\"']*)") },
   { name: "jose", pattern: forbiddenModulePattern("jose") },
@@ -130,7 +130,8 @@ describe("forbidden import pattern detection", () => {
     { label: "named import", source: 'import { NextResponse } from "next/server";' },
     { label: "default import", source: 'import next from "next";' },
     { label: "side-effect import", source: 'import "next/server";' },
-    { label: "require", source: 'const { PrismaClient } = require("@prisma/client");' },
+    { label: "require", source: 'const { PrismaClient } = require("@/generated/prisma/client");' },
+    { label: "adapter import", source: 'import { PrismaPg } from "@prisma/adapter-pg";' },
     { label: "dynamic import", source: 'const cloudinary = await import("cloudinary");' },
   ];
 

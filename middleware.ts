@@ -19,12 +19,15 @@ function isProtectedPathname(pathname: string): boolean {
   return pathname === "/" || pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/api/admin/");
 }
 
-// Next 16 runs the matcher and finds the page on the decoded path as well, so `/%61dmin` or
-// `/admin%2Fevents` reach an admin page: guard the raw path and its decoded, slash-collapsed form.
-function isProtectedPath(pathname: string): boolean {
-  const decoded = decodeURIComponent(pathname).replace(/\/{2,}/g, "/");
+// Next 16 runs the matcher and finds the page on the decoded path as well, and it treats a decoded backslash as a
+// slash: `/%61dmin`, `/admin%2Fevents` and `/%5Cadmin` all reach an admin page. Guard the raw path and its decoded
+// form, both with backslashes read as slashes and repeated slashes collapsed.
+function normalizePath(pathname: string): string {
+  return pathname.replace(/[\\/]+/g, "/");
+}
 
-  return isProtectedPathname(pathname) || isProtectedPathname(decoded);
+function isProtectedPath(pathname: string): boolean {
+  return isProtectedPathname(normalizePath(pathname)) || isProtectedPathname(normalizePath(decodeURIComponent(pathname)));
 }
 
 function isDecodablePath(pathname: string): boolean {
@@ -127,6 +130,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 // `/api/public/events`), but only for the undecodable-path check above: auth
 // is decided by `isProtectedPath`, so those requests pass through untouched.
 // `/login`, `/api/health` and `/api/public/content` stay outside it.
+// The last entry sends every path with an encoded (`%5C`) or literal backslash to the middleware: Next 16 reads a
+// decoded backslash as a slash, but none of the other entries match `/%5Cadmin`, so without it the session check
+// would be skipped for those spellings of `/` and `/admin`.
 export const config = {
-  matcher: ["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+"],
+  matcher: ["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"],
 };

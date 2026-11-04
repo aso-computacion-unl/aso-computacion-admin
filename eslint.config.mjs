@@ -1,11 +1,10 @@
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
-
+// eslint-config-next 16 ships native flat configs, so FlatCompat is no longer needed.
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextVitals,
+  ...nextTs,
   {
     ignores: [".next/**", "coverage/**", "src/generated/**", "node_modules/**", "next-env.d.ts"],
   },

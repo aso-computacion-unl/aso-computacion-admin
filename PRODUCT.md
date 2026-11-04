@@ -24,7 +24,7 @@ Content admin for the ASO Computación landing page, plus the two student-facing
 
 ## Capabilities and Constraints
 
-- Next.js 15 admin, deployed on Vercel. Content lives in Postgres (Neon) and photos in Cloudinary. The landing it feeds is a separate static site on Cloudflare Pages (see `docs/ARQUITECTURA.md`).
+- Next.js 16 admin, deployed on Vercel. Content lives in Postgres (Neon) and photos in Cloudinary. The landing it feeds is a separate static site on Cloudflare Pages (see `docs/ARQUITECTURA.md`).
 - Sign-in with Google, one user per person with a role (Admin or Editor); people join through a single-use invitation link. The shared `ADMIN_PASSWORD` remains only as an emergency (break-glass) login, off once Google is configured unless explicitly enabled, and rotated when the board changes.
 - The forum and the registrations use a separate student identity (`@unl.edu.ec` Google accounts), never an admin session. Registrations are personal data: only an Admin can export or delete them, and they are deleted 90 days after the event.
 - Upload rules: JPEG/PNG/WebP, at most 5 MB, event photos at least 1200 px wide (board photos 577 px, sponsor logos 200 px), up to 12 active photos per event, alt text required.

@@ -34,7 +34,7 @@ flowchart LR
 
 | | Admin (`aso-computacion-admin`) | Landing (`aso-computacion-landing`) |
 |---|---|---|
-| Kind | Next.js 15 App Router, server actions, Prisma 7 | Astro 7, static output, Tailwind, GSAP |
+| Kind | Next.js 16 App Router, server actions, Prisma 7 | Astro 7, static output, Tailwind, GSAP |
 | Hosting | Vercel (Production; previews should get no production variables) | Cloudflare Pages (`dist/`) |
 | Data | Postgres on Neon (all content, users, sessions, audit log, forum, registrations) and images on Cloudinary | None. Content comes from the admin at build time; `src/data/fallback.json` is a committed snapshot used when the admin is unavailable |
 | Owns | Content model and rules (events, news, FAQ, free terminal commands, board, pillars, socials, sponsors, site texts), publication windows, trash, audit log, forum, event registration, the public JSON contract | Design, fixed copy (Spanish and `/en/`), the build-time validation of the JSON, the production content gate, preview builds, the live-seats widget |

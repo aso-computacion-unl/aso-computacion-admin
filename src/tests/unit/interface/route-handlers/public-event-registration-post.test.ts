@@ -129,7 +129,7 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it("secret only: still verifies, so the landing's own widget keeps protecting the endpoint", async () => {
+    it("secret only: still verifies, so the endpoint never accepts a registration without a token", async () => {
       vi.stubEnv("TURNSTILE_SITE_KEY", "");
 
       expect((await post(withoutToken)).status).toBe(400);

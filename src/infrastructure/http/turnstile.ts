@@ -52,9 +52,9 @@ let reportedMissingSiteKey = false;
 
 /**
  * Whether the secret is configured but no usable site key is: the server then demands a token that this admin's
- * own pages cannot render a widget for, so their form can never be submitted. Verification itself does not change
- * (the endpoint also serves the landing's form, whose widget uses the landing's site key); the caller closes the
- * page's form instead. Logged once, naming the variable to set.
+ * own pages cannot render a widget for, so their form can never be submitted. Verification itself does not change:
+ * the server never accepts a registration without a token while the secret is set; the caller closes the page's
+ * form instead. Logged once, naming the variable to set.
  */
 export function turnstileSecretWithoutSiteKey(env: Record<string, string | undefined> = process.env): boolean {
   if (!configuredSecret(env) || turnstileSiteKey(env)) {

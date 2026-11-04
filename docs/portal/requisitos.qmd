@@ -1,0 +1,421 @@
+---
+title: "Requisitos"
+---
+
+Requisitos de la plataforma ASO Computación: el **panel de administración** (repositorio `aso-computacion-admin`, que además aloja el foro de estudiantes y la inscripción a eventos) y la **landing pública** (repositorio `aso-computacion-landing`, sitio estático). Cada requisito tiene un identificador estable y apunta a dónde se implementa o se documenta. Esta página resume y ordena lo que ya describen los documentos existentes; no define comportamiento nuevo. Si un requisito y el código discrepan, manda el código y se corrige esta página.
+
+Convenciones:
+
+- **RF-\<MÓDULO\>-NN**: requisito funcional. **RNF-NN**: requisito no funcional. **RES-NN** y **SUP-NN**: restricciones y supuestos.
+- La columna **Dónde** enlaza a la sección del documento que lo describe (`REFERENCIA`, `ARQUITECTURA`, `DEPLOY`; los de la landing llevan el prefijo «Landing») o nombra la ruta de código que lo implementa (rutas relativas a la raíz del repositorio indicado).
+- De las variables de entorno solo aparece el **nombre**, nunca un valor.
+
+# 1. Alcance y actores
+
+## 1.1 Alcance
+
+| Dentro del alcance | Fuera del alcance |
+|---|---|
+| Panel de administración de contenido (`/admin`) para la directiva | Envío de correos (las invitaciones se entregan como enlace que se copia a mano) |
+| Foro de estudiantes (`/foro`) y páginas de inscripción a eventos (`/foro/eventos/<slug>`), ambos en el mismo servicio del panel | Verificación del correo en el formulario abierto de inscripción |
+| API pública de solo lectura del panel, que consume la landing | Edición de publicaciones propias en la interfaz del foro (las acciones existen, la pantalla no) |
+| Landing pública estática, en español y en inglés (`/en/`) | Gestión de las secciones «Impacto» y «Testimonios» (retiradas; sus tablas se conservan) |
+| Reconstrucción de la landing tras cada cambio publicado, programada y manual | Textos fijos de la landing editables desde el panel (héroe, manifiesto, «Ideas»: viven en el código de la landing) |
+
+Referencias: [Qué permite el panel](../../README.md#qué-permite), [Producto](../../PRODUCT.md), [Arquitectura](../ARQUITECTURA.md).
+
+## 1.2 Actores
+
+| Actor | Descripción | Cómo se identifica | Dónde |
+|---|---|---|---|
+| **Administrador** (`ADMIN`) | Integrante de la directiva con todos los permisos: textos del sitio, usuarios e invitaciones, eliminación definitiva, exportar o borrar inscripciones, categorías del foro, registro de cambios | Cuenta de Google que figura en la lista de **Usuarios** con rol `ADMIN` | [ARQUITECTURA · Identities](../ARQUITECTURA.md#identities), [REFERENCIA · Usuarios y roles](../REFERENCIA.md#users-sessions-roles-and-audit) |
+| **Editor** (`EDITOR`) | Integrante de la directiva que publica y modera el contenido del día a día | Cuenta de Google en **Usuarios** con rol `EDITOR` | Ídem |
+| **Acceso de emergencia** | Quien conoce la contraseña compartida; actúa como administrador sintético, con aviso en cada página y auditoría | `ADMIN_PASSWORD`, solo si Google no está configurado o `BREAK_GLASS_PASSWORD_LOGIN=1` | [DEPLOY · Emergency procedure](../DEPLOY.md#emergency-procedure-break-glass) |
+| **Estudiante del foro** | Estudiante con cuenta institucional `@unl.edu.ec`; nunca ve el panel | Cookie `forum_session`, tablas `ForumMember` / `ForumSession` (no son `User`) | [REFERENCIA · The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone) |
+| **Visitante** | Persona anónima que lee la landing, consume la API pública o se inscribe con el formulario abierto | Sin sesión | [ARQUITECTURA · Identities](../ARQUITECTURA.md#identities) |
+| **Persona invitada** | Futuro usuario del panel que abre un enlace de invitación de un solo uso | Enlace `/invitacion/<token>` | [REFERENCIA · Invites](../REFERENCIA.md#users-sessions-roles-and-audit) |
+
+## 1.3 Sistemas externos
+
+| Sistema | Para qué se usa | Dónde |
+|---|---|---|
+| **Neon** (PostgreSQL) | Única base de datos: contenido, usuarios, sesiones, registro de cambios, foro e inscripciones (`DATABASE_URL`) | [DEPLOY · Neon](../DEPLOY.md#1-neon-postgres) |
+| **Cloudinary** | Almacenamiento y entrega de imágenes (`CLOUDINARY_*`) | [REFERENCIA · Image uploads](../REFERENCIA.md#image-uploads) |
+| **Vercel** | Hospeda el panel y ejecuta su Cron diario | [DEPLOY · Vercel](../DEPLOY.md#3-vercel) |
+| **Cloudflare Pages** | Compila y hospeda la landing; su *deploy hook* (`CLOUDFLARE_DEPLOY_HOOK_URL`) pide cada reconstrucción | [Landing · Cloudflare Pages project](../../landing/docs/DEPLOY.md#cloudflare-pages-project) |
+| **Cloudflare Turnstile** | Antispam del formulario abierto de inscripción (`TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY`) | [REFERENCIA · Event registration](../REFERENCIA.md#event-registration) |
+| **Google (OAuth / OpenID)** | Acceso del panel y del foro (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`; el foro puede usar `FORUM_GOOGLE_CLIENT_ID` y `FORUM_GOOGLE_CLIENT_SECRET`) | [DEPLOY · Sign-in with Google](../DEPLOY.md) (sección 4a) |
+| **Sentry** (opcional) | Seguimiento de errores (`SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`) | [DEPLOY · Error tracking](../DEPLOY.md) (sección 7) |
+| **GitHub Actions** | CI de ambos repositorios y reconstrucción diaria de la landing | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates) |
+| **SonarCloud** | Análisis estático de ambos repositorios | `.sonarcloud.properties` en cada repositorio |
+
+# 2. Requisitos funcionales
+
+## 2.1 Contenido
+
+### Eventos (RF-EVT)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-EVT-01 | El sistema debe permitir listar, crear, editar, publicar u ocultar y mover a la papelera eventos; un evento nuevo nace como borrador. | [Events](../REFERENCIA.md#events); `app/admin/events/`, `src/interface/admin/events/actions.ts` |
+| RF-EVT-02 | El sistema debe aceptar una fecha opcional con precisión de día o de mes; una fecha solo de mes se guarda como el día 1 de ese mes. | [Events](../REFERENCIA.md#events); `src/domain/event.ts`, `src/domain/calendar-date.ts` |
+| RF-EVT-03 | El sistema debe guardar por evento un tipo (`taller`, `charla`, `evento`, `comunidad`), hora, lugar, público, un enlace solo `https`, hasta 8 destacados y una marca de destacado. | [Events](../REFERENCIA.md#events); `src/domain/event.ts` |
+| RF-EVT-04 | El sistema debe derivar el *slug* del título, permitir editarlo y exigir que sea único entre los eventos que no están en la papelera. | [Events](../REFERENCIA.md#events), [Trash](../REFERENCIA.md#trash-soft-delete); `src/domain/slug.ts` |
+| RF-EVT-05 | El sistema debe gestionar la galería del evento: texto alternativo obligatorio (1–200 caracteres), ancho mínimo de 1200 px, máximo 12 fotos activas, reordenar y quitar. | [Events](../REFERENCIA.md#events), [Image uploads](../REFERENCIA.md#image-uploads); `src/domain/event-photo.ts` |
+| RF-EVT-06 | El sistema debe destruir la imagen subida (best effort) y reportar el error original cuando falle la escritura en la base de datos tras una subida. | [Events](../REFERENCIA.md#events); `src/infrastructure/storage/` |
+
+### Novedades (RF-NEW)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-NEW-01 | El sistema debe permitir crear, editar, publicar, ocultar y mover a la papelera noticias con título (1–120), resumen (1–280) y cuerpo (1–10000); una noticia nueva nace como borrador. | [News](../REFERENCIA.md#news); `app/admin/news/`, `src/domain/news-item.ts` |
+| RF-NEW-02 | El sistema debe guardar el cuerpo como un subconjunto de Markdown (párrafos, negrita, cursiva, enlaces `https` y listas) sin convertirlo ni admitir HTML. | [News](../REFERENCIA.md#news); `src/interface/admin/markdown-subset.ts` |
+| RF-NEW-03 | El sistema debe asignar a cada noticia una fecha de publicación (día del calendario; hoy en Ecuador si se deja en blanco) y ordenarlas de la más reciente a la más antigua. | [News](../REFERENCIA.md#news) |
+| RF-NEW-04 | El sistema debe admitir una portada opcional (≥ 1200 px, con texto alternativo) y destruir la imagen anterior al reemplazarla, quitarla o eliminar la noticia. | [News](../REFERENCIA.md#news); `app/admin/news/_components/news-cover-panel.tsx` |
+| RF-NEW-05 | El sistema debe mostrar una vista previa en vivo de la noticia mientras se escribe. | [README · Novedades](../../README.md#qué-permite); `app/admin/news/_components/news-preview.tsx` |
+
+### FAQ (RF-FAQ)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-FAQ-01 | El sistema debe permitir crear, editar, ordenar, publicar u ocultar y mover a la papelera preguntas (1–200) con su respuesta (1–1000). | [FAQ](../REFERENCIA.md#faq); `app/admin/faqs/` |
+| RF-FAQ-02 | El sistema debe admitir en cada pregunta un comando de terminal opcional (el tema de `git help <comando>`) y exponerlo en `faqs[].command`. | [FAQ](../REFERENCIA.md#faq), [Public read API](../REFERENCIA.md#public-read-api) |
+
+### Comandos de la terminal (RF-CMD)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-CMD-01 | El sistema debe permitir gestionar los comandos libres de la terminal del sitio: palabra, descripción de una línea (1–80) y salida (1–600, multilínea). | [Terminal commands](../REFERENCIA.md#terminal-commands); `app/admin/commands/` |
+| RF-CMD-02 | El sistema debe aceptar solo nombres de 2 a 28 caracteres (minúsculas, dígitos y guiones simples, empezando por letra) y rechazar las palabras reservadas (`help`, `ayuda`, `ls`, `clear`, `git`). | [Terminal commands](../REFERENCIA.md#terminal-commands); `src/domain/command-name.ts` |
+| RF-CMD-03 | El sistema debe garantizar que un nombre de comando sea único entre los comandos de FAQ y los comandos libres que no están en la papelera, indicando quién lo posee. | [Terminal commands](../REFERENCIA.md#terminal-commands), [Trash](../REFERENCIA.md#trash-soft-delete) |
+
+### Directiva (RF-BRD)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-BRD-01 | El sistema debe permitir gestionar a los integrantes de la directiva (nombre 1–60, cargo 1–60, foto con texto alternativo) con orden, publicación y papelera. | [Board](../REFERENCIA.md#board); `app/admin/board/`, `src/domain/board-member.ts` |
+| RF-BRD-02 | El sistema debe almacenar y exponer de cada integrante únicamente nombre, cargo y foto; cualquier otro campo enviado en el formulario debe rechazarse. | [Board](../REFERENCIA.md#board), [PRODUCT · Constraints](../../PRODUCT.md) |
+| RF-BRD-03 | El sistema debe impedir publicar a un integrante sin foto y despublicarlo si se le quita la foto; la foto exige al menos 577 px de ancho. | [Board](../REFERENCIA.md#board); `src/domain/board-member.ts` |
+
+### Pilares (RF-PIL)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-PIL-01 | El sistema debe permitir gestionar las tarjetas de pilares (palabra 1–20, título 1–60, texto 1–300) con orden, publicación y papelera. | [Pillars](../REFERENCIA.md#pillars); `app/admin/pillars/` |
+| RF-PIL-02 | El sistema debe admitir una imagen opcional por pilar (≥ 1200 px, con texto alternativo; imagen y texto se guardan juntos o ninguno). | [Pillars](../REFERENCIA.md#pillars) |
+
+### Redes sociales (RF-SOC)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-SOC-01 | El sistema debe permitir gestionar enlaces a redes sociales con plataforma elegida de una lista cerrada, etiqueta, usuario, URL `https` y nota y descripción corta opcionales. | [Social links](../REFERENCIA.md#social-links); `app/admin/socials/`, `src/domain/social-link.ts` |
+
+### Aliados (RF-SPO)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-SPO-01 | El sistema debe permitir gestionar aliados con nombre (1–60), enlace `https` opcional y logo con texto alternativo (≥ 200 px de ancho), con orden, publicación y papelera. | [Sponsors](../REFERENCIA.md#social-proof-sponsors-impact-and-testimonials-retired); `app/admin/sponsors/`, `src/domain/sponsor.ts` |
+| RF-SPO-02 | El sistema debe impedir publicar a un aliado sin logo y despublicarlo si se le quita el logo. | [Sponsors](../REFERENCIA.md#social-proof-sponsors-impact-and-testimonials-retired) |
+
+### Textos del sitio (RF-SET)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-SET-01 | El sistema debe permitir a un administrador editar el lema (1–120), la descripción (1–300) y el texto «Acerca de» (1–600) como un registro único. | [Site settings](../REFERENCIA.md#site-settings); `app/admin/settings/`, `src/interface/admin/settings/actions.ts` |
+| RF-SET-02 | El sistema debe devolver `settings: null` mientras no se guarde nada, para que la landing conserve sus textos de respaldo. | [Site settings](../REFERENCIA.md#site-settings), [Public read API](../REFERENCIA.md#public-read-api) |
+
+### Listas, medios y papelera (RF-LST, RF-MED, RF-TRA)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-LST-01 | El sistema debe permitir reordenar FAQ, comandos, directiva, pilares, redes y aliados con botones y arrastrando, también con teclado y anuncios para lector de pantalla. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `src/interface/admin/reorder/actions.ts` |
+| RF-LST-02 | El sistema debe ofrecer búsqueda (`?q=`) y paginación de 20 filas en eventos, noticias, FAQ y comandos, y un filtro por estado (todos, publicados, borradores) en eventos y noticias. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `src/interface/admin/list-params.ts` |
+| RF-LST-03 | El sistema debe permitir acciones en lote (publicar, pasar a borrador, mover a la papelera) sobre hasta 50 elementos de las listas de contenido, aplicando las reglas de cada elemento e informando el resultado de cada uno. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `src/interface/admin/bulk/actions.ts` |
+| RF-MED-01 | El sistema debe aceptar subidas JPEG, PNG y WebP de hasta 5 MB, con el ancho mínimo que fija cada módulo, y rechazar las imágenes más angostas. | [Image uploads](../REFERENCIA.md#image-uploads); `src/infrastructure/storage/cloudinary-media-storage.ts` |
+| RF-MED-02 | El sistema debe listar en `/admin/medios` las imágenes almacenadas con su tamaño y dónde se usa cada una, sin escribir nada. | [Media library](../REFERENCIA.md#media-library); `src/infrastructure/storage/cloudinary-media-library.ts` |
+| RF-MED-03 | El sistema debe permitir a un administrador eliminar imágenes sin uso en dos pasos (revisión y confirmación), solo de las carpetas conocidas, con al menos 24 horas de antigüedad, hasta 5 por solicitud y con una entrada de auditoría por archivo. | [Media library](../REFERENCIA.md#media-library); `src/application/media-owners.ts`, `app/admin/medios/limpieza/` |
+| RF-TRA-01 | El sistema debe eliminar cada tipo de contenido en dos pasos: primero a la papelera (que además lo despublica) y solo después, por un administrador, de forma definitiva. | [Trash (soft delete)](../REFERENCIA.md#trash-soft-delete); `app/admin/papelera/`, `src/interface/admin/trash/actions.ts` |
+| RF-TRA-02 | El sistema debe restaurar un elemento de la papelera siempre como borrador y rechazar la restauración si otro elemento vivo ya ocupa su *slug* o comando. | [Trash (soft delete)](../REFERENCIA.md#trash-soft-delete) |
+| RF-TRA-03 | El sistema debe destruir los archivos de imagen de un elemento solo al eliminarlo definitivamente, nunca al enviarlo a la papelera. | [Trash (soft delete)](../REFERENCIA.md#trash-soft-delete), [Image uploads](../REFERENCIA.md#image-uploads) |
+| RF-TRA-04 | El sistema debe ofrecer «Deshacer» tras mover un elemento a la papelera. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `app/admin/_components/undo-toast.ts` |
+
+## 2.2 API pública del panel (RF-API)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-API-01 | El sistema debe publicar en `GET /api/public/content` una instantánea JSON del contenido publicado, fuera de la papelera y dentro de su ventana de publicación, sin exigir sesión. | [Public read API](../REFERENCIA.md#public-read-api); `app/api/public/content/route.ts` |
+| RF-API-02 | El sistema debe versionar el contrato (`schemaVersion` y su alias `version`), subir la versión solo ante un cambio incompatible y agregar campos únicamente de forma aditiva. | [Public read API](../REFERENCIA.md#public-read-api); `src/interface/public/public-content.mapper.ts` |
+| RF-API-03 | El sistema no debe exponer identificadores internos, `publicId` de almacenamiento, marcas de tiempo ni banderas de publicación en la API pública. | [Public read API](../REFERENCIA.md#public-read-api); `src/tests/unit/interface/public/public-content.mapper.test.ts` |
+| RF-API-04 | El sistema debe responder con caché de borde de 5 s (`s-maxage=5`), un `ETag` fuerte y `304` cuando coincide `If-None-Match`. | [Public read API](../REFERENCIA.md#public-read-api); `src/infrastructure/http/etag.ts` |
+| RF-API-05 | El sistema debe aplicar a la API pública una lista de orígenes permitidos (`PUBLIC_CORS_ORIGINS`) sin credenciales y responder la verificación previa `OPTIONS`. | [Public read API](../REFERENCIA.md#public-read-api); `src/infrastructure/http/cors.ts` |
+| RF-API-06 | El sistema debe responder un `503` genérico, sin detalles, ante cualquier fallo de la API pública. | [Public read API](../REFERENCIA.md#public-read-api) |
+| RF-API-07 | El sistema debe exponer `GET /api/health` como comprobación de vida sin autenticación y sin revelar datos internos. | `app/api/health/route.ts`; [DEPLOY · First-deploy checklist](../DEPLOY.md) |
+
+El detalle de cada ruta (método, guardia, entradas, respuestas y errores) está en la [referencia de la API](api.qmd).
+
+## 2.3 Publicación programada y vista previa
+
+### Publicación programada (RF-PRG)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-PRG-01 | El sistema debe permitir que eventos y noticias tengan una ventana opcional (`publishAt` inclusivo, `unpublishAt` exclusivo) y ocultar el elemento fuera de ella; un borrador nunca es público. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `src/domain/publication-window.ts` |
+| RF-PRG-02 | El sistema debe editar la ventana en hora de Ecuador (UTC-5, sin horario de verano) y mostrar «Programado» o «Vencido» junto a los elementos publicados que no están visibles. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `app/admin/_components/schedule-fields.tsx`, `app/admin/_components/window-badge.tsx` |
+| RF-PRG-03 | El sistema debe ejecutar a diario (11:00 UTC) un Cron que pida reconstruir la landing solo si un elemento publicado abrió o cerró su ventana desde la última solicitud aceptada. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `vercel.json`, `app/api/cron/scheduled-rebuild/route.ts` |
+| RF-PRG-04 | El sistema debe exigir `Authorization: Bearer <CRON_SECRET>` en el Cron y responder `401` a todos mientras el secreto falte o sea inválido. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `src/infrastructure/http/cron-auth.ts` |
+| RF-PRG-05 | El sistema debe calcular las ventanas solo en el panel; la landing no debe calcularlas. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview), [Landing · Scheduled content](../../landing/docs/DEPLOY.md#scheduled-content) |
+
+### Vista previa (RF-PRE)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-PRE-01 | El sistema debe permitir a editores y administradores generar un código de vista previa con vigencia de 1 hora, 24 horas o 7 días, mostrarlo una sola vez y auditar su creación sin guardar el código. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `app/admin/vista-previa/`, `src/interface/admin/preview/actions.ts` |
+| RF-PRE-02 | El sistema debe servir en `GET /api/public/preview` el mismo documento con borradores y elementos programados cuando recibe un `X-Preview-Token` válido, y responder `401` en caso contrario. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `app/api/public/preview/route.ts`, `src/infrastructure/preview/preview-token.ts` |
+| RF-PRE-03 | El sistema debe leer el código solo desde la cabecera, no cachearlo (`private, no-store`), no registrarlo y poder invalidar todos los códigos rotando `PREVIEW_TOKEN_SECRET`. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview); `src/infrastructure/observability/sentry-scrub.ts` |
+| RF-PRE-04 | El sistema debe permitir compilar la landing en modo vista previa (`PREVIEW_BUILD=1`) con un aviso fijo, `noindex`, sin analítica, y negarse a hacerlo en el proyecto público de Cloudflare Pages. | [Landing · Preview builds](../../landing/docs/REFERENCIA.md#preview-builds), [Landing · Preview builds (despliegue)](../../landing/docs/DEPLOY.md#preview-builds) |
+| RF-PRE-05 | El sistema debe detener la compilación de vista previa, sin recurrir al contenido normal, cuando falta el código, el panel responde `401` o la respuesta no trae `preview: true`. | [Landing · Preview builds](../../landing/docs/REFERENCIA.md#preview-builds) |
+
+## 2.4 Landing: compilación y reconstrucción (RF-LAN)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-LAN-01 | El sistema debe compilar la landing como sitio estático que lee `ADMIN_CONTENT_URL` (tiempo límite de 10 s) durante la compilación y valida la carga contra el contrato versión 1. | [Landing · Content from the admin](../../landing/docs/REFERENCIA.md#content-from-the-admin); `src/lib/admin-content/validate.ts` (landing) |
+| RF-LAN-02 | El sistema debe usar el respaldo `src/data/fallback.json` cuando el panel no responde, responde un estado distinto de 200 o entrega una carga inválida, sin lanzar un error. | [Landing · The loader never throws](../../landing/docs/REFERENCIA.md#the-loader-never-throws-the-production-gate-decides) |
+| RF-LAN-03 | El sistema debe hacer fallar una compilación de producción que caería en el respaldo o en contenido de demostración, manteniendo en línea el despliegue anterior, salvo la excepción de emergencia `ALLOW_CONTENT_FALLBACK=1`. | [Landing · Content gate](../../landing/docs/REFERENCIA.md#the-loader-never-throws-the-production-gate-decides), [Landing · When the admin is down](../../landing/docs/DEPLOY.md#when-the-admin-is-down); `src/lib/admin-content/gate.ts` (landing) |
+| RF-LAN-04 | El sistema debe pedir la reconstrucción de la landing (POST al *deploy hook*) 8 s después de la última edición de una ráfaga, y como máximo 15 s después de la primera, tras toda mutación exitosa. | [Landing rebuilds](../REFERENCIA.md#landing-rebuilds); `src/infrastructure/deploy/deploy-hook.ts` |
+| RF-LAN-05 | El sistema no debe hacer fallar ni demorar una edición cuando la solicitud de reconstrucción falla; el fallo solo se registra. | [Landing rebuilds](../REFERENCIA.md#landing-rebuilds); `src/tests/unit/interface/admin/deploy-hook-actions.test.ts` |
+| RF-LAN-06 | El sistema debe mostrar en el inicio del panel el resultado del último intento de reconstrucción («Último despliegue»), sin guardar la URL del *hook*. | [Landing rebuilds](../REFERENCIA.md#landing-rebuilds); `src/infrastructure/deploy/deploy-status.ts`, `src/interface/admin/deploy-status-label.ts` |
+| RF-LAN-07 | El sistema debe reconstruir la landing a diario a las 05:15 UTC para avanzar el «hoy» de Ecuador y reparar llamadas perdidas, y permitir lanzarlo a mano. | [Landing · How a build gets triggered](../../landing/docs/DEPLOY.md#how-a-build-gets-triggered), [ARQUITECTURA · How content flows](../ARQUITECTURA.md#how-content-flows) |
+| RF-LAN-08 | El sistema debe clasificar cada evento como próximo o pasado según la fecha de Ecuador al compilar, tratando un evento solo de mes como el día 1 de ese mes. | [Landing · How the admin content maps to the page](../../landing/docs/REFERENCIA.md#how-the-admin-content-maps-to-the-page) |
+| RF-LAN-09 | El sistema debe mostrar en la landing las secciones en un orden fijo y omitir las que no tienen contenido (inscripciones, novedades, directiva, FAQ, redes, aliados). | [Landing · The home page](../../landing/docs/REFERENCIA.md#the-home-page); `src/views/HomePage.astro` (landing) |
+| RF-LAN-10 | El sistema debe generar la lista `/novedades`, una página por noticia (`/novedades/<slug>`), el canal RSS y controles para compartir, con Markdown sin HTML y solo enlaces `https`. | [Landing · News](../../landing/docs/REFERENCIA.md#news) |
+| RF-LAN-11 | El sistema debe reconstruir al integrante de la directiva solo con nombre, cargo y foto, descartando cualquier otra clave de la carga. | [Landing · The loader never throws](../../landing/docs/REFERENCIA.md#the-loader-never-throws-the-production-gate-decides) |
+| RF-LAN-12 | El sistema debe aceptar imágenes solo si son URL de Cloudinary con `https` y dimensiones válidas, y servirlas con `srcset`, dimensiones explícitas y carga diferida. | [Landing · How the admin content maps to the page](../../landing/docs/REFERENCIA.md#how-the-admin-content-maps-to-the-page); `src/lib/admin-content/cloudinary.ts` (landing) |
+| RF-LAN-13 | El sistema debe mostrar los comandos libres y los temas de la FAQ en una terminal interactiva, renombrando los que colisionan con un tema o una palabra reservada. | [Landing · How the admin content maps to the page](../../landing/docs/REFERENCIA.md#how-the-admin-content-maps-to-the-page) |
+| RF-LAN-14 | El sistema debe enlazar el foro y las páginas de evento al origen del panel y omitir cualquier enlace de inscripción, calendario o foro que apunte a otro origen. | [Landing · Event registration](../../landing/docs/REFERENCIA.md#event-registration); `src/lib/admin-content/forum.ts` (landing) |
+| RF-LAN-15 | El sistema debe emitir en la landing metadatos de SEO (canónica, Open Graph, Twitter Card), datos estructurados (`Organization`, `NewsArticle`, `Event`), mapa del sitio, `robots.txt` y alternativas `hreflang`. | [Landing · SEO and sharing](../../landing/docs/REFERENCIA.md#seo-and-sharing); `src/lib/seo/` (landing) |
+
+## 2.5 Inscripción a eventos (RF-INS)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-INS-01 | El sistema debe permitir elegir por evento el modo de inscripción: ninguno, con cuenta de Google de la UNL (`unl`) o con formulario abierto (`open`). | [Event registration](../REFERENCIA.md#event-registration); `src/domain/event-registration.ts` |
+| RF-INS-02 | El sistema debe admitir cupos opcionales (1–5000) y fecha límite opcional en hora de Ecuador; sin fecha límite, la inscripción cierra al terminar el día del evento. | [Event registration](../REFERENCIA.md#event-registration) |
+| RF-INS-03 | El sistema debe permitir una sola inscripción por persona y evento (correo en minúsculas) y dejar intacta la primera ante un intento repetido. | [Event registration](../REFERENCIA.md#event-registration); `prisma/schema.prisma` (`EventRegistration`) |
+| RF-INS-04 | El sistema debe aplicar cupos, fecha límite y duplicados de forma atómica, de modo que dos solicitudes simultáneas no ocupen el último cupo ni repitan un correo. | [Event registration](../REFERENCIA.md#event-registration); `src/tests/integration/infrastructure/event-registration-prisma.repository.integration.test.ts` |
+| RF-INS-05 | El sistema debe permitir inscribirse con cuenta UNL solo a un miembro del foro con sesión válida, sin tomar ningún dato de quien llama: nombre y correo salen del registro del miembro. | [Event registration](../REFERENCIA.md#event-registration); `src/interface/forum/event-registration.ts` |
+| RF-INS-06 | El sistema debe recibir inscripciones abiertas en `POST /api/public/events/<slug>/registrations` con nombre, correo, carrera y semestre (1–12), verificando Turnstile en el servidor, limitando a 5 intentos por cliente cada 10 minutos y a 4 KB por solicitud. | [Event registration](../REFERENCIA.md#event-registration); `app/api/public/events/[slug]/registrations/route.ts` |
+| RF-INS-07 | El sistema debe cerrar el formulario abierto (`503`) cuando en producción falta la clave secreta de Turnstile (falla cerrado). | [Event registration](../REFERENCIA.md#event-registration); `src/infrastructure/http/turnstile.ts` |
+| RF-INS-08 | El sistema debe responder con estados estables (`201`, `400`, `404`, `409`, `413`, `415`, `429`, `503`) que no repiten los datos enviados. | [Event registration](../REFERENCIA.md#event-registration) |
+| RF-INS-09 | El sistema debe mostrar en `/foro/eventos/<slug>` el estado de la inscripción (abierta, sin cupos, cerrada o ya inscrito) y, según el modo, el acceso con Google, el formulario o el aviso de pase libre. | [Event registration](../REFERENCIA.md#event-registration); `app/foro/eventos/[slug]/page.tsx` |
+| RF-INS-10 | El sistema debe publicar en `GET /api/public/events/seats` los cupos de cada evento inscribible, sin datos personales y con CORS abierto de solo lectura. | [Event registration](../REFERENCIA.md#event-registration); `app/api/public/events/seats/route.ts` |
+| RF-INS-11 | El sistema debe publicar un archivo de calendario `.ics` por evento público con día exacto. | [Event registration](../REFERENCIA.md#event-registration); `app/api/public/events/[slug]/calendar.ics/route.ts`, `src/interface/public/event-ics.ts` |
+| RF-INS-12 | El sistema debe ofrecer a editores y administradores un resumen de inscripciones por evento (solo conteos) en `/admin/registrations` y la lista de inscritos de cada evento. | [Event registration](../REFERENCIA.md#event-registration); `app/admin/registrations/`, `app/admin/events/[id]/registrations/` |
+| RF-INS-13 | El sistema debe reservar a los administradores la exportación a CSV y el borrado de inscripciones, y auditar ambas acciones sin incluir nombres ni correos. | [Event registration](../REFERENCIA.md#event-registration); `app/admin/events/[id]/registrations/export/route.ts`, `src/interface/admin/event-registrations/actions.ts` |
+| RF-INS-14 | El sistema debe eliminar automáticamente las inscripciones 90 días después de que termina el evento (fin del día, o del mes si solo hay mes; nunca las de eventos sin fecha), desde el mismo Cron diario y con una entrada de auditoría que solo lleva el conteo. | [Event registration](../REFERENCIA.md#event-registration); `src/domain/event-registration-retention.ts`, `src/interface/cron/registration-retention.ts` |
+| RF-INS-15 | El sistema debe mostrar en la landing un boleto por evento próximo con su acción de inscripción hacia el panel, los cupos en vivo (una sola consulta del navegador, con degradación silenciosa) y el cierre por fecha límite verificado en el navegador. | [Landing · Event registration](../../landing/docs/REFERENCIA.md#event-registration); `src/lib/registration/` (landing) |
+
+## 2.6 Foro de estudiantes (RF-FOR)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-FOR-01 | El sistema debe permitir entrar al foro con Google solo a cuentas con correo verificado cuyo dominio y reclamo `hd` coincidan con `FORUM_ALLOWED_EMAIL_DOMAIN`, y crear al miembro en el primer acceso válido. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `app/foro/auth/google/`, `src/interface/forum/forum-google-login.ts` |
+| RF-FOR-02 | El sistema debe deshabilitar el acceso al foro (falla cerrado) mientras falte `FORUM_ALLOWED_EMAIL_DOMAIN` o `FORUM_SESSION_SECRET` sea inválido, sin afectar al panel. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone), [DEPLOY · Student forum](../DEPLOY.md) (sección 4b) |
+| RF-FOR-03 | El sistema debe mantener la identidad del foro separada de la del panel: una cookie de un tipo nunca debe pasar la guardia del otro. | [ARQUITECTURA · Identities](../ARQUITECTURA.md#identities); `src/tests/unit/interface/forum/require-forum-member.test.ts` |
+| RF-FOR-04 | El sistema debe listar los hilos de todas las categorías con filtro Abiertos/Resueltos, filtro por categoría y 20 hilos por página, con los conteos de ambas pestañas. | [The forum screens](../REFERENCIA.md#the-forum-screens); `app/foro/page.tsx`, `src/application/forum/forum-feed.use-case.ts` |
+| RF-FOR-05 | El sistema debe permitir a un miembro crear hilos y responder, con Markdown (incluidos bloques de código) renderizado sin HTML y enlaces con `rel="noopener noreferrer nofollow ugc"`. | [The forum screens](../REFERENCIA.md#the-forum-screens); `src/interface/forum/forum-posting.ts`, `app/foro/_components/markdown-body.tsx` |
+| RF-FOR-06 | El sistema debe limitar las publicaciones de cada miembro a 3 por minuto y 30 por hora, contadas en la base de datos. | [DEPLOY · Student forum](../DEPLOY.md) (sección 4b); `src/application/forum/posting-throttle.ts` |
+| RF-FOR-07 | El sistema debe permitir marcar «Me sirvió» (una reacción por miembro y publicación, reversible) y mostrar solo conteos, nunca quién reaccionó. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/interface/forum/forum-helpful.ts` |
+| RF-FOR-08 | El sistema debe permitir solo al autor del hilo marcar o desmarcar una respuesta visible del mismo hilo como la mejor. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/interface/forum/forum-best-answer.ts` |
+| RF-FOR-09 | El sistema debe permitir a un miembro reportar publicaciones ajenas (un reporte abierto por miembro y publicación). | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/interface/forum/forum-moderation.ts` |
+| RF-FOR-10 | El sistema debe permitir a editores y administradores ocultar o mostrar publicaciones, cerrar o reabrir hilos, suspender o reactivar miembros y cerrar reportes desde `/admin/foro/reportes`, con auditoría que solo lleva identificadores. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/interface/admin/forum/moderation-actions.ts` |
+| RF-FOR-11 | El sistema debe tratar un hilo cerrado como de solo lectura para los estudiantes y revocar las sesiones de un miembro al suspenderlo. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone) |
+| RF-FOR-12 | El sistema debe permitir a un administrador crear, renombrar y eliminar (solo si está vacía) categorías del foro desde `/admin/foro/categorias`. | [DEPLOY · Student forum](../DEPLOY.md) (sección 4b); `app/admin/foro/categorias/`, `src/interface/admin/forum/actions.ts` |
+| RF-FOR-13 | El sistema no debe mostrar a otros estudiantes el correo ni el identificador de Google de un miembro; solo su nombre para mostrar. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/application/dto/forum-result.dto.ts` |
+| RF-FOR-14 | El sistema debe aceptar como destino posterior al acceso solo rutas del mismo origen bajo `/foro` (parámetro `next`) e ignorar el resto. | [The forum is a separate zone](../REFERENCIA.md#the-forum-is-a-separate-zone); `src/interface/forum/forum-return-path.ts` |
+
+## 2.7 Acceso, usuarios, roles y auditoría
+
+### Acceso y sesiones (RF-AUT)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-AUT-01 | El sistema debe autenticar a la directiva con Google (código de autorización con PKCE, `state` y `nonce`) y admitir solo correos que figuren en la lista de usuarios. | [Environment variables](../REFERENCIA.md#environment-variables), [ARQUITECTURA · Identities](../ARQUITECTURA.md#identities); `app/auth/google/`, `src/infrastructure/auth/google-oauth.ts` |
+| RF-AUT-02 | El sistema debe restringir el acceso a un dominio de correo cuando `ALLOWED_EMAIL_DOMAIN` está definido, exigiendo también el reclamo `hd` de Google. | [DEPLOY · Environment variables](../DEPLOY.md#4-environment-variables) |
+| RF-AUT-03 | El sistema debe tratar una configuración de Google incompleta como error: Google no disponible, contraseña desactivada salvo `BREAK_GLASS_PASSWORD_LOGIN=1` y aviso «Configuración incompleta» en `/login`. | [Environment variables](../REFERENCIA.md#environment-variables); `src/infrastructure/auth/auth-config.ts` |
+| RF-AUT-04 | El sistema debe ofrecer un acceso de emergencia con `ADMIN_PASSWORD` (mínimo 16 caracteres), con aviso en cada página, auditoría y cierre de las sesiones de emergencia abiertas al desactivarlo. | [DEPLOY · Emergency procedure](../DEPLOY.md#emergency-procedure-break-glass); `src/infrastructure/auth/password.ts` |
+| RF-AUT-05 | El sistema debe limitar los intentos de acceso por cliente con espera exponencial (5 libres, luego 30 s hasta 5 min), almacenada en Postgres, y negar el acceso si el almacén no responde. | [Login throttle](../REFERENCIA.md#login-throttle); `src/infrastructure/auth/login-rate-limiter.ts` |
+| RF-AUT-06 | El sistema debe registrar cada acceso como una sesión revocable de 24 horas, leer el rol desde la base de datos en cada solicitud y crear una sesión nueva en cada acceso. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `src/infrastructure/auth/session-jwt.ts`, `src/interface/auth/require-session.ts` |
+| RF-AUT-07 | El sistema debe distinguir un fallo de Google (mensaje de reintento, sin entrada de rechazo) de un rechazo de la cuenta. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit) |
+| RF-AUT-08 | El sistema debe permitir ver y cerrar las sesiones propias a cualquier usuario y las de todos a un administrador. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `app/admin/sesiones/`, `src/interface/admin/sessions/actions.ts` |
+
+### Usuarios y roles (RF-USR)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-USR-01 | El sistema debe aplicar la matriz de permisos entre `EDITOR` y `ADMIN` verificándola en el servidor en cada acción y página, sin confiar en lo que oculta la interfaz. | [Server actions are guarded individually](../REFERENCIA.md#server-actions-are-guarded-individually); `src/tests/support/action-policy.ts` |
+| RF-USR-02 | El sistema debe permitir a un administrador cambiar el rol y activar o desactivar usuarios, y no permitir degradar ni desactivar al último administrador activo. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `app/admin/usuarios/`, `src/interface/admin/users/actions.ts` |
+| RF-USR-03 | El sistema debe crear al primer administrador a partir de `ADMIN_BOOTSTRAP_EMAILS` en su primer acceso con Google, solo si aún no existe un usuario con ese correo. | [Environment variables](../REFERENCIA.md#environment-variables), [DEPLOY · Cut-over](../DEPLOY.md) (sección 4a) |
+| RF-USR-04 | El sistema debe permitir a un administrador invitar a una persona con un enlace de un solo uso, que vence a los 7 días, está ligado a un correo y rol, y se muestra una sola vez (solo se guarda el hash SHA-256). | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `src/infrastructure/auth/invite-token.ts`, `app/invitacion/` |
+| RF-USR-05 | El sistema debe canjear la invitación solo si el correo de Google está verificado y coincide con el invitado, y rechazar de forma indistinguible todos los demás casos (usada, revocada, vencida, desconocida). | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `src/application/auth/` |
+| RF-USR-06 | El sistema debe permitir revocar invitaciones pendientes y revocar la anterior al crear una nueva para el mismo correo. | [DEPLOY · Inviting people](../DEPLOY.md#inviting-people) |
+
+### Registro de cambios (RF-AUD)
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RF-AUD-01 | El sistema debe registrar en un registro de solo adición quién hizo qué sobre qué entidad tras cada mutación exitosa. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `src/interface/audit/record-audit.ts` |
+| RF-AUD-02 | El sistema debe mostrar el registro solo a administradores, del más reciente al más antiguo, 25 por página y filtrable por entidad y autor. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `app/admin/registro/` |
+| RF-AUD-03 | El sistema no debe hacer fallar la acción cuando falla la escritura de una entrada de auditoría; el fallo se registra y se reporta. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit) |
+| RF-AUD-04 | El sistema no debe incluir en los resúmenes de auditoría contenidos, correos, nombres de inscritos ni tokens. | [DEPLOY · Operating notes](../DEPLOY.md), [Event registration](../REFERENCIA.md#event-registration) |
+
+# 3. Requisitos no funcionales
+
+## 3.1 Seguridad
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-01 | El sistema debe exigir sesión y rol como primera instrucción de cada acción de servidor del panel, con una fila de política y una prueba de rechazo sin sesión por cada acción nueva. | [Server actions are guarded individually](../REFERENCIA.md#server-actions-are-guarded-individually); `src/tests/unit/interface/admin/action-policy-coverage.test.ts` |
+| RNF-02 | El sistema debe proteger `/` y `/admin/*` con un guardia de rutas que compare la ruta cruda y su forma decodificada (barra invertida como barra) y responda `400` a una ruta con escape porcentual mal formado. | [Server actions are guarded individually](../REFERENCIA.md#server-actions-are-guarded-individually); `middleware.ts`, `src/tests/unit/middleware/route-protection.test.ts` |
+| RNF-03 | El sistema debe mantener tres identidades independientes (usuario del panel, acceso de emergencia, miembro del foro), cada una con su cookie, su secreto y su guardia. | [ARQUITECTURA · Identities](../ARQUITECTURA.md#identities) |
+| RNF-04 | El sistema debe firmar las cookies con secretos de al menos 32 caracteres, distintos entre sí (`ADMIN_SECRET`, `FORUM_SESSION_SECRET`, `PREVIEW_TOKEN_SECRET`, `CRON_SECRET`), y marcarlas `httpOnly`, `sameSite` y `secure` en producción. | [Environment variables](../REFERENCIA.md#environment-variables); `src/infrastructure/auth/session-cookies.ts` |
+| RNF-05 | El sistema debe fallar cerrado ante configuración ausente o inválida (acceso al foro, Cron, vista previa, Turnstile, contraseña de emergencia, almacén de intentos de acceso). | [Environment variables](../REFERENCIA.md#environment-variables), [Login throttle](../REFERENCIA.md#login-throttle) |
+| RNF-06 | El sistema debe enviar en todas las respuestas del panel cabeceras de seguridad (CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). | `src/infrastructure/http/security-headers.ts`, `src/tests/unit/infrastructure/http/security-headers.test.ts` |
+| RNF-07 | El sistema debe limitar la tasa de las rutas públicas (60 solicitudes por minuto por cliente en lectura; 5 cada 10 minutos en la inscripción abierta), con el entendimiento de que el límite es por instancia y de mejor esfuerzo. | [Public read API](../REFERENCIA.md#public-read-api), [Event registration](../REFERENCIA.md#event-registration); `src/infrastructure/http/rate-limiter.ts` |
+| RNF-08 | El sistema debe listar todas las rutas públicas y fallar una prueba si alguna otra es alcanzable sin sesión. | [Public read API](../REFERENCIA.md#public-read-api); `src/tests/unit/middleware/route-protection.test.ts` |
+| RNF-09 | El sistema debe renderizar el contenido de usuarios (noticias, foro, landing) sin HTML crudo, con enlaces solo `https`. | [News](../REFERENCIA.md#news), [Landing · News](../../landing/docs/REFERENCIA.md#news) |
+| RNF-10 | El sistema debe aislar el código del SDK de Cloudinary en la capa de infraestructura y verificar los límites entre capas con una prueba automática. | [Stack](../REFERENCIA.md#stack); `src/tests/unit/architecture-boundaries.test.ts` |
+| RNF-11 | El sistema debe tratar como secretos el *deploy hook*, los tokens y las claves, sin guardarlos ni registrarlos, y mantener los previews de Vercel sin variables de producción. | [DEPLOY · Vercel](../DEPLOY.md#3-vercel), [ARQUITECTURA · Environment variables and secrets](../ARQUITECTURA.md#environment-variables-and-secrets) |
+| RNF-12 | El sistema debe rechazar en la landing los enlaces de registro, calendario y foro que no estén en el origen del panel (defensa en profundidad). | [Landing · Event registration](../../landing/docs/REFERENCIA.md#event-registration) |
+| RNF-13 | El sistema debe auditar las dependencias de producción en CI y fallar ante avisos de severidad alta o crítica. | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates); `.github/workflows/ci.yml` |
+
+Las vulnerabilidades se reportan en privado según [SECURITY.md](../../SECURITY.md).
+
+## 3.2 Disponibilidad y tolerancia a fallos
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-14 | El sistema debe mantener la landing disponible aunque el panel esté caído: es estática y no ejecuta nada en tiempo de solicitud, salvo una consulta de cupos que degrada sin cambios visibles. | [ARQUITECTURA](../ARQUITECTURA.md), [Landing · Event registration](../../landing/docs/REFERENCIA.md#event-registration) |
+| RNF-15 | El sistema debe conservar el despliegue anterior cuando una compilación de producción no obtiene contenido real. | [Landing · When the admin is down](../../landing/docs/DEPLOY.md#when-the-admin-is-down) |
+| RNF-16 | El sistema debe contar con redes de seguridad para las reconstrucciones perdidas: Cron diario del panel, reconstrucción diaria de la landing y reintento manual. | [ARQUITECTURA · How content flows](../ARQUITECTURA.md#how-content-flows) |
+| RNF-17 | El sistema debe permitir el acceso de emergencia documentado cuando Google no está disponible. | [DEPLOY · Emergency procedure](../DEPLOY.md#emergency-procedure-break-glass) |
+| RNF-18 | El sistema debe tolerar fallos del proveedor de imágenes: la biblioteca de medios informa el problema en lugar de fallar, y un fallo al destruir un archivo no hace fallar la operación. | [Media library](../REFERENCIA.md#media-library), [Trash (soft delete)](../REFERENCIA.md#trash-soft-delete) |
+| RNF-19 | El sistema debe aplicar las migraciones de forma aditiva y manual (`prisma migrate deploy` con la conexión directa) antes de desplegar el código que las necesita. | [DEPLOY · Neon](../DEPLOY.md#1-neon-postgres), [DEPLOY · Operating notes](../DEPLOY.md) |
+
+## 3.3 Rendimiento
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-20 | El sistema debe alcanzar en la landing, con Lighthouse en perfil móvil, rendimiento ≥ 0,9 y accesibilidad, buenas prácticas y SEO ≥ 0,95 (SEO de `/novedades/` con presupuesto menor mientras no haya noticias). | [Landing · Tests](../../landing/docs/REFERENCIA.md#tests); `lighthouserc.json` (landing) |
+| RNF-21 | El sistema debe cargar las librerías de movimiento de la landing como fragmentos diferidos y no cargarlas con `prefers-reduced-motion`. | [Landing · Motion](../../landing/docs/REFERENCIA.md#motion); `src/scripts/motion-policy.ts` (landing) |
+| RNF-22 | El sistema debe servir las imágenes con transformación de Cloudinary (`f_auto`, `q_auto`, tamaños acotados), miniaturas en las listas del panel y carga diferida. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `lib/cloudinary-thumbnail.ts` |
+| RNF-23 | El sistema debe evitar consultas por elemento en las lecturas públicas y de conteo (una consulta agregada de cupos, una agrupación para los conteos de estado). | [Event registration](../REFERENCIA.md#event-registration), [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior) |
+| RNF-24 | El sistema debe mantener el caché de borde de la API (5 s) por debajo de la espera previa a reconstruir (8 s), para que una compilación nunca lea una copia anterior a la edición. | [Public read API](../REFERENCIA.md#public-read-api) |
+
+## 3.4 Accesibilidad
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-25 | El sistema debe fallar la CI de la landing ante cualquier violación grave o crítica de axe-core en ambos temas y con movimiento reducido. | [Landing · Tests](../../landing/docs/REFERENCIA.md#tests); `e2e/a11y.spec.ts` (landing) |
+| RNF-26 | El sistema debe exigir texto alternativo en toda imagen publicada (1–200 caracteres). | [Image uploads](../REFERENCIA.md#image-uploads), [Events](../REFERENCIA.md#events) |
+| RNF-27 | El sistema debe ofrecer en el panel interacciones accesibles: avisos `aria-live`, interruptores con `role="switch"` y reordenación operable con teclado. | [Admin UI behavior](../REFERENCIA.md#admin-ui-behavior); `app/admin/_components/toast.tsx` |
+| RNF-28 | El sistema debe respetar `prefers-reduced-motion` en la landing y dejar su estado final estático. | [Landing · Motion](../../landing/docs/REFERENCIA.md#motion) |
+| RNF-29 | El sistema debe mantener la landing legible en 320 px sin desplazamiento horizontal, con objetivos táctiles de 44 px. | [Landing · The home page](../../landing/docs/REFERENCIA.md#the-home-page); `e2e/home-layout.spec.ts` (landing) |
+| RNF-30 | El sistema debe ser cómodo en teléfono y en computador por igual (el panel incluye navegación móvil). | [PRODUCT · Operating Context](../../PRODUCT.md); `app/admin/_components/admin-nav.tsx` |
+
+## 3.5 Internacionalización y temas
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-31 | El sistema debe ofrecer la landing en español (`/`) y en inglés (`/en/`) con alternativas `hreflang` y `<html lang>` correcto; el contenido cargado desde el panel permanece en español. | [Landing · Themes and languages](../../landing/docs/REFERENCIA.md#themes-and-languages) |
+| RNF-32 | El sistema debe redactar la interfaz del panel y del foro en español neutro; el código y los documentos técnicos van en inglés. | [PRODUCT · Capabilities and Constraints](../../PRODUCT.md) |
+| RNF-33 | El sistema debe ofrecer tema claro y oscuro en el panel y en la landing, con elección inicial según `prefers-color-scheme`, preferencia guardada y sin parpadeo inicial. | `src/interface/theme/theme.ts`; [Landing · Themes and languages](../../landing/docs/REFERENCIA.md#themes-and-languages) |
+| RNF-34 | El sistema debe interpretar todas las fechas de negocio en hora de Ecuador (America/Guayaquil, UTC-5, sin horario de verano). | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview), [Event registration](../REFERENCIA.md#event-registration) |
+| RNF-35 | El sistema debe respetar la identidad de marca de la landing (colores y tipografías) en el panel. | [PRODUCT · Brand Commitments](../../PRODUCT.md); `app/globals.css` |
+
+## 3.6 Calidad y CI
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-36 | El sistema debe ejecutar en cada Pull Request y en `main`: auditoría, lint, tipos, pruebas con cobertura, compilación, pruebas de integración contra Postgres desechable y pruebas end-to-end. | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates); `.github/workflows/ci.yml` |
+| RNF-37 | El sistema debe mantener umbrales de cobertura del panel (líneas 77, sentencias 76, ramas 74, funciones 71). | `vitest.config.ts` |
+| RNF-38 | El sistema debe ejecutar en la landing auditoría, lint, tipos de Astro, formato, pruebas, compilación, end-to-end con axe y presupuestos de Lighthouse. | [Landing · Quality gates](../../landing/docs/REFERENCIA.md#quality-gates) |
+| RNF-39 | El sistema debe correr la CI sin secretos y con credenciales de prueba, sobre bases de datos desechables. | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates) |
+| RNF-40 | El sistema debe organizar el panel en capas hexagonales (`domain`, `application`, `infrastructure`, `interface`) con los límites verificados por pruebas. | [Stack](../REFERENCIA.md#stack); `src/tests/unit/architecture-boundaries.test.ts` |
+| RNF-41 | El sistema debe fijar mediante pruebas los contratos sensibles: claves de la API pública, cobertura de acciones por política y propietarios de columnas de imagen. | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates); `src/tests/unit/application/media-owner-coverage.test.ts` |
+| RNF-42 | El sistema debe recibir actualizaciones semanales de dependencias (Dependabot) y análisis estático con SonarCloud; los cambios de código entran por Pull Request contra `main`. | [CONTRIBUTING](../../CONTRIBUTING.md), [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates) |
+| RNF-43 | El sistema debe documentar el despliegue paso a paso con lista de verificación de primer despliegue en ambos repositorios. | [DEPLOY](../DEPLOY.md), [Landing · First-deploy checklist](../../landing/docs/DEPLOY.md#first-deploy-checklist) |
+
+## 3.7 Observabilidad
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-44 | El sistema debe reportar a Sentry (solo si hay DSN) los errores no controlados y los fallos inesperados de acciones y de la API, sin registrar errores de validación. | [DEPLOY · Error tracking](../DEPLOY.md) (sección 7); `instrumentation.ts`, `src/infrastructure/observability/report-error.ts` |
+| RNF-45 | El sistema debe depurar los eventos antes de salir: sin datos personales por defecto, cuerpos, cookies ni cabeceras sensibles, URLs reducidas a su origen y token de invitación enmascarado. | `src/infrastructure/observability/sentry-scrub.ts` |
+| RNF-46 | El sistema debe mostrar el estado del último despliegue de la landing y registrar quién cambió qué y cuándo. | [Landing rebuilds](../REFERENCIA.md#landing-rebuilds), [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit) |
+| RNF-47 | El sistema debe mostrar en la compilación de la landing avisos `[content-gate]` y `[registration]` que expliquen por qué se usó el respaldo o se omitió un enlace, sin imprimir la ruta ni un token. | [Landing · Content gate](../../landing/docs/REFERENCIA.md#the-loader-never-throws-the-production-gate-decides) |
+
+## 3.8 Privacidad
+
+| ID | Requisito | Dónde |
+|---|---|---|
+| RNF-48 | El sistema debe limitar los datos de la directiva a nombre, cargo y foto, sin teléfonos, edades, correos ni Instagram personal. | [Board](../REFERENCIA.md#board); `src/tests/unit/domain/board-member-privacy.test.ts` |
+| RNF-49 | El sistema debe tratar las inscripciones como datos personales: solo administradores exportan o eliminan, se borran a los 90 días y no se comparten ni se analizan. | [Event registration](../REFERENCIA.md#event-registration), [PRODUCT](../../PRODUCT.md) |
+| RNF-50 | El sistema debe guardar de cada sesión solo un hash con clave de la dirección del cliente y un agente de usuario acortado, nunca la dirección. | [Users, sessions, roles and audit](../REFERENCIA.md#users-sessions-roles-and-audit); `src/infrastructure/auth/ip-hash.ts` |
+| RNF-51 | El sistema debe marcar el panel y el foro con `noindex`, y la landing no debe guardar datos personales ni fijar cookies. | `app/layout.tsx`, `app/foro/layout.tsx`; [Landing · Event registration (despliegue)](../../landing/docs/DEPLOY.md#event-registration) |
+| RNF-52 | El sistema debe usar en la landing, si se configura, solo la analítica sin cookies de Cloudflare, y no incluirla en las vistas previas. | [Landing · Content from the admin](../../landing/docs/REFERENCIA.md#content-from-the-admin) |
+
+# 4. Restricciones y supuestos
+
+## 4.1 Restricciones
+
+| ID | Restricción | Dónde |
+|---|---|---|
+| RES-01 | El panel usa Next.js 16 (App Router), React 19, TypeScript, Prisma 7 sobre PostgreSQL (Neon) y Node ≥ 22.12; la landing usa Astro y pnpm exclusivamente. | [Stack](../REFERENCIA.md#stack), [ARQUITECTURA](../ARQUITECTURA.md#what-each-repository-owns) |
+| RES-02 | El panel se despliega en Vercel y la landing en Cloudflare Pages; las imágenes viven en Cloudinary. | [DEPLOY](../DEPLOY.md), [Landing · Cloudflare Pages project](../../landing/docs/DEPLOY.md#cloudflare-pages-project) |
+| RES-03 | Los cambios llegan a la landing mediante una reconstrucción, no al instante. | [PRODUCT · Operating Context](../../PRODUCT.md) |
+| RES-04 | Con el plan Vercel Hobby solo se permite un Cron diario, por lo que el contenido programado puede aparecer con hasta ~24 h de retraso salvo que haya una edición o una reconstrucción manual. | [Scheduling and preview](../REFERENCIA.md#scheduling-and-preview), [ARQUITECTURA · Known limits](../ARQUITECTURA.md#known-limits) |
+| RES-05 | Los límites de tasa son por instancia serverless y de mejor esfuerzo; la protección real de la API de contenido es la caché del CDN. | [ARQUITECTURA · Known limits](../ARQUITECTURA.md#known-limits) |
+| RES-06 | El contrato público no puede romperse sin un cambio coordinado en ambos repositorios; la landing valida `version`, por lo que el panel debe seguir emitiendo `version` y `schemaVersion`. | [ARQUITECTURA · Known limits](../ARQUITECTURA.md#known-limits), [Public read API](../REFERENCIA.md#public-read-api) |
+| RES-07 | La vista previa no incluye la clave `sponsors`; la landing la interpreta como lista vacía. | [ARQUITECTURA · Known limits](../ARQUITECTURA.md#known-limits) |
+| RES-08 | Las subidas admiten JPEG, PNG y WebP de hasta 5 MB; cada función del panel dura como máximo 30 s (`maxDuration`). | [Image uploads](../REFERENCIA.md#image-uploads), [DEPLOY · maxDuration](../DEPLOY.md#maxduration) |
+| RES-09 | Ni el panel ni la landing envían correos: las invitaciones se entregan copiando un enlace. | [DEPLOY · Inviting people](../DEPLOY.md#inviting-people) |
+| RES-10 | Las migraciones se aplican a mano, antes del código que las necesita. | [DEPLOY · Neon](../DEPLOY.md#1-neon-postgres) |
+
+## 4.2 Supuestos
+
+| ID | Supuesto | Dónde |
+|---|---|---|
+| SUP-01 | La protección de la rama `main` (Pull Request con una aprobación, CI obligatoria) se configura en GitHub y no puede comprobarse desde el repositorio. | [ARQUITECTURA · CI and quality gates](../ARQUITECTURA.md#ci-and-quality-gates) |
+| SUP-02 | Los pasos de Cloudflare y GitHub de la landing no se habían ejercitado contra las cuentas reales cuando se escribió su guía; el primer despliegue funciona como prueba. | [Landing · DEPLOY](../../landing/docs/DEPLOY.md) |
+| SUP-03 | El comportamiento del SQL del panel con PgBouncer de Neon (modo transacción) y del adaptador `pg` solo se probó contra un Postgres local; debe comprobarse tras el primer despliegue. | [DEPLOY · Neon](../DEPLOY.md#1-neon-postgres) |
+| SUP-04 | El límite de duración de funciones del plan de Vercel frente a `maxDuration = 30` no se verificó. | [DEPLOY · maxDuration](../DEPLOY.md#maxduration) |
+| SUP-05 | Quien usa el foro y la inscripción UNL tiene una cuenta Google institucional `@unl.edu.ec`; el correo del formulario abierto no se verifica. | [PRODUCT · Users](../../PRODUCT.md), [Event registration](../REFERENCIA.md#event-registration) |
+| SUP-06 | Los nombres y fechas de eventos reales distintos de los de la landing se desconocen y no deben inventarse. | [PRODUCT · Evidence on Hand](../../PRODUCT.md) |
+
+# 5. Matriz de trazabilidad (resumen)
+
+Cada fila agrupa los requisitos de un módulo y enlaza con la implementación y con la evidencia que los protege. El detalle por requisito está en la columna «Dónde» de las secciones 2 y 3.
+
+| Requisitos | Módulo | Implementación | Evidencia |
+|---|---|---|---|
+| RF-EVT-01…06 | Eventos | `app/admin/events/`, `src/domain/event.ts`, `src/interface/admin/events/` | `src/tests/integration/infrastructure/event-prisma.repository.integration.test.ts`, `e2e/admin.spec.ts` |
+| RF-NEW-01…05 | Novedades | `app/admin/news/`, `src/domain/news-item.ts` | `src/tests/integration/infrastructure/news-prisma.repository.integration.test.ts` |
+| RF-FAQ-01…02, RF-CMD-01…03 | FAQ y comandos | `app/admin/faqs/`, `app/admin/commands/`, `src/domain/command-name.ts` | `faq-prisma.repository.integration.test.ts` |
+| RF-BRD-01…03 | Directiva | `app/admin/board/`, `src/domain/board-member.ts` | `board-member-prisma.repository.integration.test.ts`, `board-member-privacy.test.ts` |
+| RF-PIL-01…02, RF-SOC-01, RF-SPO-01…02, RF-SET-01…02 | Pilares, redes, aliados y textos | `app/admin/pillars/`, `socials/`, `sponsors/`, `settings/` | `pillar-`, `social-link-`, `site-settings-prisma.repository.integration.test.ts`, `public-social-proof.integration.test.ts` |
+| RF-LST-01…03, RF-MED-01…03, RF-TRA-01…04 | Listas, medios y papelera | `src/interface/admin/{bulk,reorder,media,trash}/`, `src/application/media-owners.ts` | `soft-delete.integration.test.ts`, `media-owner-coverage.test.ts`, `media-orphans.use-cases.test.ts` |
+| RF-API-01…07 | API pública | `app/api/public/`, `src/interface/public/` | `public-content.mapper.test.ts`, `public-content-get.test.ts`, `public-content.integration.test.ts`, `route-protection.test.ts` |
+| RF-PRG-01…05, RF-PRE-01…05 | Programación y vista previa | `src/domain/publication-window.ts`, `app/api/cron/`, `app/api/public/preview/`, `src/infrastructure/preview/` | `publication-window-schema.integration.test.ts`; landing: `e2e/built-from-admin.spec.ts` |
+| RF-LAN-01…15 | Landing y reconstrucción | `src/infrastructure/deploy/`; landing: `src/lib/admin-content/`, `src/views/`, `src/lib/seo/` | `deploy-hook-actions.test.ts`; landing: `pnpm test`, `e2e/` |
+| RF-INS-01…15 | Inscripción | `src/domain/event-registration*.ts`, `app/foro/eventos/`, `app/api/public/events/`, `app/admin/registrations/` | `event-registration-prisma.repository.integration.test.ts`, `event-registration-retention.integration.test.ts`, `e2e/event-registration.spec.ts`; landing: `e2e/event-registration.spec.ts` |
+| RF-FOR-01…14 | Foro | `app/foro/`, `src/application/forum/`, `src/interface/forum/`, `src/interface/admin/forum/` | `forum-prisma.repositories.integration.test.ts`, `forum-moderation-prisma.repository.integration.test.ts`, `require-forum-member.test.ts`, `e2e/forum.spec.ts`, `e2e/forum-member.spec.ts` |
+| RF-AUT-01…08, RF-USR-01…06, RF-AUD-01…04 | Acceso, usuarios y auditoría | `src/infrastructure/auth/`, `src/interface/auth/`, `src/interface/admin/{users,sessions,audit}/`, `app/auth/`, `app/invitacion/` | `login-throttle.integration.test.ts`, `auth-prisma.repositories.integration.test.ts`, `admin-invite-prisma.repository.integration.test.ts`, `action-policy-coverage.test.ts` |
+| RNF-01…13 | Seguridad | `middleware.ts`, `src/infrastructure/http/`, `src/interface/auth/require-session.ts` | `route-protection.test.ts`, `action-policy-coverage.test.ts`, `security-headers.test.ts`, `architecture-boundaries.test.ts` |
+| RNF-14…19 | Disponibilidad | `vercel.json`, `app/api/cron/`; landing: `gate.ts`, `.github/workflows/daily-rebuild.yml` | Landing: `pnpm test` (compuerta de contenido) |
+| RNF-20…24 | Rendimiento | `lib/cloudinary-thumbnail.ts`; landing: `motion-policy.ts` | Landing: Lighthouse CI (`lighthouserc.json`) |
+| RNF-25…30 | Accesibilidad | `app/admin/_components/`; landing: `e2e/a11y.spec.ts`, `e2e/home-layout.spec.ts` | Landing: axe-core en CI; panel: revisión manual (sin axe en el panel) |
+| RNF-31…35 | Internacionalización y temas | `src/interface/theme/theme.ts`; landing: `src/i18n/`, `src/styles/global.css` | Landing: pruebas `i18n` y `audit-landing.spec.ts` |
+| RNF-36…43 | Calidad y CI | `.github/workflows/ci.yml`, `vitest.config.ts`, `.github/dependabot.yml`, `.sonarcloud.properties` | Ejecuciones de CI en GitHub Actions |
+| RNF-44…47 | Observabilidad | `src/infrastructure/observability/`, `instrumentation.ts`, `sentry.*.config.ts` | `src/tests/unit/interface/error-reporting.test.ts`, `deploy-status-label.test.ts` |
+| RNF-48…52 | Privacidad | `src/domain/board-member.ts`, `src/application/dto/`, `src/domain/event-registration-retention.ts` | `public-content.mapper.test.ts`, `event-registration-retention.integration.test.ts` |

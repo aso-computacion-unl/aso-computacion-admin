@@ -1,8 +1,8 @@
 # Deploying the admin
 
-The admin runs on **Vercel**, stores data in **Neon** (Postgres) and images in **Cloudinary**. It feeds the static landing (Cloudflare Pages) through `GET /api/public/content` and a deploy hook. Nothing here is automated: each service is set up once by hand.
+The admin runs on **Vercel**, stores data in **Neon** (Postgres) and images in **Cloudinary**. It feeds the static landing (Cloudflare Pages) through `GET /api/public/content` and a deploy hook, and it also hosts the student forum and the event registration pages. Nothing here is automated: each service is set up once by hand. How the pieces fit together, and what each repository owns, is in [ARQUITECTURA.md](ARQUITECTURA.md).
 
-Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Vercel](#3-vercel) → [seed](#5-seeding-the-landing-content) → [wire the landing](#6-wiring-the-landing). The [checklist](#8-first-deploy-checklist) at the end puts it in one list.
+Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Vercel](#3-vercel) → [seed](#5-seeding-the-landing-content) → [wire the landing](#6-wiring-the-landing). The [checklist](#9-first-deploy-checklist) at the end puts it in one list.
 
 ## 1. Neon (Postgres)
 
@@ -64,7 +64,7 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `AUTH_URL` | for Google login | Public origin of this admin, `https://…` with no path (plain `http` only for localhost). The OAuth redirect URI is `${AUTH_URL}/auth/google/callback`. |
 | `ADMIN_BOOTSTRAP_EMAILS` | no | Comma-separated emails that become ADMIN on their **first** successful Google login, if no user with that email exists yet. An existing user (demoted or deactivated) is never changed by it. |
 | `ALLOWED_EMAIL_DOMAIN` | no | Only Google Workspace accounts of this domain can log in (e.g. `unl.edu.ec`): both the email domain and Google's `hd` claim must match, so a personal account is refused. Unset: any verified account that is on the user list. |
-| `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when none of the three Google variables is set). |
+| `BREAK_GLASS_PASSWORD_LOGIN` | no | Exactly `1` keeps the shared-password login available after Google is configured, or while its configuration is incomplete. Anything else turns it off (it is on by itself only when neither `GOOGLE_CLIENT_ID` nor `GOOGLE_CLIENT_SECRET` is set; `AUTH_URL` alone does not count). |
 | `FORUM_ALLOWED_EMAIL_DOMAIN` | for the forum | The institutional email domain students must belong to: `unl.edu.ec`. both the email domain and Google's `hd` claim must match, and the email must be verified. **Unset or empty: the forum login is off** (section 4b). |
 | `FORUM_SESSION_SECRET` | for the forum | Signs the `forum_session` cookie and the forum's Google login cookie. At least 32 characters and **different from `ADMIN_SECRET`** (equal is refused). Missing or invalid: the forum login is off. Mark it Sensitive. |
 | `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | no | A separate Google OAuth client for the forum. Set both or neither; unset, the forum reuses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. |
@@ -139,7 +139,7 @@ An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their e
 
 To fix it, set the variables the log names (or clear the client id and secret to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
 
-If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
+If Google says "No pudimos verificar su cuenta de Google. Intente de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
 
 ### Cut-over from the shared password
 
@@ -170,9 +170,9 @@ Students sign in to the forum with their institutional Google account; there is 
 
 **Posting limits.** A member may post (threads and replies together) 3 times per minute and 30 per hour, counted in the database; the posts are Markdown with fenced code, rendered without HTML.
 
-**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; their screens in the admin come with the moderation work.
+**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories, but **no admin screen calls them yet**: until the category screen at `/admin/foro` ships (pending a follow-up, close-out task T7) a new forum has no categories and `/foro` says "Todavía no hay categorías.". The only ways to create them today are `npm run seed:demo` (a local database only) or SQL against the database (table `ForumCategory`).
 
-**The student screens.** `/foro` (the sign-in for a visitor, the categories for a member), `/foro/c/<slug>` (the threads of a category, Abiertos / Resueltos), `/foro/c/<slug>/nuevo`, and `/foro/hilo/<id>`. A visitor sent to any of them lands on the sign-in. The login is the only place a suspended member is told why they cannot enter: the guard answers the same for a visitor and a suspended student, so both see the sign-in, and a refused login says that the moderation may have suspended the account. The forum pages carry `noindex`.
+**The student screens.** `/foro` (the sign-in for a visitor; for a member the thread list of every category, filtered with Abiertos / Resueltos and `?categoria=<slug>`; the old `/foro/c/<slug>` redirects there), `/foro/c/<slug>/nuevo`, `/foro/hilo/<id>` and `/foro/eventos` (the events open for registration). A visitor sent to any of them lands on the sign-in, and the login brings them back to the page they asked for. The login is the only place a suspended member is told why they cannot enter: the guard answers the same for a visitor and a suspended student, so both see the sign-in, and a refused login says that the moderation may have suspended the account. The forum pages carry `noindex`.
 
 **Moderation.** Admins **and editors** moderate from `/admin/foro/reportes` (sidebar: "Foro"): students report a thread or a reply (one open report per member per post; once a moderator closes it the same member may report the post again), and the queue lists open reports oldest first, with the closed ones on a second tab. A moderator can hide or show a post, lock or reopen a thread, suspend or reactivate the author, and close the report as resolved or dismissed with a note. A locked thread takes no replies and no edits, not even from its author; a hidden post vanishes for students (and a hidden reply stops being the best answer); suspending a member signs them out of the forum at once (their sessions are revoked in the same transaction) and reactivating does not bring the sessions back. Every one of these actions is written to the audit log ("Registro", filter "Hilo/Respuesta/Cuenta/Reporte del foro") with ids only: never an email, a post, a reason or a note. The admin never sees a student's email in the queue, only their display name.
 
@@ -183,8 +183,8 @@ Students sign in to the forum with their institutional Google account; there is 
 Each event chooses its registration mode in the admin (none, UNL Google account, open form). What each needs:
 
 - **UNL account**: the forum (section 4b) must be configured, because it reuses the forum's identity and cookie. Without it nobody can sign in, and the event page says so by not offering a registration.
-- **Open form**: a Cloudflare Turnstile widget. In the Cloudflare dashboard (**Turnstile → Add widget**) create a widget for the landing's hostname (and `localhost` for development); the **site key** goes in the landing (public), the **secret key** here as `TURNSTILE_SECRET_KEY` (Sensitive). The landing sends the widget's token as `turnstileToken` in the JSON body. For local development Cloudflare publishes test keys (the always-pass secret is `1x0000000000000000000000000000000AA`); outside production an unset secret skips the check. This admin's own page `/foro/eventos/<slug>` also needs the **same widget's site key** as `TURNSTILE_SITE_KEY` (a public value, not Sensitive): with the secret set and no usable site key the page cannot show the widget, so it shows "La inscripción no está disponible en este momento" instead of a form and logs `TURNSTILE_SECRET_KEY is set but TURNSTILE_SITE_KEY is missing or invalid` once. The endpoint itself still verifies with the secret alone, because the landing's own form carries its own widget; do not rely on omitting the site key to switch the check off.
-- `PUBLIC_CORS_ORIGINS` must list the landing's origin, or the browser blocks its `POST` (and the preflight).
+- **Open form**: a Cloudflare Turnstile widget. In the Cloudflare dashboard (**Turnstile → Add widget**) create a widget for **this admin's hostname** (and `localhost` for development); its **site key** goes here as `TURNSTILE_SITE_KEY` (a public value, not Sensitive) and its **secret key** as `TURNSTILE_SECRET_KEY` (Sensitive). The landing carries no form and no Turnstile reference: it links to the admin's event page, and the form on that page sends the widget's token as `turnstileToken` in the JSON body of a same-origin `POST`. For local development Cloudflare publishes test keys (the always-pass secret is `1x0000000000000000000000000000000AA`); outside production an unset secret skips the check. With the secret set and no usable site key the page `/foro/eventos/<slug>` cannot show the widget, so it shows "La inscripción no está disponible en este momento" instead of a form and logs `TURNSTILE_SECRET_KEY is set but TURNSTILE_SITE_KEY is missing or invalid` once. The endpoint itself keeps verifying with the secret alone; do not rely on omitting the site key to switch the check off.
+- `PUBLIC_CORS_ORIGINS` needs **no** entry for the landing: it reads the content at build time (Node, no CORS), the seats endpoint answers any origin, and the registration form is the admin's own page, same origin.
 - `AUTH_URL` must be set: the public API builds the registration page, endpoint and calendar URLs from it (they are `null` otherwise).
 
 - **Retention.** Registrations are deleted automatically **90 days after their event ends** (the end of its date in Ecuador time, or of its month for a month-only date; undated events are never purged). Nothing to configure beyond the cron of section 6a: the same daily route runs it, and each run that deleted rows leaves one `event.registration_purge` entry in the audit log with the count only. Without `CRON_SECRET` nothing is purged. The full rule is in [REFERENCIA.md](REFERENCIA.md#event-registration).
@@ -216,17 +216,17 @@ CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=... \
 - The script also reads a `.env` in the current directory (without overriding variables already set). Before writing it prints `database: <host>/<name>`, never the credentials. **Check that line** before `--apply`.
 - What it creates is exactly what the fallback shows on the site, published: events, FAQ, pillars, socials and the board with their photos (uploaded to Cloudinary), and the site settings when the file has them. `datePrecision: "month"` is kept. A board entry with no photo is created as a draft. A plan with any problem (unreadable image, a photo narrower than its minimum, a value the domain rejects) writes nothing.
 - **Event photos are not seeded.** The landing has none; upload them in the admin (`/admin/events`).
-- **News is not seeded.** The landing's `news` list is accepted only when empty; a file with news entries is refused, so create news items in the admin (`/admin/news`).
+- **News is not seeded.** The landing's `news` list is accepted only when empty; a file with news entries is refused, so create news items in the admin (`/admin/news`). Free terminal commands, sponsors and forum categories are not seeded either.
 - **Idempotent.** Items are matched on a stable key: event slug, FAQ question, pillar word, social platform + URL, board name, the settings singleton (compared ignoring case and extra spaces). Whatever already exists is skipped and never modified, so running twice creates nothing and admin edits survive. The flip side: if you **rename or delete** a seeded item in the admin (a trashed one counts as deleted) and run the seed again, it comes back, because the key is all the seed knows. Seed once, then edit in the admin.
 - If a run fails midway it stops at the first error, deletes the half-created item and its uploaded image, and exits with code 1. Fix the cause and run it again; it only creates what is missing.
 - The seed does **not** trigger a landing rebuild (that hook lives in the admin's server actions). Run the deploy hook yourself afterwards, or wait for the daily cron.
 
 ## 6. Wiring the landing
 
-The landing's own deployment (Cloudflare Pages, `ADMIN_CONTENT_URL`, the daily rebuild workflow) is documented in the landing repository. From this side you need two things:
+The landing's own deployment (Cloudflare Pages, `ADMIN_CONTENT_URL`, the daily rebuild workflow, preview builds) is documented in the landing repository (`docs/DEPLOY.md` there). From this side you need two things:
 
-1. Create a **Deploy hook** in the Cloudflare Pages project (Settings → Builds → Deploy hooks) and put its URL in `CLOUDFLARE_DEPLOY_HOOK_URL`.
-2. Give the landing the public API URL, `https://<your-vercel-domain>/api/public/content`, and add the landing's production origin to `PUBLIC_CORS_ORIGINS` if a browser will read it.
+1. Create a **Deploy hook** in the Cloudflare Pages project (Settings → Builds → Deploy hooks) and put its URL in `CLOUDFLARE_DEPLOY_HOOK_URL`. The same URL also goes in the landing repository as the GitHub secret of its own daily rebuild workflow (a different job from this admin's cron in section 6a).
+2. Give the landing the public API URL, `https://<your-vercel-domain>/api/public/content` (its `ADMIN_CONTENT_URL`). The landing reads it at build time, in Node, so no `PUBLIC_CORS_ORIGINS` entry is needed; add its production origin there only if a browser will read the API.
 
 Check the API by hand: `curl -s https://<your-vercel-domain>/api/public/content` returns `"schemaVersion": 1` and, after seeding, 7 board entries with only `name`, `role` and `photo`.
 
@@ -270,6 +270,13 @@ Purely additive: it creates the `EventRegistrationMode` enum (`none`, `unl`, `op
 
 - Deploy order: run the migration first, then deploy the new code.
 - Rollback, only if registration is abandoned (roll the app back first): `DROP TABLE "EventRegistration"; ALTER TABLE "Event" DROP CONSTRAINT "Event_registration_capacity_check", DROP CONSTRAINT "Event_registration_settings_check", DROP COLUMN "registrationMode", DROP COLUMN "registrationCapacity", DROP COLUMN "registrationDeadline"; DROP TYPE "EventRegistrationMode"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261027100000_add_event_registration';`, with the **direct** connection string. **Every registration is lost with it**: export the CSVs first.
+
+### The social proof migration (`20261026170000_add_social_proof`)
+
+Purely additive: it creates the `ImpactStat`, `Testimonial` and `Sponsor` tables (each with `deletedAt`, a `CHECK` that a trashed row is not published, and the all-or-none image `CHECK`s) and touches no existing table or row, so it is safe on the production database with `prisma migrate deploy` and the previous admin keeps working against it (it ignores the tables). Only `Sponsor` is used by the app now; `ImpactStat` and `Testimonial` are kept without any screen.
+
+- Deploy order: run the migration first, then deploy the new code.
+- Rollback, only if sponsors are abandoned (roll the app back first): `DROP TABLE "ImpactStat", "Testimonial", "Sponsor"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261026170000_add_social_proof';`, with the **direct** connection string. Every sponsor is lost with it; their logos stay in Cloudinary.
 
 ### The publication window migration (`20261026180000_add_publication_window`)
 
@@ -363,7 +370,7 @@ Run this with the **direct** connection string. Assets of items already deleted 
 - [ ] Seed: dry run read, then `--apply`; the printed `database:` host was the Neon one.
 - [ ] `/api/public/content` shows the seeded content; the board has 7 entries.
 - [ ] Deploy hook created in Cloudflare and set in Vercel; an edit in the admin starts a landing build ~8 s later.
-- [ ] Optional, only to take registrations (section 4c): `TURNSTILE_SECRET_KEY` and `TURNSTILE_SITE_KEY` set for the open form (a half pair closes the event page's form and logs a warning), the landing's origin in `PUBLIC_CORS_ORIGINS`, and `AUTH_URL` set.
+- [ ] Optional, only to take registrations (section 4c): `TURNSTILE_SECRET_KEY` and `TURNSTILE_SITE_KEY` set for the open form (a half pair closes the event page's form and logs a warning), the Turnstile widget created for the admin's hostname, and `AUTH_URL` set.
 - [ ] Optional, for scheduled content (section 6a): `CRON_SECRET` set, and `vercel.json`'s schedule matches the Vercel plan (daily on Hobby, `*/15 * * * *` only on Pro). Optional, for previews: `PREVIEW_TOKEN_SECRET` set.
 - [ ] Optional: Sentry project created and `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set (section 7).
 - [ ] Plan's `maxDuration` limit checked against the `30` in `app/admin/layout.tsx`.

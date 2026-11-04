@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CATEGORY_HUES, categoryHue, formatAbsoluteTime, formatRelativeTime, initialsOf, parsePageParam, parseThreadFilter, threadStatus } from "@/interface/forum/forum-display";
+import { ADVERSARIAL_LENGTH, expectLinear } from "@/tests/support/linear-time";
 
 const NOW = new Date("2026-10-26T15:00:00Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
@@ -31,6 +32,64 @@ describe("formatRelativeTime", () => {
 
   it("treats a date slightly in the future (clock skew) as just now", () => {
     expect(formatRelativeTime(new Date(NOW.getTime() + 5 * MINUTE), NOW)).toBe("hace un momento");
+  });
+});
+
+describe("formatRelativeTime after a month, over the shapes ICU data gives a date", () => {
+  /** Loads the module against a date formatter that answers `formatted`, whatever the ICU build says. */
+  async function relativeTimeOf(formatted: string): Promise<string> {
+    vi.resetModules();
+    vi.stubGlobal("Intl", Object.assign(Object.create(Intl), { DateTimeFormat: class { format = () => formatted; formatToParts = () => []; } }));
+
+    try {
+      const { formatRelativeTime: format } = await import("@/interface/forum/forum-display");
+
+      return format(new Date("2026-01-01T00:00:00Z"), NOW);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
+  }
+
+  it.each([
+    ["26 oct 2026", "26 oct 2026"],
+    ["26 oct. 2026", "26 oct 2026"],
+    ["26 sept. 2026", "26 sept 2026"],
+    ["26 de oct. de 2026", "26 oct 2026"],
+    ["26 de octubre de 2026", "26 octubre 2026"],
+    ["26   de   octubre   de   2026", "26 octubre 2026"],
+    ["26\u00a0de\u00a0octubre\u00a0de\u00a02026", "26 octubre 2026"],
+    ["26\tde\noctubre\u2028de\u20292026", "26 octubre 2026"],
+    ["de octubre", "de octubre"],
+    ["octubre de", "octubre de"],
+    ["octubre de ", "octubre "],
+    ["a de b", "a b"],
+    ["a de de b", "a de b"],
+    ["a de de de b", "a de b"],
+    ["a de b de c", "a b c"],
+    ["a  de  de  b", "a de  b"],
+    ["ade b", "ade b"],
+    ["a dex", "a dex"],
+    ["a  b", "a  b"],
+    ["ene.. feb...", "ene feb"],
+    ["", ""],
+  ])("turns %j into %j", async (formatted, expected) => {
+    expect(await relativeTimeOf(formatted)).toBe(expected);
+  });
+
+  it("stays fast on a very long run of whitespace", async () => {
+    const formatted = `26${" ".repeat(ADVERSARIAL_LENGTH)}oct`;
+    vi.resetModules();
+    vi.stubGlobal("Intl", Object.assign(Object.create(Intl), { DateTimeFormat: class { format = () => formatted; formatToParts = () => []; } }));
+
+    try {
+      const { formatRelativeTime: format } = await import("@/interface/forum/forum-display");
+
+      expect(expectLinear(() => format(new Date("2026-01-01T00:00:00Z"), NOW))).toBe(formatted);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
   });
 });
 

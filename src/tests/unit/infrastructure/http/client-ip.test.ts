@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { clientKeyFromHeaders, getPublicClientKey } from "@/infrastructure/http/client-ip";
+import { ADVERSARIAL_LENGTH, expectLinear } from "@/tests/support/linear-time";
 
 function buildRequest(headers: Record<string, string> = {}): NextRequest {
   return new NextRequest(new URL("http://localhost:3000/api/public/events"), {
@@ -164,5 +165,38 @@ describe("clientKeyFromHeaders (malformed IPv6)", () => {
     ["a group longer than four digits", "2001:db8:12345::1"],
   ])("returns %s as it came", (_label, ip) => {
     expect(key(ip)).toBe(ip);
+  });
+});
+
+// The zone id (`%eth0`) goes before the address is parsed; what a line terminator does to it is pinned too.
+describe("clientKeyFromHeaders (zone id)", () => {
+  const key = (ip: string) => clientKeyFromHeaders({ get: (name) => (name === "x-real-ip" ? ip : null) });
+
+  it.each([
+    ["fe80::1%eth0", "fe80:0:0:0::/64"],
+    ["fe80::1%", "fe80:0:0:0::/64"],
+    ["[fe80::1%eth0]", "fe80:0:0:0::/64"],
+    ["fe80::1%eth0%extra", "fe80:0:0:0::/64"],
+    ["2001:db8:1:2::1%25eth0", "2001:db8:1:2::/64"],
+  ])("cuts the zone id off %j", (ip, expected) => {
+    expect(key(ip)).toBe(expected);
+  });
+
+  it.each(["fe80::1%eth0\nx", "fe80::1%eth0\rx", "fe80::1%e\u2028th0", "fe80::1%e\u2029x"])(
+    "leaves %j as it came when a line terminator follows the zone id",
+    (ip) => {
+      expect(key(ip)).toBe(ip);
+    },
+  );
+
+  it("cuts the zone id that comes after the last line terminator", () => {
+    expect(key("fe80::1%a\n%b")).toBe("fe80::1%a\n%b");
+    expect(key("::1\n%b")).toBe("::1\n%b");
+    expect(key("fe80::1%a%b")).toBe("fe80:0:0:0::/64");
+  });
+
+  it("stays fast on a long run of percent signs", () => {
+    expect(expectLinear(() => key(`::1${"%".repeat(ADVERSARIAL_LENGTH)}\nx`))).toBe(`::1${"%".repeat(ADVERSARIAL_LENGTH)}\nx`);
+    expect(expectLinear(() => key(`::1${"%".repeat(ADVERSARIAL_LENGTH)}`))).toBe("0:0:0:0::/64");
   });
 });

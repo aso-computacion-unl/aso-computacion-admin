@@ -5,7 +5,7 @@ export const FORUM_RETURN_PATH_MAX_LENGTH = 512;
 
 const FORUM_AUTH_PATH = "/foro/auth";
 // Never resolved against a real host: only here to let the URL parser do the dot-segment normalization.
-const PROBE_ORIGIN = "http://forum.invalid";
+const PROBE_ORIGIN = "https://forum.invalid";
 
 // Whitespace and control characters (the parser would silently strip a tab or a newline), a backslash
 // (some browsers read it as a slash), a doubled slash (a scheme-relative URL), and the percent-encodings

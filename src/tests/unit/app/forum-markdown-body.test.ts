@@ -18,7 +18,8 @@ describe("a forum post body", () => {
   it("renders a fenced block verbatim in a focusable, scrollable pre", () => {
     const html = render("Mire:\n\n```c\nfree(nodo);\n\nnodo = nodo->siguiente;\n```");
 
-    expect(html).toContain('<pre tabindex="0"');
+    expect(html).toContain('<pre tabindex="0" role="region" aria-label="Código"');
+    expect(html).not.toContain("textbox");
     expect(html).toContain('data-language="c"');
     expect(html).toContain("free(nodo);\n\nnodo = nodo-&gt;siguiente;");
   });

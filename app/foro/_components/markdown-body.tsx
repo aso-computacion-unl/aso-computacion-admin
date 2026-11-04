@@ -50,9 +50,18 @@ export function MarkdownBody({ source }: { source: string }) {
               </ul>
             );
           case "code":
-            // Focusable so a keyboard user can scroll a long line sideways.
+            // A focusable, labelled scroll region (WAI-ARIA and axe's scrollable-region-focusable): Safari does not
+            // make scrollable areas keyboard-focusable on its own, so without tabIndex a keyboard user could not
+            // scroll a long line sideways. Sonar's S6845 flags any tabIndex on a non-interactive role, which is a
+            // false positive for a scroll region; a textbox role would make screen readers announce an edit field.
             return (
-              <pre key={index} tabIndex={0} data-language={block.language ?? undefined} className="overflow-x-auto rounded-lg border border-border bg-background p-3.5 font-mono text-[0.85rem] leading-[1.6] wrap-normal">
+              <pre
+                key={index}
+                tabIndex={0} // NOSONAR typescript:S6845: focusable scroll region, see above
+                role="region"
+                aria-label="Código"
+                data-language={block.language ?? undefined}
+                className="overflow-x-auto rounded-lg border border-border bg-background p-3.5 font-mono text-[0.85rem] leading-[1.6] wrap-normal">
                 <code>{block.text}</code>
               </pre>
             );

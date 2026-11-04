@@ -139,7 +139,7 @@ export class ForumPostNotOwnedError extends DomainError {
 // Control characters (including NUL, which Postgres cannot store) and the bidirectional overrides that
 // could make a name read as something else.
 const UNSAFE_NAME_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
-const NUL = /\u0000/;
+const NUL = "\u0000";
 
 /**
  * The name other students see. It comes from the Google profile; when that is missing or looks like an
@@ -158,7 +158,7 @@ export function parseDisplayName(raw: string | undefined, memberId: string): str
 }
 
 function postText(field: string, raw: string, max: number): string {
-  if (NUL.test(raw)) {
+  if (raw.includes(NUL)) {
     throw new ValidationError(field, `${field} must not contain control characters`);
   }
 
@@ -171,7 +171,7 @@ export const parseReplyBody = (raw: string): string => postText("body", raw, FOR
 
 export const parseReportReason = (raw: string): string => postText("reason", raw, FORUM_REPORT_REASON_MAX_LENGTH);
 export const parseResolutionNote = (raw: string | null | undefined): string | null => {
-  if (raw && NUL.test(raw)) {
+  if (raw && raw.includes(NUL)) {
     throw new ValidationError("note", "note must not contain control characters");
   }
 

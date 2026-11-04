@@ -1,5 +1,5 @@
 import { ValidationError } from "@/domain/domain-error";
-import { SLUG_MAX_LENGTH, slugify } from "@/domain/slug";
+import { SLUG_MAX_LENGTH, slugify, trimTrailingHyphens } from "@/domain/slug";
 
 import type { NewsRepository } from "../ports/news-repository.port";
 
@@ -30,7 +30,7 @@ export async function resolveNewsSlug(
 
   for (let attempt = 2; ; attempt += 1) {
     const suffix = `-${attempt}`;
-    const candidate = `${base.slice(0, SLUG_MAX_LENGTH - suffix.length).replace(/-+$/, "")}${suffix}`;
+    const candidate = `${trimTrailingHyphens(base.slice(0, SLUG_MAX_LENGTH - suffix.length))}${suffix}`;
 
     if (!(await news.slugExists(candidate, excludeId))) {
       return candidate;

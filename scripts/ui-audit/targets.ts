@@ -86,7 +86,7 @@ export async function landingTargets(page: Page): Promise<Target[]> {
     if (url.origin === LANDING_URL) paths.add(url.pathname);
   }
 
-  const sorted = [...paths].sort();
+  const sorted = [...paths].sort((a, b) => a.localeCompare(b, "en"));
   const sections = new Map<string, string>();
 
   // Top-level pages (`/novedades`, `/en/`) all count; for a detail page (`/novedades/x`) only the first of its section does.

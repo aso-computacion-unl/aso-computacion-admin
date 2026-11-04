@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ValidationError } from "@/domain";
 import { assertSlug, slugify } from "@/domain/slug";
+import { ADVERSARIAL_LENGTH, expectLinear } from "@/tests/support/linear-time";
 
 describe("slugify", () => {
   it.each([
@@ -21,6 +22,27 @@ describe("slugify", () => {
 
   it("returns an empty string when nothing usable remains", () => {
     expect(slugify("¡¿?!")).toBe("");
+  });
+
+  it.each([
+    ["---", ""],
+    ["-a-", "a"],
+    ["--a--b--", "a-b"],
+    ["a", "a"],
+    ["", ""],
+    ["  ¡Hola, mundo!  ", "hola-mundo"],
+    ["Ünï-cödé  ÑANDÚ", "uni-code-nandu"],
+    [`${"a".repeat(79)} b`, "a".repeat(79)],
+    [`${"a".repeat(78)}  b c`, `${"a".repeat(78)}-b`],
+    [`${"a".repeat(80)}-b`, "a".repeat(80)],
+  ])("turns %j into %j (hyphen trimming and cap boundaries)", (title, slug) => {
+    expect(slugify(title)).toBe(slug);
+  });
+
+  it("stays fast on very long runs of separators", () => {
+    expect(expectLinear(() => slugify(`${"-".repeat(ADVERSARIAL_LENGTH)}a${"-".repeat(ADVERSARIAL_LENGTH)}`))).toBe("a");
+    expect(expectLinear(() => slugify(`${"!".repeat(ADVERSARIAL_LENGTH)}é${" ".repeat(ADVERSARIAL_LENGTH)}`))).toBe("e");
+    expect(expectLinear(() => slugify("-".repeat(ADVERSARIAL_LENGTH)))).toBe("");
   });
 });
 

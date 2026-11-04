@@ -25,13 +25,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Lint the OpenAPI spec
-        run: npx --yes @redocly/cli@2 lint docs/openapi.yaml
-      - uses: quarto-dev/quarto-actions/setup@v2
+        # Exact version, lifecycle scripts skipped: no on-demand install runs foreign code.
+        run: npx --yes --ignore-scripts @redocly/cli@2.75.0 lint docs/openapi.yaml
+      - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
       # The pre-render hook clones the landing docs (public repository, no token needed).
-      - uses: quarto-dev/quarto-actions/render@v2
-      - uses: actions/upload-pages-artifact@v3
+      - uses: quarto-dev/quarto-actions/render@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         if: github.event_name != 'pull_request'
         with:
           path: _site
@@ -49,4 +50,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

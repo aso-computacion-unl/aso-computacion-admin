@@ -28,10 +28,16 @@ export async function signTestToken(expiresInSeconds: number, secret: string = T
 
 /**
  * Mirrors how Next.js compiles a matcher entry: a bare entry such as "/"
- * matches that exact path, and `/prefix/:path*` matches `/prefix` itself plus
- * everything below it.
+ * matches that exact path, `/prefix/:path*` matches `/prefix` itself plus
+ * everything below it, and `/prefix/:path+` matches only what is below it.
  */
 export function pathMatchesPattern(pattern: string, path: string): boolean {
+  if (pattern.endsWith("/:path+")) {
+    const base = pattern.slice(0, -"/:path+".length);
+
+    return path.startsWith(`${base}/`) && path.length > base.length + 1;
+  }
+
   if (pattern.endsWith("/:path*")) {
     const base = pattern.slice(0, -"/:path*".length);
 

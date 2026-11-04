@@ -130,7 +130,6 @@ Architecture rules that tests enforce in the admin: layer boundaries (`src/tests
 
 ## Known limits
 
-- **Forum categories have no admin screen yet** (see above).
 - **Vercel Hobby allows one daily cron**, so scheduled content can appear up to about a day late unless an edit or a manual rebuild happens; on Pro the schedule can go back to every 15 minutes.
 - **The preview document has no `sponsors` key** (only the normal content route appends it); the landing treats it as empty.
 - **Rate limits are per serverless instance** (best effort); the real protection for the content API is the CDN cache (`s-maxage=5`), which must stay below the deploy-hook debounce.

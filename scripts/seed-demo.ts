@@ -24,7 +24,8 @@ function fail(message: string, code: number): never {
   process.exit(code);
 }
 
-function localDatabase(): string {
+/** Stops the script unless DATABASE_URL points at this machine. The URL never reaches the output: it holds credentials. */
+function assertLocalDatabase(): void {
   const url = process.env.DATABASE_URL;
   if (!url) fail("DATABASE_URL is not set. Nothing was written.", 2);
   let host: string;
@@ -33,8 +34,7 @@ function localDatabase(): string {
   } catch {
     fail("DATABASE_URL is not a valid URL. Nothing was written.", 2);
   }
-  if (!LOCAL_HOSTS.has(host)) fail(`Refusing to seed demo data into a non-local database (${host}). Nothing was written.`, 2);
-  return `${host}${new URL(url).pathname}`;
+  if (!LOCAL_HOSTS.has(host)) fail("Refusing to seed demo data into a non-local database. Nothing was written.", 2);
 }
 
 const now = new Date();
@@ -372,13 +372,13 @@ async function main() {
   const unknown = args.filter((arg) => arg !== "--replace");
   if (unknown.length > 0) fail(`Unknown argument: ${unknown.join(" ")}. Usage: npm run seed:demo [-- --replace]`, 2);
   const replace = args.includes("--replace");
-  const target = localDatabase();
+  assertLocalDatabase();
 
   const prisma = new PrismaClient();
   try {
     const existing = await hasContent(prisma);
     if (existing && !replace) {
-      fail(`The database ${target} already has content. Run with --replace to delete it and seed the demo. Nothing was written.`, 2);
+      fail(`The local database already has content. Run with --replace to delete it and seed the demo. Nothing was written.`, 2);
     }
     await prisma.$transaction(
       async (tx) => {
@@ -387,7 +387,7 @@ async function main() {
       },
       { timeout: 60_000 },
     );
-    console.log(`Demo content seeded into ${target}.`);
+    console.log("Demo content seeded into the local database.");
   } catch (error) {
     console.error(`Seeding failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

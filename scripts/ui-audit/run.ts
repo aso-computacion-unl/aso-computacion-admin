@@ -44,7 +44,7 @@ function loadLocalEnv(): void {
     fail("DATABASE_URL is missing or not a valid URL (.env.local). Nothing was captured.");
   }
 
-  if (!LOCAL_HOSTS.has(host)) fail(`Refusing to audit against a non-local database (${host}). Nothing was captured.`);
+  if (!LOCAL_HOSTS.has(host)) fail("Refusing to audit against a non-local database. Nothing was captured.");
   if (!process.env.ADMIN_PASSWORD) fail("ADMIN_PASSWORD is not set (.env.local). Nothing was captured.");
 }
 

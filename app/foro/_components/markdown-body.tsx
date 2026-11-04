@@ -50,9 +50,10 @@ export function MarkdownBody({ source }: { source: string }) {
               </ul>
             );
           case "code":
-            // Focusable so a keyboard user can scroll a long line sideways.
+            // Focusable so a keyboard user can scroll a long line sideways; a read-only text box is the role that
+            // names such a stop for a screen reader without suggesting that it can be edited.
             return (
-              <pre key={index} tabIndex={0} data-language={block.language ?? undefined} className="overflow-x-auto rounded-lg border border-border bg-background p-3.5 font-mono text-[0.85rem] leading-[1.6] wrap-normal">
+              <pre key={index} tabIndex={0} role="textbox" aria-readonly="true" aria-multiline="true" aria-label="Código" data-language={block.language ?? undefined} className="overflow-x-auto rounded-lg border border-border bg-background p-3.5 font-mono text-[0.85rem] leading-[1.6] wrap-normal">
                 <code>{block.text}</code>
               </pre>
             );

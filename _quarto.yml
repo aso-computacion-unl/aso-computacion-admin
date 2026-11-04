@@ -107,6 +107,8 @@ website:
 
 format:
   html:
+    # GitHub-style heading ids, so anchors written for github.com (#3-vercel) resolve here too.
+    from: markdown+gfm_auto_identifiers
     theme: cosmo
     toc: true
     toc-depth: 3

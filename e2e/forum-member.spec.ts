@@ -159,6 +159,65 @@ test("a member reacts to a reply, marks the best answer of their thread and repo
   await context.close();
 });
 
+test("an admin creates a category in the panel, a member sees it on /foro, and a category with threads cannot be deleted", async ({ browser }) => {
+  const adminContext = await browser.newContext({ baseURL: BASE_URL });
+  const admin = await adminContext.newPage();
+
+  await admin.goto("/login");
+  await admin.getByLabel("Contraseña").fill(process.env.ADMIN_PASSWORD ?? "");
+  await admin.getByRole("button", { name: "Iniciar sesión" }).click();
+  await expect(admin).toHaveURL(/\/admin$/);
+
+  await admin.getByRole("link", { name: "Categorías del foro" }).first().click();
+  await expect(admin).toHaveURL(/\/admin\/foro\/categorias$/);
+  await expect(admin.getByRole("heading", { level: 1, name: "Categorías del foro" })).toBeVisible();
+  await expect(admin.getByRole("link", { name: "Editar: Programación" })).toBeVisible();
+
+  // An empty name is told next to its field; a valid one is saved and the list comes back with it.
+  await admin.getByRole("link", { name: "Nueva categoría" }).first().click();
+  await admin.getByRole("button", { name: "Crear categoría" }).click();
+  await expect(admin.getByLabel("Nombre", { exact: true })).toHaveAttribute("aria-invalid", "true");
+  await admin.getByLabel("Nombre", { exact: true }).fill("Eventos del e2e");
+  await admin.getByLabel("Descripción (opcional)").fill("Charlas y talleres");
+  await admin.getByRole("button", { name: "Crear categoría" }).click();
+  await expect(admin).toHaveURL(/\/admin\/foro\/categorias$/);
+  await expect(admin.getByText("Categoría creada.")).toBeVisible();
+  await expect(admin.getByRole("link", { name: "Editar: Eventos del e2e" })).toBeVisible();
+  expect(await prisma.forumCategory.findUnique({ where: { slug: "eventos-del-e2e" }, select: { name: true, description: true } })).toEqual({ name: "Eventos del e2e", description: "Charlas y talleres" });
+
+  // The student sees it in the forum without any seed or SQL.
+  const memberCtx = await memberContext(browser);
+  const member = await memberCtx.newPage();
+
+  await member.goto("/foro");
+  await expect(member.getByRole("link", { name: "Eventos del e2e", exact: true })).toBeVisible();
+
+  // Renaming shows in the forum too.
+  await admin.getByRole("link", { name: "Editar: Eventos del e2e" }).click();
+  await admin.getByLabel("Nombre", { exact: true }).fill("Eventos y charlas");
+  await admin.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(admin.getByText("Cambios guardados.")).toBeVisible();
+  await member.reload();
+  await expect(member.getByRole("link", { name: "Eventos y charlas", exact: true })).toBeVisible();
+  await expect(member.getByRole("link", { name: "Eventos del e2e", exact: true })).toHaveCount(0);
+
+  // A category that still has threads stays; an empty one goes.
+  await admin.goto("/admin/foro/categorias");
+  await admin.getByRole("button", { name: "Eliminar: Programación" }).click();
+  await admin.getByRole("button", { name: "Sí, eliminar" }).click();
+  await expect(admin.getByText("La categoría todavía tiene hilos y no se puede eliminar.")).toBeVisible();
+  await admin.getByRole("button", { name: "No, conservar" }).click();
+
+  await admin.getByRole("button", { name: "Eliminar: Eventos y charlas" }).click();
+  await admin.getByRole("button", { name: "Sí, eliminar" }).click();
+  await expect(admin.getByText("Categoría eliminada.")).toBeVisible();
+  await expect(admin.getByRole("link", { name: "Editar: Eventos y charlas" })).toHaveCount(0);
+  expect(await prisma.forumCategory.count({ where: { slug: "eventos-del-e2e" } })).toBe(0);
+
+  await memberCtx.close();
+  await adminContext.close();
+});
+
 test("a member publishes a thread and a reply, signs out, and a suspended member is refused", async ({ browser }) => {
   const context = await memberContext(browser);
   const page = await context.newPage();

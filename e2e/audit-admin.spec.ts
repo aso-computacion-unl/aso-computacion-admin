@@ -266,7 +266,7 @@ test.describe("access control", () => {
       expect((await context.request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
     }
 
-    for (const path of ["/admin/usuarios", "/admin/registro", "/admin/settings"]) {
+    for (const path of ["/admin/usuarios", "/admin/registro", "/admin/settings", "/admin/foro/categorias", "/admin/foro/categorias/new"]) {
       const response = await context.request.get(path, { maxRedirects: 0 });
 
       expect(response.status(), path).toBe(307);

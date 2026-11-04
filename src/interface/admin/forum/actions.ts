@@ -26,7 +26,7 @@ import { parseCategoryFormData } from "./forum-category-form-data";
 // action can be POSTed to any page). Managing forum categories is ADMIN only. Audit summaries carry the
 // category's name or id, never a post.
 
-const PAGE_PATH = "/admin/foro";
+const PAGE_PATH = "/admin/foro/categorias";
 
 const CATEGORY_FIELD_MESSAGES = {
   name: "El nombre es obligatorio y admite hasta 60 caracteres.",

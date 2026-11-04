@@ -26,3 +26,10 @@ next-env.d.ts
 # Playwright output
 /test-results/
 /playwright-report/
+
+# Quarto docs portal: build output and the landing docs cloned at render time
+/_site/
+/.quarto/
+/landing/
+
+**/*.quarto_ipynb

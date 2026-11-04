@@ -1,0 +1,118 @@
+project:
+  type: website
+  output-dir: _site
+  pre-render: scripts/docs/fetch-landing-docs.sh
+  # Swagger UI on the API page loads the spec from the published site.
+  resources:
+    - docs/openapi.yaml
+  # Only the pages listed here are published: no source code, env files or scratch.
+  render:
+    - index.qmd
+    - README.md
+    - PRODUCT.md
+    - docs/portal/*.qmd
+    - docs/ARQUITECTURA.md
+    - docs/REFERENCIA.md
+    - docs/DEPLOY.md
+    - CONTRIBUTING.md
+    - SECURITY.md
+    # Cloned from aso-computacion-unl/aso-computacion-landing by the pre-render script.
+    - landing/README.md
+    - landing/PRODUCT.md
+    - landing/CONTRIBUTING.md
+    - landing/SECURITY.md
+    - landing/docs/REFERENCIA.md
+    - landing/docs/DEPLOY.md
+
+lang: es
+execute:
+  enabled: false
+
+website:
+  title: "ASO Computación · Documentación"
+  site-url: https://aso-computacion-unl.github.io/aso-computacion-admin/
+  repo-url: https://github.com/aso-computacion-unl/aso-computacion-admin
+  repo-actions: [issue]
+  favicon: docs/assets/logo.svg
+  page-navigation: true
+  back-to-top-navigation: true
+  search:
+    location: sidebar
+  navbar:
+    background: primary
+    left:
+      - text: Inicio
+        href: index.qmd
+      - text: Requisitos
+        href: docs/portal/requisitos.qmd
+      - text: Arquitectura
+        href: docs/ARQUITECTURA.md
+      - text: API
+        href: docs/portal/api.qmd
+      - text: Admin
+        href: docs/REFERENCIA.md
+      - text: Landing
+        href: landing/docs/REFERENCIA.md
+    tools:
+      - icon: github
+        href: https://github.com/aso-computacion-unl/aso-computacion-admin
+        text: Repositorio del admin
+      - icon: globe
+        href: https://github.com/aso-computacion-unl/aso-computacion-landing
+        text: Repositorio de la landing
+  sidebar:
+    style: docked
+    collapse-level: 1
+    contents:
+      - section: Contexto
+        contents:
+          - index.qmd
+          - text: Producto
+            href: PRODUCT.md
+          - text: README del admin
+            href: README.md
+      - section: Requisitos
+        contents:
+          - docs/portal/requisitos.qmd
+      - section: Arquitectura
+        contents:
+          - docs/ARQUITECTURA.md
+      - section: API
+        contents:
+          - docs/portal/api.qmd
+      - section: Admin
+        contents:
+          - text: Referencia técnica
+            href: docs/REFERENCIA.md
+          - text: Despliegue
+            href: docs/DEPLOY.md
+      - section: Landing
+        contents:
+          - text: README de la landing
+            href: landing/README.md
+          - text: Producto
+            href: landing/PRODUCT.md
+          - text: Referencia técnica
+            href: landing/docs/REFERENCIA.md
+          - text: Despliegue
+            href: landing/docs/DEPLOY.md
+          - text: Contribuir
+            href: landing/CONTRIBUTING.md
+          - text: Seguridad
+            href: landing/SECURITY.md
+      - section: Colaborar
+        contents:
+          - CONTRIBUTING.md
+          - SECURITY.md
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-title: En esta página
+    code-copy: true
+    link-external-newwindow: true
+    # The reused .md files carry wide tables and long code blocks.
+    page-layout: full
+    lightbox: true

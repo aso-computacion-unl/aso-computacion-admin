@@ -170,7 +170,7 @@ Students sign in to the forum with their institutional Google account; there is 
 
 **Posting limits.** A member may post (threads and replies together) 3 times per minute and 30 per hour, counted in the database; the posts are Markdown with fenced code, rendered without HTML.
 
-**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories; their screens in the admin come with the moderation work.
+**Categories.** The ADMIN-only actions in `src/interface/admin/forum/actions.ts` create, rename and delete (only when empty) forum categories. Admins manage them from `/admin/foro/categorias` (sidebar: "Categorías del foro", not shown to editors), so a fresh forum needs no seed or SQL: create at least one category before announcing the forum, because students cannot open a thread without one.
 
 **The student screens.** `/foro` (the sign-in for a visitor, the categories for a member), `/foro/c/<slug>` (the threads of a category, Abiertos / Resueltos), `/foro/c/<slug>/nuevo`, and `/foro/hilo/<id>`. A visitor sent to any of them lands on the sign-in. The login is the only place a suspended member is told why they cannot enter: the guard answers the same for a visitor and a suspended student, so both see the sign-in, and a refused login says that the moderation may have suspended the account. The forum pages carry `noindex`.
 

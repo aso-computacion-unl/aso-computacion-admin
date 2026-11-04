@@ -120,7 +120,7 @@ Both repositories run GitHub Actions on every pull request and on `main`, with n
 
 | | Admin (`.github/workflows/ci.yml`) | Landing (`.github/workflows/ci.yml`) |
 |---|---|---|
-| `checks` | `npm audit --omit=dev --audit-level=high`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` (thresholds in `vitest.config.ts`: lines 56, statements 56, branches 93, functions 78), `npm run build` | `pnpm audit --prod --audit-level high`, `pnpm lint`, `pnpm check` (Astro types), `pnpm format:check`, `pnpm test`, `pnpm build` |
+| `checks` | `npm audit --omit=dev --audit-level=high`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` (thresholds in `vitest.config.ts`: lines 77, statements 76, branches 74, functions 71), `npm run build` | `pnpm audit --prod --audit-level high`, `pnpm lint`, `pnpm check` (Astro types), `pnpm format:check`, `pnpm test`, `pnpm build` |
 | `integration` | Prisma tests against a disposable Postgres (`npm run test:integration`) | — |
 | `e2e` | Playwright (Chromium) against `next start` and a disposable Postgres (`npm run e2e`) | Playwright with axe-core and motion checks against `astro preview` of the fallback build (`pnpm test:e2e`) |
 | `lighthouse` | — | Lighthouse CI category budgets (performance ≥ 0.9, accessibility, best practices and SEO ≥ 0.95 on the home pages) |

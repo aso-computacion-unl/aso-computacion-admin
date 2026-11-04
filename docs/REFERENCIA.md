@@ -14,7 +14,7 @@ Content admin for the ASO Computación student association. It manages the conte
 - Hexagonal layers: `src/domain`, `src/application`, `src/infrastructure`, `src/interface` (boundaries enforced by `architecture-boundaries.test.ts`)
 - Prisma 6 + PostgreSQL
 - Cloudinary for images (SDK confined to `src/infrastructure/storage`)
-- Vitest 3 for unit and Prisma integration tests; Playwright (Chromium) for end-to-end
+- Vitest 5 for unit and Prisma integration tests; Playwright (Chromium) for end-to-end
 - Sentry for optional error tracking, Cloudflare Turnstile for the open registration form, `arctic`/`jose` for Google sign-in and signed tokens
 - Deployed on Vercel (the landing it feeds is on Cloudflare Pages)
 

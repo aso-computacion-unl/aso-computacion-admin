@@ -3,6 +3,37 @@ import { HttpError } from "../errors/http-error";
 const BOUNDARY_TOKEN_PATTERN = /^[A-Za-z0-9'()+_,./:=?\-]{1,70}$/u;
 const QUOTED_BOUNDARY_PATTERN = /^(?:[A-Za-z0-9'()+_,./:=?\-]|[A-Za-z0-9'()+_,./:=?\-][A-Za-z0-9'()+_,./:=?\- ]{0,68}[A-Za-z0-9'()+_,./:=?\-])$/u;
 
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
+
+/**
+ * The value of a `boundary=` parameter, or null when the parameter is anything else (or has no value).
+ * The value is what `boundary\s*=\s*(.+?)\s*$` captures: the text between the surrounding whitespace, which
+ * cannot hold a line terminator; a value of only whitespace is its last character that is not a terminator.
+ * Written as a scan because that pattern backtracks on a long run of whitespace.
+ */
+function boundaryParameterValue(parameter: string): string | null {
+  const name = parameter.trimStart();
+
+  if (name.slice(0, "boundary".length).toLowerCase() !== "boundary") {
+    return null;
+  }
+
+  const afterName = name.slice("boundary".length).trimStart();
+
+  if (!afterName.startsWith("=")) {
+    return null;
+  }
+
+  const rest = afterName.slice(1);
+  const value = rest.trim();
+
+  if (value !== "") {
+    return LINE_TERMINATOR.test(value) ? null : value;
+  }
+
+  return Array.from(rest).findLast((character) => !LINE_TERMINATOR.test(character)) ?? null;
+}
+
 function hasValidMultipartBoundary(contentType: string): boolean {
   const [mediaType, ...parameters] = contentType.split(";");
 
@@ -11,13 +42,12 @@ function hasValidMultipartBoundary(contentType: string): boolean {
   }
 
   const boundaries = parameters.flatMap((parameter) => {
-    const match = parameter.match(/^\s*boundary\s*=\s*(.+?)\s*$/iu);
+    const value = boundaryParameterValue(parameter);
 
-    if (!match) {
+    if (value === null) {
       return [];
     }
 
-    const value = match[1] ?? "";
     const isQuoted = value.startsWith('"') && value.endsWith('"');
 
     return [{ value: isQuoted ? value.slice(1, -1) : value, isQuoted }];

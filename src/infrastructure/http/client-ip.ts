@@ -54,7 +54,20 @@ function parseIpv6(address: string): number[] | null {
     return null;
   }
 
-  return groups.map((group) => parseInt(group, 16));
+  return groups.map((group) => Number.parseInt(group, 16));
+}
+
+const LINE_TERMINATORS = ["\n", "\r", "\u2028", "\u2029"];
+
+/**
+ * `address` cut at the first `%` of its zone id (`fe80::1%eth0`). Only a `%` after the last line terminator
+ * counts: the zone id is whatever `.*` can reach, and `.` does not cross a line terminator.
+ */
+function withoutZoneId(address: string): string {
+  const lastTerminator = Math.max(...LINE_TERMINATORS.map((terminator) => address.lastIndexOf(terminator)));
+  const zoneStart = address.indexOf("%", lastTerminator + 1);
+
+  return zoneStart === -1 ? address : address.slice(0, zoneStart);
 }
 
 /**
@@ -69,7 +82,7 @@ function throttleKeyForIp(ip: string): string {
     return ip;
   }
 
-  const groups = parseIpv6(ip.replace(/^\[|\]$/g, "").replace(/%.*$/, ""));
+  const groups = parseIpv6(withoutZoneId(ip.replace(/^\[|\]$/g, "")));
 
   if (!groups) {
     return ip;

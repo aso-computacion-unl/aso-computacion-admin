@@ -8,6 +8,42 @@ const DAY = 24 * HOUR;
 const dateFormat = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", year: "numeric", timeZone: FORUM_TIME_ZONE });
 const dateTimeFormat = new Intl.DateTimeFormat("es", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: FORUM_TIME_ZONE });
 
+const isWhitespace = (character: string | undefined): boolean => character !== undefined && character.trim() === "";
+
+/**
+ * Replaces each " de " (the word between whitespace, any run of it) with a single space. A scan because
+ * `/\s+de\s+/g` backtracks on a long run of whitespace.
+ */
+function collapseDe(text: string): string {
+  let result = "";
+  let position = 0;
+
+  while (position < text.length) {
+    if (!isWhitespace(text[position])) {
+      result += text[position];
+      position += 1;
+      continue;
+    }
+
+    let wordStart = position;
+    while (isWhitespace(text[wordStart])) wordStart += 1;
+
+    if (!text.startsWith("de", wordStart) || !isWhitespace(text[wordStart + 2])) {
+      result += text.slice(position, wordStart);
+      position = wordStart;
+      continue;
+    }
+
+    let next = wordStart + 2;
+    while (isWhitespace(text[next])) next += 1;
+
+    result += " ";
+    position = next;
+  }
+
+  return result;
+}
+
 /** "hace 12 min", "hace 3 h", "ayer", "hace 5 d"; a date from a month on. A date in the future counts as now. */
 export function formatRelativeTime(date: Date, now: Date): string {
   const elapsed = Math.max(0, now.getTime() - date.getTime());
@@ -18,7 +54,7 @@ export function formatRelativeTime(date: Date, now: Date): string {
   if (elapsed < 2 * DAY) return "ayer";
   if (elapsed < 30 * DAY) return `hace ${Math.floor(elapsed / DAY)} d`;
 
-  return dateFormat.format(date).replace(/\./g, "").replace(/\s+de\s+/g, " ");
+  return collapseDe(dateFormat.format(date).replace(/\./g, ""));
 }
 
 /** The exact moment, for a tooltip or a `<time>` title: "26 oct 2026, 10:30". */

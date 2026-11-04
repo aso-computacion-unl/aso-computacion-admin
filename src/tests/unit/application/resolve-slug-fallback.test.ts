@@ -20,3 +20,22 @@ describe("a title with no Latin letters or digits", () => {
     expect(await resolve([generic, `${generic}-2`])).toBe(`${generic}-3`);
   });
 });
+
+describe("a taken slug is suffixed within the length limit", () => {
+  // 77 letters, a hyphen and "bb": 80 characters, so the "-2" suffix cuts the base right after the hyphen.
+  const longTitle = `${"a".repeat(77)} bb`;
+  const base = `${"a".repeat(77)}-bb`;
+
+  it.each([
+    ["event", (taken: string[]) => resolveEventSlug(takenSlugs(...taken) as unknown as EventRepository, longTitle, undefined)],
+    ["news item", (taken: string[]) => resolveNewsSlug(takenSlugs(...taken) as unknown as NewsRepository, longTitle, undefined)],
+  ] as const)("drops the hyphen the cut leaves behind for the %s", async (_kind, resolve) => {
+    expect(await resolve([])).toBe(base);
+    expect(await resolve([base])).toBe(`${"a".repeat(77)}-2`);
+    expect(await resolve([base, `${"a".repeat(77)}-2`])).toBe(`${"a".repeat(77)}-3`);
+  });
+
+  it("keeps a base that fits as it is", async () => {
+    expect(await resolveNewsSlug(takenSlugs("taller") as unknown as NewsRepository, "Taller", undefined)).toBe("taller-2");
+  });
+});

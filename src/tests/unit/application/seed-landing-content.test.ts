@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseLandingSeedContent, SeedSourceError } from "@/application/seed/landing-seed-content";
+import { normalizeSeedKey, parseLandingSeedContent, SeedSourceError, socialSeedKey } from "@/application/seed/landing-seed-content";
 import {
   SeedLandingContentUseCase,
   SeedPlanInvalidError,
@@ -12,6 +12,7 @@ import type { BoardMember } from "@/domain/board-member";
 import type { Faq } from "@/domain/faq";
 import type { Pillar } from "@/domain/pillar";
 import type { SocialLink } from "@/domain/social-link";
+import { ADVERSARIAL_LENGTH, expectLinear } from "@/tests/support/linear-time";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryMediaStorage } from "@/tests/fakes/in-memory-media-storage";
 import { InMemoryOrderedRepository } from "@/tests/fakes/in-memory-ordered-repository";
@@ -447,5 +448,32 @@ describe("SeedLandingContentUseCase", () => {
       expect(second.items.filter((item) => item.outcome === "created").map((item) => item.key)).toEqual(["Luis Gómez"]);
       expect((await board.list()).map((member) => member.props.name)).toEqual(["Ana Pérez", "Luis Gómez"]);
     });
+  });
+});
+
+describe("seed keys", () => {
+  it.each([
+    ["  Hello   World \t ", "hello world"],
+    ["", ""],
+    ["ÁÉ  Ñu", "áé ñu"],
+  ])("normalises %j to %j", (value, key) => {
+    expect(normalizeSeedKey(value)).toBe(key);
+  });
+
+  it.each([
+    ["GitHub", "https://github.com/aso/", "github https://github.com/aso"],
+    ["GitHub", "https://github.com/aso///", "github https://github.com/aso"],
+    ["  GitHub ", " HTTPS://GitHub.com/ASO ", "github https://github.com/aso"],
+    ["x", "/", "x "],
+    ["x", "////", "x "],
+    ["x", "a//b/", "x a//b"],
+    ["x", "", "x "],
+  ])("keys a %j link to %j as %j, ignoring trailing slashes", (platform, url, key) => {
+    expect(socialSeedKey(platform, url)).toBe(key);
+  });
+
+  it("stays fast on a url made of slashes", () => {
+    expect(expectLinear(() => socialSeedKey("x", `${"/".repeat(ADVERSARIAL_LENGTH)}a`))).toBe(`x ${"/".repeat(ADVERSARIAL_LENGTH)}a`);
+    expect(expectLinear(() => socialSeedKey("x", "/".repeat(ADVERSARIAL_LENGTH)))).toBe("x ");
   });
 });

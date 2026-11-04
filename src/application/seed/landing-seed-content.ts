@@ -15,8 +15,16 @@ export function normalizeSeedKey(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+
+  while (end > 0 && value[end - 1] === "/") end -= 1;
+
+  return value.slice(0, end);
+}
+
 export function socialSeedKey(platform: string, url: string): string {
-  return `${normalizeSeedKey(platform)} ${normalizeSeedKey(url).replace(/\/+$/, "")}`;
+  return `${normalizeSeedKey(platform)} ${trimTrailingSlashes(normalizeSeedKey(url))}`;
 }
 
 const nullableText = z.string().nullable().default(null);

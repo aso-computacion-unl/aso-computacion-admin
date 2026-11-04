@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { HttpError } from "@/interface/errors/http-error";
 import { parseFormData } from "@/interface/validation/parse-form-data";
+import { ADVERSARIAL_LENGTH, expectLinearAsync } from "@/tests/support/linear-time";
 
 function mockRequest(
   contentType: string,
@@ -130,5 +131,72 @@ describe("parseFormData Content-Length pre-check", () => {
 
     await expect(parseFormData(request)).resolves.toBe(formData);
     expect(formDataSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("parseFormData boundary parameter", () => {
+  /** A bare headers object, since `Headers` itself refuses the line terminators some cases need. */
+  function requestWith(contentType: string): { request: Request; formData: FormData } {
+    const formData = new FormData();
+    const request = { headers: { get: (name: string) => (name === "Content-Type" ? contentType : null) }, formData: async () => formData } as unknown as Request;
+
+    return { request, formData };
+  }
+
+  const accepted = async (contentType: string) => {
+    const { request, formData } = requestWith(contentType);
+
+    await expect(parseFormData(request)).resolves.toBe(formData);
+  };
+  const rejected = async (contentType: string) => {
+    await expect(parseFormData(requestWith(contentType).request)).rejects.toEqual(
+      new HttpError(400, "Content-Type must be multipart/form-data with a valid boundary"),
+    );
+  };
+
+  it.each([
+    "multipart/form-data;boundary=abc",
+    "multipart/form-data;  BOUNDARY = abc  ",
+    "multipart/form-data;\tBoundary\t=\tabc\t",
+    'multipart/form-data; boundary = "a b" ',
+    "multipart/form-data; charset=utf-8; boundary=abc",
+    "multipart/form-data; boundary=abc ; charset=utf-8",
+    "MULTIPART/Form-Data; boundary=abc",
+    "multipart/form-data; boundary=\u00a0abc\u00a0",
+    "multipart/form-data; boundary=\ufeffabc",
+    "multipart/form-data; boundary=\nabc",
+    "multipart/form-data; boundary=abc\n",
+    "multipart/form-data; boundary=abc; boundary=",
+    "multipart/form-data; boundary=\n; boundary=abc",
+    "multipart/form-data; boundary=\u2028\u2029; boundary=abc",
+    "multipart/form-data; boundary=" + "a".repeat(70),
+  ])("accepts %j", accepted);
+
+  it.each([
+    "multipart/form-data; boundary= ",
+    "multipart/form-data; boundary=\t",
+    "multipart/form-data; boundary=  ",
+    "multipart/form-data; boundary= ; boundary=abc",
+    "multipart/form-data; boundary=abc; boundary= ",
+    "multipart/form-data; boundary=\n ; boundary=abc",
+    "multipart/form-data; boundary= \n; boundary=abc",
+    "multipart/form-data; boundary=abc; boundary=def",
+    "multipart/form-data; boundaryx=abc",
+    "multipart/form-data; xboundary=abc",
+    "multipart/form-data; boundary abc",
+    "multipart/form-data; boundary:abc",
+    "multipart/form-data; boundary=ab\ncd",
+    "multipart/form-data; boundary=ab\u2028cd",
+    "multipart/form-data; boundary=a b",
+    'multipart/form-data; boundary="abc',
+    'multipart/form-data; boundary=""',
+    "multipart/form-data; boundary=" + "a".repeat(71),
+  ])("rejects %j", rejected);
+
+  it("stays fast on a boundary followed by a long run of spaces and more text", async () => {
+    await expectLinearAsync(() => rejected(`multipart/form-data; boundary=a${" ".repeat(ADVERSARIAL_LENGTH)}x`));
+    await expectLinearAsync(() => rejected(`multipart/form-data; boundary=a${" ".repeat(ADVERSARIAL_LENGTH)}\nx`));
+    await expectLinearAsync(() => accepted(`multipart/form-data; boundary=a${" ".repeat(ADVERSARIAL_LENGTH)}`));
+    await expectLinearAsync(() => rejected(`multipart/form-data; boundary=${" ".repeat(ADVERSARIAL_LENGTH)}`));
   });
 });

@@ -1,0 +1,1145 @@
+openapi: 3.1.0
+info:
+  title: API del panel de ASO Computación
+  version: 1.0.0
+  summary: Route handlers del panel de administración (Next.js, App Router).
+  description: |
+    Documenta los 12 *route handlers* (`app/**/route.ts`) del panel. Todo se deriva del código.
+
+    **Convenciones**
+
+    - Los errores JSON son un objeto de una sola clave, `{"error": "..."}`, sin detalles internos. El vocabulario
+      varía por grupo: frases en inglés en lectura pública, cron y exportación; códigos en minúsculas
+      (`rate_limited`, `captcha`, …) en la inscripción abierta.
+    - **Limitación de tasa** (por instancia, *best effort*): 60 solicitudes por 60 s en las lecturas públicas y
+      5 por 10 min en la inscripción. Al superarla se responde `429` con `Retry-After` (segundos).
+    - **CORS:** solo las rutas públicas lo implementan. `seats` es abierto (`*`); `content`, `calendar.ics` y
+      `registrations` reflejan el `Origin` solo si está en la variable `PUBLIC_CORS_ORIGINS`; el resto no
+      concede CORS.
+    - **Seguridad:** todas las rutas llevan las cabeceras de `next.config` (`X-Frame-Options`,
+      `X-Content-Type-Options`, `Strict-Transport-Security`, `Content-Security-Policy`, …).
+
+    **Probar desde el portal ("Try it out")**
+
+    Solo funcionan desde el navegador los endpoints con CORS abierto. Las rutas de OAuth (redirecciones), el cron
+    y la exportación con cookie no se pueden llamar desde otro origen. Probar `POST …/registrations` contra
+    producción **no** crea una inscripción: exige un token de Cloudflare Turnstile que solo emite el widget de la
+    landing.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://aso-computacion-admin.vercel.app
+    description: Producción
+  - url: http://localhost:3000
+    description: Desarrollo local
+tags:
+  - name: Público
+    description: Endpoints `/api/public/*`. Sin sesión; consumidos por la compilación de la landing y sus formularios.
+  - name: Operación
+    description: Salud del servicio y tareas programadas.
+  - name: Autenticación
+    description: Flujo de Google OAuth (código + PKCE S256 + `state` + `nonce`) del admin y del foro. Son navegaciones del navegador que siempre responden con una redirección.
+  - name: Administración
+    description: Rutas protegidas por la sesión del admin.
+security: []
+paths:
+  /api/public/content:
+    get:
+      tags: [Público]
+      operationId: getPublicContent
+      summary: Contenido público para la landing
+      description: |
+        Documento con el contenido publicado y visible en este momento (eventos, FAQ, pilares, redes, directiva,
+        ajustes, noticias, comandos y patrocinadores). Lo descarga la compilación de la landing.
+
+        - **Caché:** `public, max-age=0, s-maxage=5, must-revalidate` y `ETag` fuerte calculado sin `generatedAt`.
+          `s-maxage` debe ser estrictamente menor que `DEPLOY_HOOK_DEBOUNCE_MS`.
+        - **Tasa:** 60 solicitudes por 60 s por cliente.
+        - **CORS:** lista de orígenes (`PUBLIC_CORS_ORIGINS`), con `Vary: Origin`.
+      security: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          description: ETag recibido antes; si coincide, la respuesta es `304` sin cuerpo.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Documento de contenido.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: "public, max-age=0, s-maxage=5, must-revalidate" }
+            ETag:
+              schema: { type: string }
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+            Vary:
+              $ref: "#/components/headers/Vary"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PublicContent"
+                  - $ref: "#/components/schemas/PublicSocialProof"
+              example:
+                version: 1
+                schemaVersion: 1
+                generatedAt: "2026-11-04T12:00:00.000Z"
+                events:
+                  - slug: taller-git
+                    title: Taller de Git
+                    description: null
+                    date: "2026-11-20"
+                    datePrecision: day
+                    type: taller
+                    commitMessage: null
+                    hora: "15:00"
+                    lugar: Aula 12
+                    para: null
+                    featured: false
+                    linkUrl: null
+                    linkLabel: null
+                    highlights: []
+                    photos: []
+                    registration:
+                      mode: open
+                      capacity: 40
+                      deadline: null
+                      url: null
+                      endpoint: https://aso-computacion-admin.vercel.app/api/public/events/taller-git/registrations
+                    calendarUrl: https://aso-computacion-admin.vercel.app/api/public/events/taller-git/calendar.ics
+                    structuredData:
+                      startDate: "2026-11-20T15:00:00-05:00"
+                      endDate: null
+                      location: Aula 12
+                      registrationUrl: null
+                faqs: []
+                pillars: []
+                socials: []
+                board: []
+                settings: null
+                news: []
+                commands: []
+                sponsors: []
+        "304":
+          description: El `If-None-Match` coincide con el ETag actual. Sin cuerpo; repite `Cache-Control` y `ETag`.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+            ETag:
+              schema: { type: string }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    options:
+      tags: [Público]
+      operationId: preflightPublicContent
+      summary: Preflight CORS de `content`
+      description: "Con origen permitido añade `Access-Control-Allow-Methods: GET, OPTIONS` y `Access-Control-Max-Age: 86400`. Con origen no permitido el `204` no concede nada."
+      security: []
+      responses:
+        "204":
+          description: Preflight.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+            Access-Control-Allow-Methods:
+              schema: { type: string, const: "GET, OPTIONS" }
+            Access-Control-Max-Age:
+              schema: { type: integer, const: 86400 }
+            Vary:
+              $ref: "#/components/headers/Vary"
+
+  /api/public/preview:
+    get:
+      tags: [Público]
+      operationId: getPublicPreview
+      summary: Vista previa con borradores y contenido programado
+      description: |
+        El mismo documento que `/api/public/content` más los borradores y elementos programados, con
+        `"preview": true` (no incluye `sponsors`). Pensado para una compilación de vista previa en el servidor, por
+        lo que **no concede CORS**. El token viaja en una cabecera, nunca en la URL, y no se registra.
+
+        El token es un JWT HS256 (emisor `aso-admin`, audiencia `aso-public-preview`) generado en el admin por un
+        Editor o Administrador, con vigencia de 1 h, 24 h o 7 d. Es sin estado: solo se invalida rotando
+        `PREVIEW_TOKEN_SECRET`.
+      security:
+        - previewToken: []
+      responses:
+        "200":
+          description: Documento con borradores.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: "private, no-store" }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PublicContent"
+                  - type: object
+                    required: [preview]
+                    properties:
+                      preview: { type: boolean, const: true }
+        "401":
+          description: Token ausente, inválido, vencido o secreto de vista previa no configurado.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Invalid or expired preview token }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /api/public/events/seats:
+    get:
+      tags: [Público]
+      operationId: getEventSeats
+      summary: Cupos de los eventos con inscripción
+      description: |
+        Cupos de cada evento visible que admite inscripción (modo `unl` u `open`), del más próximo al más lejano.
+        Solo conteos y slugs, sin datos personales, por eso el CORS es abierto (`Access-Control-Allow-Origin: *`).
+
+        - **Caché:** `public, max-age=0, s-maxage=5, must-revalidate`; sin ETag.
+        - **Tasa:** 60 solicitudes por 60 s por cliente.
+      security: []
+      responses:
+        "200":
+          description: Lista de cupos.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: "public, max-age=0, s-maxage=5, must-revalidate" }
+            Access-Control-Allow-Origin:
+              schema: { type: string, const: "*" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventSeats" }
+              example:
+                events:
+                  - { slug: taller-git, capacity: 40, registered: 12, seatsLeft: 28, status: open }
+                  - { slug: charla-abierta, capacity: null, registered: 3, seatsLeft: null, status: open }
+        "429":
+          description: Límite superado.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+            Access-Control-Allow-Origin:
+              schema: { type: string, const: "*" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Too Many Requests }
+        "503":
+          description: Fallo interno.
+          headers:
+            Access-Control-Allow-Origin:
+              schema: { type: string, const: "*" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Service unavailable }
+    options:
+      tags: [Público]
+      operationId: preflightEventSeats
+      summary: Preflight CORS de `seats`
+      security: []
+      responses:
+        "204":
+          description: Preflight abierto.
+          headers:
+            Access-Control-Allow-Origin:
+              schema: { type: string, const: "*" }
+            Access-Control-Allow-Methods:
+              schema: { type: string, const: "GET, OPTIONS" }
+            Access-Control-Max-Age:
+              schema: { type: integer, const: 86400 }
+
+  /api/public/events/{slug}/registrations:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      tags: [Público]
+      operationId: registerForEvent
+      summary: Inscribirse a un evento (formulario abierto)
+      description: |
+        Inscribe a una persona en un evento con modo de inscripción `open`. Los controles se aplican de menor a
+        mayor costo: tasa, forma de la solicitud, Turnstile y, al final, el caso de uso, que valida los campos y
+        decide cupo, plazo y duplicados de forma atómica. Nada se guarda si algún paso falla y la respuesta nunca
+        repite lo enviado.
+
+        - **Turnstile:** `turnstileToken` se verifica en el servidor con `TURNSTILE_SECRET_KEY`. Falla cerrado: en
+          producción sin secreto, o si Cloudflare no responde, la respuesta es `503`. Un token ausente, vacío o de
+          más de 2048 caracteres es inválido cuando hay secreto. Fuera de producción, sin secreto, se omite.
+        - **Tasa:** 5 solicitudes por 10 min por cliente.
+        - **CORS:** lista de orígenes; el preflight permite `POST, OPTIONS` y la cabecera `Content-Type`.
+        - **Caché:** `no-store` siempre.
+
+        > "Try it out" contra producción no crea inscripciones: el token solo lo emite el widget de Turnstile de la
+        > landing, así que la respuesta esperada es `400 captcha` (o `503 unavailable`).
+      security: []
+      requestBody:
+        required: true
+        description: "JSON con `Content-Type: application/json`, objeto en la raíz, máximo 4096 bytes. Los campos adicionales se ignoran."
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpenRegistrationRequest" }
+            example:
+              name: Ana Pérez
+              email: ana@example.com
+              career: Computación
+              semester: 5
+              turnstileToken: "<token del widget de Turnstile>"
+      responses:
+        "201":
+          description: Inscripción registrada.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+              example: { ok: true }
+        "400":
+          description: |
+            Solicitud inválida. `bad_request`: JSON mal formado o la raíz no es un objeto. `captcha`: Turnstile
+            rechazó el token. `validation`: primer campo inválido (`field`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              examples:
+                bad_request: { value: { error: bad_request } }
+                captcha: { value: { error: captcha } }
+                validation: { value: { error: validation, field: semester } }
+        "404":
+          description: Slug inválido, evento inexistente o no visible, o con otro modo de inscripción (`not_found`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: not_found }
+        "409":
+          description: "`closed` (plazo vencido o día del evento pasado), `full` (cupo agotado) o `duplicate` (ese correo ya está inscrito; se informa antes que `full`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              examples:
+                closed: { value: { error: closed } }
+                full: { value: { error: full } }
+                duplicate: { value: { error: duplicate } }
+        "413":
+          description: El cuerpo supera 4096 bytes (`too_large`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: too_large }
+        "415":
+          description: El `Content-Type` no empieza por `application/json` (`unsupported_media_type`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unsupported_media_type }
+        "429":
+          description: Límite de inscripción superado (`rate_limited`).
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: rate_limited }
+        "503":
+          description: Turnstile no disponible o mal configurado, o fallo interno (`unavailable`). El registro y el reporte reciben solo la clase y el código del error.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unavailable }
+    options:
+      tags: [Público]
+      operationId: preflightEventRegistration
+      summary: Preflight CORS de la inscripción
+      description: Con origen permitido responde `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers` y `Access-Control-Max-Age`.
+      security: []
+      responses:
+        "204":
+          description: Preflight.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+            Access-Control-Allow-Methods:
+              schema: { type: string, const: "POST, OPTIONS" }
+            Access-Control-Allow-Headers:
+              schema: { type: string, const: Content-Type }
+            Access-Control-Max-Age:
+              schema: { type: integer, const: 86400 }
+            Vary:
+              $ref: "#/components/headers/Vary"
+
+  /api/public/events/{slug}/calendar.ics:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      tags: [Público]
+      operationId: getEventCalendar
+      summary: Archivo de calendario (.ics) de un evento
+      description: |
+        Descarga el archivo «añadir al calendario». Contiene solo datos del propio evento, nunca de inscritos. Solo
+        existe para un evento público en este momento y con día exacto. Los textos se escapan según RFC 5545, las
+        líneas se pliegan a 75 octetos y las horas van en UTC; un evento sin hora es de día completo. Con
+        inscripción `unl` incluye la URL de la página de inscripción (requiere `AUTH_URL`).
+
+        - **Caché:** `public, max-age=0, s-maxage=60, must-revalidate`.
+        - **Tasa:** 60 solicitudes por 60 s por cliente.
+        - **CORS:** lista de orígenes.
+      security: []
+      responses:
+        "200":
+          description: Archivo de calendario.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="taller-git.ics"
+            Cache-Control:
+              schema: { type: string, const: "public, max-age=0, s-maxage=60, must-revalidate" }
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+            Vary:
+              $ref: "#/components/headers/Vary"
+          content:
+            text/calendar:
+              schema: { type: string }
+              example: |
+                BEGIN:VCALENDAR
+                VERSION:2.0
+                PRODID:-//ASO Computación//Eventos//ES
+                BEGIN:VEVENT
+                SUMMARY:Taller de Git
+                END:VEVENT
+                END:VCALENDAR
+        "404":
+          description: Slug inválido, evento inexistente o no visible, o sin día exacto.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Not found }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    options:
+      tags: [Público]
+      operationId: preflightEventCalendar
+      summary: Preflight CORS de `calendar.ics`
+      security: []
+      responses:
+        "204":
+          description: Preflight.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+            Access-Control-Allow-Methods:
+              schema: { type: string, const: "GET, OPTIONS" }
+            Access-Control-Max-Age:
+              schema: { type: integer, const: 86400 }
+            Vary:
+              $ref: "#/components/headers/Vary"
+
+  /api/health:
+    get:
+      tags: [Operación]
+      operationId: getHealth
+      summary: Comprobación de vida
+      description: Solo comprueba que el proceso responde; **no** verifica la base de datos, no exige autenticación y nunca expone secretos ni trazas. Sin CORS ni limitación de tasa.
+      security: []
+      responses:
+        "200":
+          description: El servicio está vivo.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+              example: { status: ok }
+
+  /api/cron/scheduled-rebuild:
+    get:
+      tags: [Operación]
+      operationId: runScheduledJobs
+      summary: Tareas diarias programadas (cron de Vercel)
+      description: |
+        Destino del cron de Vercel (`vercel.json`, `0 11 * * *`). Como el plan Hobby permite un solo cron, hace dos
+        tareas independientes; el fallo de una no detiene ni oculta a la otra:
+
+        1. **Reconstrucción:** pide reconstruir la landing solo si un evento o noticia publicados cruzaron su
+           ventana de publicación desde la última reconstrucción aceptada.
+        2. **Retención:** elimina las inscripciones de eventos que terminaron hace más de 90 días y lo audita con el
+           conteo, sin datos personales.
+
+        Autenticación: `Authorization: Bearer <CRON_SECRET>` (Vercel lo añade solo). Falla cerrado: sin secreto
+        utilizable (ausente, marcador de posición o menor de 32 caracteres) nadie queda autorizado. Comparación en
+        tiempo constante; el secreto nunca se lee de la URL. `maxDuration` de 30 s. Sin CORS.
+
+        Si se dan a la vez un fallo del *hook* (502) y una excepción (500), prevalece el `500`. Un `200` incluye el
+        caso «sin URL de *hook*» (`outcome: disabled`).
+      security:
+        - cronSecret: []
+      responses:
+        "200":
+          description: Ambas tareas terminaron.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CronResult" }
+              example:
+                rebuild: { crossed: 1, outcome: triggered }
+                retention: { deleted: 0 }
+        "401":
+          description: Cabecera ausente o secreto incorrecto.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Unauthorized }
+        "500":
+          description: Alguna tarea lanzó una excepción; esa tarea se reemplaza por `{"error":"Service unavailable"}`.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CronResult" }
+              example:
+                rebuild: { error: Service unavailable }
+                retention: { deleted: 0 }
+        "502":
+          description: El *hook* de despliegue rechazó la solicitud (`rebuild.outcome` = `failed`).
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CronResult" }
+              example:
+                rebuild: { crossed: 1, outcome: failed }
+                retention: { deleted: 0 }
+
+  /auth/google/start:
+    get:
+      tags: [Autenticación]
+      operationId: startAdminGoogleLogin
+      summary: Inicia el inicio de sesión del admin con Google
+      description: |
+        Guarda la cookie de flujo `oauth_state` (sellada, `HttpOnly`, `SameSite=Lax`, `Secure` en producción, ruta
+        `/auth/google`, 600 s) con `state`, `nonce`, el verificador PKCE y la invitación, y redirige a Google
+        (alcances `openid email profile`, `prompt=select_account`).
+
+        Sin configuración de Google (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_URL`) redirige a `/login`.
+        Es una navegación del navegador: no se puede probar desde «Try it out».
+      security: []
+      parameters:
+        - name: invite
+          in: query
+          required: false
+          description: Token de una invitación. Si no tiene forma de token se redirige a `/login?error=invite` sin contactar a Google ni fijar cookies.
+          schema: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+      responses:
+        "302":
+          description: |
+            Redirección a Google (con `Set-Cookie: oauth_state`), o a `/login` con `?error=invite` (token
+            malformado) o `?error=unavailable` (fallo al iniciar).
+          headers:
+            Location:
+              schema: { type: string }
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie `oauth_state`; solo en la redirección a Google.
+            Cache-Control:
+              schema: { type: string, const: no-store }
+
+  /auth/google/callback:
+    get:
+      tags: [Autenticación]
+      operationId: finishAdminGoogleLogin
+      summary: Termina el inicio de sesión del admin con Google
+      description: |
+        Google devuelve al navegador con `code` y `state`. Orden: se gasta primero el límite de intentos de inicio de
+        sesión (así también cuentan los callbacks basura), se consume la cookie de flujo (una URL de callback no se
+        puede reutilizar), se comparan los `state`, se intercambia el código y se resuelve la cuenta o se canjea la
+        invitación. Si el contador de intentos no se puede leer, se rechaza en lugar de dejar el acceso sin
+        protección. El motivo exacto de un rechazo de cuenta se oculta para no revelar qué correos existen.
+
+        Éxito: abre la sesión (cookie `admin_session`), audita `login.success` (y `invite.redeem`) y redirige a
+        `/admin`. Es una navegación del navegador: no se puede probar desde «Try it out».
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          description: Código de autorización que envía Google.
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          description: Debe coincidir con el `state` sellado en la cookie `oauth_state`.
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          description: Error que envía Google cuando la persona cancela; se trata como `failed`.
+          schema: { type: string }
+        - name: oauth_state
+          in: cookie
+          required: false
+          description: Cookie de flujo sellada creada por `/auth/google/start`.
+          schema: { type: string }
+      responses:
+        "302":
+          description: |
+            Redirección a `/admin` (éxito) o a `/login?error=<código>`, con `denied` (la cuenta no tiene acceso),
+            `invite` (invitación inválida, usada, vencida o de otra cuenta), `failed` (callback interrumpido o
+            respuesta de Google rechazada), `throttled` (demasiados intentos), `verification` (Google o la red no
+            permitieron verificar; reintentable) o `unavailable` (fallo interno, del limitador o al abrir la sesión).
+          headers:
+            Location:
+              schema: { type: string }
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie `admin_session` en el éxito; la cookie `oauth_state` se borra siempre.
+            Cache-Control:
+              schema: { type: string, const: no-store }
+
+  /foro/auth/google/start:
+    get:
+      tags: [Autenticación]
+      operationId: startForumGoogleLogin
+      summary: Inicia el inicio de sesión del foro con Google
+      description: |
+        Igual que el del admin, pero con la cookie `forum_oauth_state` (ruta `/foro/auth/google`) y la
+        configuración del foro (`FORUM_ALLOWED_EMAIL_DOMAIN`, `FORUM_SESSION_SECRET` y un cliente de Google propio
+        opcional). Falla cerrado: sin ellas redirige a `/foro?error=unavailable`.
+        Es una navegación del navegador: no se puede probar desde «Try it out».
+      security: []
+      parameters:
+        - name: next
+          in: query
+          required: false
+          description: |
+            Ruta del foro a la que volver. Solo se acepta `/foro` o `/foro/**` (hasta 512 caracteres, sin `//`,
+            contrabarras, espacios ni caracteres de control, y nunca `/foro/auth/**`). Cualquier otro valor se
+            ignora sin error.
+          schema: { type: string, maxLength: 512 }
+      responses:
+        "302":
+          description: "Redirección a Google (con `Set-Cookie: forum_oauth_state`) o a `/foro?error=unavailable`."
+          headers:
+            Location:
+              schema: { type: string }
+            Set-Cookie:
+              schema: { type: string }
+            Cache-Control:
+              schema: { type: string, const: no-store }
+
+  /foro/auth/google/callback:
+    get:
+      tags: [Autenticación]
+      operationId: finishForumGoogleLogin
+      summary: Termina el inicio de sesión del foro con Google
+      description: |
+        Consume la cookie de flujo `forum_oauth_state` (una URL de callback no se puede reutilizar), compara los
+        `state`, intercambia el código y abre la sesión del foro (cookie `forum_session`, ruta `/foro`). Solo
+        entran estudiantes con cuenta del dominio institucional. El `next` de la URL del callback nunca se lee:
+        solo cuenta el sellado en la cookie, que se valida otra vez.
+        Es una navegación del navegador: no se puede probar desde «Try it out».
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+        - name: forum_oauth_state
+          in: cookie
+          required: false
+          description: Cookie de flujo sellada creada por `/foro/auth/google/start`.
+          schema: { type: string }
+      responses:
+        "302":
+          description: |
+            Redirección a la ruta `next` o a `/foro` (éxito), o a `/foro?error=<código>` con
+            `denied` (solo estudiantes con cuenta institucional verificada), `failed`, `verification` o `unavailable`.
+          headers:
+            Location:
+              schema: { type: string }
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie `forum_session` en el éxito; la cookie `forum_oauth_state` se borra siempre.
+            Cache-Control:
+              schema: { type: string, const: no-store }
+
+  /admin/events/{id}/registrations/export:
+    get:
+      tags: [Administración]
+      operationId: exportEventRegistrations
+      summary: Exporta las inscripciones de un evento en CSV
+      description: |
+        Contiene datos personales, así que solo lo descarga el rol `ADMIN`. El *middleware* protege `/admin/*`
+        primero: una solicitud sin cookie válida recibe una redirección a `/login` antes de llegar al handler; los
+        `401` y `403` de abajo los produce el propio handler. Se audita `event.registrations_export` con el evento y
+        la cantidad de filas, nunca nombres ni correos. Sin CORS ni limitación de tasa; `Cache-Control: no-store`.
+
+        Formato: UTF-8 con BOM, todas las celdas entre comillas, fin de línea CRLF. Una celda que empieza por `=`,
+        `+`, `-`, `@`, tabulador o retorno de carro recibe un `'` inicial para que una hoja de cálculo no la ejecute.
+        Columnas: Nombre, Correo, Forma de inscripción (`Cuenta UNL` o `Formulario abierto`), Carrera, Ciclo,
+        Inscrito el (hora de Ecuador).
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador del evento.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Archivo CSV.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="inscripciones-taller-git.csv"
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            text/csv:
+              schema: { type: string }
+              example: |
+                "Nombre","Correo","Forma de inscripción","Carrera","Ciclo","Inscrito el (hora de Ecuador)"
+                "Ana Pérez","ana@example.com","Formulario abierto","Computación","5","2026-11-04 09:30:00"
+        "401":
+          description: Sin sesión válida.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Unauthorized }
+        "403":
+          description: Sesión sin rol `ADMIN` (por ejemplo, `EDITOR`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Forbidden }
+        "404":
+          description: Evento inexistente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Not found }
+        "500":
+          description: Fallo interno.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: Internal error }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: admin_session
+      description: Sesión del admin (JWT firmado con `ADMIN_SECRET`), emitida tras el inicio de sesión con Google. Un navegador de otro origen no la envía.
+    cronSecret:
+      type: http
+      scheme: bearer
+      description: "`Authorization: Bearer <CRON_SECRET>` (al menos 32 caracteres). Lo añade Vercel Cron por sí solo."
+    previewToken:
+      type: apiKey
+      in: header
+      name: x-preview-token
+      description: JWT HS256 de vista previa, generado en el admin por un Editor o Administrador (vigencia de 1 h, 24 h o 7 d).
+
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      description: Identificador del evento en la URL, en minúsculas y dígitos separados por guiones. Uno inválido se trata como inexistente (`404`).
+      schema: { $ref: "#/components/schemas/Slug" }
+
+  headers:
+    RetryAfter:
+      description: Segundos que faltan para que termine la ventana de limitación.
+      schema: { type: integer, minimum: 1 }
+    AccessControlAllowOrigin:
+      description: Solo se envía cuando el `Origin` de la solicitud está en `PUBLIC_CORS_ORIGINS`; nunca es `*`.
+      schema: { type: string }
+    Vary:
+      description: Siempre incluye `Origin`.
+      schema: { type: string, const: Origin }
+
+  responses:
+    TooManyRequests:
+      description: Límite de solicitudes superado (60 por 60 s).
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+        Cache-Control:
+          schema: { type: string, const: no-store }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: Too Many Requests }
+    ServiceUnavailable:
+      description: Fallo interno; nunca se refleja la causa.
+      headers:
+        Cache-Control:
+          schema: { type: string, const: no-store }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: Service unavailable }
+
+  schemas:
+    Error:
+      type: object
+      description: Sobre de error genérico, sin detalles internos.
+      required: [error]
+      properties:
+        error: { type: string }
+    Slug:
+      type: string
+      maxLength: 80
+      pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      examples: [taller-git]
+    RegistrationError:
+      type: object
+      description: Error de la inscripción abierta; `error` es un código que el formulario de la landing traduce a un mensaje.
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum:
+            - bad_request
+            - captcha
+            - validation
+            - not_found
+            - closed
+            - full
+            - duplicate
+            - too_large
+            - unsupported_media_type
+            - rate_limited
+            - unavailable
+        field:
+          type: string
+          enum: [name, email, career, semester]
+          description: "Solo con `error = validation`: el primer campo inválido."
+    OpenRegistrationRequest:
+      type: object
+      required: [name, email, career, semester, turnstileToken]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Se recortan los espacios y se colapsan los internos; sin caracteres de control.
+        email:
+          type: string
+          maxLength: 254
+          description: Se normaliza a minúsculas; debe ser una dirección válida.
+        career:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Igual que `name`.
+        semester:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: También se acepta un texto numérico de 1 a 2 dígitos.
+        turnstileToken:
+          type: string
+          maxLength: 2048
+          description: Token que emite el widget de Cloudflare Turnstile.
+    EventSeats:
+      type: object
+      required: [slug, capacity, registered, seatsLeft, status]
+      properties:
+        slug: { $ref: "#/components/schemas/Slug" }
+        capacity:
+          type: [integer, "null"]
+          description: "`null` cuando el evento no tiene límite."
+        registered: { type: integer, minimum: 0 }
+        seatsLeft:
+          type: [integer, "null"]
+          minimum: 0
+          description: "`null` cuando no hay límite; nunca baja de 0."
+        status:
+          type: string
+          enum: [open, full, closed]
+          description: "`closed` (plazo vencido o día pasado) prevalece sobre `full`."
+    CronResult:
+      type: object
+      required: [rebuild, retention]
+      properties:
+        rebuild:
+          oneOf:
+            - type: object
+              required: [crossed, outcome]
+              properties:
+                crossed:
+                  type: integer
+                  minimum: 0
+                  description: Eventos y noticias publicados cuya ventana se abrió o cerró desde la última compilación.
+                outcome:
+                  type: string
+                  enum: [not-needed, triggered, disabled, failed]
+            - $ref: "#/components/schemas/Error"
+        retention:
+          oneOf:
+            - type: object
+              required: [deleted]
+              properties:
+                deleted:
+                  type: integer
+                  minimum: 0
+                  description: Inscripciones eliminadas (90 días después de cada evento).
+            - $ref: "#/components/schemas/Error"
+    PublicImage:
+      type: object
+      required: [url, width, height, alt]
+      properties:
+        url: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        alt: { type: string }
+    PublicEventRegistration:
+      type: object
+      description: Cómo se inscribe una persona. Aditivo. Los cupos libres no se publican a propósito (usar `seats`).
+      required: [mode, capacity, deadline, url, endpoint]
+      properties:
+        mode:
+          type: string
+          enum: [unl, open]
+          description: "`unl`: la persona va a `url` e inicia sesión con su cuenta @unl.edu.ec. `open`: la landing muestra su formulario y lo envía a `endpoint`."
+        capacity:
+          type: [integer, "null"]
+          description: "`null` es ilimitado."
+        deadline:
+          type: [string, "null"]
+          format: date-time
+          description: Instante UTC desde el cual se cierra (exclusivo); `null`, se cierra con el día del evento.
+        url: { type: [string, "null"] }
+        endpoint: { type: [string, "null"] }
+    PublicEventStructuredData:
+      type: object
+      description: Valores para un `Event` de schema.org, en hora de Ecuador (-05:00).
+      required: [startDate, endDate, location, registrationUrl]
+      properties:
+        startDate:
+          type: string
+          description: "`YYYY-MM-DD` si la hora no se conoce; si no, `YYYY-MM-DDTHH:mm:00-05:00`."
+        endDate: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        registrationUrl:
+          type: [string, "null"]
+          description: La página de inscripción cuando la aloja este admin (`unl`).
+    PublicEvent:
+      type: object
+      required:
+        [slug, title, description, date, datePrecision, type, commitMessage, hora, lugar, para, featured, linkUrl, linkLabel, highlights, photos, registration, calendarUrl, structuredData]
+      properties:
+        slug: { $ref: "#/components/schemas/Slug" }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        date:
+          type: [string, "null"]
+          description: "`YYYY-MM-DD`; con `datePrecision = month`, el día es `01`."
+        datePrecision: { type: string, enum: [day, month] }
+        type:
+          type: [string, "null"]
+          enum: [taller, charla, evento, comunidad, null]
+        commitMessage: { type: [string, "null"] }
+        hora: { type: [string, "null"] }
+        lugar: { type: [string, "null"] }
+        para: { type: [string, "null"] }
+        featured: { type: boolean }
+        linkUrl: { type: [string, "null"] }
+        linkLabel: { type: [string, "null"] }
+        highlights:
+          type: array
+          items: { type: string }
+        photos:
+          type: array
+          description: Fotos activas en el orden de la galería.
+          items: { $ref: "#/components/schemas/PublicImage" }
+        registration:
+          oneOf:
+            - $ref: "#/components/schemas/PublicEventRegistration"
+            - type: "null"
+        calendarUrl:
+          type: [string, "null"]
+          description: Descarga `.ics`; `null` sin día exacto.
+        structuredData:
+          oneOf:
+            - $ref: "#/components/schemas/PublicEventStructuredData"
+            - type: "null"
+    PublicFaq:
+      type: object
+      required: [question, answer, command]
+      properties:
+        question: { type: string }
+        answer: { type: string }
+        command:
+          type: [string, "null"]
+          description: Tema de terminal elegido en el admin (`git help <comando>`); `null` conserva el generado por la landing.
+    PublicPillar:
+      type: object
+      required: [word, title, text, image]
+      properties:
+        word: { type: string }
+        title: { type: string }
+        text: { type: string }
+        image:
+          oneOf:
+            - $ref: "#/components/schemas/PublicImage"
+            - type: "null"
+    PublicSocial:
+      type: object
+      required: [platform, label, handle, url, note, blurb]
+      properties:
+        platform: { type: string }
+        label: { type: string }
+        handle: { type: string }
+        url: { type: string }
+        note: { type: [string, "null"] }
+        blurb: { type: [string, "null"] }
+    PublicBoardMember:
+      type: object
+      description: Nombre, cargo y foto únicamente.
+      required: [name, role, photo]
+      properties:
+        name: { type: string }
+        role: { type: string }
+        photo: { $ref: "#/components/schemas/PublicImage" }
+    PublicSiteSettings:
+      type: object
+      required: [tagline, description, about]
+      properties:
+        tagline: { type: string }
+        description: { type: string }
+        about: { type: string }
+    PublicNewsItem:
+      type: object
+      required: [slug, title, summary, body, publishedAt, cover]
+      properties:
+        slug: { $ref: "#/components/schemas/Slug" }
+        title: { type: string }
+        summary: { type: string }
+        body:
+          type: string
+          description: Subconjunto de Markdown que la landing renderiza de forma segura, nunca como HTML crudo.
+        publishedAt:
+          type: string
+          format: date
+        cover:
+          oneOf:
+            - $ref: "#/components/schemas/PublicImage"
+            - type: "null"
+    PublicTerminalCommand:
+      type: object
+      description: Comando libre de la terminal de la landing.
+      required: [id, command, description, output]
+      properties:
+        id: { type: string }
+        command: { type: string }
+        description: { type: string }
+        output: { type: string }
+    PublicContent:
+      type: object
+      required: [version, schemaVersion, generatedAt, events, faqs, pillars, socials, board, settings, news, commands]
+      properties:
+        version:
+          type: integer
+          description: Versión de la forma del documento; solo cambia ante un cambio incompatible.
+        schemaVersion:
+          type: integer
+          description: Mismo valor que `version`, con el nombre que documenta el contrato.
+        generatedAt:
+          type: string
+          format: date-time
+          description: Momento de la lectura; cambia en cada solicitud y por eso no entra en el ETag.
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/PublicEvent" }
+        faqs:
+          type: array
+          items: { $ref: "#/components/schemas/PublicFaq" }
+        pillars:
+          type: array
+          items: { $ref: "#/components/schemas/PublicPillar" }
+        socials:
+          type: array
+          items: { $ref: "#/components/schemas/PublicSocial" }
+        board:
+          type: array
+          items: { $ref: "#/components/schemas/PublicBoardMember" }
+        settings:
+          oneOf:
+            - $ref: "#/components/schemas/PublicSiteSettings"
+            - type: "null"
+          description: "`null` si nunca se guardó: la landing conserva su texto por defecto."
+        news:
+          type: array
+          description: Noticias publicadas, de la más reciente a la más antigua.
+          items: { $ref: "#/components/schemas/PublicNewsItem" }
+        commands:
+          type: array
+          description: Comandos libres publicados, en el orden del admin.
+          items: { $ref: "#/components/schemas/PublicTerminalCommand" }
+    PublicSponsor:
+      type: object
+      required: [name, logo, url]
+      properties:
+        name: { type: string }
+        logo: { $ref: "#/components/schemas/PublicImage" }
+        url:
+          type: [string, "null"]
+          description: URL https absoluta a la que puede enlazar el logo.
+    PublicSocialProof:
+      type: object
+      required: [sponsors]
+      properties:
+        sponsors:
+          type: array
+          description: Patrocinadores y aliados publicados, en el orden del admin.
+          items: { $ref: "#/components/schemas/PublicSponsor" }

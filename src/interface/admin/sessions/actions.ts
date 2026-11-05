@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { RevokeOtherSessionsUseCase } from "@/application/auth/session.use-cases";
+import { PartialSessionRevokeError, RevokeOtherSessionsUseCase } from "@/application/auth/session.use-cases";
 
 import { recordAudit } from "../../audit/record-audit";
 import { getAuthServices } from "../../auth/auth-container";
@@ -34,13 +34,25 @@ export async function revokeOtherSessions(userId: string): Promise<ActionResult>
     const actor = await requireSession();
     const { listSessions, revokeSession } = getAuthServices();
     const target = String(userId);
-    const closed = await new RevokeOtherSessionsUseCase(listSessions, revokeSession).execute({ actor, userId: target });
 
-    if (closed > 0) {
-      await recordAudit(actor, { action: "session.revoke_others", entityType: "session", entityId: target, summary: `Sesiones cerradas: ${closed}` });
+    const auditClosed = (closed: number) =>
+      closed > 0 ? recordAudit(actor, { action: "session.revoke_others", entityType: "session", entityId: target, summary: `Sesiones cerradas: ${closed}` }) : undefined;
+
+    let closed: number;
+
+    try {
+      closed = await new RevokeOtherSessionsUseCase(listSessions, revokeSession).execute({ actor, userId: target });
+    } catch (error) {
+      if (!(error instanceof PartialSessionRevokeError)) throw error;
+
+      // What was closed before the failure still happened: record it and refresh the list, then report the failure.
+      await auditClosed(error.closed);
       revalidatePath(PAGE_PATH);
+      return mapActionError(error.cause);
     }
 
+    await auditClosed(closed);
+    revalidatePath(PAGE_PATH);
     return { success: true };
   } catch (error) {
     return mapActionError(error);

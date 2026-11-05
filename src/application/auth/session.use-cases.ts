@@ -159,6 +159,17 @@ export class RevokeSessionUseCase {
   }
 }
 
+/** A bulk revoke failed after closing `closed` sessions: the caller still audits and refreshes those, then reports `cause`. */
+export class PartialSessionRevokeError extends Error {
+  constructor(
+    public readonly closed: number,
+    public override readonly cause: unknown,
+  ) {
+    super(`Closed ${closed} session(s) before failing`);
+    this.name = "PartialSessionRevokeError";
+  }
+}
+
 /**
  * "Cerrar las demás": revokes a person's sessions except the one the caller is using. Built from the
  * list and revoke use cases, so it asks the same permission as a single revoke: anyone for their own
@@ -170,7 +181,7 @@ export class RevokeOtherSessionsUseCase {
     private readonly revoke: RevokeSessionUseCase,
   ) {}
 
-  /** Returns how many sessions it closed. */
+  /** Returns how many sessions it closed. A failure after some were closed is a `PartialSessionRevokeError` carrying that count. */
   async execute({ actor, userId }: { actor: Actor; userId: string }): Promise<number> {
     const isOwn = actor.userId !== null && userId === actor.userId;
 
@@ -187,7 +198,9 @@ export class RevokeOtherSessionsUseCase {
         closed += 1;
       } catch (error) {
         // Closed by someone else since the list was read: the goal is met.
-        if (!(error instanceof NotFoundError)) throw error;
+        if (error instanceof NotFoundError) continue;
+
+        throw closed > 0 ? new PartialSessionRevokeError(closed, error) : error;
       }
     }
 

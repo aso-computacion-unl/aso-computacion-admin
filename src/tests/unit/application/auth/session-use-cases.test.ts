@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ListActiveSessionsUseCase,
+  PartialSessionRevokeError,
   RevokeOtherSessionsUseCase,
   RevokeSessionUseCase,
   SESSION_TTL_MS,
@@ -330,6 +331,24 @@ describe("RevokeOtherSessionsUseCase", () => {
 
     expect(await revokeOthers().execute({ actor: root, userId: "root" })).toBe(1);
     expect([isRevoked("s4"), isRevoked("s6")]).toEqual([false, true]);
+  });
+
+  it("carries the count already closed when a revoke fails midway, with the original error as the cause", async () => {
+    const boom = new Error("db down");
+    const original = sessions.revoke.bind(sessions);
+    vi.spyOn(sessions, "revoke").mockImplementationOnce(original).mockRejectedValueOnce(boom);
+
+    const failure = await revokeOthers().execute({ actor: ana, userId: "ana" }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(PartialSessionRevokeError);
+    expect(failure).toMatchObject({ closed: 1, cause: boom });
+  });
+
+  it("rethrows the original error untouched when nothing had been closed yet", async () => {
+    const boom = new Error("db down");
+    vi.spyOn(sessions, "revoke").mockRejectedValueOnce(boom);
+
+    await expect(revokeOthers().execute({ actor: ana, userId: "ana" })).rejects.toBe(boom);
   });
 
   it("revokes nothing and says so when there are no other sessions", async () => {

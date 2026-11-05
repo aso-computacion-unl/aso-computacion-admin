@@ -162,6 +162,40 @@ describe("session server actions", () => {
       expect(testAuth.audit.entries).toEqual([]);
     });
 
+    it("revalidates the page even when there was nothing to close", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+      await actions.revokeOtherSessions("test-editor");
+
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
+    });
+
+    it("when a revoke fails midway, audits and revalidates for the sessions already closed, then reports the failure", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      const a = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      const b = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      const original = testAuth.sessions.revoke.bind(testAuth.sessions);
+      vi.spyOn(testAuth.sessions, "revoke").mockImplementationOnce(original).mockRejectedValueOnce(new Error("db down"));
+
+      const result = await actions.revokeOtherSessions("test-editor");
+
+      expect(result).toHaveProperty("error");
+      expect(result).not.toHaveProperty("success");
+      expect([a.sessionId, b.sessionId].filter(revoked)).toHaveLength(1);
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityId, entry.summary])).toEqual([["session.revoke_others", "test-editor", "Sesiones cerradas: 1"]]);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
+    });
+
+    it("a failure before anything closed is not audited or revalidated", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      vi.spyOn(testAuth.sessions, "revoke").mockRejectedValueOnce(new Error("db down"));
+
+      expect(await actions.revokeOtherSessions("test-editor")).toHaveProperty("error");
+      expect(testAuth.audit.entries).toEqual([]);
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+    });
+
     it("an audit failure does not change the outcome", async () => {
       cookieJar(cookiesMock, await signInAs("EDITOR"));
       const other = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });

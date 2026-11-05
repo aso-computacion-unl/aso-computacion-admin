@@ -74,7 +74,7 @@ export function FormFeedback({ state, toast = true }: { state: ActionResult | nu
   }, [state, toast, notify]);
 
   return (
-    <div className="min-w-0 text-sm">
+    <div data-slot="form-feedback" className="min-w-0 text-sm">
       <div aria-live="polite">{message ? <FieldError>{message}</FieldError> : null}</div>
       {state?.success ? (
         <p className="flex items-center gap-2 font-semibold text-sky">

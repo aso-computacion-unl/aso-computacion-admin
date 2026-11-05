@@ -774,7 +774,7 @@ test.describe("sponsors", () => {
     // Cleared link: saved without one.
     await page.getByLabel("Enlace (opcional)").fill("");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
-    await expect(page.locator('[data-slot="action-bar"]').getByText("Cambios guardados.")).toBeVisible();
+    await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
     await page.goto("/admin/sponsors");
     await expect(rowFor(page, name).getByText("Sin enlace")).toBeVisible();
 
@@ -872,7 +872,7 @@ test.describe("site settings", () => {
     // The save: line breaks arrive as plain line breaks, and the fields close.
     await page.getByLabel("Acerca de").fill(about);
     await page.getByRole("button", { name: "Guardar cambios" }).click();
-    await expect(page.locator('[data-slot="action-bar"]').getByText("Cambios guardados.")).toBeVisible();
+    await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Editar" })).toBeFocused();
     expect((await publicContent(page)).settings).toMatchObject({ tagline, about });
 
@@ -882,7 +882,7 @@ test.describe("site settings", () => {
       await page.getByLabel("Descripción").fill(original.description);
       await page.getByLabel("Acerca de").fill(original.about);
       await page.getByRole("button", { name: "Guardar cambios" }).click();
-      await expect(page.locator('[data-slot="action-bar"]').getByText("Cambios guardados.")).toBeVisible();
+      await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
     }
 
     await context.close();

@@ -37,6 +37,8 @@ describe("FormFeedback save toast", () => {
     // The toast reads its message, then the hidden label of its close button.
     expect(toastsIn(host)).toEqual(["Cambios guardados.Cerrar aviso"]);
     expect(inlineIn(host).textContent).toContain("Cambios guardados.");
+    // End-to-end tests find the inline notice by this slot, wherever each form places it.
+    expect(inlineIn(host).querySelector('[data-slot="form-feedback"]')?.textContent).toContain("Cambios guardados.");
   });
 
   it("announces the save once: the notice next to the button is not a second live region", async () => {

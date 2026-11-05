@@ -124,7 +124,7 @@ Both repositories run GitHub Actions on every pull request and on `main`, with n
 | `integration` | Prisma tests against a disposable Postgres (`npm run test:integration`) | — |
 | `e2e` | Playwright (Chromium) against `next start` and a disposable Postgres (`npm run e2e`) | Playwright with axe-core and motion checks against `astro preview` of the fallback build (`pnpm test:e2e`) |
 | `lighthouse` | — | Lighthouse CI category budgets (performance ≥ 0.9, accessibility, best practices and SEO ≥ 0.95 on the home pages) |
-| Other | Dependabot weekly (minor and patch grouped, majors separate); SonarCloud analysis (`.sonarcloud.properties`) | Dependabot weekly, same grouping; SonarCloud analysis (`.sonarcloud.properties`) |
+| Other | Dependabot weekly (minor and patch grouped and auto-merged once required checks pass, majors separate and reviewed); SonarCloud analysis (`.sonarcloud.properties`) | Dependabot weekly, same grouping; SonarCloud analysis (`.sonarcloud.properties`) |
 
 Architecture rules that tests enforce in the admin: layer boundaries (`src/tests/unit/architecture-boundaries.test.ts`), every server action has a role row and a no-session test (`action-policy-coverage.test.ts`), every public route is listed (`route-protection.test.ts`), the public JSON keys are pinned (`public-content.mapper.test.ts`), and every stored-image column is a known media owner (`media-owner-coverage`).
 

@@ -72,6 +72,8 @@ El orden es siempre el mismo, sea cual sea su rol:
 - No se permite `force push` ni borrar `main`.
 - La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`), y el workflow `Docs` construye el portal de documentación.
 - Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
+  Las menores y de parche se aprueban y se mergean solas cuando pasan los checks obligatorios
+  (`.github/workflows/dependabot-auto-merge.yml`); las mayores esperan revisión manual.
 
 ### Tamaño de los PRs
 

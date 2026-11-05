@@ -99,14 +99,16 @@ website:
             href: landing/docs/REFERENCIA.md
           - text: Despliegue
             href: landing/docs/DEPLOY.md
-          - text: Contribuir
-            href: landing/CONTRIBUTING.md
           - text: Seguridad
             href: landing/SECURITY.md
       - section: Colaborar
         contents:
-          - CONTRIBUTING.md
-          - SECURITY.md
+          - text: Colaborar en el admin
+            href: CONTRIBUTING.md
+          - text: Colaborar en la landing
+            href: landing/CONTRIBUTING.md
+          - text: Seguridad
+            href: SECURITY.md
 
 format:
   html:

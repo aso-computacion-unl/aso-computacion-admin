@@ -484,7 +484,7 @@ test.describe("events", () => {
     await page.getByLabel("Puntos destacados").fill(highlights.join("\n\n"));
     await setSwitch(page, /Publicado/, true);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     type PublicEvent = { title: string; slug: string; date: string; datePrecision: string; linkUrl: string; linkLabel: string; highlights: string[]; lugar: string; commitMessage: string };
     const find = async () => ((await publicContent(page)).events as PublicEvent[]).find((event) => event.title === title);
@@ -521,7 +521,7 @@ test.describe("events", () => {
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(title);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(`Otro ${STAMP}`);
@@ -1084,7 +1084,7 @@ test.describe("trash", () => {
       await page.getByLabel("Título").fill(eventTitle);
       await page.getByLabel("Identificador (slug)").fill(eventSlug);
       await page.getByRole("button", { name: "Crear evento" }).click();
-      await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+      await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
     };
 
     await create(title, slug);

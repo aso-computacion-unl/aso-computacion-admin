@@ -25,14 +25,15 @@ export function SectionJumps({ label, items }: SectionJumpsProps) {
 
         return section ? [{ href, top: section.getBoundingClientRect().top }] : [];
       });
-      if (sections.length === 0) return;
+      const first = sections[0];
+      if (!first) return;
 
       // The last section reached is the current one; at the very bottom the lowest section is, even when it is
       // too short to ever reach the line. Before any is reached, the first one on the page is.
-      const lowest = (list: typeof sections) => list.reduce((best, section) => (section.top > best.top ? section : best));
+      const lowest = (list: typeof sections) => list.reduce((best, section) => (section.top > best.top ? section : best), first);
       const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
       const reached = sections.filter((section) => section.top <= READING_LINE_PX);
-      const pick = atBottom ? lowest(sections) : reached.length > 0 ? lowest(reached) : sections.reduce((best, section) => (section.top < best.top ? section : best));
+      const pick = atBottom ? lowest(sections) : reached.length > 0 ? lowest(reached) : sections.reduce((best, section) => (section.top < best.top ? section : best), first);
 
       setCurrent(pick.href);
     }

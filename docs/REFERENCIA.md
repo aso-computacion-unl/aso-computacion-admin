@@ -26,6 +26,8 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `next typegen` + `tsc --noEmit` (genera los tipos de imágenes y rutas de Next, que no se versionan) |
+| `npm run db:dev` | Starts the local development Postgres (`docker-compose.dev.yml`: `postgres:16-alpine` on `127.0.0.1:55432`, database `aso_admin_dev`, user and password `postgres`) in the background and waits until it is healthy. Data persists in a named Docker volume; it is not the disposable test database |
+| `npm run db:dev:stop` | Stops the development Postgres without deleting its data |
 | `npm test` | Unit tests |
 | `npm run test:coverage` | Unit tests with the coverage thresholds in `vitest.config.ts` (what CI runs) |
 | `npm run seed:landing -- --fallback <file> --assets <dir> [--apply]` | Loads the landing's real content into the database (dry run unless `--apply`); see the seeding section of the deployment guide |

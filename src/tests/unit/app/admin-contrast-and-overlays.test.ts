@@ -94,7 +94,7 @@ describe("the «Más» sheet", () => {
     const dialog = sheet();
 
     expect(dialog).toContain("bottom-[calc(4.25rem+env(safe-area-inset-bottom))]");
-    expect(dialog).toContain("max-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom))]");
+    expect(dialog).toContain("max-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))]");
     expect(dialog).toContain("overflow-y-auto");
   });
 

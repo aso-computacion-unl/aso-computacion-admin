@@ -80,3 +80,10 @@ jobs:
       - run: npm run e2e:browsers
       # Starts the disposable Postgres, migrates it, builds the app, runs Playwright against `next start`, tears down.
       - run: npm run e2e
+      # Traces and page snapshots of failed tests (Playwright keeps them on failure): the only evidence of a CI-only failure.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 7

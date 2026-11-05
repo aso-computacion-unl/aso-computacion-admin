@@ -49,7 +49,7 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **Papelera** | Lo que se elimina va primero a la papelera: se puede restaurar (como borrador) o, solo un administrador, eliminar para siempre |
 | **Foro** | Reportes de estudiantes: ocultar o mostrar una publicación, cerrar un hilo, suspender a un estudiante y cerrar el reporte |
 | **Vista previa** | Códigos temporales (1 hora, 24 horas o 7 días) para ver borradores y contenido programado en el diseño real antes de publicarlo |
-| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se suma gente con un link de invitación de un solo uso que vence a los 7 días |
+| **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se incorporan nuevas personas mediante un enlace de invitación de un solo uso que vence a los 7 días |
 | **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
 | **Registro** | Quién cambió qué y cuándo (solo administradores) |
 

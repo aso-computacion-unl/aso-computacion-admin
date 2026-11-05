@@ -85,9 +85,9 @@ Swagger UI carga `openapi.yaml` y trae activado el botón **Try it out**. Las so
 :::
 
 ```{=html}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui.css">
 <div id="swagger-ui"></div>
-<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui-bundle.js" crossorigin></script>
 <script>
   window.addEventListener("load", function () {
     window.ui = SwaggerUIBundle({

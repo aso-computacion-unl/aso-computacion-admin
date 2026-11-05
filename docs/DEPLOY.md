@@ -139,7 +139,7 @@ An `ADMIN` adds someone in **Usuarios → Invitar a una persona**: enter their e
 
 To fix it, set the variables the log names (or clear the client id and secret to go back to the password only) and redeploy. If nobody can log in meanwhile, use the emergency procedure below: `BREAK_GLASS_PASSWORD_LOGIN=1` turns the password form back on even in this state.
 
-If Google says "No pudimos verificar tu cuenta de Google. Probá de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
+If Google says "No pudimos verificar su cuenta de Google. Intente de nuevo en unos minutos." on `/login`, Google (or the connection to it) failed while the login was being checked: it says nothing about the account. It is reported in the logs and Sentry as a Google sign-in failure with `failure: unavailable`, and is not written to the audit log as a refused login. Wait a few minutes and retry; if it persists, check [Google Workspace status](https://www.google.com/appsstatus/dashboard/) and use the emergency procedure.
 
 ### Cut-over from the shared password
 

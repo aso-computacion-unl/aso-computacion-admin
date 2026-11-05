@@ -6,7 +6,7 @@ toc: false
 
 La plataforma de la asociación estudiantil ASO Computación tiene dos piezas:
 
-- **Admin** ([`aso-computacion-admin`](https://github.com/aso-computacion-unl/aso-computacion-admin)): aplicación Next.js donde el equipo gestiona el contenido (eventos, noticias, FAQ, comandos, directiva, pilares, redes, auspiciantes y textos del sitio). También aloja el foro estudiantil y las páginas de inscripción a eventos, y expone la API pública que lee la landing.
+- **Admin** ([`aso-computacion-admin`](https://github.com/aso-computacion-unl/aso-computacion-admin)): aplicación Next.js donde el equipo gestiona el contenido (eventos, noticias, FAQ, comandos, directiva, pilares, redes, patrocinadores y textos del sitio). También aloja el foro estudiantil y las páginas de inscripción a eventos, y expone la API pública que lee la landing.
 - **Landing** ([`aso-computacion-landing`](https://github.com/aso-computacion-unl/aso-computacion-landing)): sitio estático que consume ese contenido en tiempo de build y se publica en Cloudflare Pages.
 
 ```{mermaid}
@@ -22,11 +22,11 @@ flowchart LR
 
 ## Por dónde empezar
 
-| Si querés… | Leé |
+| Si desea… | Lea |
 |---|---|
 | Entender qué hace el sistema y para quién | [Producto](PRODUCT.md) y [Requisitos](docs/portal/requisitos.qmd) |
 | Ver cómo se conectan las piezas | [Arquitectura](docs/ARQUITECTURA.md) |
-| Integrarte con la API | [Referencia de la API](docs/portal/api.qmd) |
+| Integrarse con la API | [Referencia de la API](docs/portal/api.qmd) |
 | Trabajar en el admin | [Referencia técnica del admin](docs/REFERENCIA.md) y [despliegue](docs/DEPLOY.md) |
 | Trabajar en la landing | [Referencia técnica de la landing](landing/docs/REFERENCIA.md) y [despliegue](landing/docs/DEPLOY.md) |
 | Contribuir | [Guía de contribución](CONTRIBUTING.md) y [política de seguridad](SECURITY.md) |

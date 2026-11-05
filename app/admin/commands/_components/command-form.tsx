@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { COMMAND_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { Panel } from "../../_components/form-layout";
@@ -26,7 +27,7 @@ interface CommandFormProps {
 }
 
 export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND_FORM_VALUES }: CommandFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: COMMAND_FIELD_MESSAGES });
   const command = bind("command").value.trim();
   const description = bind("description").value.trim();
   const output = bind("output").value.trim();

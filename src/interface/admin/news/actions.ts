@@ -34,6 +34,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { NEWS_FIELD_MESSAGES } from "../field-messages";
 import { TRASH_PATH } from "../trash/paths";
 import { parseNewsFormData } from "./news-form-data";
 import { getNewsUseCases } from "./news-container";
@@ -44,13 +45,6 @@ import { getNewsUseCases } from "./news-container";
 
 const LIST_PATH = "/admin/news";
 const editPath = (id: string) => `${LIST_PATH}/${id}/edit`;
-
-const NEWS_FIELD_MESSAGES = {
-  summary: "El resumen es obligatorio y admite hasta 280 caracteres.",
-  body: "El texto es obligatorio y admite hasta 10000 caracteres.",
-  publishedAt: "Indique una fecha de publicación válida.",
-  coverAlt: "Describa la portada en 1 a 200 caracteres.",
-};
 
 function mapActionError(error: unknown): ActionResult {
   if (error instanceof NotFoundError) {

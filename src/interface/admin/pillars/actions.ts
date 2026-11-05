@@ -9,6 +9,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { PILLAR_FIELD_MESSAGES } from "../field-messages";
 import { TRASH_PATH } from "../trash/paths";
 import { parsePillarFormData } from "./pillar-form-data";
 import { getPillarUseCases } from "./pillars-container";
@@ -21,7 +22,6 @@ const LIST_PATH = "/admin/pillars";
 const editPath = (id: string) => `${LIST_PATH}/${id}/edit`;
 
 // A pillar title admits 60 characters, not the 120 of an event title.
-const PILLAR_FIELD_MESSAGES = { title: "El título es obligatorio y admite hasta 60 caracteres." };
 const mapActionError = (error: unknown) => mapError(error, PILLAR_FIELD_MESSAGES);
 
 export async function createPillar(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {

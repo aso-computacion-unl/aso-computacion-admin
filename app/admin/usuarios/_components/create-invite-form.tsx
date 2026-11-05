@@ -9,9 +9,10 @@ import { Select } from "@/components/ui/select";
 import { INVITE_TTL_DAYS } from "@/domain/admin-invite";
 import { ROLES } from "@/domain/user";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { USER_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 import { ROLE_LABELS } from "@/interface/admin/role-labels";
 
-import { Field, FieldError } from "../../_components/form-parts";
+import { Field, FormFailure } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 import { CopyLink } from "./copy-link";
@@ -23,7 +24,7 @@ interface CreateInviteFormProps {
 const INITIAL = { email: "", role: "EDITOR" };
 
 export function CreateInviteForm({ action }: CreateInviteFormProps) {
-  const { bind, handleSubmit, reset, state, isPending, errors } = useControlledForm(action, INITIAL);
+  const { bind, handleSubmit, reset, state, isPending, errors } = useControlledForm(action, INITIAL, { fieldMessages: USER_FIELD_MESSAGES });
   const saved = state?.success === true;
   // The action also returns the link; the shared form hook types every result as a plain `ActionResult`.
   const link = state && "link" in state && typeof state.link === "string" ? state.link : undefined;
@@ -56,8 +57,8 @@ export function CreateInviteForm({ action }: CreateInviteFormProps) {
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Creando…" : "Crear invitación"}
         </Button>
-        <div aria-live="polite" className="min-w-0 text-sm">
-          {state?.error ? <FieldError>{state.error}</FieldError> : null}
+        <div className="min-w-0 text-sm">
+          <FormFailure state={state} />
         </div>
       </div>
       {link ? (

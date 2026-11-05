@@ -51,8 +51,15 @@ test("an event published in the admin appears in the public content API", async 
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
 
-  // Creating continues on the edit page of the new event.
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  // Creating continues on the edit page of the new event: a toast says what is next and the photo drop zone has focus.
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
+  await expect(page.getByText("Evento creado. Agregue las fotos.")).toBeVisible();
+  await expect(page.getByLabel("Elegir fotos para subir")).toBeFocused();
+  // The one-time flag leaves the URL, so a reload does not show the toast again.
+  await expect(page).toHaveURL(/\/edit#fotos$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Fotos", exact: true })).toBeVisible();
+  await expect(page.getByText("Evento creado. Agregue las fotos.")).toHaveCount(0);
 
   const response = await request.get("/api/public/content");
   const body = await response.json();
@@ -81,7 +88,7 @@ test("a published event moved to the trash leaves the public API, undo brings it
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   expect(await publicTitles()).toContain(title);
 
   // Move to the trash: gone from the public content at once, and the toast offers to undo.
@@ -167,7 +174,7 @@ test("an editor cannot open the admin-only pages, and an action refused for thei
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(title);
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   await page.goto("/admin/events");
   await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
   await page.getByRole("button", { name: "Sí, mover" }).click();
@@ -296,7 +303,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
 
   // Published but not open yet: not public, and the list says why.
@@ -324,7 +331,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
 
   expect(await publicTitles()).not.toContain(expired);
   await page.goto("/admin/events");

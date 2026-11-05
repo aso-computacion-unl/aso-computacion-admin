@@ -532,7 +532,7 @@ test.describe("events", () => {
     await page.getByLabel("Título").fill("日本語🚀");
     await page.getByLabel("Identificador (slug)").fill("");
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
     await expect(page.getByLabel("Identificador (slug)")).toHaveValue(/^evento(-\d+)?$/, SLOW);
     await context.close();
   });
@@ -1229,7 +1229,7 @@ test.describe("faqs and line breaks", () => {
     await page.getByLabel("Descripción", { exact: true }).fill(description);
     await setSwitch(page, /Publicado/, true);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     const event = ((await publicContent(page)).events as { title: string; description: string }[]).find((item) => item.title === title);
 

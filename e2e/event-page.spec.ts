@@ -30,7 +30,7 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/);
 
   return { id: /\/admin\/events\/([^/]+)\/edit$/.exec(page.url())![1]!, slug: title.toLowerCase().replaceAll(" ", "-") };
 }

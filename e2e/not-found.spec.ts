@@ -53,7 +53,7 @@ test("without a session an unknown admin address goes to the login and shows no 
     const direct = await request.get(path, { maxRedirects: 0 });
 
     expect(direct.status(), path).toBe(307);
-    expect(new URL(direct.headers()["location"] ?? "").pathname, path).toBe("/login");
+    expect(new URL(direct.headers()["location"] ?? "", direct.url()).pathname, path).toBe("/login");
 
     await page.goto(path);
 

@@ -108,10 +108,6 @@ interface EventsTimelineProps {
 function EventsTimeline({ drafts, upcoming, past, today, showMainLine }: EventsTimelineProps) {
   return (
     <>
-      <div className="mt-5">
-        <Legend />
-      </div>
-
       <div className="tl mt-6">
         {drafts.length > 0 ? (
           <>
@@ -223,8 +219,11 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
         </EmptyState>
       ) : (
         <>
-          <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
-          {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" /> : null}
+          {/* Tabs and search share one row; the wrapper owns the top margin both bring along. */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [&>*]:mt-0!">
+            <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
+            {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" /> : null}
+          </div>
           {events.length === 0 ? (
             <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" search={search} />
           ) : (
@@ -234,6 +233,11 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
             </BulkSelection>
           )}
           <Pager path={LIST_PATH} filter={filter} search={search} page={page} />
+          {events.length > 0 ? (
+            <div className="mt-6">
+              <Legend />
+            </div>
+          ) : null}
         </>
       )}
     </>

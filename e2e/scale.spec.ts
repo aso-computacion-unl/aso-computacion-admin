@@ -55,7 +55,8 @@ test("a list can be searched, and the rows selected on it can be unpublished and
   await expect(page.getByRole("status").getByText("2 elementos pasados a borrador.")).toBeVisible();
   await expect(page.getByRole("switch", { name: `Publicado: ${questions[0]}` })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("switch", { name: `Publicado: ${questions[1]}` })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByText("Nada seleccionado")).toBeVisible();
+  // The bar is only there while something is selected.
+  await expect(page.getByRole("region", { name: "Acciones en lote" })).toHaveCount(0);
   const afterUnpublish = await publicQuestions();
   expect(afterUnpublish).toContain(questions[1]);
   expect(afterUnpublish).not.toContain(questions[0]);

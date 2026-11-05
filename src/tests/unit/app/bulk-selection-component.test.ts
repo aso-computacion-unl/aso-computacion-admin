@@ -21,13 +21,15 @@ describe("BulkSelection", () => {
       ),
     );
 
-  it("starts with nothing selected: the select-all box and no action buttons", () => {
+  it("starts with nothing selected and no bar: only the rows, with their checkboxes", () => {
     const html = render();
 
-    expect(html).toContain("Seleccionar todo en esta página");
-    expect(html).toContain("Nada seleccionado");
+    expect(html).not.toContain("Seleccionar todo en esta página");
+    expect(html).not.toContain("Nada seleccionado");
+    expect(html).not.toContain('aria-label="Acciones en lote"');
     expect(html).not.toContain("Mover a la papelera");
     expect(html).not.toContain("Publicar");
+    expect(html).toContain("Taller de Git");
   });
 
   it("gives every row an unchecked checkbox named after the row", () => {
@@ -36,10 +38,6 @@ describe("BulkSelection", () => {
     expect(html).toContain('aria-label="Seleccionar: Taller de Git"');
     expect(html).toContain('aria-label="Seleccionar: Charla de Docker"');
     expect(html).not.toContain("checked");
-  });
-
-  it("is a labelled region, so assistive tech can find the bar", () => {
-    expect(render()).toContain('aria-label="Acciones en lote"');
   });
 
   it("renders just the rows when the page has none", () => {

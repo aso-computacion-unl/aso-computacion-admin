@@ -1,11 +1,15 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/interface/admin/action-result";
+
+import { useToast } from "./toast";
+
+const SAVED_MESSAGE = "Cambios guardados.";
 
 interface FieldProps {
   label: string;
@@ -54,17 +58,28 @@ export function FormSection({ legend, children, className }: { legend: string; c
   );
 }
 
-/** Whole-form outcome: a general error, a form-level field error (unknown fields) or the saved notice. */
-export function FormFeedback({ state }: { state: ActionResult | null }) {
+/**
+ * Whole-form outcome: a general error, a form-level field error (unknown fields) or the saved notice.
+ * A save also shows a toast, which is easier to notice than the line next to the button; the toast
+ * is the one screen readers announce, so the line is not a live region too. Pass `toast={false}`
+ * when the form already confirms the save its own way.
+ */
+export function FormFeedback({ state, toast = true }: { state: ActionResult | null; toast?: boolean }) {
   const message = state?.error ?? state?.fieldErrors?.form;
+  const { notify } = useToast();
+
+  // Each submit hands back a new result object, so saving the same form twice toasts twice.
+  useEffect(() => {
+    if (toast && state?.success) notify(SAVED_MESSAGE);
+  }, [state, toast, notify]);
 
   return (
-    <div aria-live="polite" className="min-w-0 text-sm">
-      {message ? <FieldError>{message}</FieldError> : null}
+    <div className="min-w-0 text-sm">
+      <div aria-live="polite">{message ? <FieldError>{message}</FieldError> : null}</div>
       {state?.success ? (
-        <p role="status" className="flex items-center gap-2 font-semibold text-sky">
+        <p className="flex items-center gap-2 font-semibold text-sky">
           <Icon name="check" className="size-4 stroke-[2.25]" />
-          Cambios guardados.
+          {SAVED_MESSAGE}
         </p>
       ) : null}
     </div>

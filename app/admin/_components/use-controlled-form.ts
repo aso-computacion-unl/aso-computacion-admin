@@ -41,6 +41,8 @@ export function collectFieldErrors(form: HTMLFormElement, fieldMessages?: Record
   return errors;
 }
 
+const FOCUSABLE = "input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)";
+
 /** After a failed submit, moves the focus to the first invalid field of the form, in page order. */
 export function useFocusFirstInvalid(result: ActionResult | null, formRef: RefObject<HTMLFormElement | null>) {
   useEffect(() => {
@@ -49,8 +51,11 @@ export function useFocusFirstInvalid(result: ActionResult | null, formRef: RefOb
     if (!failed) return;
 
     for (const field of formRef.current?.querySelectorAll<HTMLElement>('[aria-invalid="true"]') ?? []) {
-      field.focus();
-      if (document.activeElement === field) return;
+      // A group (a radio fieldset) cannot take the focus: its checked option does, else its first enabled control.
+      const target = field.matches(FOCUSABLE) ? field : (field.querySelector<HTMLElement>("input:checked:not(:disabled)") ?? field.querySelector<HTMLElement>(FOCUSABLE) ?? field);
+
+      target.focus();
+      if (document.activeElement === target) return;
     }
   }, [result, formRef]);
 }

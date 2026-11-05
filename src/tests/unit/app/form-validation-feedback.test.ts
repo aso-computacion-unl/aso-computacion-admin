@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionBar, Field, FormFeedback } from "../../../../app/admin/_components/form-parts";
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { useControlledForm } from "../../../../app/admin/_components/use-controlled-form";
+import { BoardMemberForm } from "../../../../app/admin/board/_components/board-member-form";
+import { SponsorForm } from "../../../../app/admin/sponsors/_components/sponsor-form";
+import { Segmented } from "@/components/ui/segmented";
 import { SettingsForm } from "../../../../app/admin/settings/_components/settings-form";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { FIELD_MESSAGES, SETTINGS_FIELD_MESSAGES, fieldMessage } from "@/interface/admin/field-messages";
@@ -286,5 +289,82 @@ describe("the site settings form, which keeps its own editor state", () => {
 
     expect(invalidFields(host)).toEqual(["description", "about"]);
     expect(action).not.toHaveBeenCalled();
+  });
+});
+
+describe("focus when the first invalid control is a group", () => {
+  /** A radio group (Segmented) whose server error lands on its fieldset, which cannot take the focus itself. */
+  function GroupHarness({ checked }: { checked: string }) {
+    const { handleSubmit, state, isPending, errors, values, setValues } = useControlledForm(async () => ({ fieldErrors: { type: "Elija un tipo de la lista." } }), { type: checked });
+
+    return createElement(
+      "form",
+      { onSubmit: handleSubmit, noValidate: true },
+      createElement(Segmented, {
+        legend: "Tipo",
+        name: "type",
+        value: values.type,
+        options: [
+          { value: "taller", label: "Taller" },
+          { value: "charla", label: "Charla" },
+        ],
+        onChange: (type: string) => setValues({ type }),
+        ...(errors.type ? { "aria-invalid": true as const } : {}),
+      }),
+      createElement(FormFeedback, { state }),
+      createElement("button", { type: "submit", disabled: isPending }, "Guardar"),
+    );
+  }
+
+  it("focuses the checked option of the group", async () => {
+    const host = await mount(createElement(GroupHarness, { checked: "charla" }));
+
+    await submit(host);
+
+    expect(document.activeElement).toBe(host.querySelector('input[value="charla"]'));
+  });
+
+  it("focuses the first option when none is checked", async () => {
+    const host = await mount(createElement(GroupHarness, { checked: "" }));
+
+    await submit(host);
+
+    expect(document.activeElement).toBe(host.querySelector('input[value="taller"]'));
+  });
+});
+
+describe.each([
+  ["board member", "photo", "Suba una foto antes de publicar al integrante.", (action: Action) => createElement(BoardMemberForm, { action, submitLabel: "Guardar", initialValues: { name: "Ana", role: "Presidenta", photoAlt: "", isPublished: true } })],
+  ["sponsor", "logo", "Suba un logo antes de publicar al aliado.", (action: Action) => createElement(SponsorForm, { action, submitLabel: "Guardar", initialValues: { name: "Acme", url: "", logoAlt: "", isPublished: true } })],
+])("the %s form's missing-image error", (_name, key, message, render) => {
+  const rejected: Action = async () => ({ fieldErrors: { [key]: message } });
+  const publishedSwitch = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[role="switch"]')!;
+
+  it("belongs to the Publicado switch: described by it, flagged invalid and focused", async () => {
+    const host = await mount(render(rejected));
+
+    await submit(host);
+
+    const toggle = publishedSwitch(host);
+
+    expect(toggle.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(toggle.getAttribute("aria-describedby")!)?.textContent).toBe(message);
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("stays one announcement: the error is not an alert of its own", async () => {
+    const host = await mount(render(rejected));
+
+    await submit(host);
+
+    expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(feedback(host).textContent).toContain("Revise 1 campo.");
+  });
+
+  it("leaves the switch plain while there is no such error", async () => {
+    const host = await mount(render(ok));
+
+    expect(publishedSwitch(host).getAttribute("aria-invalid")).toBeNull();
+    expect(publishedSwitch(host).getAttribute("aria-describedby")).toBeNull();
   });
 });

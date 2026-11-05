@@ -157,6 +157,12 @@ test("the emergency login is flagged on every page, as the session of the emerge
   await expect(page.getByRole("button", { name: "Menú de cuenta: Acceso de emergencia" })).toBeVisible();
   await expect(page.getByText("emergencia", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("esta sesión", { exact: true })).toBeVisible();
+
+  // Sessions are grouped by person; the emergency login is its own group and cannot be closed in bulk.
+  const emergencyGroup = page.getByRole("region", { name: /^Acceso de emergencia/ });
+
+  await expect(emergencyGroup.getByText("esta sesión", { exact: true })).toBeVisible();
+  await expect(emergencyGroup.getByRole("button", { name: /Cerrar las demás|Cerrar todas/ })).toHaveCount(0);
 });
 
 test("an editor cannot open the admin-only pages, and an action refused for their role changes nothing", async ({ page, context, request }) => {

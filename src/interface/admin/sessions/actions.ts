@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { RevokeOtherSessionsUseCase } from "@/application/auth/session.use-cases";
+
 import { recordAudit } from "../../audit/record-audit";
 import { getAuthServices } from "../../auth/auth-container";
 import { requireSession } from "../../auth/require-session";
@@ -20,6 +22,25 @@ export async function revokeSession(sessionId: string): Promise<ActionResult> {
     await getAuthServices().revokeSession.execute({ actor, sessionId: String(sessionId) });
     await recordAudit(actor, { action: "session.revoke", entityType: "session", entityId: String(sessionId), summary: "Sesión cerrada" });
     revalidatePath(PAGE_PATH);
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
+}
+
+/** "Cerrar las demás": the person's other sessions, never the caller's current one. Same permission as `revokeSession`, decided by the use case. */
+export async function revokeOtherSessions(userId: string): Promise<ActionResult> {
+  try {
+    const actor = await requireSession();
+    const { listSessions, revokeSession } = getAuthServices();
+    const target = String(userId);
+    const closed = await new RevokeOtherSessionsUseCase(listSessions, revokeSession).execute({ actor, userId: target });
+
+    if (closed > 0) {
+      await recordAudit(actor, { action: "session.revoke_others", entityType: "session", entityId: target, summary: `Sesiones cerradas: ${closed}` });
+      revalidatePath(PAGE_PATH);
+    }
+
     return { success: true };
   } catch (error) {
     return mapActionError(error);

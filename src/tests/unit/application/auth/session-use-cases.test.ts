@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ListActiveSessionsUseCase,
+  RevokeOtherSessionsUseCase,
   RevokeSessionUseCase,
   SESSION_TTL_MS,
   StartSessionUseCase,
@@ -269,5 +270,71 @@ describe("RevokeSessionUseCase", () => {
     await revoke().execute({ actor: admin, sessionId: "s1" });
 
     await expect(revoke().execute({ actor: admin, sessionId: "s1" })).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("RevokeOtherSessionsUseCase", () => {
+  // s1..s3: ana (current is s1), s4: root, s5: break-glass.
+  beforeEach(async () => {
+    ids = ["s1", "s2", "s3", "s4", "s5"];
+    await start().execute({ subject: { kind: "user", userId: "ana" } });
+    await start().execute({ subject: { kind: "user", userId: "ana" } });
+    await start().execute({ subject: { kind: "user", userId: "ana" } });
+    await start().execute({ subject: { kind: "user", userId: "root" } });
+    await start().execute({ subject: { kind: "break_glass" } });
+  });
+
+  const revokeOthers = () => new RevokeOtherSessionsUseCase(new ListActiveSessionsUseCase(sessions, now), new RevokeSessionUseCase(sessions, now));
+  const isRevoked = (id: string) => sessions.sessions.get(id)?.revokedAt != null;
+  const ana: Actor = { ...editor, sessionId: "s1" };
+
+  it("revokes the person's other sessions and never the one the caller is using", async () => {
+    expect(await revokeOthers().execute({ actor: ana, userId: "ana" })).toBe(2);
+
+    expect([isRevoked("s1"), isRevoked("s2"), isRevoked("s3")]).toEqual([false, true, true]);
+  });
+
+  it("leaves everyone else's sessions alone", async () => {
+    await revokeOthers().execute({ actor: ana, userId: "ana" });
+
+    expect([isRevoked("s4"), isRevoked("s5")]).toEqual([false, false]);
+  });
+
+  it("refuses an editor naming another person, an admin or an empty id, and changes nothing", async () => {
+    for (const userId of ["root", "ghost", ""]) {
+      await expect(revokeOthers().execute({ actor: ana, userId })).rejects.toBeInstanceOf(ForbiddenError);
+    }
+
+    expect(["s1", "s2", "s3", "s4", "s5"].filter(isRevoked)).toEqual([]);
+  });
+
+  it("refuses an actor with no user id, whatever it names", async () => {
+    const orphan: Actor = { kind: "user", sessionId: "s1", userId: null, name: "Orphan", role: "EDITOR" };
+
+    await expect(revokeOthers().execute({ actor: orphan, userId: "ana" })).rejects.toBeInstanceOf(ForbiddenError);
+    expect(["s1", "s2", "s3"].filter(isRevoked)).toEqual([]);
+  });
+
+  it("lets an admin close another person's sessions: all of them, since none is the admin's own", async () => {
+    const root: Actor = { ...admin, sessionId: "s4" };
+
+    expect(await revokeOthers().execute({ actor: root, userId: "ana" })).toBe(3);
+    expect(["s1", "s2", "s3"].every(isRevoked)).toBe(true);
+    expect(isRevoked("s4")).toBe(false);
+  });
+
+  it("keeps the admin's current session when they close their own others", async () => {
+    ids = ["s6"];
+    await start().execute({ subject: { kind: "user", userId: "root" } });
+    const root: Actor = { ...admin, sessionId: "s4" };
+
+    expect(await revokeOthers().execute({ actor: root, userId: "root" })).toBe(1);
+    expect([isRevoked("s4"), isRevoked("s6")]).toEqual([false, true]);
+  });
+
+  it("revokes nothing and says so when there are no other sessions", async () => {
+    const solo: Actor = { ...admin, sessionId: "s4" };
+
+    expect(await revokeOthers().execute({ actor: solo, userId: "root" })).toBe(0);
   });
 });

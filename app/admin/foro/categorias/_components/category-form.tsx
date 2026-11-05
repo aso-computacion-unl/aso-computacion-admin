@@ -64,7 +64,8 @@ export function CategoryForm(props: CategoryFormProps) {
       >
         {(control) => <Input {...control} {...bind("slug")} autoCapitalize="off" autoComplete="off" spellCheck={false} className="font-mono" />}
       </Field>
-      <ActionBar status={<FormFeedback state={state} />}>
+      {/* A new category gets its own "Categoría creada." toast above. */}
+      <ActionBar status={<FormFeedback state={state} toast={editing} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : editing ? "Guardar cambios" : "Crear categoría"}
         </Button>

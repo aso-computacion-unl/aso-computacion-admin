@@ -196,7 +196,7 @@ test("an admin creates a category in the panel, a member sees it on /foro, and a
   await admin.getByRole("link", { name: "Editar: Eventos del e2e" }).click();
   await admin.getByLabel("Nombre", { exact: true }).fill("Eventos y charlas");
   await admin.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(admin.getByText("Cambios guardados.")).toBeVisible();
+  await expect(admin.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
   await member.reload();
   await expect(member.getByRole("link", { name: "Eventos y charlas", exact: true })).toBeVisible();
   await expect(member.getByRole("link", { name: "Eventos del e2e", exact: true })).toHaveCount(0);

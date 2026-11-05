@@ -94,7 +94,7 @@ describe("the trash button of a row", () => {
 });
 
 describe("a short list", () => {
-  it("drops the select-all bar and the search under five rows and ends with an Agregar row", async () => {
+  it("drops the row checkboxes and the search under five rows and ends with an Agregar row", async () => {
     reads.faqsPage.mockResolvedValue(pageOf([faq(1), faq(2), faq(3)]));
     reads.faqsCounts.mockResolvedValue(counts(3));
 
@@ -102,7 +102,7 @@ describe("a short list", () => {
 
     expect(html).toContain("Pregunta 3");
     expect(html).not.toContain('role="search"');
-    expect(html).not.toContain("Seleccionar todo");
+    expect(html).not.toContain('aria-label="Seleccionar:');
     expect(html).toContain('data-slot="add-row"');
     expect(html).toContain('href="/admin/faqs/new"');
     expect(html).toContain("Agregar pregunta");
@@ -117,7 +117,7 @@ describe("a short list", () => {
     const html = renderToStaticMarkup(await AdminFaqsPage(params()));
 
     expect(html).toContain('role="search"');
-    expect(html).toContain("Seleccionar todo");
+    expect(html).toContain('aria-label="Seleccionar: Pregunta 1"');
     expect(html).not.toContain('data-slot="add-row"');
   });
 
@@ -136,7 +136,7 @@ describe("a short list", () => {
 
     const html = renderToStaticMarkup(await AdminBoardPage());
 
-    expect(html).not.toContain("Seleccionar todo");
+    expect(html).not.toContain('aria-label="Seleccionar:');
     expect(html).toContain('data-slot="add-row"');
     expect(html).toContain('href="/admin/board/new"');
     expect(html).toContain("Agregar integrante");

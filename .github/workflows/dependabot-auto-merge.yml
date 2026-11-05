@@ -1,0 +1,29 @@
+name: Dependabot auto-merge
+
+# Approves and queues auto-merge for Dependabot minor and patch updates only.
+# Auto-merge waits for every required status check in the "protect main"
+# ruleset, so nothing merges while CI is red or still running. Major updates
+# get no approval and wait for a human review.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository_owner == 'aso-computacion-unl'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review --approve --body "Minor or patch update: approved for auto-merge once required checks pass." "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"

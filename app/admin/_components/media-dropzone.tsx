@@ -60,7 +60,7 @@ export function MediaDropzone({ title, rules, accept, multiple = false, disabled
       {chosen ? (
         <span className="max-w-full">
           <strong className="block truncate font-bold font-stretch-[112%]">{chosen.name}</strong>
-          <span className="font-mono text-xs text-mist">{chosen.size} · toque para elegir otra</span>
+          <span className="font-mono text-xs text-mist">{chosen.size} · elija otra</span>
         </span>
       ) : (
         <span>

@@ -7,6 +7,7 @@ import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
 import { formatDeletedAt, groupTrash, purgeWarning, TRASH_KIND_LABELS } from "@/interface/admin/trash/trash-labels";
 
 import { PageHeader } from "../_components/page-header";
+import { SectionTitle } from "../_components/section-title";
 import { DeleteButton, RestoreButton } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
 
@@ -45,9 +46,9 @@ export default async function AdminTrashPage() {
         <div className="mt-6 grid gap-8">
           {groupTrash(items).map(({ kind, items: group }) => (
             <section key={kind} aria-labelledby={`trash-${kind}`} className="grid gap-3">
-              <h2 id={`trash-${kind}`} className="text-lg font-bold font-stretch-[112%]">
+              <SectionTitle id={`trash-${kind}`}>
                 {TRASH_KIND_LABELS[kind]} <span className="font-mono text-[0.8125rem] font-semibold text-mist">{group.length}</span>
-              </h2>
+              </SectionTitle>
               <ul className="grid gap-3">
                 {group.map((item) => (
                   <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded bg-card p-4">

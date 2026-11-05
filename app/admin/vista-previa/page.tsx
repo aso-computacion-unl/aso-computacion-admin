@@ -10,13 +10,13 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { EmptyState } from "../_components/empty-state";
 import { FormColumns, Panel } from "../_components/form-layout";
 import { PageHeader } from "../_components/page-header";
+import { SectionTitle } from "../_components/section-title";
 import { Stamp } from "../_components/timeline-parts";
 import { PreviewTokenForm } from "./_components/preview-token-form";
 
 // Reads the environment and the audit log on every request.
 export const dynamic = "force-dynamic";
 
-const SECTION_TITLE = "text-lg font-bold font-stretch-[112%]";
 // The empty state brings its own top margin for a page; under a heading it would double the gap.
 const SECTION = "grid content-start gap-3 [&>[data-slot=empty-state]]:mt-0";
 const ROW_LINK =
@@ -30,9 +30,7 @@ function RevealedSection({ pending }: { pending: Pending }) {
 
   return (
     <section aria-labelledby="revealed-title" className={SECTION}>
-      <h2 id="revealed-title" className={SECTION_TITLE}>
-        Lo que muestra un código
-      </h2>
+      <SectionTitle id="revealed-title">Lo que muestra un código</SectionTitle>
       {pending.drafts.length > 0 ? (
         <>
           <p className="text-mist">Quien tenga un código ve esto además de lo ya publicado.</p>
@@ -86,9 +84,7 @@ function CodeRow({ code, now }: { code: PreviewCodeView; now: Date }) {
 function CodesSection({ codes, scope, now }: { codes: PreviewCodeView[]; scope: "all" | "own"; now: Date }) {
   return (
     <section aria-labelledby="codes-title" className={SECTION}>
-      <h2 id="codes-title" className={SECTION_TITLE}>
-        Códigos generados
-      </h2>
+      <SectionTitle id="codes-title">Códigos generados</SectionTitle>
       {codes.length > 0 ? (
         <>
           <p className="text-mist">{scope === "all" ? "Los más recientes, de todas las personas." : "Los más recientes que usted generó."}</p>
@@ -132,9 +128,9 @@ export default async function AdminPreviewPage() {
         }
       >
         <Panel aria-labelledby="preview-title">
-          <h2 id="preview-title" className="mb-4 text-lg font-bold font-stretch-[112%]">
+          <SectionTitle id="preview-title" className="mb-4">
             Generar un código
-          </h2>
+          </SectionTitle>
           {configured ? (
             <PreviewTokenForm action={createPreviewToken} endpoint={endpoint} />
           ) : (

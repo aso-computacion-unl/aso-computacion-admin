@@ -57,6 +57,13 @@ describe("MediaDropzone", () => {
     expect(html).toContain("1.2 MB");
   });
 
+  it("offers to pick another file without assuming a touch screen", () => {
+    const html = render({ chosen: { name: "portada.jpg", size: "1.2 MB" } });
+
+    expect(html).toContain("elija otra");
+    expect(html).not.toContain("toque");
+  });
+
   it("marks itself while a file is dragged over it, and stops when the drag leaves or the file drops", async () => {
     const host = await mount(createElement(MediaDropzone, { title: "Elegir foto", rules: "r", accept: ACCEPT, ariaLabel: "Elegir foto", onFiles: () => undefined }));
     const zone = host.querySelector<HTMLElement>('[data-slot="media-dropzone"]')!;

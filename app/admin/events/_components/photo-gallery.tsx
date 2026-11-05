@@ -12,6 +12,7 @@ import { deactivateEventPhoto, moveEventPhoto, updateEventPhotoAlt } from "@/int
 import { Panel } from "../../_components/form-layout";
 import { FieldError } from "../../_components/form-parts";
 import { DeleteButton, MoveButtons } from "../../_components/row-actions";
+import { SectionTitle } from "../../_components/section-title";
 import { resultMessage, useRunAction } from "../../_components/use-run-action";
 import { PhotoUploadForm } from "./photo-upload-form";
 
@@ -118,9 +119,7 @@ export function PhotoGallery({ eventId, photos, minWidth }: PhotoGalleryProps) {
   return (
     <Panel aria-labelledby="gallery-heading" className="grid gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id="gallery-heading" className="text-lg font-bold font-stretch-[112%]">
-          Fotos
-        </h2>
+        <SectionTitle id="gallery-heading">Fotos</SectionTitle>
         <p className="font-mono text-[0.8125rem] text-mist">
           {photos.length} de {MAX_ACTIVE_EVENT_PHOTOS}
         </p>

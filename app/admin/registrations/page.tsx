@@ -9,6 +9,7 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { EmptyState } from "../_components/empty-state";
 import { Panel, PageFrame } from "../_components/form-layout";
 import { PageHeader } from "../_components/page-header";
+import { SectionTitle } from "../_components/section-title";
 import { Stamp } from "../_components/timeline-parts";
 
 // Counts that change with every registration: never prerendered.
@@ -108,9 +109,9 @@ function RegistrationList({ rows }: { rows: RegistrationOverviewRow[] }) {
 function RegistrationTable({ id, heading, rows }: { id: string; heading: string; rows: RegistrationOverviewRow[] }) {
   return (
     <section aria-labelledby={id} className="mt-8">
-      <h2 id={id} className="text-[0.8125rem] font-bold font-stretch-[118%] tracking-[0.04em] text-mist uppercase">
+      <SectionTitle id={id} variant="label">
         {heading}
-      </h2>
+      </SectionTitle>
 
       <RegistrationList rows={rows} />
 

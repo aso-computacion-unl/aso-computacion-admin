@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useState, type ComponentProps, type FormEvent } from "react";
+import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { fieldClasses } from "@/components/ui/field-styles";
@@ -18,6 +18,7 @@ import {
 
 import { ActionBar, Field, FieldError, FormFeedback, FormSection } from "../../_components/form-parts";
 import { ScheduleFields } from "../../_components/schedule-fields";
+import { useControlledForm } from "../../_components/use-controlled-form";
 import { RegistrationFields } from "./registration-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -70,20 +71,13 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * Controlled form: the values live in state and are submitted through
  * `startTransition`, never through `<form action>`, so a failed save keeps
  * everything the owner typed (React 19 resets uncontrolled fields after a
- * form action).
+ * form action). `useControlledForm` does both, and checks every field before it submits.
  */
 export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES }: EventFormProps) {
-  const [values, setValues] = useState<EventFormValues>(initialValues);
-  const [state, formAction, isPending] = useActionState(action, null);
+  const { values, setValues, bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, {
+    serialize: formValuesToFormData,
+  });
   const isEditing = initialValues.slug !== "";
-
-  function bind<K extends keyof EventFormValues>(key: K) {
-    return {
-      name: key,
-      value: values[key] as string,
-      onChange: (event: { target: { value: string } }) => setValues((previous) => ({ ...previous, [key]: event.target.value })),
-    };
-  }
 
   function setDatePrecision(datePrecision: string) {
     setValues((previous) => {
@@ -93,23 +87,6 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
       return { ...previous, datePrecision: precision, date: snapped };
     });
   }
-
-  function toggle(key: "featured" | "isPublished") {
-    return {
-      name: key,
-      checked: values[key],
-      onChange: () => setValues((previous) => ({ ...previous, [key]: !previous[key] })),
-    };
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isPending) return;
-
-    startTransition(() => formAction(formValuesToFormData(values)));
-  }
-
-  const errors = state?.fieldErrors ?? {};
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -136,7 +113,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
             aria-describedby={errors.datePrecision ? "datePrecision-error" : undefined}
             aria-invalid={errors.datePrecision ? true : undefined}
           />
-          {errors.datePrecision ? <FieldError id="datePrecision-error">{errors.datePrecision}</FieldError> : null}
+          {errors.datePrecision ? <FieldError id="datePrecision-error" announce={false}>{errors.datePrecision}</FieldError> : null}
         </div>
         <Field
           label={values.datePrecision === "month" ? "Mes" : "Fecha"}
@@ -183,7 +160,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
             aria-describedby={errors.type ? "type-error" : undefined}
             aria-invalid={errors.type ? true : undefined}
           />
-          {errors.type ? <FieldError id="type-error">{errors.type}</FieldError> : null}
+          {errors.type ? <FieldError id="type-error" announce={false}>{errors.type}</FieldError> : null}
         </div>
         <Field label="Descripción" hint="Hasta 600 caracteres." error={errors.description} className="@xl:col-span-2">
           {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}

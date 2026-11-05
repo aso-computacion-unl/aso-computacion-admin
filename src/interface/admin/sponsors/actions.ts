@@ -9,6 +9,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { SPONSOR_FIELD_MESSAGES } from "../field-messages";
 import { TRASH_PATH } from "../trash/paths";
 import { parseSponsorFormData } from "./sponsor-form-data";
 import { getSponsorUseCases } from "./sponsors-container";
@@ -22,7 +23,6 @@ const LIST_PATH = "/admin/sponsors";
 const editPath = (id: string) => `${LIST_PATH}/${id}/edit`;
 
 // A sponsor link admits 300 characters.
-const SPONSOR_FIELD_MESSAGES = { url: "Use un enlace que empiece con https:// y tenga hasta 300 caracteres." };
 const mapActionError = (error: unknown) => mapError(error, SPONSOR_FIELD_MESSAGES);
 
 export async function createSponsor(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {

@@ -20,6 +20,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { getForumServices } from "../../forum/forum-container";
 import { requireRole } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { FORUM_CATEGORY_FIELD_MESSAGES } from "../field-messages";
 import { parseCategoryFormData } from "./forum-category-form-data";
 
 // Every action starts with the session guard, before it reads any input or touches a use case (a server
@@ -27,11 +28,6 @@ import { parseCategoryFormData } from "./forum-category-form-data";
 // category's name or id, never a post.
 
 const PAGE_PATH = "/admin/foro/categorias";
-
-const CATEGORY_FIELD_MESSAGES = {
-  name: "El nombre es obligatorio y admite hasta 60 caracteres.",
-  description: "La descripción admite hasta 200 caracteres.",
-};
 
 function mapActionError(error: unknown): ActionResult {
   if (error instanceof ForumCategoryNotEmptyError) {
@@ -42,7 +38,7 @@ function mapActionError(error: unknown): ActionResult {
     return { error: "No se encontró la categoría." };
   }
 
-  return mapError(error, CATEGORY_FIELD_MESSAGES);
+  return mapError(error, FORUM_CATEGORY_FIELD_MESSAGES);
 }
 
 export async function createForumCategory(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {

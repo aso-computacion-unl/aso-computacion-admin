@@ -20,9 +20,14 @@ interface FieldProps {
   children: (control: { id: string; "aria-describedby"?: string; "aria-invalid"?: true }) => ReactNode;
 }
 
-export function FieldError({ id, children }: { id?: string; children: ReactNode }) {
+/**
+ * A message in the error style. It is an alert unless `announce={false}`: a field's own error is read with
+ * its field (`aria-describedby`) and the whole failure is announced once by the form's summary
+ * (`FormFailure`), so a form with several invalid fields does not read them all out at once.
+ */
+export function FieldError({ id, announce = true, children }: { id?: string; announce?: boolean; children: ReactNode }) {
   return (
-    <small id={id} role="alert" className="flex items-start gap-1.5 text-[0.8125rem] leading-[1.35] font-semibold text-error">
+    <small id={id} role={announce ? "alert" : undefined} className="flex items-start gap-1.5 text-[0.8125rem] leading-[1.35] font-semibold text-error">
       <Icon name="alert" className="mt-px size-3.5" />
       {children}
     </small>
@@ -43,7 +48,11 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
           {hint}
         </small>
       ) : null}
-      {error ? <FieldError id={`${id}-error`}>{error}</FieldError> : null}
+      {error ? (
+        <FieldError id={`${id}-error`} announce={false}>
+          {error}
+        </FieldError>
+      ) : null}
     </div>
   );
 }
@@ -58,14 +67,27 @@ export function FormSection({ legend, children, className }: { legend: string; c
   );
 }
 
+const reviewMessage = (count: number) => `Revise ${count} ${count === 1 ? "campo" : "campos"}.`;
+
 /**
- * Whole-form outcome: a general error, a form-level field error (unknown fields) or the saved notice.
+ * The failure of a save as one announcement: the general error, a form-level error, and how many fields to
+ * review. The field errors themselves sit next to their fields and are not alerts, so the screen reader hears
+ * this line once, then the first invalid field when the focus moves to it.
+ */
+export function FormFailure({ state }: { state: ActionResult | null }) {
+  const fieldCount = Object.keys(state?.fieldErrors ?? {}).filter((name) => name !== "form").length;
+  const message = [state?.error ?? state?.fieldErrors?.form, fieldCount > 0 ? reviewMessage(fieldCount) : undefined].filter(Boolean).join(" ");
+
+  return message ? <FieldError>{message}</FieldError> : null;
+}
+
+/**
+ * Whole-form outcome: the failure summary (`FormFailure`) or the saved notice.
  * A save also shows a toast, which is easier to notice than the line next to the button; the toast
  * is the one screen readers announce, so the line is not a live region too. Pass `toast={false}`
  * when the form already confirms the save its own way.
  */
 export function FormFeedback({ state, toast = true }: { state: ActionResult | null; toast?: boolean }) {
-  const message = state?.error ?? state?.fieldErrors?.form;
   const { notify } = useToast();
 
   // Each submit hands back a new result object, so saving the same form twice toasts twice.
@@ -75,7 +97,7 @@ export function FormFeedback({ state, toast = true }: { state: ActionResult | nu
 
   return (
     <div data-slot="form-feedback" className="min-w-0 text-sm">
-      <div aria-live="polite">{message ? <FieldError>{message}</FieldError> : null}</div>
+      <FormFailure state={state} />
       {state?.success ? (
         <p className="flex items-center gap-2 font-semibold text-sky">
           <Icon name="check" className="size-4 stroke-[2.25]" />

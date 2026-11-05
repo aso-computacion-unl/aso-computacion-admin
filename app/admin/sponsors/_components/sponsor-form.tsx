@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { SPONSOR_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
@@ -27,7 +28,7 @@ interface SponsorFormProps {
 }
 
 export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR_FORM_VALUES, hasLogo = false }: SponsorFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: SPONSOR_FIELD_MESSAGES });
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
@@ -54,7 +55,7 @@ export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR
           }
           {...toggle("isPublished")}
         />
-        {errors.logo ? <FieldError>{errors.logo}</FieldError> : null}
+        {errors.logo ? <FieldError announce={false}>{errors.logo}</FieldError> : null}
       </div>
       <ActionBar status={<FormFeedback state={state} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">

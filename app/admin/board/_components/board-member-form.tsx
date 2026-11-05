@@ -54,7 +54,7 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
           }
           {...toggle("isPublished")}
         />
-        {errors.photo ? <FieldError>{errors.photo}</FieldError> : null}
+        {errors.photo ? <FieldError announce={false}>{errors.photo}</FieldError> : null}
       </div>
       <ActionBar status={<FormFeedback state={state} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">

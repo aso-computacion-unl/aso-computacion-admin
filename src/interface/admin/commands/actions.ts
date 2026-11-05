@@ -8,6 +8,7 @@ import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { COMMAND_FIELD_MESSAGES } from "../field-messages";
 import { TRASH_PATH } from "../trash/paths";
 import { parseCommandFormData } from "./command-form-data";
 import { getCommandUseCases } from "./commands-container";
@@ -18,19 +19,13 @@ import { getCommandUseCases } from "./commands-container";
 
 const LIST_PATH = "/admin/commands";
 
-// A free command's description and output have their own limits, unlike the shared wording.
-const FIELD_MESSAGES = {
-  description: "La descripción es obligatoria y admite hasta 80 caracteres.",
-  output: "La respuesta es obligatoria y admite hasta 600 caracteres.",
-};
-
 export async function createCommand(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
     const { id } = await getCommandUseCases().create.execute(parseCommandFormData(formData));
     await recordAudit(actor, { action: "command.create", entityType: "command", entityId: id, summary: "Comando creado" });
   } catch (error) {
-    return mapActionError(error, FIELD_MESSAGES);
+    return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 
   requestSiteRebuild();
@@ -47,7 +42,7 @@ export async function updateCommand(id: string, _prevState: ActionResult | null,
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
-    return mapActionError(error, FIELD_MESSAGES);
+    return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 }
 
@@ -65,7 +60,7 @@ export async function setCommandPublished(id: string, isPublished: boolean): Pro
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
-    return mapActionError(error, FIELD_MESSAGES);
+    return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 }
 
@@ -84,7 +79,7 @@ export async function trashCommand(id: string): Promise<ActionResult> {
     revalidatePath(TRASH_PATH);
     return { success: true };
   } catch (error) {
-    return mapActionError(error, FIELD_MESSAGES);
+    return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 }
 
@@ -102,6 +97,6 @@ export async function moveCommand(id: string, direction: "up" | "down"): Promise
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {
-    return mapActionError(error, FIELD_MESSAGES);
+    return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 }

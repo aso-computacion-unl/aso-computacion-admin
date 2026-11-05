@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { PILLAR_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
@@ -28,7 +29,7 @@ interface PillarFormProps {
 }
 
 export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_FORM_VALUES, hasImage = false }: PillarFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: PILLAR_FIELD_MESSAGES });
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">

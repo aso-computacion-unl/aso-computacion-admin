@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FORUM_CATEGORY_DESCRIPTION_MAX_LENGTH, FORUM_CATEGORY_NAME_MAX_LENGTH } from "@/domain/forum";
+import { FORUM_CATEGORY_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 import { createForumCategory, updateForumCategory } from "@/interface/admin/forum/actions";
 
 import { ActionBar, Field, FormFeedback } from "../../../_components/form-parts";
@@ -30,7 +31,7 @@ export function CategoryForm(props: CategoryFormProps) {
   const { notify } = useToast();
   const editing = props.mode === "edit";
   const action = props.mode === "edit" ? updateForumCategory.bind(null, props.id) : createForumCategory;
-  const { bind, handleSubmit, state, isPending, errors } = useControlledForm(action, props.mode === "edit" ? props.initialValues : EMPTY_VALUES);
+  const { bind, handleSubmit, state, isPending, errors } = useControlledForm(action, props.mode === "edit" ? props.initialValues : EMPTY_VALUES, { fieldMessages: FORUM_CATEGORY_FIELD_MESSAGES });
   const created = !editing && state?.success === true;
 
   // A new category has nothing left to edit: confirm it and go back to the list, where it now shows.

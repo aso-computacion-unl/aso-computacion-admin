@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { DEFAULT_PREVIEW_LIFETIME, PREVIEW_LIFETIME_OPTIONS } from "@/interface/admin/preview/preview-lifetimes";
 
-import { Field, FieldError } from "../../_components/form-parts";
+import { Field, FormFailure } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 interface PreviewTokenFormProps {
@@ -78,8 +78,8 @@ export function PreviewTokenForm({ action, endpoint }: PreviewTokenFormProps) {
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Generando…" : "Generar código"}
         </Button>
-        <div aria-live="polite" className="min-w-0 text-sm">
-          {state?.error ? <FieldError>{state.error}</FieldError> : null}
+        <div className="min-w-0 text-sm">
+          <FormFailure state={state} />
         </div>
       </div>
       {token ? (

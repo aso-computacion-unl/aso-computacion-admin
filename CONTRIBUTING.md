@@ -13,17 +13,32 @@ Gracias por ayudar con el panel de administración de ASO Computación. Esta gu�
 
 Si no sabe por dónde empezar, abra un issue y lo revisamos juntos.
 
-## Reglas de la rama `main`
+## Preparar el entorno local
 
-`main` es lo que está desplegado. Está protegida:
+Se hace una sola vez. Necesita **Node 22** (la versión exacta está en `.nvmrc`; con `nvm use` basta), **Docker** y Git.
 
-- Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
-- Cada PR necesita **1 aprobación** de otra persona.
-- No se permite `force push` ni borrar `main`.
-- La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`).
-- Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
+1. **Una base de Postgres propia para desarrollar.** Nunca use la de producción. Con Docker:
+   ```sh
+   docker run -d --name aso-admin-dev -p 5432:5432 \
+     -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=aso_admin_dev postgres:16-alpine
+   ```
+   Su `DATABASE_URL` queda así: `postgresql://postgres:postgres@localhost:5432/aso_admin_dev`. La base que usan los tests (`docker-compose.test.yml`) es otra: la levantan y la borran los propios comandos de test, no la use para desarrollar.
+2. **Variables de entorno.** Copie `.env.example` a `.env` y complete los valores `__REPLACE_*__` según la [referencia técnica](docs/REFERENCIA.md#environment-variables). Para entrar sin configurar Google, alcanza con `ADMIN_PASSWORD` (al menos 16 caracteres) y `ADMIN_SECRET` (al menos 32; puede generarlo con `openssl rand -base64 32`). El archivo `.env` nunca se sube a Git.
+3. **Instalar y preparar la base:**
+   ```sh
+   npm ci                      # también genera el cliente de Prisma
+   npx prisma migrate deploy   # crea las tablas
+   npm run seed:demo           # opcional: contenido de ejemplo
+   ```
+   `seed:demo` se niega a correr contra una base que no sea local, así que no puede dañar producción por error.
+4. **Arrancar:** `npm run dev` y abra <http://localhost:3000>. Entre con la contraseña de `ADMIN_PASSWORD`.
+5. **Para los tests de punta a punta**, instale el navegador una vez: `npm run e2e:browsers`.
 
-## Flujo de trabajo
+Si algo falla en estos pasos, abra un issue: es un error de la guía, no suyo.
+
+## Flujo de trabajo y colaboración
+
+El orden es siempre el mismo, sea cual sea su rol:
 
 1. **Issue primero.** Para algo más grande que una errata, abra o elija un issue y comente que lo tomará.
 2. **Rama nueva desde `main` actualizado:**
@@ -32,7 +47,7 @@ Si no sabe por dónde empezar, abra un issue y lo revisamos juntos.
    git switch -c tipo/descripcion-corta   # ej.: fix/subida-fotos, feat/filtro-eventos
    ```
 3. **Commits pequeños** con [Conventional Commits](https://www.conventionalcommits.org/es/): `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`. El mensaje describe el cambio en inglés, en imperativo: `fix: keep the photo order after a failed upload`.
-4. **Entorno local** (Node 22 y Docker): copie `.env.example` a `.env` y complételo según la [referencia técnica](docs/REFERENCIA.md#environment-variables). Use una base de Postgres propia, nunca la de producción.
+4. **Entorno local** listo, como se explica en [Preparar el entorno local](#preparar-el-entorno-local).
 5. **Compruebe localmente** antes de pedir revisión; la CI corre lo mismo en el PR:
    ```sh
    npm ci
@@ -48,9 +63,101 @@ Si no sabe por dónde empezar, abra un issue y lo revisamos juntos.
 7. **Revisión.** Responda los comentarios con commits nuevos en la misma rama; no reescriba la historia de una rama que ya está en revisión.
 8. **Merge.** Quien aprueba (o quien abrió el PR, una vez aprobado) hace el merge y borra la rama.
 
+### Reglas de la rama `main`
+
+`main` es lo que está desplegado. Está protegida:
+
+- Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
+- Cada PR necesita **1 aprobación** de otra persona. GitHub le pide la revisión al mantenedor de forma automática (`.github/CODEOWNERS`).
+- No se permite `force push` ni borrar `main`.
+- La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`), y el workflow `Docs` construye el portal de documentación.
+- Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
+
 ### Tamaño de los PRs
 
 Un PR debería poder revisarse en menos de una hora: idealmente **menos de 400 líneas cambiadas**. Si es más grande, divídalo en varios PRs que se puedan revisar por separado.
+
+### Cambios que tocan los dos repositorios
+
+Si su cambio agrega o modifica un campo de la API pública, necesita un PR en este repositorio y otro en [`aso-computacion-landing`](https://github.com/aso-computacion-unl/aso-computacion-landing):
+
+1. Mergee primero el del panel: la landing no puede leer un campo que la API todavía no envía.
+2. Enlace cada PR desde el otro.
+3. Actualice `docs/openapi.yaml` en el mismo PR del panel.
+4. Si quita, renombra o cambia el tipo de un campo, suba `PUBLIC_CONTENT_SCHEMA_VERSION` y avise en el PR: la landing rechaza una versión que no conoce, así que necesita su propio cambio antes del siguiente despliegue.
+
+## Guía por rol
+
+Un mismo PR puede tocar varios roles; lea las secciones que le correspondan. Las [reglas del código](#reglas-del-código-que-no-se-negocian) valen para todos.
+
+### Backend
+
+El código sigue una **arquitectura hexagonal** en `src/`. Las dependencias van siempre hacia adentro:
+
+| Capa | Qué vive ahí | Puede importar |
+|---|---|---|
+| `src/domain/` | Entidades y reglas puras (evento, noticia, slug, ventana de publicación) | Nada externo |
+| `src/application/` | Casos de uso (`use-cases/`), puertos (`ports/`), DTO y mappers | `domain` |
+| `src/infrastructure/` | Adaptadores: repositorios Prisma, Cloudinary, autenticación, Sentry | `application`, `domain` y librerías |
+| `src/interface/` | Server actions (`admin/<entidad>/actions.ts`), guards, DTO públicos | Todo lo anterior |
+
+Un test (`architecture-boundaries.test.ts`) falla si `domain` o `application` importan Next.js, Prisma, Cloudinary, Auth.js o `jose`.
+
+**Agregar una server action:**
+
+1. El guard va en la primera línea: `requireSession()`, `requireRole("EDITOR")` o `requireRole("ADMIN")`. Un test lo comprueba.
+2. Sume una fila en `src/tests/support/action-policy.ts` con su rol y su registro de auditoría: sin esa fila, su suite falla.
+3. Escriba el test que prueba que sin sesión (o con un rol insuficiente) no escribe nada.
+4. La lógica va en un caso de uso de `application/`, no en la action.
+
+**Cambiar la base de datos:** edite `prisma/schema.prisma` y genere una migración nueva con `npx prisma migrate dev --name descripcion` contra su base local. Nunca edite una migración ya mergeada. Anote en el PR que la migración hay que aplicarla en producción (ver `docs/DEPLOY.md`).
+
+**Tests:**
+
+- **Unitarios** en `src/tests/unit/`, con el nombre `*.test.ts`, en una carpeta que repite la capa que prueban (`domain/`, `application/`, `interface/`…). No usan base de datos.
+- **De integración** en `src/tests/integration/infrastructure/`, con el nombre `*.integration.test.ts`. Prueban los repositorios contra un Postgres real. Cada suite nueva se **registra a mano** en `src/tests/support/integration-suites.ts`; si no, no corre.
+
+### Frontend
+
+La interfaz usa **Next.js 16 (App Router)**, **React 19** y **Tailwind 4**.
+
+| Dónde | Qué hay |
+|---|---|
+| `app/admin/` | Una carpeta por sección del panel (`events`, `news`, `faqs`, `usuarios`…); los componentes compartidos del panel, en `app/admin/_components/` |
+| `app/foro/` | El foro de estudiantes: categorías (`c/[slug]`), hilos (`hilo/[id]`) y eventos |
+| `app/login/`, `app/invitacion/` | Acceso y aceptación de invitaciones |
+| `components/ui/` | Componentes base (botón, input, select, switch…) al estilo [shadcn/ui](https://ui.shadcn.com) |
+| `app/globals.css` | Los tokens de diseño (colores, tipografías) en el bloque `@theme` de Tailwind |
+
+**Reglas prácticas:**
+
+- Reutilice los componentes de `components/ui/` antes de crear uno nuevo, y use los colores del `@theme` en lugar de valores sueltos.
+- Las páginas no hablan con Prisma: llaman a una server action o a un caso de uso.
+- El panel se usa mucho desde el celular. Revise cada cambio en **390 px** y en escritorio, con el teclado (Tab) y con el lector de pantalla si agrega un control nuevo.
+- Si su cambio se ve, agregue capturas de antes y después en el PR.
+- Los flujos de pantalla se prueban con Playwright (ver [QA](#qa)); si cambia un flujo crítico, actualice su spec en `e2e/`.
+
+### QA
+
+QA no necesita escribir código para aportar: probar, reproducir y reportar bien también es colaborar.
+
+**Probar y reportar:**
+
+- Pruebe en el entorno local con `npm run seed:demo`, nunca con datos reales.
+- Reporte cada error con la plantilla **Bug** de los issues: qué pasó, cómo se reproduce paso a paso, dispositivo y navegador, y capturas.
+- Para revisar un PR, bájelo (`gh pr checkout <número>`), pruébelo y comente lo que encontró. La sección «Cómo lo probé» de la plantilla del PR dice qué revisar.
+
+**Pruebas automatizadas:**
+
+| Nivel | Dónde | Comando |
+|---|---|---|
+| Unitarias | `src/tests/unit/` | `npm run test` (o `npm run test:coverage`) |
+| Integración | `src/tests/integration/` | `npm run test:integration` |
+| Punta a punta | `e2e/*.spec.ts` | `npm run e2e` (un solo archivo: `npm run e2e -- e2e/forum.spec.ts`) |
+
+- `npm run e2e` levanta su propia base con Docker, construye la app, corre Playwright y borra todo al terminar. Si un test falla en la CI, el job `e2e` sube los resultados (trazas incluidas) como artefacto `e2e-test-results`.
+- La cobertura tiene un umbral mínimo en `vitest.config.ts`: no se baja para que un PR pase. Si baja, faltan tests.
+- Los specs `audit-*.spec.ts` se pueden correr contra una instancia que ya está en marcha con `npx playwright test -c playwright.live.config.ts e2e/<spec>` (sin construir ni crear una base; la URL va en `LIVE_BASE_URL`).
 
 ## Reglas del código que no se negocian
 

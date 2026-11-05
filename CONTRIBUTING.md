@@ -157,7 +157,7 @@ QA no necesita escribir código para aportar: probar, reproducir y reportar bien
 
 - `npm run e2e` levanta su propia base con Docker, construye la app, corre Playwright y borra todo al terminar. Si un test falla en la CI, el job `e2e` sube los resultados (trazas incluidas) como artefacto `e2e-test-results`.
 - La cobertura tiene un umbral mínimo en `vitest.config.ts`: no se baja para que un PR pase. Si baja, faltan tests.
-- Los specs `audit-*.spec.ts` se pueden correr contra una instancia que ya está en marcha con `npx playwright test -c playwright.live.config.ts e2e/<spec>` (sin construir ni crear una base; la URL va en `LIVE_BASE_URL`).
+- Los specs `audit-*.spec.ts` se pueden correr contra una instancia que ya está en marcha con `npm run e2e:live -- e2e/<spec>` (sin construir ni crear una base; la URL va en `LIVE_BASE_URL`, y `ADMIN_PASSWORD` y `DATABASE_URL` tienen que ser los de esa instancia).
 
 ## Reglas del código que no se negocian
 

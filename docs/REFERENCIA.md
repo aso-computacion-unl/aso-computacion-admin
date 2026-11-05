@@ -34,6 +34,7 @@ Content admin for the ASO Computación student association. It manages the conte
 | `npm run test:integration` | Prisma integration tests against the disposable Docker database (`docker-compose.test.yml`) |
 | `npm run e2e` | Playwright end-to-end tests: starts the disposable Docker Postgres, migrates it, runs `next build`, then the tests against `next start` on port 3100, and tears everything down. Needs Docker and Chromium once (`npm run e2e:browsers`). Uses test-only admin credentials unless `ADMIN_PASSWORD`/`ADMIN_SECRET` are set; `TEST_DATABASE_URL` defaults to the canonical test URL. Every feature variable (Google, forum, Turnstile, Cloudinary, cron, preview, deploy hook, Sentry, ...) is forced to empty for the app under test, so a developer's own `.env*` never changes what the specs see (`FEATURE_VARIABLES` in `scripts/run-e2e.mjs`); extra arguments go to `playwright test` (`npm run e2e -- e2e/forum.spec.ts`) |
 | `npm run e2e:browsers` | Installs Chromium (with system libraries) through the Playwright version pinned in the lockfile; what CI runs before `npm run e2e` |
+| `npm run e2e:live` | Playwright against an instance that is already running (`playwright.live.config.ts`): no build and no disposable database; the URL comes from `LIVE_BASE_URL` (default `http://127.0.0.1:3100`), and `ADMIN_PASSWORD` and `DATABASE_URL` must be those of that instance. Used for the `audit-*` specs (`npm run e2e:live -- e2e/audit-admin.spec.ts`) |
 
 Requires Node `>=22.12.0` (see `.nvmrc`).
 

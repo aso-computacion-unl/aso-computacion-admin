@@ -11,7 +11,7 @@
 
 [Sitio público](https://aso-computacion-landing.pages.dev) ·
 [Panel](https://aso-computacion-admin.vercel.app) (acceso solo para la directiva) ·
-[Documentación](#documentación)
+[Documentación](https://aso-computacion-unl.github.io/aso-computacion-admin/)
 
 </div>
 
@@ -90,18 +90,38 @@ Las variables de entorno están explicadas en la [referencia técnica](docs/REFE
 
 El contenido se edita desde el panel, sin tocar el código. Los cambios de código entran por Pull Request contra `main`, con una aprobación y la CI en verde. Los errores y las ideas se reportan abriendo un issue.
 
-La guía completa está en [CONTRIBUTING.md](CONTRIBUTING.md). Las vulnerabilidades se reportan en privado, como indica [SECURITY.md](SECURITY.md).
+La guía completa está en [CONTRIBUTING.md](CONTRIBUTING.md): cómo preparar el entorno local, el flujo de trabajo y una guía para cada rol (backend, frontend y QA). Las vulnerabilidades se reportan en privado, como indica [SECURITY.md](SECURITY.md).
 
 ## Documentación
+
+Toda la documentación del panel y del sitio público se lee en un solo lugar, con buscador: el **[portal de documentación](https://aso-computacion-unl.github.io/aso-computacion-admin/)**. Se publica solo en cada merge a `main` y cada lunes (para recoger los cambios de la landing).
+
+**Por dónde empezar:**
+
+1. [PRODUCT.md](PRODUCT.md): para quién es el panel y qué problema resuelve.
+2. [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md): cómo encajan el panel y el sitio público.
+3. [CONTRIBUTING.md](CONTRIBUTING.md): cómo aportar, según su rol.
 
 | Documento | Para qué sirve |
 |---|---|
 | [README](README.md) | Presentación del proyecto (este documento) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Flujo de trabajo, reglas del código y buenas prácticas para la directiva |
+| [PRODUCT.md](PRODUCT.md) | Para quién es el panel, qué problema resuelve (en inglés) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Flujo de trabajo, guía por rol (backend, frontend, QA), reglas del código y buenas prácticas para la directiva |
+| [Requisitos](docs/portal/requisitos.qmd) | Requisitos funcionales y no funcionales del panel y de la landing, cada uno con dónde se implementa |
+| [Referencia de la API](docs/portal/api.qmd) | Los endpoints del panel, con Swagger UI para probarlos desde el portal; la especificación OpenAPI está en [docs/openapi.yaml](docs/openapi.yaml) |
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | El sistema completo (panel y sitio público): quién es dueño de qué, cómo fluye el contenido, identidades, entornos y CI (en inglés) |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | Despliegue en Vercel, Neon y Cloudinary, con la lista de verificación (en inglés) |
 | [docs/REFERENCIA.md](docs/REFERENCIA.md) | Referencia técnica: reglas, contratos y decisiones (en inglés) |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Despliegue en Vercel, Neon y Cloudinary, con la lista de verificación (en inglés) |
 | [SECURITY.md](SECURITY.md) | Cómo reportar una vulnerabilidad |
+
+### Editar el portal
+
+El portal se arma con [Quarto](https://quarto.org) a partir de los archivos de este repositorio y de la documentación de [`aso-computacion-landing`](https://github.com/aso-computacion-unl/aso-computacion-landing), que se descarga al construirlo. Para editarlo:
+
+- **Cambiar un texto:** edite el `.md` o `.qmd` correspondiente en un PR, como cualquier otro cambio. La documentación de la landing se edita en su propio repositorio.
+- **Agregar una página:** súmela a `render` en `_quarto.yml` (solo se publica lo que está en esa lista) y al menú de navegación del mismo archivo.
+- **Verlo en local:** instale Quarto y ejecute `quarto preview` (necesita Git para descargar la documentación de la landing).
+- **En cada PR**, el workflow `Docs` valida `docs/openapi.yaml` y construye el portal: falla si una página no se puede generar.
 
 ## Licencia
 

@@ -1,4 +1,4 @@
-> Arquitectura del sistema completo (panel de administración y sitio público): quién es dueño de qué, cómo fluye el contenido, identidades, entornos y CI. Para el detalle de cada parte, leé la [referencia técnica](REFERENCIA.md) y la [guía de despliegue](DEPLOY.md); para empezar, el [README](../README.md).
+> Arquitectura del sistema completo (panel de administración y sitio público): quién es dueño de qué, cómo fluye el contenido, identidades, entornos y CI. Para el detalle de cada parte, lea la [referencia técnica](REFERENCIA.md) y la [guía de despliegue](DEPLOY.md); para empezar, el [README](../README.md).
 
 # ASO Computación — System architecture
 

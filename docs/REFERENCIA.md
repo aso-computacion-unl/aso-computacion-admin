@@ -1,4 +1,4 @@
-> Referencia técnica del panel: reglas, contratos y decisiones. Para empezar, leé el [README](../README.md); para ver cómo encaja con el sitio público, [ARQUITECTURA.md](ARQUITECTURA.md).
+> Referencia técnica del panel: reglas, contratos y decisiones. Para empezar, lea el [README](../README.md); para ver cómo encaja con el sitio público, [ARQUITECTURA.md](ARQUITECTURA.md).
 
 # ASO Computación — Admin
 
@@ -406,7 +406,7 @@ Este panel es parte de un proyecto de la comunidad de ASO Computación y la dire
 
 - **Contenido** (eventos, fotos, FAQ, directiva, pilares, redes): se edita en el panel desplegado, sin tocar código.
 - **Código**: Pull Request contra `main`. `main` está protegida, así que todo cambio entra por PR con una aprobación y la CI tiene que pasar en verde (lint, typecheck, tests, integración y build). Conviene correr lo mismo localmente antes de pedir revisión.
-- **Errores e ideas**: abrí un issue con las plantillas del repositorio.
+- **Errores e ideas**: abra un issue con las plantillas del repositorio.
 
 La guía completa, con el flujo de ramas, las reglas de seguridad y privacidad que todo PR respeta y las buenas prácticas para la directiva, está en [CONTRIBUTING.md](../CONTRIBUTING.md). Las vulnerabilidades se reportan en privado según [SECURITY.md](../SECURITY.md).
 

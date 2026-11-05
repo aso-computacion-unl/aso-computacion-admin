@@ -2,11 +2,11 @@
 
 ## Cómo reportar una vulnerabilidad
 
-No abras un issue público. Usá el reporte privado de GitHub:
+No abra un issue público. Use el reporte privado de GitHub:
 
 1. Pestaña **Security** de este repositorio.
 2. **Report a vulnerability**.
-3. Describí qué encontraste, cómo reproducirlo y qué impacto tiene.
+3. Describa qué encontró, cómo reproducirlo y qué impacto tiene.
 
 Solo la directiva y quien mantiene el proyecto ven el reporte. Respondemos en cuanto podamos; es un proyecto estudiantil voluntario, así que pedimos paciencia.
 
@@ -21,6 +21,6 @@ Solo la directiva y quien mantiene el proyecto ven el reporte. Respondemos en cu
 
 ## Qué no hacer
 
-- No pruebes ataques contra el sitio en producción ni contra cuentas de otras personas.
-- No accedas a datos que no son tuyos más allá de lo necesario para demostrar el problema.
-- No envíes inscripciones ni publicaciones de prueba en producción, ni intentes agotar los cupos o los límites de uso.
+- No pruebe ataques contra el sitio en producción ni contra cuentas de otras personas.
+- No acceda a datos que no son suyos más allá de lo necesario para demostrar el problema.
+- No envíe inscripciones ni publicaciones de prueba en producción, ni intente agotar los cupos o los límites de uso.

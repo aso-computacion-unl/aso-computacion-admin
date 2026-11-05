@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Runs specs against an already running local instance (no build, no disposable database). For audits:
- *   ADMIN_PASSWORD=<that instance's password> DATABASE_URL=<its database> npx playwright test -c playwright.live.config.ts e2e/<spec>
+ *   ADMIN_PASSWORD=<that instance's password> DATABASE_URL=<its database> npm run e2e:live -- e2e/<spec>
  * The instance URL comes from LIVE_BASE_URL (default http://127.0.0.1:3100). `npm run e2e` stays the CI path.
  */
 export default defineConfig({

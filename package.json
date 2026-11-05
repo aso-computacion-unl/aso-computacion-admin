@@ -19,6 +19,7 @@
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:browsers": "playwright install --with-deps chromium",
+    "e2e:live": "playwright test -c playwright.live.config.ts",
     "seed:landing": "vite-node --config scripts/seed.vite.config.ts scripts/seed-from-landing.ts --",
     "seed:demo": "vite-node --config scripts/seed.vite.config.ts scripts/seed-demo.ts --",
     "audit:ui": "vite-node --config scripts/seed.vite.config.ts scripts/ui-audit/run.ts --"

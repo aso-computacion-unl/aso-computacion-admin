@@ -19,10 +19,10 @@ Se hace una sola vez. Necesita **Node 22** (la versión exacta está en `.nvmrc`
 
 1. **Una base de Postgres propia para desarrollar.** Nunca use la de producción. Con Docker:
    ```sh
-   docker run -d --name aso-admin-dev -p 5432:5432 \
-     -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=aso_admin_dev postgres:16-alpine
+   npm run db:dev
    ```
-   Su `DATABASE_URL` queda así: `postgresql://postgres:postgres@localhost:5432/aso_admin_dev`. La base que usan los tests (`docker-compose.test.yml`) es otra: la levantan y la borran los propios comandos de test, no la use para desarrollar.
+   Levanta Postgres en segundo plano y espera a que esté listo; los datos se conservan entre ejecuciones. Para apagarlo use `npm run db:dev:stop`.
+   Su `DATABASE_URL` queda así: `postgresql://postgres:postgres@localhost:55432/aso_admin_dev`. La base que usan los tests (`docker-compose.test.yml`) es otra: la levantan y la borran los propios comandos de test, no la use para desarrollar.
 2. **Variables de entorno.** Copie `.env.example` a `.env` y complete los valores `__REPLACE_*__` según la [referencia técnica](docs/REFERENCIA.md#environment-variables). Para entrar sin configurar Google, alcanza con `ADMIN_PASSWORD` (al menos 16 caracteres) y `ADMIN_SECRET` (al menos 32; puede generarlo con `openssl rand -base64 32`). El archivo `.env` nunca se sube a Git.
 3. **Instalar y preparar la base:**
    ```sh

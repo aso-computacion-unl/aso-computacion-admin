@@ -12,6 +12,8 @@
     "lint": "eslint .",
     "postinstall": "prisma generate",
     "typecheck": "next typegen && tsc --noEmit",
+    "db:dev": "docker compose -f docker-compose.dev.yml up -d --wait",
+    "db:dev:stop": "docker compose -f docker-compose.dev.yml stop",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/run-prisma-integration-tests.mjs",

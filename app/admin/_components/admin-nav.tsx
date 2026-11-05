@@ -77,7 +77,8 @@ const TAB_LINK_CLASSES = cn(
 /**
  * The "Más" tab opens a modal sheet with the sections that are not on the bar. A native `<dialog>`
  * gives the focus trap, Escape to close, an inert page behind it and focus back on the tab for free;
- * the sheet closes on navigation and when the screen grows past the phone layout. It has no
+ * the sheet is capped to the space above the tab bar and scrolls inside it, so no item is cut off on a short phone;
+ * it closes on navigation and when the screen grows past the phone layout. It has no
  * animation, so there is nothing for reduced motion to switch off.
  */
 function MoreTab({ pathname, role }: { pathname: string; role: Role }) {
@@ -127,7 +128,7 @@ function MoreTab({ pathname, role }: { pathname: string; role: Role }) {
         onClose={() => setOpen(false)}
         // A click on the backdrop lands on the dialog element itself, outside its content box.
         onClick={(event) => event.target === event.currentTarget && close()}
-        className="fixed inset-x-0 top-auto bottom-[calc(4.25rem+env(safe-area-inset-bottom))] m-0 w-full max-w-none rounded-t border-0 bg-muted p-2 text-foreground shadow-[0_-1px_0_var(--color-border)] backdrop:bg-black/50 lg:hidden"
+        className="fixed inset-x-0 top-auto bottom-[calc(4.25rem+env(safe-area-inset-bottom))] m-0 max-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] w-full max-w-none overflow-y-auto overscroll-contain rounded-t border-0 bg-muted p-2 text-foreground shadow-[0_-1px_0_var(--color-border)] backdrop:bg-scrim lg:hidden"
       >
         <ul className="grid gap-1">
           {items.map((item) => (

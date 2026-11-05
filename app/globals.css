@@ -36,6 +36,8 @@
 	--color-error: #ff9ba2;
 	/* Green text for "open" in the forum: 9:1 or more on every navy step. */
 	--color-ok: #7fe0b0;
+	/* Dim layer behind modal sheets: a dark navy veil that works over both themes. */
+	--color-scrim: color-mix(in srgb, #010d1f 60%, transparent);
 	/* Actions: white on navy, as on the landing. Hover and press step toward the page. */
 	--color-action: #fff;
 	--color-on-action: #03224a;

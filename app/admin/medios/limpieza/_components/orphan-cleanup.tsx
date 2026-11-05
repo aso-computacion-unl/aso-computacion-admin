@@ -102,13 +102,13 @@ export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
       ) : null}
 
       {problem ? (
-        <p role="alert" className="text-sm font-semibold text-signal">
+        <p role="alert" className="text-sm font-semibold text-error">
           {problem}
         </p>
       ) : null}
       {failures.length > 0 ? (
         <div role="alert" className="grid gap-1.5 text-sm">
-          <p className="font-semibold text-signal">{failures.length === 1 ? "1 imagen no se eliminó:" : `${failures.length} imágenes no se eliminaron:`}</p>
+          <p className="font-semibold text-error">{failures.length === 1 ? "1 imagen no se eliminó:" : `${failures.length} imágenes no se eliminaron:`}</p>
           <ul className="grid gap-1 pl-4">
             {failures.map((failure) => (
               <li key={failure.id} className="list-disc wrap-anywhere">

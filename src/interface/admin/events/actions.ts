@@ -10,6 +10,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { TRASH_PATH } from "../trash/paths";
+import { createdEventPath } from "./created-flag";
 import { parseEventFormData } from "./event-form-data";
 import { getEventUseCases } from "./events-container";
 
@@ -33,8 +34,8 @@ export async function createEvent(_prevState: ActionResult | null, formData: For
 
   requestSiteRebuild();
   revalidatePath(LIST_PATH);
-  // Photos need an existing event, so creating continues on its edit page.
-  redirect(editPath(id));
+  // Photos need an existing event, so creating continues on its edit page, aimed at the Photos section.
+  redirect(createdEventPath(editPath(id)));
 }
 
 export async function updateEvent(

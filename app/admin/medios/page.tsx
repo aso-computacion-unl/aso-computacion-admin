@@ -68,7 +68,7 @@ export default async function AdminMediaPage({ searchParams }: { searchParams: P
                   </p>
                 </div>
                 {item.usedBy.length === 0 ? (
-                  <p className="text-sm font-semibold text-signal">Sin uso</p>
+                  <p className="text-sm font-semibold text-error">Sin uso</p>
                 ) : (
                   <ul aria-label={`Dónde se usa ${item.publicId}`} className="grid gap-1 text-sm">
                     {item.usedBy.map((use) => {

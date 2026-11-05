@@ -57,7 +57,7 @@ describe("events server actions", () => {
   });
 
   describe("createEvent", () => {
-    it("parses the form, creates the event and redirects to its edit page", async () => {
+    it("parses the form, creates the event and redirects to its edit page, flagged as just created and aimed at the photos", async () => {
       useCases.create.execute.mockResolvedValue({ id: "new-id" });
 
       await expect(
@@ -94,7 +94,7 @@ describe("events server actions", () => {
         }),
       );
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events");
-      expect(redirectMock).toHaveBeenCalledWith("/admin/events/new-id/edit");
+      expect(redirectMock).toHaveBeenCalledWith("/admin/events/new-id/edit?creado=1#fotos");
     });
 
     it("passes a month-only date through to the use case", async () => {

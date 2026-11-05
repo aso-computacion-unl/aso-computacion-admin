@@ -35,9 +35,9 @@ async function createRegistrableEvent(page: Page, title: string) {
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await page.getByRole("button", { name: "Crear evento" }).click();
-  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
 
-  const id = /\/admin\/events\/([^/]+)\/edit$/.exec(page.url())![1]!;
+  const id = /\/admin\/events\/([^/]+)\/edit(?:[?#].*)?$/.exec(page.url())![1]!;
   const slug = title.toLowerCase().replaceAll(" ", "-");
 
   return { id, slug };

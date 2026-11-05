@@ -137,7 +137,7 @@ export function ReorderableList({ kind, items, offset, total, enabled, label, ch
   return (
     <ReorderContext.Provider value={enabled}>
       {problem ? (
-        <p role="alert" className="mt-4 text-sm font-semibold text-signal">
+        <p role="alert" className="mt-4 text-sm font-semibold text-error">
           {problem}
         </p>
       ) : null}

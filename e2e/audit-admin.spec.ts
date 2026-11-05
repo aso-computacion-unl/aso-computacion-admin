@@ -300,7 +300,7 @@ test.describe("news", () => {
     await expect(feedback).toContainText("Revise 3 campos.");
     await expect(page.getByLabel("Título")).toBeFocused();
     // One announcement for the whole failure: the field errors are read with their fields, not as alerts.
-    await expect(page.getByRole("alert")).toHaveCount(1);
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(1);
 
     await fillNews(page, { title });
     await page.getByRole("button", { name: "Crear noticia" }).click();

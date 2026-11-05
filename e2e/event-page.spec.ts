@@ -32,7 +32,7 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   await page.getByRole("button", { name: "Crear evento" }).click();
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/);
 
-  return { id: /\/admin\/events\/([^/]+)\/edit$/.exec(page.url())![1]!, slug: title.toLowerCase().replaceAll(" ", "-") };
+  return { id: /\/admin\/events\/([^/]+)\/edit(?:#fotos)?$/.exec(page.url())![1]!, slug: title.toLowerCase().replaceAll(" ", "-") };
 }
 
 /** From here on the browser is a visitor: no admin cookie, no forum cookie. */

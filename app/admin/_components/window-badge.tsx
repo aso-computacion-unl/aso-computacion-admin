@@ -11,8 +11,8 @@ export function WindowBadge({ badge, className }: { badge: WindowBadgeData | nul
     <span className={cn("inline-flex flex-wrap items-center gap-x-2 gap-y-0.5", className)}>
       <span
         className={cn(
-          "inline-flex h-6 items-center rounded-xs bg-muted px-2 font-mono text-xs leading-none font-semibold",
-          badge.label === "Programado" ? "text-sky" : "text-signal",
+          "inline-flex h-6 items-center rounded-xs px-2 font-mono text-xs leading-none font-semibold",
+          badge.label === "Programado" ? "bg-muted text-sky" : "bg-signal text-destructive-foreground",
         )}
       >
         {badge.label}

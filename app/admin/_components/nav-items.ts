@@ -20,7 +20,7 @@ export const MODULE_NAV: readonly NavItem[] = [
   { href: "/admin/board", label: "Directiva", icon: "board", action: { href: "/admin/board/new", label: "Agregar integrante" } },
   { href: "/admin/pillars", label: "Pilares", icon: "pillars", action: { href: "/admin/pillars/new", label: "Nuevo pilar" } },
   { href: "/admin/socials", label: "Redes", icon: "share", action: { href: "/admin/socials/new", label: "Agregar red" } },
-  { href: "/admin/sponsors", label: "Aliados", icon: "image", action: { href: "/admin/sponsors/new", label: "Nuevo aliado" } },
+  { href: "/admin/sponsors", label: "Aliados", icon: "star", action: { href: "/admin/sponsors/new", label: "Nuevo aliado" } },
   { href: "/admin/settings", label: "Sitio", icon: "site", adminOnly: true, action: { href: "/admin/settings", label: "Editar textos" } },
 ];
 
@@ -44,9 +44,9 @@ export const FORUM_CATEGORIES_NAV: NavItem = { href: "/admin/foro/categorias", l
 /** Preview codes and sessions are for everyone (an editor sees and revokes their own sessions); users and the audit log are the admin's. */
 export const ACCOUNT_NAV: readonly NavItem[] = [
   { href: "/admin/vista-previa", label: "Vista previa", icon: "eye" },
-  { href: "/admin/sesiones", label: "Sesiones", icon: "eye" },
-  { href: "/admin/usuarios", label: "Usuarios", icon: "board", adminOnly: true },
-  { href: "/admin/registro", label: "Registro", icon: "news", adminOnly: true },
+  { href: "/admin/sesiones", label: "Sesiones", icon: "monitor" },
+  { href: "/admin/usuarios", label: "Usuarios", icon: "users", adminOnly: true },
+  { href: "/admin/registro", label: "Registro", icon: "history", adminOnly: true },
 ];
 
 export function visibleTo(items: readonly NavItem[], role: Role): NavItem[] {
@@ -79,7 +79,14 @@ export function sideNav(role: Role): NavItem[] {
   return sideNavGroups(role).flatMap((group) => group.items);
 }
 
+/** What the "Más" sheet shows: the sidebar's groups and labels minus the tab bar's modules; a group left empty is dropped. */
+export function moreNavGroups(role: Role): NavGroup[] {
+  return sideNavGroups(role)
+    .map((group) => ({ ...group, items: group.items.filter((item) => !TAB_HREFS.includes(item.href)) }))
+    .filter((group) => group.items.length > 0);
+}
+
 /** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */
 export function moreNav(role: Role): NavItem[] {
-  return [HOME_NAV, ...visibleTo(MODULE_NAV, role).filter((item) => !TAB_HREFS.includes(item.href)), MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, ...visibleTo([FORUM_CATEGORIES_NAV], role), ...visibleTo(ACCOUNT_NAV, role)];
+  return moreNavGroups(role).flatMap((group) => group.items);
 }

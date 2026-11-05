@@ -167,13 +167,13 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
         ) : null}
 
         {problem ? (
-          <p role="alert" className="text-sm font-semibold text-signal">
+          <p role="alert" className="text-sm font-semibold text-error">
             {problem}
           </p>
         ) : null}
         {failures.length > 0 ? (
           <div role="alert" className="grid gap-1.5 text-sm">
-            <p className="font-semibold text-signal">
+            <p className="font-semibold text-error">
               {failures.length === 1 ? "1 elemento no se pudo procesar; sigue seleccionado:" : `${failures.length} elementos no se pudieron procesar; siguen seleccionados:`}
             </p>
             <ul className="grid gap-1 pl-4">

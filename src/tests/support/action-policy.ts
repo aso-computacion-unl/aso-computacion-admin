@@ -128,6 +128,7 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
   "src/interface/admin/sessions/actions.ts": {
     // Anyone may revoke their own sessions; revoking someone else's takes ADMIN (checked by the use case).
     revokeSession: { role: "EDITOR", audit: "session.revoke" },
+    revokeOtherSessions: { role: "EDITOR", audit: "session.revoke_others" },
   },
 };
 

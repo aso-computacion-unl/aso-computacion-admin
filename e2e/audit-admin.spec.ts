@@ -300,7 +300,7 @@ test.describe("news", () => {
     await expect(feedback).toContainText("Revise 3 campos.");
     await expect(page.getByLabel("Título")).toBeFocused();
     // One announcement for the whole failure: the field errors are read with their fields, not as alerts.
-    await expect(page.getByRole("alert")).toHaveCount(1);
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(1);
 
     await fillNews(page, { title });
     await page.getByRole("button", { name: "Crear noticia" }).click();
@@ -493,7 +493,7 @@ test.describe("events", () => {
     await page.getByLabel("Puntos destacados").fill(highlights.join("\n\n"));
     await setSwitch(page, /Publicado/, true);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     type PublicEvent = { title: string; slug: string; date: string; datePrecision: string; linkUrl: string; linkLabel: string; highlights: string[]; lugar: string; commitMessage: string };
     const find = async () => ((await publicContent(page)).events as PublicEvent[]).find((event) => event.title === title);
@@ -530,7 +530,7 @@ test.describe("events", () => {
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(title);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(`Otro ${STAMP}`);
@@ -541,7 +541,7 @@ test.describe("events", () => {
     await page.getByLabel("Título").fill("日本語🚀");
     await page.getByLabel("Identificador (slug)").fill("");
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
     await expect(page.getByLabel("Identificador (slug)")).toHaveValue(/^evento(-\d+)?$/, SLOW);
     await context.close();
   });
@@ -864,6 +864,10 @@ test.describe("site settings", () => {
     await page.getByLabel("Lema").fill("");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();
+    // A fresh database opens the form with every field blank: the empty ones are told all at once, before any
+    // over-long value can reach the server, so the other fields get valid texts first.
+    await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
+    await page.getByLabel("Acerca de").fill(saved.about || "Acerca de auditoría");
     await fillPastLimit(page.getByLabel("Lema"), "L".repeat(121));
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();
@@ -1093,7 +1097,7 @@ test.describe("trash", () => {
       await page.getByLabel("Título").fill(eventTitle);
       await page.getByLabel("Identificador (slug)").fill(eventSlug);
       await page.getByRole("button", { name: "Crear evento" }).click();
-      await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+      await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
     };
 
     await create(title, slug);
@@ -1238,7 +1242,7 @@ test.describe("faqs and line breaks", () => {
     await page.getByLabel("Descripción", { exact: true }).fill(description);
     await setSwitch(page, /Publicado/, true);
     await page.getByRole("button", { name: "Crear evento" }).click();
-    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     const event = ((await publicContent(page)).events as { title: string; description: string }[]).find((item) => item.title === title);
 

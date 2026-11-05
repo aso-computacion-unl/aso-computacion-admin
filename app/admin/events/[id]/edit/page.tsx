@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { EVENT_PHOTO_MIN_WIDTH } from "@/application";
 import { Button } from "@/components/ui/button";
 import { updateEvent } from "@/interface/admin/events/actions";
+import { CREATED_FLAG, PHOTOS_SECTION_ID } from "@/interface/admin/events/created-flag";
 import { eventToFormValues } from "@/interface/admin/events/event-form-values";
 import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
 import { FormLayout, Panel } from "../../../_components/form-layout";
 import { SectionJumps } from "../../../_components/section-jumps";
+import { EventCreatedArrival } from "../../_components/event-created-arrival";
 import { EventForm } from "../../_components/event-form";
 import { PhotoGallery } from "../../_components/photo-gallery";
 
@@ -17,10 +19,12 @@ export const dynamic = "force-dynamic";
 
 interface EditEventPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [CREATED_FLAG]?: string | string[] }>;
 }
 
-export default async function EditEventPage({ params }: EditEventPageProps) {
+export default async function EditEventPage({ params, searchParams }: EditEventPageProps) {
   const { id } = await params;
+  const justCreated = (await searchParams)[CREATED_FLAG] === "1";
   const event = await getAdminEvent(id);
 
   if (!event) notFound();
@@ -36,7 +40,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       title="Editar evento"
       status={recordStatus(event.slug, event.isPublished, "m")}
       aside={
-        <div id="fotos" className={anchor}>
+        <div id={PHOTOS_SECTION_ID} className={anchor}>
           <PhotoGallery
             eventId={id}
             minWidth={EVENT_PHOTO_MIN_WIDTH}
@@ -45,11 +49,12 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
         </div>
       }
     >
+      {justCreated ? <EventCreatedArrival /> : null}
       <SectionJumps
         label="Secciones del evento"
         items={[
           { href: "#datos", label: "Datos" },
-          { href: "#fotos", label: `Fotos (${event.photos.length})` },
+          { href: `#${PHOTOS_SECTION_ID}`, label: `Fotos (${event.photos.length})` },
           ...(takesRegistrations ? [{ href: "#inscripciones" as const, label: "Inscripciones" }] : []),
         ]}
       />

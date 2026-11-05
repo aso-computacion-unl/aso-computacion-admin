@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { act, createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/interface/admin/bulk/actions", () => ({ bulkSetPublished: vi.fn(), bulkTrash: vi.fn() }));
@@ -70,5 +70,56 @@ describe("the selection bar", () => {
     expect(section.className).toContain("sticky");
     expect(section.className).toMatch(/bottom-/);
     expect(host.querySelector("ul")!.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  describe("focus when the bar hides", () => {
+    const master = (host: HTMLElement) => bar(host)!.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const clear = (host: HTMLElement) => [...bar(host)!.querySelectorAll("button")].find((button) => button.textContent === "Limpiar selección")!;
+    const focus = (element: HTMLElement) => act(async () => element.focus());
+
+    it("moves to the first row checkbox when «Limpiar selección» had focus", async () => {
+      const host = await mountList();
+
+      await click(row(host, "Charla de Docker"));
+      await focus(clear(host));
+      await click(clear(host));
+
+      expect(bar(host)).toBeNull();
+      expect(document.activeElement).toBe(row(host, "Taller de Git"));
+    });
+
+    it("moves to the first row checkbox when the select-all box had focus and deselects everything", async () => {
+      const host = await mountList();
+
+      await click(row(host, "Taller de Git"));
+      await click(master(host));
+      await focus(master(host));
+      await click(master(host));
+
+      expect(bar(host)).toBeNull();
+      expect(document.activeElement).toBe(row(host, "Taller de Git"));
+    });
+
+    it("leaves focus alone when the bar stays visible", async () => {
+      const host = await mountList();
+
+      await click(row(host, "Taller de Git"));
+      await focus(master(host));
+      await click(master(host));
+
+      expect(bar(host)).not.toBeNull();
+      expect(document.activeElement).toBe(master(host));
+    });
+
+    it("leaves focus alone when it was outside the bar", async () => {
+      const host = await mountList();
+
+      await click(row(host, "Charla de Docker"));
+      await focus(row(host, "Charla de Docker"));
+      await click(clear(host));
+
+      expect(bar(host)).toBeNull();
+      expect(document.activeElement).toBe(row(host, "Charla de Docker"));
+    });
   });
 });

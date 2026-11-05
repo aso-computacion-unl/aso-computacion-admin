@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type RefObject } from "react";
 
 import { Button } from "@/components/ui/button";
 import { bulkSetPublished, bulkTrash } from "@/interface/admin/bulk/actions";
@@ -16,6 +16,9 @@ interface SelectionApi {
   selected: ReadonlySet<string>;
   toggle: (id: string) => void;
   disabled: boolean;
+  /** The first row's id and checkbox: where focus goes when the bar it was on disappears. */
+  firstId: string | undefined;
+  firstRow: RefObject<HTMLInputElement | null>;
 }
 
 const SelectionContext = createContext<SelectionApi | null>(null);
@@ -30,6 +33,7 @@ export function BulkCheckbox({ id, label }: { id: string; label: string }) {
     <label className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center">
       <input
         type="checkbox"
+        ref={selection.firstId === id ? selection.firstRow : undefined}
         checked={selection.selected.has(id)}
         disabled={selection.disabled}
         onChange={() => selection.toggle(id)}
@@ -66,6 +70,8 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
   const [pending, startTransition] = useTransition();
   const { notify } = useToast();
   const master = useRef<HTMLInputElement>(null);
+  const firstRow = useRef<HTMLInputElement>(null);
+  const focusWasInBar = useRef(false);
   const labels = useMemo(() => new Map(items.map((item) => [item.id, item.label])), [items]);
   const ids = useMemo(() => items.map((item) => item.id), [items]);
 
@@ -79,6 +85,17 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
       return kept.length === previous.size ? previous : new Set(kept);
     });
   }, [labels]);
+
+  // A failed run keeps its reason on screen even if the rows it names have left the page.
+  const showBar = selected.size > 0 || confirming !== null || problem !== null || failures.length > 0;
+
+  // A control that held focus left with the bar: land on the list instead of losing the place to the page start.
+  useEffect(() => {
+    if (showBar || !focusWasInBar.current) return;
+
+    focusWasInBar.current = false;
+    firstRow.current?.focus();
+  }, [showBar]);
 
   const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
 
@@ -116,20 +133,27 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
   }
 
   const api = useMemo<SelectionApi>(
-    () => ({ selected, toggle: (id) => setSelected((previous) => toggle(previous, id)), disabled: pending }),
-    [selected, pending],
+    () => ({ selected, toggle: (id) => setSelected((previous) => toggle(previous, id)), disabled: pending, firstId: ids[0], firstRow }),
+    [selected, pending, ids],
   );
 
-  if (items.length === 0 || !enabled) return <>{children}</>;
+  // React calls the cleanup just before it takes the bar out of the page, while focus is still where it was.
+  const watchFocus = useCallback((bar: HTMLElement | null) => {
+    if (!bar) return undefined;
 
-  // A failed run keeps its reason on screen even if the rows it names have left the page.
-  const showBar = selected.size > 0 || confirming !== null || problem !== null || failures.length > 0;
+    return () => {
+      focusWasInBar.current = bar.contains(document.activeElement);
+    };
+  }, []);
+
+  if (items.length === 0 || !enabled) return <>{children}</>;
 
   return (
     <SelectionContext.Provider value={api}>
       {children}
       {showBar ? (
         <section
+          ref={watchFocus}
           aria-label="Acciones en lote"
           className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 mt-5 grid gap-3 rounded bg-card p-3 shadow-[0_-1px_0_var(--color-border)] md:px-4 lg:bottom-3"
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type RefObject } from "react";
 
 import type { ActionResult } from "@/interface/admin/action-result";
 import { fieldMessage } from "@/interface/admin/field-messages";
@@ -60,6 +60,54 @@ export function useFocusFirstInvalid(result: ActionResult | null, formRef: RefOb
   }, [result, formRef]);
 }
 
+// Which forms on the page hold changes that were never saved: the back link asks before it leaves while any does.
+const unsavedForms = new Set<symbol>();
+const unsavedListeners = new Set<() => void>();
+
+function announceUnsavedChange() {
+  for (const listener of unsavedListeners) listener();
+}
+
+/**
+ * While `dirty`, the browser asks before the tab closes or reloads, and `useHasUnsavedChanges` says so to the
+ * rest of the page (the back link). It does not catch a click on another in-app link: only the back link asks.
+ */
+export function useUnsavedChangesGuard(dirty: boolean) {
+  useEffect(() => {
+    if (!dirty) return;
+
+    const form = Symbol("unsaved form");
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    unsavedForms.add(form);
+    announceUnsavedChange();
+    window.addEventListener("beforeunload", warn);
+
+    return () => {
+      unsavedForms.delete(form);
+      announceUnsavedChange();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [dirty]);
+}
+
+export function useHasUnsavedChanges(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      unsavedListeners.add(listener);
+
+      return () => unsavedListeners.delete(listener);
+    },
+    () => unsavedForms.size > 0,
+    () => false,
+  );
+}
+
+const differs = <V extends object>(a: V, b: V) => (Object.keys(a) as (keyof V)[]).some((key) => a[key] !== b[key]);
+
 /**
  * Keeps the form values in state and submits them by hand through
  * `startTransition`, never through `<form action>`: React 19 empties
@@ -75,9 +123,20 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
   // The browser check's outcome lasts until the server answers a later submit, which replaces it.
   const [clientCheck, setClientCheck] = useState<{ result: ActionResult; over: ActionResult | null } | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  // What the server last stored, to tell a form with unsaved changes from one the owner only opened.
+  const [stored, setStored] = useState(initialValues);
+  const [submitted, setSubmitted] = useState(initialValues);
+  const [answered, setAnswered] = useState(serverState);
   const state = clientCheck && clientCheck.over === serverState ? clientCheck.result : serverState;
 
   useFocusFirstInvalid(state, formRef);
+  useUnsavedChangesGuard(differs(values, stored));
+
+  // A save the server accepted makes what was submitted the stored text.
+  if (answered !== serverState) {
+    setAnswered(serverState);
+    if (serverState?.success) setStored(submitted);
+  }
 
   function bind<K extends StringKeys<V>>(key: K) {
     return {
@@ -109,12 +168,14 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     setClientCheck({ result: invalid ? { fieldErrors } : {}, over: serverState });
     if (invalid) return;
 
+    setSubmitted(values);
     startTransition(() => formAction((options.serialize ?? toFormData)(values)));
   }
 
   /** Back to the initial values, e.g. after a form that adds one more row saved. */
   function reset() {
     setValues(initialValues);
+    setStored(initialValues);
   }
 
   return { values, bind, toggle, handleSubmit, reset, setValues, state, isPending, errors: state?.fieldErrors ?? {} };

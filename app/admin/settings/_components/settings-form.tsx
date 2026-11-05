@@ -18,7 +18,7 @@ import {
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { FormColumns, Panel, StickyAside } from "../../_components/form-layout";
-import { collectFieldErrors, useFocusFirstInvalid } from "../../_components/use-controlled-form";
+import { collectFieldErrors, useFocusFirstInvalid, useUnsavedChangesGuard } from "../../_components/use-controlled-form";
 import { SettingsPreview } from "./settings-preview";
 import { SettingsReadView } from "./settings-read-view";
 
@@ -65,18 +65,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
     (editing ? firstFieldRef : editButtonRef).current?.focus();
   }, [editing, state.mode]);
 
-  useEffect(() => {
-    if (!dirty) return;
-
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", warn);
-
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useUnsavedChangesGuard(dirty);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

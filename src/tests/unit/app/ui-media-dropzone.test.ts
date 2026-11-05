@@ -97,6 +97,26 @@ describe("every upload screen uses the shared drop zone", () => {
     expect(html).toContain("Elegir fotos");
     expect(html).toContain("o arrastrarlas aquí");
   });
+
+  it("sizes the picked-photo cards by the panel width, not the window width", async () => {
+    Object.assign(URL, { createObjectURL: () => "blob:preview", revokeObjectURL: () => undefined });
+    const host = await mount(createElement(PhotoUploadForm, { eventId: "e", activeCount: 0, minWidth: 1200 }));
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+
+    Object.defineProperty(input, "files", { value: [new File(["x"], "foto.jpg", { type: "image/jpeg" })], configurable: true });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const list = host.querySelector('ul[aria-label="Fotos por subir"]')!;
+    const card = list.querySelector("li")!;
+    const viewportBreakpoint = /(^|\s)(sm|md|lg|xl|2xl):/;
+
+    expect(list.closest(".\\@container")).not.toBeNull();
+    expect(list.className).not.toMatch(viewportBreakpoint);
+    expect(card.className).not.toMatch(viewportBreakpoint);
+    expect(card.textContent).toContain("Descripción");
+  });
 });
 
 describe("a single-image panel", () => {

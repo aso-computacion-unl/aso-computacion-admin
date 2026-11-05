@@ -24,8 +24,8 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
     <FormLayout
       backHref="/admin/pillars"
       backLabel="Volver a pilares"
-      title="Editar pilar"
-      status={recordStatus(pillar.title, pillar.isPublished, "m")}
+      title={pillar.title}
+      status={recordStatus(pillar.isPublished, "m")}
       aside={<PillarImagePanel key={pillar.image?.url ?? "no-image"} pillarId={id} image={pillar.image} />}
     >
       {/* Keyed by the image so the alt field and the panel start fresh after a replace or remove. */}

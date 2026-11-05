@@ -57,6 +57,42 @@ describe("MediaDropzone", () => {
     expect(html).toContain("1.2 MB");
   });
 
+  it("marks itself while a file is dragged over it, and stops when the drag leaves or the file drops", async () => {
+    const host = await mount(createElement(MediaDropzone, { title: "Elegir foto", rules: "r", accept: ACCEPT, ariaLabel: "Elegir foto", onFiles: () => undefined }));
+    const zone = host.querySelector<HTMLElement>('[data-slot="media-dropzone"]')!;
+    const input = zone.querySelector("input")!;
+    const fire = async (type: string) => {
+      await act(async () => {
+        input.dispatchEvent(new Event(type, { bubbles: true }));
+      });
+    };
+
+    expect(zone.dataset.dragging).toBeUndefined();
+
+    await fire("dragenter");
+    expect(zone.dataset.dragging).toBe("true");
+
+    await fire("dragleave");
+    expect(zone.dataset.dragging).toBeUndefined();
+
+    await fire("dragover");
+    expect(zone.dataset.dragging).toBe("true");
+
+    await fire("drop");
+    expect(zone.dataset.dragging).toBeUndefined();
+  });
+
+  it("ignores a drag while it is disabled", async () => {
+    const host = await mount(createElement(MediaDropzone, { title: "Elegir foto", rules: "r", accept: ACCEPT, ariaLabel: "Elegir foto", disabled: true, onFiles: () => undefined }));
+    const zone = host.querySelector<HTMLElement>('[data-slot="media-dropzone"]')!;
+
+    await act(async () => {
+      zone.dispatchEvent(new Event("dragenter", { bubbles: true }));
+    });
+
+    expect(zone.dataset.dragging).toBeUndefined();
+  });
+
   it("hands the picked files to its owner as an array", async () => {
     const onFiles = vi.fn();
     const host = await mount(createElement(MediaDropzone, { title: "Elegir foto", rules: "r", accept: ACCEPT, ariaLabel: "Elegir foto", onFiles }));

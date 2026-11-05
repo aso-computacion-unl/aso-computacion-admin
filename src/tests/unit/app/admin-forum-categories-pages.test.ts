@@ -119,7 +119,7 @@ describe("the edit forum category page", () => {
 
     const html = await renderEdit("c1");
 
-    expect(html).toContain("Editar categoría");
+    expect(html).toMatch(/<h1[^>]*>Programación<\/h1>/);
     expect(html).toContain('value="Programación"');
     expect(html).toContain('value="programacion"');
     expect(html).toContain("Código y errores");

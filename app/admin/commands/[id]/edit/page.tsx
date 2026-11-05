@@ -23,8 +23,8 @@ export default async function EditCommandPage({ params }: EditCommandPageProps) 
     <FormLayout
       backHref="/admin/commands"
       backLabel="Volver a comandos"
-      title="Editar comando"
-      status={recordStatus(command.command, command.isPublished, "m")}
+      title={command.command}
+      status={recordStatus(command.isPublished, "m")}
     >
       <Panel>
         <CommandForm

@@ -10,6 +10,7 @@ import type { ActionResult } from "@/interface/admin/action-result";
 
 import { FieldError } from "./form-parts";
 import { formatFileSize, MediaDropzone } from "./media-dropzone";
+import { SectionTitle } from "./section-title";
 import { Panel } from "./form-layout";
 import { DeleteButton } from "./row-actions";
 import { useRunAction } from "./use-run-action";
@@ -74,9 +75,7 @@ export function SingleImagePanel({ heading, subject, image, altField, upload, re
 
   return (
     <Panel aria-labelledby={`${id}-heading`} className="grid gap-5">
-      <h2 id={`${id}-heading`} className="text-lg font-bold font-stretch-[112%]">
-        {heading}
-      </h2>
+      <SectionTitle id={`${id}-heading`}>{heading}</SectionTitle>
 
       {image ? (
         <div className="grid justify-items-start gap-3">

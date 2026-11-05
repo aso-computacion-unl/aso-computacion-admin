@@ -29,6 +29,10 @@ describe("ListSearch", () => {
     expect(html).toContain('name="q"');
   });
 
+  it("fills the field with the card colour in the light theme, so it does not look disabled on the page", () => {
+    expect(search()).toContain("[:root[data-theme=light]_&amp;]:bg-card");
+  });
+
   it("is labelled and bounded to the maximum search length", () => {
     const html = search();
 

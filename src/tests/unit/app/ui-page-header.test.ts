@@ -68,41 +68,45 @@ describe("PageHeader", () => {
 });
 
 describe("recordStatus", () => {
-  it("joins the record's name and its state, in the record's gender", () => {
-    expect(recordStatus("Hackathon", true, "m")).toBe("Hackathon · publicado");
-    expect(recordStatus("¿Quién puede participar?", false, "f")).toBe("¿Quién puede participar? · borrador");
-    expect(recordStatus("Lanzamiento", true, "f")).toBe("Lanzamiento · publicada");
+  it("says the record's state in its gender, and puts a slug in front when the record has one", () => {
+    expect(recordStatus(true, "m")).toBe("publicado");
+    expect(recordStatus(false, "f")).toBe("borrador");
+    expect(recordStatus(true, "f")).toBe("publicada");
+    expect(recordStatus(true, "m", "hackathon-2026")).toBe("hackathon-2026 · publicado");
   });
 
-  it("shortens a long name so the state is never cut off", () => {
-    const status = recordStatus("a".repeat(200), true, "m");
+  it("shortens a long slug so the state is never cut off", () => {
+    const status = recordStatus(true, "m", "a".repeat(200));
 
     expect(status.endsWith("… · publicado")).toBe(true);
     expect(status.length).toBeLessThan(80);
   });
 });
 
-describe("every edit page names its record and its state", () => {
+describe("every edit page is titled with its record and says its state", () => {
   beforeEach(() => {
     for (const read of Object.values(reads)) read.mockReset();
   });
 
   const params = { params: Promise.resolve({ id: "x" }) };
   const cases = [
-    ["faqs", reads.faq, EditFaqPage, { question: "¿Quién puede participar?", answer: "Todos.", command: null, isPublished: true }, "¿Quién puede participar? · publicada"],
-    ["commands", reads.command, EditCommandPage, { command: "eventos", description: "d", output: "o", isPublished: false }, "eventos · borrador"],
-    ["pillars", reads.pillar, EditPillarPage, { word: "w", title: "Comunidad", text: "t", image: null, isPublished: true }, "Comunidad · publicado"],
-    ["socials", reads.social, EditSocialLinkPage, { platform: "instagram", label: "Instagram", handle: "@aso", url: "https://x.test", note: null, blurb: null, isPublished: false }, "Instagram · borrador"],
-    ["board", reads.board, EditBoardMemberPage, { name: "Emilio Jaramillo", role: "Presidente", photo: null, isPublished: true }, "Emilio Jaramillo · publicado"],
-    ["sponsors", reads.sponsor, EditSponsorPage, { name: "Acme", url: null, logo: null, isPublished: false }, "Acme · borrador"],
+    ["faqs", reads.faq, EditFaqPage, { question: "¿Quién puede participar?", answer: "Todos.", command: null, isPublished: true }, "¿Quién puede participar?", "publicada"],
+    ["commands", reads.command, EditCommandPage, { command: "eventos", description: "d", output: "o", isPublished: false }, "eventos", "borrador"],
+    ["pillars", reads.pillar, EditPillarPage, { word: "w", title: "Comunidad", text: "t", image: null, isPublished: true }, "Comunidad", "publicado"],
+    ["socials", reads.social, EditSocialLinkPage, { platform: "instagram", label: "Instagram", handle: "@aso", url: "https://x.test", note: null, blurb: null, isPublished: false }, "Instagram", "borrador"],
+    ["board", reads.board, EditBoardMemberPage, { name: "Emilio Jaramillo", role: "Presidente", photo: null, isPublished: true }, "Emilio Jaramillo", "publicado"],
+    ["sponsors", reads.sponsor, EditSponsorPage, { name: "Acme", url: null, logo: null, isPublished: false }, "Acme", "borrador"],
   ] as const;
 
-  it.each(cases)("%s", async (_module, read, Page, record, status) => {
+  it.each(cases)("%s", async (_module, read, Page, record, title, state) => {
     read.mockResolvedValue(record);
 
     const html = renderToStaticMarkup(await Page(params));
+    const escape = (text: string) => text.replace(/[?¿]/g, "\\$&");
 
     expect(html).toContain('data-slot="page-header"');
-    expect(html).toMatch(new RegExp(`<p[^>]*font-mono[^>]*>${status.replace(/[?¿]/g, "\\$&")}</p>`));
+    expect(html).toMatch(new RegExp(`<h1[^>]*>${escape(title)}</h1>`));
+    expect(html).toMatch(new RegExp(`<p[^>]*font-mono[^>]*>${state}</p>`));
+    expect(html).not.toMatch(/<h1[^>]*>Editar /);
   });
 });

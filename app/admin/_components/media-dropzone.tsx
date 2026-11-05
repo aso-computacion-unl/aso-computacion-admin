@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
@@ -36,13 +36,22 @@ interface MediaDropzoneProps {
  */
 export function MediaDropzone({ title, rules, accept, multiple = false, disabled = false, inputKey, ariaLabel, describedBy, invalid, chosen, onFiles }: MediaDropzoneProps) {
   const rulesId = useId();
+  // The invisible input covers the zone, so it receives the drag events: leaving it means leaving the zone.
+  const [dragging, setDragging] = useState(false);
+  const drag = (over: boolean) => () => setDragging(over && !disabled);
 
   return (
     <label
       data-slot="media-dropzone"
+      data-dragging={dragging || undefined}
+      onDragEnter={drag(true)}
+      onDragOver={drag(true)}
+      onDragLeave={drag(false)}
+      onDrop={drag(false)}
       className={cn(
         "relative grid cursor-pointer justify-items-center gap-1.5 rounded border-2 border-dashed border-foreground/45 bg-muted/55 px-4 py-5 text-center",
         "transition-colors duration-150 ease-out hover:border-action hover:bg-foreground/8 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-sky",
+        "data-[dragging=true]:border-solid data-[dragging=true]:border-action data-[dragging=true]:bg-action/15",
         invalid && "border-error/70",
         disabled && "pointer-events-none opacity-50",
       )}

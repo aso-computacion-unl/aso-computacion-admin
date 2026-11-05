@@ -37,8 +37,8 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
     <FormLayout
       backHref="/admin/events"
       backLabel="Volver a eventos"
-      title="Editar evento"
-      status={recordStatus(event.slug, event.isPublished, "m")}
+      title={event.title}
+      status={recordStatus(event.isPublished, "m", event.slug)}
       aside={
         <div id={PHOTOS_SECTION_ID} className={anchor}>
           <PhotoGallery

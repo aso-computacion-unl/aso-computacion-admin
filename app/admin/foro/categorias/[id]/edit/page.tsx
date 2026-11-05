@@ -22,8 +22,8 @@ export default async function EditForumCategoryPage({ params }: EditForumCategor
     <FormLayout
       backHref={CATEGORIES_PATH}
       backLabel="Volver a categorías"
-      title="Editar categoría"
-      status={`${category.name} · ${pluralize(category.threadCount, "hilo", "hilos")}`}
+      title={category.name}
+      status={pluralize(category.threadCount, "hilo", "hilos")}
     >
       <Panel>
         <CategoryForm mode="edit" id={id} initialValues={{ name: category.name, description: category.description ?? "", slug: category.slug }} />

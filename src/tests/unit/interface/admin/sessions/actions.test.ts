@@ -23,7 +23,7 @@ describe("session server actions", () => {
   });
 
   it("the guard is the first statement of every action", () => {
-    expect(expectGuardFirstInEveryAction("src/interface/admin/sessions/actions.ts")).toEqual(["revokeSession"]);
+    expect(expectGuardFirstInEveryAction("src/interface/admin/sessions/actions.ts")).toEqual(["revokeSession", "revokeOtherSessions"]);
   });
 
   it("rejects without a session and revokes nothing", async () => {
@@ -99,6 +99,110 @@ describe("session server actions", () => {
 
       expect(await actions.revokeSession(target.sessionId)).toEqual({ success: true });
       expect(revoked(target.sessionId)).toBe(true);
+    });
+  });
+
+  describe("revokeOtherSessions", () => {
+    it("rejects without a session and revokes nothing", async () => {
+      const stray = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "ghost" } });
+      cookieJar(cookiesMock, undefined);
+
+      expect(await actions.revokeOtherSessions("ghost")).toEqual({ error: SESSION_EXPIRED_MESSAGE });
+      expect(revoked(stray.sessionId)).toBe(false);
+      expect(testAuth.audit.entries).toEqual([]);
+    });
+
+    it("an editor closes their other sessions, keeps the current one, and one audit entry is written", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      const [current] = idsOf("test-editor") as [string];
+      const a = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      const b = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+
+      expect(await actions.revokeOtherSessions("test-editor")).toEqual({ success: true });
+
+      expect([revoked(a.sessionId), revoked(b.sessionId), revoked(current)]).toEqual([true, true, false]);
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.actorUserId])).toEqual([
+        ["session.revoke_others", "session", "test-editor", "test-editor"],
+      ]);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
+    });
+
+    it("an editor cannot close someone else's sessions: forbidden, nothing changes, nothing is audited", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      testAuth.users.users.set("ben", makeUser({ id: "ben", email: "ben@example.org" }));
+      const bens = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "ben" } });
+      await signInAs("ADMIN");
+
+      for (const userId of ["ben", "test-admin"]) {
+        expect(await actions.revokeOtherSessions(userId)).toEqual({ error: FORBIDDEN_MESSAGE });
+      }
+
+      expect(idsOf("test-admin").some(revoked) || revoked(bens.sessionId)).toBe(false);
+      expect(testAuth.audit.entries).toEqual([]);
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+    });
+
+    it("an admin closes another person's sessions, and their own others without touching the current one", async () => {
+      cookieJar(cookiesMock, await signInAs("ADMIN"));
+      const [current] = idsOf("test-admin") as [string];
+      testAuth.users.users.set("ben", makeUser({ id: "ben", email: "ben@example.org" }));
+      const bens = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "ben" } });
+      const mine = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-admin" } });
+
+      expect(await actions.revokeOtherSessions("ben")).toEqual({ success: true });
+      expect(await actions.revokeOtherSessions("test-admin")).toEqual({ success: true });
+
+      expect([revoked(bens.sessionId), revoked(mine.sessionId), revoked(current)]).toEqual([true, true, false]);
+    });
+
+    it("writes no audit entry when there was nothing to close", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+      expect(await actions.revokeOtherSessions("test-editor")).toEqual({ success: true });
+      expect(testAuth.audit.entries).toEqual([]);
+    });
+
+    it("revalidates the page even when there was nothing to close", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+      await actions.revokeOtherSessions("test-editor");
+
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
+    });
+
+    it("when a revoke fails midway, audits and revalidates for the sessions already closed, then reports the failure", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      const a = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      const b = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      const original = testAuth.sessions.revoke.bind(testAuth.sessions);
+      vi.spyOn(testAuth.sessions, "revoke").mockImplementationOnce(original).mockRejectedValueOnce(new Error("db down"));
+
+      const result = await actions.revokeOtherSessions("test-editor");
+
+      expect(result).toHaveProperty("error");
+      expect(result).not.toHaveProperty("success");
+      expect([a.sessionId, b.sessionId].filter(revoked)).toHaveLength(1);
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityId, entry.summary])).toEqual([["session.revoke_others", "test-editor", "Sesiones cerradas: 1"]]);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
+    });
+
+    it("a failure before anything closed is not audited or revalidated", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      vi.spyOn(testAuth.sessions, "revoke").mockRejectedValueOnce(new Error("db down"));
+
+      expect(await actions.revokeOtherSessions("test-editor")).toHaveProperty("error");
+      expect(testAuth.audit.entries).toEqual([]);
+      expect(revalidatePathMock).not.toHaveBeenCalled();
+    });
+
+    it("an audit failure does not change the outcome", async () => {
+      cookieJar(cookiesMock, await signInAs("EDITOR"));
+      const other = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      testAuth.audit.failWith = new Error("db down");
+
+      expect(await actions.revokeOtherSessions("test-editor")).toEqual({ success: true });
+      expect(revoked(other.sessionId)).toBe(true);
     });
   });
 });

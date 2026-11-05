@@ -10,6 +10,7 @@ vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues
 // The form and the gallery have their own tests; here they only stand in for their sections.
 vi.mock("../../../../app/admin/events/_components/event-form", () => ({ EventForm: () => createElement("form", null, "event form") }));
 vi.mock("../../../../app/admin/events/_components/photo-gallery", () => ({ PhotoGallery: () => createElement("section", null, "photo gallery") }));
+vi.mock("../../../../app/admin/events/_components/event-created-arrival", () => ({ EventCreatedArrival: () => createElement("div", { "data-testid": "created-arrival" }) }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -20,7 +21,8 @@ import { SectionJumps } from "../../../../app/admin/_components/section-jumps";
 import EditEventPage from "../../../../app/admin/events/[id]/edit/page";
 
 const event = (over: Record<string, unknown> = {}) => ({ slug: "taller", isPublished: true, registrationMode: "none", photos: [{ id: "p1" }, { id: "p2" }], ...over });
-const render = async () => renderToStaticMarkup(await EditEventPage({ params: Promise.resolve({ id: "e1" }) }));
+const render = async (searchParams: Record<string, string | string[]> = {}) =>
+  renderToStaticMarkup(await EditEventPage({ params: Promise.resolve({ id: "e1" }), searchParams: Promise.resolve(searchParams) }));
 
 beforeEach(() => {
   eventMock.mockReset();
@@ -60,6 +62,15 @@ describe("the event edit page", () => {
 
     expect(html).toContain('href="#inscripciones"');
     expect(html).toContain('id="inscripciones"');
+  });
+
+  it("welcomes a just-created event (?creado=1) with the arrival, and a plain visit without it", async () => {
+    eventMock.mockResolvedValue(event());
+
+    expect(await render({ creado: "1" })).toContain('data-testid="created-arrival"');
+    expect(await render()).not.toContain('data-testid="created-arrival"');
+    expect(await render({ creado: "0" })).not.toContain('data-testid="created-arrival"');
+    expect(await render({ creado: ["1", "1"] })).not.toContain('data-testid="created-arrival"');
   });
 
   it("is a 404 for an unknown event", async () => {

@@ -11,6 +11,7 @@ import {
   TAB_NAV,
   TRASH_NAV,
   moreNav,
+  moreNavGroups,
   sideNav,
   sideNavGroups,
 } from "../../../../app/admin/_components/nav-items";
@@ -109,5 +110,31 @@ describe("admin navigation and the trash", () => {
     expect(moreNav("ADMIN").map((item) => item.href)).toContain(FORUM_CATEGORIES_NAV.href);
     expect(sideNav("EDITOR").map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
     expect(moreNav("EDITOR").map((item) => item.href)).not.toContain(FORUM_CATEGORIES_NAV.href);
+  });
+
+  it("gives every nav item its own icon", () => {
+    const all = [HOME_NAV, ...MODULE_NAV, MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, FORUM_CATEGORIES_NAV, ...ACCOUNT_NAV];
+    const byIcon = Map.groupBy(all, (item) => item.icon);
+    const shared = [...byIcon.values()].filter((items) => items.length > 1).map((items) => items.map((item) => item.label));
+
+    expect(shared).toEqual([]);
+  });
+
+  it("builds the «Más» sheet from the sidebar groups, without the items already on the tab bar", () => {
+    const tabs = TAB_NAV.map((item) => item.href);
+
+    for (const role of ["ADMIN", "EDITOR"] as const) {
+      const groups = moreNavGroups(role);
+      const sidebar = sideNavGroups(role);
+
+      expect(groups.map((group) => group.label)).toEqual(sidebar.map((group) => group.label));
+      expect(groups.flatMap((group) => group.items)).toEqual(sideNav(role).filter((item) => !tabs.includes(item.href)));
+      expect(groups.flatMap((group) => group.items)).toEqual(moreNav(role));
+    }
+  });
+
+  it("drops a «Más» group when the role or the tab bar leaves it empty", () => {
+    expect(moreNavGroups("EDITOR").every((group) => group.items.length > 0)).toBe(true);
+    expect(moreNavGroups("EDITOR").flatMap((group) => group.items).map((item) => item.href)).not.toContain("/admin/usuarios");
   });
 });

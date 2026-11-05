@@ -274,4 +274,17 @@ describe("the site settings form, which keeps its own editor state", () => {
     expect(document.activeElement).toBe(field(host, "Lema"));
     expect(action).not.toHaveBeenCalled();
   });
+
+  it("holds back a value the server would refuse while another required field is still empty: the empty ones are told first", async () => {
+    const action = vi.fn(ok);
+    // A fresh database has no settings row yet, so the form opens with every field blank.
+    const host = await mount(createElement(SettingsForm, { action }));
+
+    await click([...host.querySelectorAll("button")].find((button) => button.textContent?.includes("Editar"))!);
+    await typeInto(field(host, "Lema"), "L".repeat(121));
+    await submit(host);
+
+    expect(invalidFields(host)).toEqual(["description", "about"]);
+    expect(action).not.toHaveBeenCalled();
+  });
 });

@@ -864,6 +864,10 @@ test.describe("site settings", () => {
     await page.getByLabel("Lema").fill("");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();
+    // A fresh database opens the form with every field blank: the empty ones are told all at once, before any
+    // over-long value can reach the server, so the other fields get valid texts first.
+    await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
+    await page.getByLabel("Acerca de").fill(saved.about || "Acerca de auditoría");
     await fillPastLimit(page.getByLabel("Lema"), "L".repeat(121));
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();

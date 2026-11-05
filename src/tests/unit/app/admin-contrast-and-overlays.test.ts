@@ -98,6 +98,18 @@ describe("the «Más» sheet", () => {
     expect(dialog).toContain("overflow-y-auto");
   });
 
+  it("lays the sidebar groups out in two columns, each under its label, with an icon per link", () => {
+    const html = renderToStaticMarkup(createElement(TabBar, { role: "ADMIN" })).match(/<dialog[\s\S]*<\/dialog>/)?.[0] ?? "";
+
+    expect(html).toContain("grid-cols-2");
+
+    for (const label of ["landing/", "herramientas/", "cuenta/"]) expect(html).toContain(`>${label}</p>`);
+
+    expect(html.match(/<a /g)?.length).toBe(html.match(/<svg /g)?.length);
+    expect(html.match(/id="/g)?.length).toBe(new Set(html.match(/id="[^"]+"/g)).size);
+    expect(html).not.toMatch(/id="nav-/);
+  });
+
   it("dims the page with a colour token, not a literal black", () => {
     expect(sheet()).toContain("backdrop:bg-scrim");
     expect(sheet()).not.toContain("bg-black");

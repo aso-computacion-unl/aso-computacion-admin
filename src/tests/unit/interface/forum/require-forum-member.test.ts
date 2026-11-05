@@ -176,12 +176,12 @@ describe("a forum session is not an admin session", () => {
 describe("the admin middleware", () => {
   it("sends a request that carries only a forum cookie to the login", async () => {
     vi.stubEnv("ADMIN_SECRET", ADMIN_SECRET);
-    const { middleware } = await import("../../../../../middleware");
+    const { proxy } = await import("../../../../../proxy");
     const { NextRequest } = await import("next/server");
     const { cookie } = await signInToForumAs();
     const request = new NextRequest(new URL("/admin/events", "http://localhost:3000"), { headers: { cookie: `${FORUM_COOKIE_NAME}=${cookie}` } });
 
-    const response = await middleware(request);
+    const response = await proxy(request);
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/login");

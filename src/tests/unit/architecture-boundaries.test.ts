@@ -80,14 +80,14 @@ describe("auth architecture boundaries", () => {
   });
 
 
-  it("Arch-004: middleware.ts does not import next/headers or next/navigation", () => {
-    const middlewarePath = join(BOUNDARY_ROOT, "middleware.ts");
-    const content = readFileSync(middlewarePath, "utf-8");
+  it("Arch-004: proxy.ts does not import next/headers or next/navigation", () => {
+    const proxyPath = join(BOUNDARY_ROOT, "proxy.ts");
+    const content = readFileSync(proxyPath, "utf-8");
     const nextHeadersPattern = forbiddenModulePattern("next/headers");
     const nextNavigationPattern = forbiddenModulePattern("next/navigation");
 
-    expect(nextHeadersPattern.test(content), "middleware.ts must not import next/headers").toBe(false);
-    expect(nextNavigationPattern.test(content), "middleware.ts must not import next/navigation").toBe(false);
+    expect(nextHeadersPattern.test(content), "proxy.ts must not import next/headers").toBe(false);
+    expect(nextNavigationPattern.test(content), "proxy.ts must not import next/navigation").toBe(false);
   });
 });
 
@@ -100,7 +100,7 @@ describe("storage architecture boundaries", () => {
     const files = [
       ...collectSourceFiles(join(BOUNDARY_ROOT, "src")),
       ...collectSourceFiles(join(BOUNDARY_ROOT, "app")),
-      join(BOUNDARY_ROOT, "middleware.ts"),
+      join(BOUNDARY_ROOT, "proxy.ts"),
     ].filter((file) => !file.startsWith(STORAGE_DIR) && !file.startsWith(TESTS_DIR));
 
     expect(files.length).toBeGreaterThan(0);

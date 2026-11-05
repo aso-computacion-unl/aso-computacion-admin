@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { config } from "../../../../middleware";
+import { config } from "../../../../proxy";
 import { matcherCovers } from "./support";
 
 describe("middleware matcher: public routes", () => {

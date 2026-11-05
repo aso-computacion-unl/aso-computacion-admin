@@ -74,7 +74,7 @@ function serviceUnavailable(request: NextRequest): NextResponse {
   return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Next 16 no longer maps a malformed percent escape to 400 on dynamic routes (it throws DecodeError, a 500),
@@ -130,7 +130,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 // `/api/public/events`), but only for the undecodable-path check above: auth
 // is decided by `isProtectedPath`, so those requests pass through untouched.
 // `/login`, `/api/health` and `/api/public/content` stay outside it.
-// The last entry sends every path with an encoded (`%5C`) or literal backslash to the middleware: Next 16 reads a
+// The last entry sends every path with an encoded (`%5C`) or literal backslash to the proxy: Next 16 reads a
 // decoded backslash as a slash, but none of the other entries match `/%5Cadmin`, so without it the session check
 // would be skipped for those spellings of `/` and `/admin`.
 export const config = {

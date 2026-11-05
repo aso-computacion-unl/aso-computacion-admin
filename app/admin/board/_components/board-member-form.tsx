@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
@@ -28,6 +30,7 @@ interface BoardMemberFormProps {
 // Only name, role and photo exist for a member: no contact data is collected (S4).
 export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOARD_MEMBER_FORM_VALUES, hasPhoto = false }: BoardMemberFormProps) {
   const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const photoErrorId = `${useId()}-photo-error`;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
@@ -53,8 +56,10 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
               : "Sin foto no se puede publicar: suba la foto primero."
           }
           {...toggle("isPublished")}
+          aria-describedby={errors.photo ? photoErrorId : undefined}
+          aria-invalid={errors.photo ? true : undefined}
         />
-        {errors.photo ? <FieldError>{errors.photo}</FieldError> : null}
+        {errors.photo ? <FieldError id={photoErrorId} announce={false}>{errors.photo}</FieldError> : null}
       </div>
       <ActionBar status={<FormFeedback state={state} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">

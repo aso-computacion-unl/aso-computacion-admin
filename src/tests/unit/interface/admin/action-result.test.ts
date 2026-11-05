@@ -50,6 +50,20 @@ describe("mapActionError", () => {
     expect(mapActionError(parsed.error)).toEqual({ fieldErrors: { title: "Falta el título" } });
   });
 
+  it("reports every field a schema rejects, once each and in the schema's order", () => {
+    const parsed = z.object({ title: z.string().min(1, "Falta el título"), summary: z.string().min(1, "Falta el resumen"), body: z.string().min(1, "Falta el texto"), slug: z.string() }).safeParse({ title: "", summary: "", body: "", slug: "x" });
+
+    expect(mapActionError(parsed.error)).toEqual({
+      fieldErrors: { title: "Falta el título", summary: "Falta el resumen", body: "Falta el texto" },
+    });
+  });
+
+  it("keeps the first message of a field that fails twice", () => {
+    const parsed = z.object({ title: z.string().min(2, "Muy corto").regex(/^a/, "Debe empezar con a") }).safeParse({ title: "" });
+
+    expect(mapActionError(parsed.error)).toEqual({ fieldErrors: { title: "Muy corto" } });
+  });
+
   it("reports a schema issue on the file field with the image format text, not the schema's", () => {
     const parsed = z.object({ file: z.string().min(1, "interno") }).safeParse({ file: "" });
     const result = mapActionError(parsed.error);

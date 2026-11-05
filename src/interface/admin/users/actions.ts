@@ -9,6 +9,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { getAuthServices } from "../../auth/auth-container";
 import { requireRole } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { USER_FIELD_MESSAGES } from "../field-messages";
 import { ROLE_LABELS } from "../role-labels";
 
 // Every action starts with the session guard, before it reads any input or touches a use case (a
@@ -17,11 +18,6 @@ import { ROLE_LABELS } from "../role-labels";
 // Audit summaries carry the role and the user's or invite's id, never the email or an invite token.
 
 const PAGE_PATH = "/admin/usuarios";
-
-const USER_FIELD_MESSAGES = {
-  role: "Elija un rol de la lista.",
-  name: "El nombre admite hasta 120 caracteres.",
-};
 
 /** `link` is the invite's whole secret: it is shown once to the ADMIN and kept nowhere. */
 export interface CreateInviteResult extends ActionResult {

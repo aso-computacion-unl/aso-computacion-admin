@@ -287,21 +287,30 @@ async function fillNews(page: Page, fields: { title?: string; summary?: string; 
 }
 
 test.describe("news", () => {
-  test("required fields are reported one by one, each on its own field, and nothing is created", async ({ browser, baseURL }) => {
+  test("required fields are reported all at once, each on its own field, with one summary and the focus on the first, and nothing is created", async ({ browser, baseURL }) => {
     const { context, page } = await asAdmin(browser, baseURL);
     const title = `Noticia incompleta ${STAMP}`;
+    const feedback = page.locator('[data-slot="form-feedback"]');
 
     await page.goto("/admin/news/new");
     await page.getByRole("button", { name: "Crear noticia" }).click();
     await expect(page.getByText("El título es obligatorio y admite hasta 120 caracteres.")).toBeVisible();
+    await expect(await errorOf(page, "Resumen")).toBeVisible();
+    await expect(await errorOf(page, "Texto")).toBeVisible();
+    await expect(feedback).toContainText("Revise 3 campos.");
+    await expect(page.getByLabel("Título")).toBeFocused();
+    // One announcement for the whole failure: the field errors are read with their fields, not as alerts.
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(1);
 
     await fillNews(page, { title });
     await page.getByRole("button", { name: "Crear noticia" }).click();
-    await expect(page.locator("#" + (await page.getByLabel("Resumen").getAttribute("id")) + "-error")).toBeVisible();
+    await expect(feedback).toContainText("Revise 2 campos.");
+    await expect(page.getByLabel("Resumen")).toBeFocused();
 
     await fillNews(page, { summary: "Resumen" });
     await page.getByRole("button", { name: "Crear noticia" }).click();
-    await expect(page.locator("#" + (await page.getByLabel("Texto", { exact: true }).getAttribute("id")) + "-error")).toBeVisible();
+    await expect(feedback).toContainText("Revise 1 campo.");
+    await expect(page.getByLabel("Texto", { exact: true })).toBeFocused();
     await expect(page).toHaveURL(/\/admin\/news\/new$/);
 
     await page.goto("/admin/news");
@@ -855,6 +864,10 @@ test.describe("site settings", () => {
     await page.getByLabel("Lema").fill("");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();
+    // A fresh database opens the form with every field blank: the empty ones are told all at once, before any
+    // over-long value can reach the server, so the other fields get valid texts first.
+    await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
+    await page.getByLabel("Acerca de").fill(saved.about || "Acerca de auditoría");
     await fillPastLimit(page.getByLabel("Lema"), "L".repeat(121));
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { NEWS_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { ScheduleFields } from "../../_components/schedule-fields";
@@ -56,7 +57,7 @@ const MARKDOWN_HELP = "Separe los párrafos con una línea en blanco. **negrita*
 
 /** The form owns the values, so the preview in the right column lives here too and follows every keystroke. */
 export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, isEditing = false, cover = null, asideTop = null }: NewsFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: NEWS_FIELD_MESSAGES });
   const values = { title: bind("title").value, summary: bind("summary").value, body: bind("body").value, publishedAt: bind("publishedAt").value };
 
   return (

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@/components/icons";
 import type { ActionResult } from "@/interface/admin/action-result";
+import { SETTINGS_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 import { toFormData } from "@/interface/admin/form-fields";
 import {
   createSettingsEditorState,
@@ -17,6 +18,7 @@ import {
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { FormColumns, Panel, StickyAside } from "../../_components/form-layout";
+import { collectFieldErrors, useFocusFirstInvalid } from "../../_components/use-controlled-form";
 import { SettingsPreview } from "./settings-preview";
 import { SettingsReadView } from "./settings-read-view";
 
@@ -51,6 +53,9 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const previousMode = useRef(state.mode);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useFocusFirstInvalid(state.result, formRef);
 
   // Focus follows the mode: first field on "Editar", back to "Editar" on cancel or after saving.
   useEffect(() => {
@@ -77,6 +82,14 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
     event.preventDefault();
     if (isPending) return;
 
+    // Every field the browser's own constraints reject shows at once, with the texts the server would use.
+    const fieldErrors = collectFieldErrors(event.currentTarget, SETTINGS_FIELD_MESSAGES);
+
+    if (Object.keys(fieldErrors).length > 0) {
+      dispatch({ type: "result", result: { fieldErrors } });
+      return;
+    }
+
     startTransition(() => formAction(toFormData({ ...state.draft })));
   }
 
@@ -97,7 +110,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
       }>
       <Panel aria-label="Textos del sitio">
         {editing ? (
-          <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+          <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-5">
             <Field label="Lema" hint="Hasta 120 caracteres." error={errors.tagline}>
               {(control) => <Input {...control} {...field("tagline")} ref={firstFieldRef} required maxLength={120} />}
             </Field>

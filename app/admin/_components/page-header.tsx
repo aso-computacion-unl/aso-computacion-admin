@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Icon } from "@/components/icons";
+import { GuardedBackLink } from "./form-parts";
 
 interface PageHeaderProps {
   title: string;
@@ -14,25 +13,13 @@ interface PageHeaderProps {
   back?: { href: string; label: string };
 }
 
-function BackLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground"
-    >
-      <Icon name="left" className="size-4" />
-      {children}
-    </Link>
-  );
-}
-
 /** The head of every admin page: the same order and the same slots, so the title and the action never move between screens. */
 export function PageHeader({ title, status, description, action, back }: PageHeaderProps) {
   return (
     <header data-slot="page-header" className="grid gap-x-6 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto]">
       {back ? (
         <div className="md:col-span-2">
-          <BackLink href={back.href}>{back.label}</BackLink>
+          <GuardedBackLink href={back.href}>{back.label}</GuardedBackLink>
         </div>
       ) : null}
       <div className="min-w-0">

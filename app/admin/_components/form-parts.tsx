@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useId, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { useToast } from "./toast";
+import { useHasUnsavedChanges } from "./use-controlled-form";
 
 const SAVED_MESSAGE = "Cambios guardados.";
 
@@ -118,5 +121,58 @@ export function ActionBar({ status, children }: { status: ReactNode; children: R
       {status}
       <div className="flex flex-wrap justify-end gap-2 [&>*]:flex-1 md:[&>*]:flex-none">{children}</div>
     </div>
+  );
+}
+
+/**
+ * The "back" link of a page header. With unsaved changes in a form on the page it asks first, in the page
+ * like the bulk actions do: the safe choice ("Seguir editando") has the focus and gives it back to the link.
+ */
+export function GuardedBackLink({ href, children }: { href: string; children: ReactNode }) {
+  const unsaved = useHasUnsavedChanges();
+  const [asking, setAsking] = useState(false);
+  const link = useRef<HTMLAnchorElement>(null);
+
+  // Saving, or putting the text back, leaves nothing to ask about.
+  if (asking && !unsaved) setAsking(false);
+
+  return (
+    <>
+      <Link
+        ref={link}
+        href={href}
+        onClick={(event) => {
+          if (!unsaved) return;
+
+          event.preventDefault();
+          setAsking(true);
+        }}
+        className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded px-1 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:text-foreground"
+      >
+        <Icon name="left" className="size-4" />
+        {children}
+      </Link>
+      {asking ? (
+        <div role="group" aria-label="Confirmar: salir sin guardar" className="mt-2 grid gap-3 rounded bg-muted p-3 text-sm">
+          <p>Tiene cambios sin guardar. Si sale ahora, se perderán.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="line"
+              size="sm"
+              autoFocus
+              onClick={() => {
+                setAsking(false);
+                link.current?.focus();
+              }}
+            >
+              Seguir editando
+            </Button>
+            <Button asChild variant="danger" size="sm">
+              <Link href={href}>Salir sin guardar</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

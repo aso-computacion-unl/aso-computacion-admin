@@ -310,7 +310,9 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await row.getByRole("link", { name: `Editar: ${scheduled}` }).click();
   await page.getByLabel("Publicar el").fill("");
   await page.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(page.getByText("Cambios guardados.")).toBeVisible();
+  await expect(page.locator('[data-slot="action-bar"]').getByText("Cambios guardados.")).toBeVisible();
+  // The save also raises a toast, which the live region announces.
+  await expect(page.getByRole("status").getByRole("listitem").filter({ hasText: "Cambios guardados." })).toBeVisible();
   expect(await publicTitles()).toContain(scheduled);
 
   // A window that already closed: published, yet retired.

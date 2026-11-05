@@ -29,7 +29,20 @@ flowchart LR
 | Integrarse con la API | [Referencia de la API](docs/portal/api.qmd) |
 | Trabajar en el admin | [Referencia técnica del admin](docs/REFERENCIA.md) y [despliegue](docs/DEPLOY.md) |
 | Trabajar en la landing | [Referencia técnica de la landing](landing/docs/REFERENCIA.md) y [despliegue](landing/docs/DEPLOY.md) |
-| Contribuir | [Guía de contribución](CONTRIBUTING.md) y [política de seguridad](SECURITY.md) |
+| Colaborar | [Quiero colaborar](#quiero-colaborar), más abajo |
+
+## Quiero colaborar
+
+Cada repositorio tiene su guía: cómo preparar el entorno local, el flujo de trabajo (issue, rama, PR, revisión) y qué se espera de cada rol.
+
+| Mi rol | Admin | Landing |
+|---|---|---|
+| Backend | [Guía de backend](CONTRIBUTING.md#backend) | No tiene backend: [ver por qué](landing/CONTRIBUTING.md#backend) |
+| Frontend | [Guía de frontend](CONTRIBUTING.md#frontend) | [Guía de frontend](landing/CONTRIBUTING.md#frontend) |
+| QA | [Guía de QA](CONTRIBUTING.md#qa) | [Guía de QA](landing/CONTRIBUTING.md#qa) |
+| Todavía no lo sé | [Empiece por aquí](CONTRIBUTING.md#preparar-el-entorno-local) | [Empiece por aquí](landing/CONTRIBUTING.md#preparar-el-entorno-local) |
+
+Si encuentra una vulnerabilidad, no abra un issue público: siga la [política de seguridad](SECURITY.md).
 
 ## Cómo se publica este portal
 

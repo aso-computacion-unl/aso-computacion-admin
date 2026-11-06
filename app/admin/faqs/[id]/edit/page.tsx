@@ -23,8 +23,8 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
     <FormLayout
       backHref="/admin/faqs"
       backLabel="Volver a preguntas"
-      title="Editar pregunta"
-      status={recordStatus(faq.question, faq.isPublished, "f")}
+      title={faq.question}
+      status={recordStatus(faq.isPublished, "f")}
     >
       <Panel>
         <FaqForm

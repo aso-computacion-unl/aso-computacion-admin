@@ -23,8 +23,8 @@ export default async function EditSocialLinkPage({ params }: EditSocialLinkPageP
     <FormLayout
       backHref="/admin/socials"
       backLabel="Volver a redes"
-      title="Editar red"
-      status={recordStatus(link.label, link.isPublished, "f")}
+      title={link.label}
+      status={recordStatus(link.isPublished, "f")}
     >
       <Panel>
         <SocialForm

@@ -23,7 +23,7 @@ export function ListSearch({ path, filter, search, label }: ListSearchProps) {
       <label htmlFor={inputId} className="sr-only">
         Buscar en {label}
       </label>
-      <Input id={inputId} type="search" name="q" defaultValue={search} maxLength={SEARCH_MAX_LENGTH} placeholder={`Buscar en ${label}`} autoComplete="off" className="min-h-11 w-full max-w-sm" />
+      <Input id={inputId} type="search" name="q" defaultValue={search} maxLength={SEARCH_MAX_LENGTH} placeholder={`Buscar en ${label}`} autoComplete="off" className="min-h-11 w-full max-w-sm [:root[data-theme=light]_&]:bg-card" />
       <Button type="submit" variant="line">
         Buscar
       </Button>

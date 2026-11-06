@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
 import { SectionJumps } from "../../../../app/admin/_components/section-jumps";
 import EditEventPage from "../../../../app/admin/events/[id]/edit/page";
 
-const event = (over: Record<string, unknown> = {}) => ({ slug: "taller", isPublished: true, registrationMode: "none", photos: [{ id: "p1" }, { id: "p2" }], ...over });
+const event = (over: Record<string, unknown> = {}) => ({ title: "Taller de Git", slug: "taller", isPublished: true, registrationMode: "none", photos: [{ id: "p1" }, { id: "p2" }], ...over });
 const render = async (searchParams: Record<string, string | string[]> = {}) =>
   renderToStaticMarkup(await EditEventPage({ params: Promise.resolve({ id: "e1" }), searchParams: Promise.resolve(searchParams) }));
 
@@ -41,6 +41,15 @@ describe("SectionJumps", () => {
 });
 
 describe("the event edit page", () => {
+  it("is titled with the event's name, and the slug and state go in the status line", async () => {
+    eventMock.mockResolvedValue(event());
+
+    const html = await render();
+
+    expect(html).toMatch(/<h1[^>]*>Taller de Git<\/h1>/);
+    expect(html).toMatch(/<p[^>]*font-mono[^>]*>taller · publicado<\/p>/);
+  });
+
   it("lets a phone jump straight to the photos, counting them, instead of scrolling past the whole form", async () => {
     eventMock.mockResolvedValue(event());
 

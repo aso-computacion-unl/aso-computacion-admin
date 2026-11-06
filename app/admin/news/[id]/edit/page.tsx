@@ -23,7 +23,7 @@ export default async function EditNewsPage({ params }: EditNewsPageProps) {
 
   return (
     <div>
-      <FormHeader backHref="/admin/news" backLabel="Volver a novedades" title="Editar noticia" status={recordStatus(item.slug, item.isPublished, "f")} />
+      <FormHeader backHref="/admin/news" backLabel="Volver a novedades" title={item.title} status={recordStatus(item.isPublished, "f", item.slug)} />
       {/* Keyed by the cover so the alt field and the panel start fresh after a replace or remove. */}
       <NewsForm
         key={item.cover?.url ?? "no-cover"}

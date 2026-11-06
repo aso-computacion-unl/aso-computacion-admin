@@ -14,6 +14,7 @@ import { EmptyState } from "../_components/empty-state";
 import { Stamp } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
 import { PageHeader } from "../_components/page-header";
+import { SectionTitle } from "../_components/section-title";
 import { BulkSelection } from "../_components/bulk-selection";
 import { AddRow, ListRow } from "../_components/list-row";
 import { ListSearch } from "../_components/list-search";
@@ -35,9 +36,9 @@ const TYPE_LABELS: Record<string, string> = {
 function GroupTitle({ id, title, hint }: { id: string; title: string; hint: string }) {
   return (
     <div className="tl-group-title">
-      <h2 id={id} className="text-[0.8125rem] font-bold font-stretch-[118%] tracking-[0.04em] text-mist uppercase">
+      <SectionTitle id={id} variant="label">
         {title}
-      </h2>
+      </SectionTitle>
       <p className="text-sm text-mist">{hint}</p>
     </div>
   );

@@ -32,16 +32,19 @@ export function PageHeader({ title, status, description, action, back }: PageHea
   );
 }
 
-const STATUS_NAME_MAX = 32;
+const STATUS_SLUG_MAX = 32;
 
 /**
- * The status line of an edit page: which record this is and whether it is public, like a branch name and its state.
- * A long name is shortened so the state at the end is never cut off. `gender` agrees the participle: a news item is
- * `publicada`, an event `publicado`.
+ * The status line of an edit page, whose title is the record's name: whether it is public, like a branch state,
+ * preceded by the slug when the record has one. A long slug is shortened so the state at the end is never cut off.
+ * `gender` agrees the participle: a news item is `publicada`, an event `publicado`.
  */
-export function recordStatus(name: string, isPublished: boolean, gender: "m" | "f"): string {
-  const shortened = name.length > STATUS_NAME_MAX ? `${name.slice(0, STATUS_NAME_MAX).trimEnd()}…` : name;
+export function recordStatus(isPublished: boolean, gender: "m" | "f", slug?: string): string {
   const state = isPublished ? (gender === "f" ? "publicada" : "publicado") : "borrador";
+
+  if (slug === undefined) return state;
+
+  const shortened = slug.length > STATUS_SLUG_MAX ? `${slug.slice(0, STATUS_SLUG_MAX).trimEnd()}…` : slug;
 
   return `${shortened} · ${state}`;
 }

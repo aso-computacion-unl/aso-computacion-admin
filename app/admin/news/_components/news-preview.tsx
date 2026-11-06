@@ -5,6 +5,7 @@ import { parseMarkdownSubset, type InlineNode } from "@/interface/admin/markdown
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
 import { Panel } from "../../_components/form-layout";
+import { SectionTitle } from "../../_components/section-title";
 
 export interface NewsPreviewValues {
   title: string;
@@ -50,9 +51,7 @@ export function NewsPreview({ values, cover, coverAlt }: NewsPreviewProps) {
   return (
     <Panel aria-labelledby="news-preview-heading" className="grid gap-4 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id="news-preview-heading" className="text-lg font-bold font-stretch-[112%]">
-          Vista previa
-        </h2>
+        <SectionTitle id="news-preview-heading">Vista previa</SectionTitle>
         <p className="font-mono text-[0.8125rem] text-mist">se actualiza al escribir</p>
       </div>
       {empty ? (

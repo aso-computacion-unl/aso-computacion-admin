@@ -20,6 +20,7 @@ import { getAdminSponsors } from "@/interface/admin/sponsors/sponsors-admin-read
 
 import { EmptyState } from "./_components/empty-state";
 import { PageHeader } from "./_components/page-header";
+import { SectionTitle } from "./_components/section-title";
 import { Stamp } from "./_components/timeline-parts";
 import { MODULE_NAV, visibleTo } from "./_components/nav-items";
 
@@ -75,7 +76,6 @@ async function readHome(now: Date): Promise<{ lines: Record<Summary, ModuleSumma
   };
 }
 
-const SECTION_TITLE = "text-lg font-bold font-stretch-[112%]";
 const ROW_LINK =
   "group flex min-h-12 items-center gap-3 px-4 py-2.5 transition-colors duration-150 ease-out hover:bg-foreground/4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky";
 
@@ -90,9 +90,9 @@ function PendingSection({ agenda }: { agenda: HomeAgenda }) {
 
   return (
     <section aria-labelledby="pending-title" className="grid content-start gap-3">
-      <h2 id="pending-title" className={SECTION_TITLE}>
+      <SectionTitle id="pending-title">
         Por atender
-      </h2>
+      </SectionTitle>
       {agenda.needsAttention ? (
         <ul className="divide-y divide-border overflow-hidden rounded bg-card">
           {reports > 0 ? (
@@ -127,9 +127,9 @@ function PendingSection({ agenda }: { agenda: HomeAgenda }) {
 function UpcomingSection({ agenda }: { agenda: HomeAgenda }) {
   return (
     <section aria-labelledby="upcoming-title" className="grid content-start gap-3">
-      <h2 id="upcoming-title" className={SECTION_TITLE}>
+      <SectionTitle id="upcoming-title">
         Próximos eventos
-      </h2>
+      </SectionTitle>
       {agenda.upcoming.length > 0 ? (
         <ul className="divide-y divide-border overflow-hidden rounded bg-card">
           {agenda.upcoming.map((event) => (
@@ -205,15 +205,16 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
 
       {/* The state of every module in one compact line each; the sidebar already lists them, so no big counters here. */}
       <nav aria-labelledby="modules-title" className="mt-10 grid gap-3">
-        <h2 id="modules-title" className={SECTION_TITLE}>
+        <SectionTitle id="modules-title">
           Contenido del sitio
-        </h2>
-        <ul className="grid gap-px overflow-hidden rounded bg-border sm:grid-cols-2 xl:grid-cols-3">
+        </SectionTitle>
+        {/* Each cell draws its own hairline instead of a bg-border gap showing through: a missing cell in the last row stays quiet at any width. */}
+        <ul className="grid overflow-hidden rounded bg-card sm:grid-cols-2 xl:grid-cols-3">
           {visibleTo(MODULE_NAV, actor.role).map((item) => {
             const { line } = lines[item.href] ?? { line: "—" };
 
             return (
-              <li key={item.href} className="bg-card">
+              <li key={item.href} className="bg-card shadow-[0_0_0_1px_var(--color-border)]">
                 <Link href={item.href} className={ROW_LINK}>
                   <Icon name={item.icon} className="size-4.5 shrink-0" />
                   <span className="grid min-w-0">

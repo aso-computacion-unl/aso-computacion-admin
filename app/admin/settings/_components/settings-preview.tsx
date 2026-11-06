@@ -1,6 +1,7 @@
 import type { SettingsValues } from "@/interface/admin/settings/settings-editor-state";
 
 import { Panel } from "../../_components/form-layout";
+import { SectionTitle } from "../../_components/section-title";
 
 /**
  * Approximate: where each text lands on the public site, in the admin's own type and colours. The tagline
@@ -17,7 +18,7 @@ export function SettingsPreview({ values, editing }: { values: SettingsValues; e
   return (
     <Panel aria-label="Vista previa" className="grid gap-4 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-bold font-stretch-[112%]">Vista previa</h2>
+        <SectionTitle>Vista previa</SectionTitle>
         <p className="font-mono text-[0.8125rem] text-mist">{editing ? "se actualiza al escribir" : "con los textos guardados"}</p>
       </div>
       {empty ? (

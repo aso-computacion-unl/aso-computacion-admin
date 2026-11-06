@@ -9,6 +9,7 @@ import { COMMAND_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { Panel } from "../../_components/form-layout";
+import { SectionTitle } from "../../_components/section-title";
 import { useControlledForm } from "../../_components/use-controlled-form";
 
 export interface CommandFormValues {
@@ -50,9 +51,7 @@ export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND
         {(control) => <Textarea {...control} {...bind("output")} rows={6} required maxLength={600} />}
       </Field>
       <Panel aria-labelledby="command-preview-heading" className="grid gap-3">
-        <h2 id="command-preview-heading" className="text-lg font-bold font-stretch-[112%]">
-          Vista previa
-        </h2>
+        <SectionTitle id="command-preview-heading">Vista previa</SectionTitle>
         {command || output ? (
           <div className="grid gap-1 rounded bg-muted p-4 font-mono text-sm">
             <p className="text-sky">❯ {command || "…"}</p>

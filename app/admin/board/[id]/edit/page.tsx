@@ -24,8 +24,8 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
     <FormLayout
       backHref="/admin/board"
       backLabel="Volver a la directiva"
-      title="Editar integrante"
-      status={recordStatus(member.name, member.isPublished, "m")}
+      title={member.name}
+      status={recordStatus(member.isPublished, "m")}
       aside={<BoardMemberPhotoPanel key={member.photo?.url ?? "no-photo"} memberId={id} photo={member.photo} />}
     >
       {/* Keyed by the photo so the alt field and the panel start fresh after a replace or remove. */}

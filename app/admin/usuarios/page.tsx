@@ -7,6 +7,7 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 import { PageHeader } from "../_components/page-header";
 import { Panel } from "../_components/form-layout";
 import { EmptyState } from "../_components/empty-state";
+import { SectionTitle } from "../_components/section-title";
 import { CreateInviteForm } from "./_components/create-invite-form";
 import { RevokeInviteButton } from "./_components/revoke-invite-button";
 import { UserActiveControl, UserRoleSelect } from "./_components/user-row-controls";
@@ -32,17 +33,17 @@ export default async function AdminUsersPage() {
       />
 
       <Panel className="mt-6" aria-labelledby="invite-title">
-        <h2 id="invite-title" className="mb-4 text-lg font-bold font-stretch-[112%]">
+        <SectionTitle id="invite-title" className="mb-4">
           Invitar a una persona
-        </h2>
+        </SectionTitle>
         <CreateInviteForm action={createAdminInvite} />
       </Panel>
 
       {invites.length > 0 ? (
         <section className="mt-6" aria-labelledby="pending-title">
-          <h2 id="pending-title" className="mb-3 text-lg font-bold font-stretch-[112%]">
+          <SectionTitle id="pending-title" className="mb-3">
             Invitaciones pendientes
-          </h2>
+          </SectionTitle>
           <ul className="grid gap-3" aria-label="Invitaciones pendientes">
             {invites.map((invite) => (
               <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded bg-card p-4">

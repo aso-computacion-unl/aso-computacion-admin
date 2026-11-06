@@ -33,6 +33,15 @@ describe("ListSearch", () => {
     expect(search()).toContain("[:root[data-theme=light]_&amp;]:bg-card");
   });
 
+  it("keeps the button next to the field when it shares a row with the status tabs", () => {
+    const html = search();
+
+    expect(html).toMatch(/<input[^>]*class="[^"]*\bsm:w-72\b/);
+    expect(html).toMatch(/<input[^>]*class="[^"]*\bflex-1\b/);
+    expect(html).toMatch(/<input[^>]*class="[^"]*\bsm:flex-none\b/);
+    expect(html).toMatch(/<button[^>]*class="[^"]*\bshrink-0\b/);
+  });
+
   it("is labelled and bounded to the maximum search length", () => {
     const html = search();
 

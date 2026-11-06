@@ -16,6 +16,7 @@ import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
+import { SectionTitle } from "../_components/section-title";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -89,11 +90,11 @@ export default async function AdminBoardPage() {
                   <TrashButton label={member.name} warning="¿Mover a este integrante a la papelera?" action={trashBoardMember.bind(null, member.id)} undo={restoreTrashed.bind(null, "board", member.id)} />
                 }
               >
-                <h2 className="font-display text-lg leading-tight wrap-anywhere">
+                <SectionTitle className="leading-tight wrap-anywhere">
                   <Link href={`/admin/board/${member.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
                     {member.name}
                   </Link>
-                </h2>
+                </SectionTitle>
                 <p className="text-sm text-mist">{member.role}</p>
                 {member.photo ? null : <p className="font-mono text-xs text-mist">Sin foto: no se puede publicar</p>}
               </OrderedRow>

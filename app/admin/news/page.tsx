@@ -18,6 +18,7 @@ import { BulkSelection } from "../_components/bulk-selection";
 import { AddRow, ListRow } from "../_components/list-row";
 import { ListSearch } from "../_components/list-search";
 import { Pager } from "../_components/pager";
+import { SectionTitle } from "../_components/section-title";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EmptyState } from "../_components/empty-state";
 import { OrderedList, Stamp } from "../_components/timeline-parts";
@@ -93,11 +94,11 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
                     editHref={`/admin/news/${item.id}/edit`}
                     remove={<TrashButton label={item.title} warning="¿Mover esta noticia a la papelera?" action={trashNewsItem.bind(null, item.id)} undo={restoreTrashed.bind(null, "news", item.id)} />}
                   >
-                    <h2 className="font-display text-lg leading-tight wrap-anywhere">
+                    <SectionTitle className="leading-tight wrap-anywhere">
                       <Link href={`/admin/news/${item.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
                         {item.title}
                       </Link>
-                    </h2>
+                    </SectionTitle>
                     <p className="line-clamp-2 text-sm text-mist">{item.summary}</p>
                     {item.isPublished ? <WindowBadge badge={windowBadge(item, now)} /> : <p className="font-mono text-xs text-mist">Borrador: solo lo ve la directiva</p>}
                   </ListRow>

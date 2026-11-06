@@ -16,6 +16,7 @@ import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
+import { SectionTitle } from "../_components/section-title";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -76,11 +77,11 @@ export default async function AdminSocialLinksPage() {
                 }
                 remove={<TrashButton label={link.label} warning="¿Mover esta red a la papelera?" action={trashSocialLink.bind(null, link.id)} undo={restoreTrashed.bind(null, "social", link.id)} />}
               >
-                <h2 className="font-display text-lg leading-tight wrap-anywhere">
+                <SectionTitle className="leading-tight wrap-anywhere">
                   <Link href={`/admin/socials/${link.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
                     {link.label}
                   </Link>
-                </h2>
+                </SectionTitle>
                 <p className="font-mono text-[0.8125rem] wrap-anywhere text-sky">{link.handle}</p>
                 {link.label === socialPlatformLabel(link.platform) ? null : <p className="text-sm text-mist">{socialPlatformLabel(link.platform)}</p>}
               </OrderedRow>

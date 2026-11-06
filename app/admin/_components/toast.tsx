@@ -86,8 +86,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      {/* The live region is always mounted, so a message added to it is announced. */}
-      <div aria-live="polite" role="status" className="pointer-events-none fixed inset-x-4 top-16 z-50 lg:inset-x-auto lg:top-18 lg:right-6 lg:w-96">
+      {/* The live region is always mounted, so a message added to it is announced. It stacks under the top bar (z-30), so the open identity menu is drawn over it. */}
+      <div aria-live="polite" role="status" className="pointer-events-none fixed inset-x-4 top-16 z-20 lg:inset-x-auto lg:top-18 lg:right-6 lg:w-96">
         <ul className="grid gap-2">
           {toasts.map((toast) => (
             <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />

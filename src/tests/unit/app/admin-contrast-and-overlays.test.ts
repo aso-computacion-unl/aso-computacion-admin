@@ -127,4 +127,12 @@ describe("the toast", () => {
     expect(top).toBeGreaterThan(bar);
     expect(html).not.toContain("lg:top-6");
   });
+
+  it("stacks under the top bar, so the open identity menu is never covered by it", () => {
+    const bar = Number(read("app/_components/app-top-bar.tsx").match(/\bz-(\d+)\b/)?.[1]);
+    const html = renderToStaticMarkup(createElement(ToastProvider, null, null));
+    const toast = Number(html.match(/\bz-(\d+)\b/)?.[1]);
+
+    expect(toast).toBeLessThan(bar);
+  });
 });

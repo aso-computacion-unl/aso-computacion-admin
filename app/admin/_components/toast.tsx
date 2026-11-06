@@ -1,10 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { dismissToast, pushToast, type Toast, type ToastAction } from "@/interface/admin/toasts";
+
+import { IDENTITY_MENU_OPEN_ATTRIBUTE } from "../../_components/identity-chip";
 
 const DISMISS_AFTER_MS = 5000;
 
@@ -23,18 +25,42 @@ export function useToast(): ToastApi {
   return useContext(ToastContext);
 }
 
+function subscribeToIdentityMenu(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: [IDENTITY_MENU_OPEN_ATTRIBUTE] });
+
+  return () => observer.disconnect();
+}
+
+/** The open identity menu can cover a toast, so the toasts wait while it is open. */
+function useIdentityMenuOpen(): boolean {
+  return useSyncExternalStore(
+    subscribeToIdentityMenu,
+    () => document.documentElement.hasAttribute(IDENTITY_MENU_OPEN_ATTRIBUTE),
+    () => false,
+  );
+}
+
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
   const [acted, setActed] = useState(false);
 
-  // Hovering or focusing a toast stops its clock, so there is time to read it.
+  const menuOpen = useIdentityMenuOpen();
+  const remaining = useRef(DISMISS_AFTER_MS);
+
+  // Hovering or focusing a toast, or opening the identity menu over it, stops its clock; it resumes with the time left.
   useEffect(() => {
-    if (paused) return;
+    if (paused || menuOpen) return;
 
-    const timer = setTimeout(() => onDismiss(toast.id), DISMISS_AFTER_MS);
+    const startedAt = Date.now();
+    const timer = setTimeout(() => onDismiss(toast.id), remaining.current);
 
-    return () => clearTimeout(timer);
-  }, [paused, toast.id, onDismiss]);
+    return () => {
+      clearTimeout(timer);
+      remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt));
+    };
+  }, [paused, menuOpen, toast.id, onDismiss]);
 
   return (
     <li

@@ -32,6 +32,9 @@ interface IdentityChipProps {
   signOut: ReactNode;
 }
 
+/** Set on the document root while the menu is open, so the toasts hold their timers instead of expiring under it. */
+export const IDENTITY_MENU_OPEN_ATTRIBUTE = "data-identity-menu-open";
+
 const PILL = "rounded-full px-2.5 py-0.5 text-xs leading-5 font-semibold whitespace-nowrap";
 
 /**
@@ -50,6 +53,7 @@ export function IdentityChip({ name, roleLabel, emergency = false, notice, signO
   useEffect(() => {
     if (!open) return;
 
+    document.documentElement.setAttribute(IDENTITY_MENU_OPEN_ATTRIBUTE, "");
     panel.current?.querySelector<HTMLElement>("button, a[href]")?.focus();
 
     const isOutside = (target: EventTarget | null) => !root.current?.contains(target as Node | null);
@@ -67,6 +71,7 @@ export function IdentityChip({ name, roleLabel, emergency = false, notice, signO
     document.addEventListener("focusin", closeOutside);
 
     return () => {
+      document.documentElement.removeAttribute(IDENTITY_MENU_OPEN_ATTRIBUTE);
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("focusin", closeOutside);

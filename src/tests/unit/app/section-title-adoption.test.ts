@@ -4,7 +4,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = path.resolve(__dirname, "../../../../app/admin");
-const RAW_STYLES = ["text-lg font-bold font-stretch-[112%]", "text-[0.8125rem] font-bold font-stretch-[118%] tracking-[0.04em] text-mist uppercase"];
+const RAW_STYLES = [
+  "text-lg font-bold font-stretch-[112%]",
+  "text-[0.8125rem] font-bold font-stretch-[118%] tracking-[0.04em] text-mist uppercase",
+];
 
 const SCREENS = [
   "page.tsx",
@@ -18,6 +21,11 @@ const SCREENS = [
   "papelera/page.tsx",
   "usuarios/page.tsx",
   "registrations/page.tsx",
+  "pillars/page.tsx",
+  "board/page.tsx",
+  "sponsors/page.tsx",
+  "news/page.tsx",
+  "socials/page.tsx",
 ];
 
 describe("section headings", () => {
@@ -26,5 +34,7 @@ describe("section headings", () => {
 
     expect(source).toMatch(/import \{ SectionTitle \} from ".*section-title"/);
     for (const style of RAW_STYLES) expect(source).not.toContain(style);
+    // The record titles of the list cards used to carry their own display style.
+    expect(source).not.toMatch(/<h2 className="font-display/);
   });
 });

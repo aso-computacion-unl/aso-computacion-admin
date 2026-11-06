@@ -16,6 +16,7 @@ import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
+import { SectionTitle } from "../_components/section-title";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -87,11 +88,11 @@ export default async function AdminSponsorsPage() {
               }
               remove={<TrashButton label={sponsor.name} warning="¿Mover a este aliado a la papelera?" action={trashSponsor.bind(null, sponsor.id)} undo={restoreTrashed.bind(null, "sponsor", sponsor.id)} />}
             >
-              <h2 className="font-display text-lg leading-tight wrap-anywhere">
+              <SectionTitle className="leading-tight wrap-anywhere">
                 <Link href={`/admin/sponsors/${sponsor.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
                   {sponsor.name}
                 </Link>
-              </h2>
+              </SectionTitle>
               <p className="text-sm text-mist wrap-anywhere">{sponsor.url ?? "Sin enlace"}</p>
               {sponsor.logo ? null : <p className="font-mono text-xs text-mist">Sin logo: no se puede publicar</p>}
             </OrderedRow>

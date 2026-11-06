@@ -16,6 +16,7 @@ import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
 import { EmptyState } from "../_components/empty-state";
+import { SectionTitle } from "../_components/section-title";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -86,11 +87,11 @@ export default async function AdminPillarsPage() {
                 }
               >
                 <p className="font-mono text-xs font-semibold tracking-[0.04em] text-sky uppercase">{pillar.word}</p>
-                <h2 className="font-display text-lg leading-tight wrap-anywhere">
+                <SectionTitle className="leading-tight wrap-anywhere">
                   <Link href={`/admin/pillars/${pillar.id}/edit`} className="rounded-xs underline-offset-4 hover:underline">
                     {pillar.title}
                   </Link>
-                </h2>
+                </SectionTitle>
                 <p className="line-clamp-2 text-sm text-mist">{pillar.image ? pillar.text : `${pillar.text} · Sin imagen`}</p>
               </OrderedRow>
             ))}

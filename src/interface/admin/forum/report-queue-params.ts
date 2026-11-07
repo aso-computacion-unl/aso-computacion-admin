@@ -27,3 +27,15 @@ export function reportQueueHref(status: ForumReportQueue, page: number): string 
 
   return text ? `${REPORTS_PATH}?${text}` : REPORTS_PATH;
 }
+
+/** The open queue is walked one report at a time: `?n=` is the 1-based position, anything else is the first. */
+export function parseReportPosition(params: { n?: Param }): number {
+  const raw = single(params.n);
+
+  return raw !== undefined && /^[1-9]\d{0,5}$/.test(raw) ? Number(raw) : 1;
+}
+
+/** Link to the report at a position of the open queue; the first one is the bare path. */
+export function reportPositionHref(position: number): string {
+  return position > 1 ? `${REPORTS_PATH}?n=${position}` : REPORTS_PATH;
+}

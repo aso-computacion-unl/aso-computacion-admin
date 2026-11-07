@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseReportQueueParams, reportQueueHref } from "@/interface/admin/forum/report-queue-params";
+import { parseReportPosition, parseReportQueueParams, reportPositionHref, reportQueueHref } from "@/interface/admin/forum/report-queue-params";
 
 describe("parseReportQueueParams", () => {
   it("defaults to the first page of the open reports", () => {
@@ -26,5 +26,22 @@ describe("reportQueueHref", () => {
     expect(reportQueueHref("open", 2)).toBe("/admin/foro/reportes?pagina=2");
     expect(reportQueueHref("closed", 1)).toBe("/admin/foro/reportes?estado=cerrados");
     expect(reportQueueHref("closed", 3)).toBe("/admin/foro/reportes?estado=cerrados&pagina=3");
+  });
+});
+
+describe("parseReportPosition", () => {
+  it("reads the position, and reduces anything else to the first report", () => {
+    expect(parseReportPosition({ n: "3" })).toBe(3);
+    expect(parseReportPosition({ n: ["2", "5"] })).toBe(2);
+    expect(parseReportPosition({})).toBe(1);
+
+    for (const hostile of ["0", "-1", "1e3", "abc", "9999999999"]) expect(parseReportPosition({ n: hostile })).toBe(1);
+  });
+});
+
+describe("reportPositionHref", () => {
+  it("is the bare path for the first report", () => {
+    expect(reportPositionHref(1)).toBe("/admin/foro/reportes");
+    expect(reportPositionHref(4)).toBe("/admin/foro/reportes?n=4");
   });
 });

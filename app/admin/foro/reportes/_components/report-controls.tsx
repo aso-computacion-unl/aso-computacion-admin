@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ForumReportItemResult } from "@/application";
@@ -10,7 +11,6 @@ import type { ActionResult } from "@/interface/admin/action-result";
 import { closeForumReport, setForumMemberSuspended, setForumReplyHidden, setForumThreadHidden, setForumThreadLocked } from "@/interface/admin/forum/moderation-actions";
 
 import { Field, FieldError } from "../../../_components/form-parts";
-import { DeleteButton } from "../../../_components/row-actions";
 import { useToast } from "../../../_components/toast";
 import { resultMessage, useRunAction } from "../../../_components/use-run-action";
 
@@ -43,6 +43,48 @@ function StepButton({ label, run: action, done, variant = "line", size = "defaul
 }
 
 /**
+ * Suspending asks first, like a removal, but the account is not removed: the trigger carries a lock, not the trash can
+ * that `DeleteButton` draws for "Mover a la papelera".
+ */
+function SuspendButton({ memberId, name }: { memberId: string; name: string }) {
+  const { pending, result, run } = useRunAction();
+  const [confirming, setConfirming] = useState(false);
+  const message = resultMessage(result);
+
+  if (!confirming) {
+    return (
+      <Button variant="quiet" size="sm" aria-label={`Suspender…: ${name}`} onClick={() => setConfirming(true)} className="min-h-11 border-action px-4.5 text-[0.9375rem] text-foreground">
+        <Icon name="lock" className="size-4" />
+        Suspender…
+      </Button>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={`Confirmar: suspender… ${name}`} className="grid basis-full gap-3 rounded bg-muted p-3 text-sm">
+      <p>
+        «{name}» ya no podrá publicar y se cerrarán todas sus sesiones del foro. <span className="text-mist">Podrá reactivar la cuenta cuando quiera.</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="danger"
+          size="sm"
+          busy={pending}
+          aria-disabled={pending || undefined}
+          onClick={() => !pending && run(() => setForumMemberSuspended(memberId, true), undefined, "Cuenta suspendida y sesiones cerradas.")}
+        >
+          Sí, suspender
+        </Button>
+        <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>
+          No, conservar
+        </Button>
+      </div>
+      {message ? <FieldError>{message}</FieldError> : null}
+    </div>
+  );
+}
+
+/**
  * What a moderator can do with the report in view. The three decisions come first: hide (or show) the post, ignore the
  * report, suspend (or reactivate) the author. Below, quieter: lock the thread, close the report as resolved with the
  * optional note, and read the whole thread. The note goes with whichever way the report is closed.
@@ -70,17 +112,7 @@ export function ReportActions({ report }: { report: Pick<ForumReportItemResult, 
         {target.authorSuspended ? (
           <StepButton label="Reactivar la cuenta" run={() => setForumMemberSuspended(target.authorId, false)} done="Cuenta reactivada." />
         ) : (
-          <DeleteButton
-            label={target.authorName}
-            triggerLabel="Suspender…"
-            confirmLabel="Sí, suspender"
-            warning={`«${target.authorName}» ya no podrá publicar y se cerrarán todas sus sesiones del foro.`}
-            note="Podrá reactivar la cuenta cuando quiera."
-            successMessage="Cuenta suspendida y sesiones cerradas."
-            compactOnMobile={false}
-            triggerClassName="min-h-11 border-action px-4.5 text-[0.9375rem] text-foreground"
-            action={() => setForumMemberSuspended(target.authorId, true)}
-          />
+          <SuspendButton memberId={target.authorId} name={target.authorName} />
         )}
       </div>
 

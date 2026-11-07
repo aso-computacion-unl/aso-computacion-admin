@@ -141,7 +141,7 @@ const differs = <V extends object>(a: V, b: V) => (Object.keys(a) as (keyof V)[]
  */
 export function useControlledForm<V extends { [K in keyof V]: string | boolean }>(action: FormAction, initialValues: V, options: ControlledFormOptions<V> = {}) {
   const [values, setValues] = useState<V>(initialValues);
-  const [serverState, formAction, isPending] = useActionState(action, null);
+  const [serverState, formAction, sending] = useActionState(action, null);
   // The browser check's outcome lasts until the server answers a later submit, which replaces it.
   const [clientCheck, setClientCheck] = useState<{ result: ActionResult; over: ActionResult | null } | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -156,6 +156,13 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
   // Bumped by every save by hand: an autosave that was already out then finds a newer save was made and leaves `stored` alone.
   const saves = useRef(0);
   const autosaving = options.autosave === true && isDraft(stored) && isDraft(values);
+  // An autosave request is out, whatever its answer will do to `stored`. A save by hand asked for meanwhile waits in `queued`
+  // (the ref is what the request's end reads, so it never misses a save asked for just before it).
+  const [autosaveOut, setAutosaveOut] = useState(false);
+  const [queued, setQueued] = useState(false);
+  const queuedRef = useRef(false);
+  // A save by hand is on its way (waiting for the autosave, or sent): the button is busy and nothing else is sent or autosaved.
+  const isPending = sending || queued;
 
   useFocusFirstInvalid(state, formRef);
   useUnsavedChangesGuard(dirty);
@@ -165,6 +172,15 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     setAnswered(serverState);
     if (serverState?.success) setStored(submitted);
   }
+
+  // Sent from the end of the autosave request, so it holds what the form has by then, not what it had when the button was pressed.
+  const sendQueued = useEffectEvent(() => {
+    if (!queuedRef.current) return;
+
+    queuedRef.current = false;
+    setQueued(false);
+    dispatch(values);
+  });
 
   // One request at a time: while one is out, or the button's save is, nothing is scheduled; when it ends, the effect
   // runs again and schedules whatever was typed meanwhile. A failed save is not retried until the owner edits again.
@@ -178,22 +194,29 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     let result: ActionResult;
 
     setOutcome({ phase: "saving" });
+    setAutosaveOut(true);
     try {
       result = await action(null, (options.serialize ?? toFormData)(snapshot));
     } catch {
       result = { error: AUTOSAVE_FAILED_MESSAGE };
     }
 
-    if (ticket !== saves.current) return;
-    if (result.success) {
-      setStored(snapshot);
-      setOutcome({ phase: "saved" });
-    } else {
-      setOutcome({ phase: "failed", message: result.error ?? AUTOSAVE_FAILED_MESSAGE, values: snapshot });
+    // A save by hand since this request went out makes its answer stale: `stored` and the fields are left alone.
+    if (ticket === saves.current) {
+      if (result.success) {
+        setStored(snapshot);
+        setOutcome({ phase: "saved" });
+      } else {
+        setOutcome({ phase: "failed", message: result.error ?? AUTOSAVE_FAILED_MESSAGE, values: snapshot });
+      }
     }
+
+    // Answered or failed, the request is over: a save by hand that waited for it goes now.
+    setAutosaveOut(false);
+    sendQueued();
   });
 
-  const waiting = autosaving && dirty && outcome.phase !== "saving" && !isPending && !(outcome.phase === "failed" && outcome.values === values);
+  const waiting = autosaving && dirty && !autosaveOut && !isPending && !(outcome.phase === "failed" && outcome.values === values);
 
   useEffect(() => {
     if (!waiting) return;
@@ -244,12 +267,28 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     return !invalid;
   }
 
-  /** Sends the current values as they are: the caller has already passed `review`. */
+  function dispatch(current: V) {
+    setSubmitted(current);
+    startTransition(() => formAction((options.serialize ?? toFormData)(current)));
+  }
+
+  /**
+   * Sends the current values as they are: the caller has already passed `review`. While an autosave request is
+   * out it waits for it to settle first, so the server never gets the older draft after this save (it would
+   * unpublish what was just published). A second call while it waits changes nothing.
+   */
   function submit() {
+    if (isPending) return;
+
+    // The ticket makes the autosave's answer, when it comes, leave `stored` and the fields alone.
     saves.current += 1;
     setOutcome({ phase: "idle" });
-    setSubmitted(values);
-    startTransition(() => formAction((options.serialize ?? toFormData)(values)));
+    if (autosaveOut) {
+      queuedRef.current = true;
+      setQueued(true);
+    } else {
+      dispatch(values);
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

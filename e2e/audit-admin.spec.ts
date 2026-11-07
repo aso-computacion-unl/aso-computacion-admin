@@ -287,6 +287,7 @@ async function fillNews(page: Page, fields: { title?: string; summary?: string; 
   if (fields.title !== undefined) await page.getByLabel("Título").fill(fields.title);
   if (fields.summary !== undefined) await page.getByLabel("Resumen").fill(fields.summary);
   if (fields.body !== undefined) await page.getByLabel("Texto", { exact: true }).fill(fields.body);
+  if (fields.slug !== undefined || fields.date !== undefined) await openMoreOptions(page);
   if (fields.slug !== undefined) await page.getByLabel("Identificador (slug)").fill(fields.slug);
   if (fields.date !== undefined) await page.getByLabel("Fecha de publicación").fill(fields.date);
 }
@@ -353,16 +354,16 @@ test.describe("news", () => {
     await page.goto("/admin/news/new");
     await fillNews(page, { title, summary: "Resumen con ñ y 日本語", body });
 
-    // The preview follows the typing and never turns a javascript: link into a link.
-    const preview = page.getByRole("region", { name: "Vista previa" });
+    // "Publicar" opens the preview with the item as the site shows it; it never turns a javascript: link into a link.
+    await setSwitch(page, /Publicada/, true);
+    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    const preview = page.getByRole("dialog", { name: "Así queda" });
     await expect(preview.locator("strong", { hasText: "negrita" })).toBeVisible();
     await expect(preview.locator('a[href="https://example.org/ñ"], a[href="https://example.org/%C3%B1"]')).toHaveCount(1);
     await expect(preview.locator('a[href^="javascript:"]')).toHaveCount(0);
     await expect(preview.locator("script")).toHaveCount(0);
     await expect(preview.getByText("dos 🚀")).toBeVisible();
-
-    await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear noticia" }).click();
+    await preview.getByRole("button", { name: "Sí, publicar" }).click();
     await expect(page).toHaveURL(/\/admin\/news\/[^/]+\/edit$/, SLOW);
 
     const news = (await publicContent(page)).news as { title: string; slug: string; publishedAt: string; body: string }[];
@@ -393,6 +394,7 @@ test.describe("news", () => {
       await expect(page.getByLabel("Identificador (slug)")).toHaveValue(expectedSlug, SLOW);
     }
 
+    await openMoreOptions(page);
     await page.getByLabel("Identificador (slug)").fill(`mismo-titulo-${STAMP}`);
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("El identificador solo admite minúsculas, números y guiones, y no puede repetirse.")).toBeVisible();
@@ -1044,7 +1046,7 @@ test.describe("trash", () => {
     await page.goto("/admin/news/new");
     await fillNews(page, { title: newsTitle, summary: "Resumen", body: "Cuerpo" });
     await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear noticia" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/news\/[^/]+\/edit$/, SLOW);
 
     await page.goto("/admin/socials/new");

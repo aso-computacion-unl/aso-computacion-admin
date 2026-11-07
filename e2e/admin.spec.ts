@@ -376,6 +376,7 @@ test("a window that closes before it opens is refused with a message on the fiel
   await page.getByLabel("Título").fill(`E2E ventana ${Date.now()}`);
   await page.getByLabel("Resumen").fill("Resumen");
   await page.getByLabel("Texto").fill("Cuerpo");
+  await openMoreOptions(page);
   await page.getByLabel("Publicar el").fill("2030-02-01T08:00");
   await page.getByLabel("Retirar el").fill("2030-01-01T08:00");
   await page.getByRole("button", { name: "Crear noticia" }).click();

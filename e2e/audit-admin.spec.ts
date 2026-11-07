@@ -1309,24 +1309,25 @@ test.describe("theme and dashboard", () => {
     await context.close();
   });
 
-  test("the dashboard counts follow what is created: a new draft raises the draft count of its section", async ({ browser, baseURL }) => {
+  test("the home's drafts card follows what is created: a new draft event raises its count", async ({ browser, baseURL }) => {
     const { context, page } = await asAdmin(browser, baseURL);
-    const draftsOf = async (section: string) => {
+    const draftsOnHome = async () => {
       await page.goto("/admin");
-      const text = await page.getByRole("link", { name: new RegExp(`^${section}`) }).filter({ hasText: /publicados?/ }).first().innerText();
+      const card = page.locator('[data-slot="todo-card"]').filter({ hasText: /sin publicar/ });
 
-      return Number(/(\d+) borradores?/.exec(text)?.[1] ?? NaN);
+      return (await card.count()) === 0 ? 0 : Number((await card.locator("h3 span").innerText()).trim());
     };
 
-    const before = await draftsOf("FAQ");
+    const before = await draftsOnHome();
 
-    await page.goto("/admin/faqs/new");
-    await page.getByLabel("Pregunta").fill(`¿Borrador del panel ${STAMP}?`);
-    await page.getByLabel("Respuesta").fill("Respuesta");
-    await page.getByRole("button", { name: "Crear pregunta" }).click();
-    await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
+    await page.goto("/admin/events/new");
+    await page.getByLabel("Título").fill(`Borrador del panel ${STAMP}`);
+    await page.getByRole("button", { name: "Crear evento" }).click();
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/, SLOW);
 
-    expect(await draftsOf("FAQ")).toBe(before + 1);
+    expect(await draftsOnHome()).toBe(before + 1);
+    await page.getByRole("link", { name: "Continuar" }).click();
+    await expect(page).toHaveURL(/\/admin\/(events|news)\/[^/]+\/edit$/, SLOW);
     await context.close();
   });
 });

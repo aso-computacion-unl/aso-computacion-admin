@@ -87,6 +87,70 @@ describe("red text (WCAG AA 4.5:1)", () => {
   });
 });
 
+/** Pairs of [text, surface] the admin draws from the editorial design: WCAG AA for text is 4.5:1. */
+const TEXT_PAIRS: Array<[string, string]> = [
+  ["on-tint-red", "tint-red"],
+  ["on-tint-blue", "tint-blue"],
+  ["on-tint-navy", "tint-navy"],
+  ["success", "success-tint"],
+];
+
+describe("editorial design tokens (WCAG AA 4.5:1)", () => {
+  it.each(TEXT_PAIRS)("%s reads on %s in both themes", (text, surface) => {
+    expect(contrast(token(text, "light"), token(surface, "light"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token(text, "dark"), token(surface, "dark"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ["tint-red", "#f8e8ea"],
+    ["on-tint-red", "#8d2930"],
+    ["tint-blue", "#e3f2fa"],
+    ["on-tint-blue", "#075a80"],
+    ["tint-navy", "#e4ebf4"],
+    ["on-tint-navy", "#053066"],
+    ["success", "#1f7a4d"],
+    ["success-tint", "#e6f4ec"],
+    ["paper-ring", "#c4d2e4"],
+    ["dash", "#9fb3cc"],
+  ])("the light value of %s is the design's %s", (name, hex) => {
+    expect(token(name, "light")).toBe(hex);
+  });
+
+  it("keeps the deep navy of the rail in both themes, with white text on it", () => {
+    expect(token("deep", "light")).toBe("#03224a");
+    expect(token("deep", "dark")).toBe("#03224a");
+    expect(contrast("#ffffff", token("deep", "light"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("states the brand red as the signal role in the light theme, with white text on it", () => {
+    expect(token("signal", "light")).toBe("#b7353e");
+    expect(lightTokens).toMatch(/--color-signal:\s*#b7353e/);
+  });
+
+  it("reads the tints on the light page and card, not only on themselves", () => {
+    for (const [text] of TEXT_PAIRS.slice(0, 3)) {
+      expect(contrast(token(text, "light"), token("navy", "light"))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps the existing token names the shared components read", () => {
+    for (const name of ["navy", "navy-deep", "navy-lift", "sky", "signal", "error", "ok", "action", "on-action", "background", "foreground", "card", "muted", "primary", "destructive", "border", "input", "ring"]) {
+      expect(css).toMatch(new RegExp(`--color-${name}:`));
+    }
+  });
+});
+
+describe("typography", () => {
+  it("sets the admin in Mona Sans and its numbers and codes in Geist Mono", () => {
+    expect(css).toMatch(/--font-sans:\s*"Mona Sans Variable"/);
+    expect(css).toMatch(/--font-display:\s*"Mona Sans Variable"/);
+    expect(css).toMatch(/--font-mono:\s*"Geist Mono Variable"/);
+    expect(css).toMatch(/@import "@fontsource-variable\/mona-sans\/wdth\.css"/);
+    expect(css).toMatch(/@import "@fontsource-variable\/geist-mono"/);
+    expect(css).toMatch(/body\s*{[^}]*font-family:\s*var\(--font-sans\)/);
+  });
+});
+
 describe("the «Más» sheet", () => {
   const sheet = () => renderToStaticMarkup(createElement(TabBar, { role: "ADMIN" })).match(/<dialog[^>]*>/)?.[0] ?? "";
 

@@ -8,6 +8,7 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { AppTopBar } from "../_components/app-top-bar";
 import { IdentityChip } from "../_components/identity-chip";
+import { AdminThemeDefault } from "../_components/theme-toggle";
 
 import { SideNav, TabBar } from "./_components/admin-nav";
 import { ToastProvider } from "./_components/toast";
@@ -31,6 +32,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen">
+      <AdminThemeDefault />
       <a
         href="#main"
         className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3"

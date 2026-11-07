@@ -36,6 +36,26 @@
 	--color-error: #ff9ba2;
 	/* Green text for "open" in the forum: 9:1 or more on every navy step. */
 	--color-ok: #7fe0b0;
+	/*
+	 * Editorial design tokens (the landing's admin look). Each tint is a surface with its own text colour; the
+	 * pairs are 4.5:1 or more in both themes (guarded in admin-contrast-and-overlays.test.ts).
+	 * - tint-red / tint-blue / tint-navy: status chips and soft panels, with on-tint-* as the text on them.
+	 * - success on success-tint: confirmed and published states (`ok` stays the green text on navy surfaces).
+	 * - deep: the rail's navy, the same in both themes, with white text (15:1).
+	 * - paper-ring / dash: the ring around a paper card and the dashed edge of a drop area. Decorative edges,
+	 *   not the only cue for a control (fields use `input`, 3:1).
+	 */
+	--color-tint-red: #5a2030;
+	--color-on-tint-red: #ffc2c7;
+	--color-tint-blue: #0b4a6e;
+	--color-on-tint-blue: #bfe6f8;
+	--color-tint-navy: #0a3d80;
+	--color-on-tint-navy: #dce8f8;
+	--color-success: #8fe3b8;
+	--color-success-tint: #0f4a33;
+	--color-deep: #03224a;
+	--color-paper-ring: #2a4f82;
+	--color-dash: #6f8fba;
 	/* Dim layer behind modal sheets: a dark navy veil that works over both themes. */
 	--color-scrim: color-mix(in srgb, #010d1f 60%, transparent);
 	/* Actions: white on navy, as on the landing. Hover and press step toward the page. */
@@ -75,7 +95,8 @@
  * - sky #0a6f9e is 4.6:1 or more as text; white on sky, sky-bright and sky-press is 5.5:1 or more.
  * - hover and press go darker here (lighter would fade into the page).
  * - action is navy ink with white text (15:1); its hover and press stay 11:1 or more.
- * - signal stays a fill with white text (5.9:1); error is its text form, 5.5:1 or more on every surface.
+ * - signal is the brand red #b7353e, a fill with white text (5.9:1); error is its text form, 5.5:1 or more on every surface.
+ * - the tints are the design's pale surfaces with their deep text (4.7:1 or more, success included).
  * - input outlines are 3.2:1 or more against the field (WCAG 1.4.11).
  */
 :root[data-theme="light"] {
@@ -89,6 +110,18 @@
 	--color-error: #b3202b;
 	/* 5.4:1 or more on every light surface. */
 	--color-ok: #0a6b46;
+	--color-signal: #b7353e;
+	--color-signal-press: #9d2c34;
+	--color-tint-red: #f8e8ea;
+	--color-on-tint-red: #8d2930;
+	--color-tint-blue: #e3f2fa;
+	--color-on-tint-blue: #075a80;
+	--color-tint-navy: #e4ebf4;
+	--color-on-tint-navy: #053066;
+	--color-success: #1f7a4d;
+	--color-success-tint: #e6f4ec;
+	--color-paper-ring: #c4d2e4;
+	--color-dash: #9fb3cc;
 
 	--color-foreground: #0b2447;
 	--color-action: #0b2447;

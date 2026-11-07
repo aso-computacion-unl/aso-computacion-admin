@@ -15,7 +15,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/interface/auth/require-page-session", () => ({ requirePageSession: requirePageSessionMock }));
 vi.mock("@/interface/auth/actions", () => ({ logout: vi.fn() }));
 vi.mock("../../../../app/_components/brand-mark", () => ({ BrandIsotype: () => null }));
-vi.mock("../../../../app/_components/theme-toggle", () => ({ ThemeToggle: () => createElement("button", null, "Modo claro") }));
+vi.mock("../../../../app/_components/theme-toggle", () => ({
+  ThemeToggle: () => createElement("button", null, "Modo claro"),
+  AdminThemeDefault: () => null,
+}));
 
 import AdminLayout from "../../../../app/admin/layout";
 import ForumLayout from "../../../../app/foro/layout";

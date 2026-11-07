@@ -50,7 +50,12 @@ describe("GET /api/public/preview", () => {
     const expired = (await signPreviewToken("1h", new Date(Date.now() - 2 * 3600 * 1000))).token;
     const [header, payload, signature] = (await signPreviewToken("1h")).token.split(".") as [string, string, string];
 
-    for (const token of [expired, `${header}.${payload}.${signature.slice(0, -2)}AA`, "garbage", ""]) {
+    // Change the first character: all six of its bits count. Overwriting the last two with "AA" is a no-op
+    // whenever the signature already ends in "AA", and the last character carries unused padding bits.
+    const forgedSignature = `${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+    expect(forgedSignature).not.toBe(signature);
+
+    for (const token of [expired, `${header}.${payload}.${forgedSignature}`, "garbage", ""]) {
       const response = await route.GET(get(token));
 
       expect(response.status).toBe(401);

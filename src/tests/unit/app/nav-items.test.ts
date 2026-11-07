@@ -36,6 +36,12 @@ describe("the four areas of the admin", () => {
   });
 });
 
+describe("the Ajustes area", () => {
+  it("has its own sliders icon, not the team's", () => {
+    expect(AREA_NAV.find((item) => item.label === "Ajustes")?.icon).toBe("sliders");
+  });
+});
+
 describe("which area a page belongs to", () => {
   it.each([
     ["/admin/events", "Landing"],

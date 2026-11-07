@@ -12,6 +12,7 @@ import { ListSearch } from "../_components/list-search";
 import { BulkSelection } from "../_components/bulk-selection";
 import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { Pager } from "../_components/pager";
@@ -38,17 +39,10 @@ export default async function AdminCommandsPage({ searchParams }: { searchParams
 
   return (
     <div>
+      <AreaTabs area="contenido" current="/admin/commands" />
       <PageHeader
         title="Comandos"
         status={`main · ${countsSummary(counts)}`}
-        action={
-          <Button asChild>
-            <Link href="/admin/commands/new">
-              <Icon name="plus" />
-              Nuevo comando
-            </Link>
-          </Button>
-        }
       />
       {listTotal === 0 ? (
         <EmptyState

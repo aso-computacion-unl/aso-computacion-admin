@@ -1,6 +1,7 @@
 import { updateSiteSettings } from "@/interface/admin/settings/actions";
 import { getAdminSiteSettings } from "@/interface/admin/settings/settings-admin-read";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { SettingsForm } from "./_components/settings-form";
 
@@ -12,6 +13,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <div>
+      <AreaTabs area="ajustes" current="/admin/settings" role="ADMIN" />
       <PageHeader title="Sitio" status="Textos generales del sitio público." />
       {settings ? null : (
         <p role="status" className="mt-6 border-l-2 border-dashed border-sky pl-4 text-mist">

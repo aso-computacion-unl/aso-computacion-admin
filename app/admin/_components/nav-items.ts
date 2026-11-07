@@ -26,7 +26,7 @@ export const MODULE_NAV: readonly NavItem[] = [
 
 export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home" };
 
-export function visibleTo(items: readonly NavItem[], role: Role): NavItem[] {
+export function visibleTo<T extends { adminOnly?: true }>(items: readonly T[], role: Role): T[] {
   return items.filter((item) => !item.adminOnly || role === "ADMIN");
 }
 
@@ -52,7 +52,7 @@ export const AREA_NAV: readonly AreaNavItem[] = [
   {
     href: "/admin/ajustes",
     label: "Ajustes",
-    icon: "users",
+    icon: "sliders",
     matches: ["/admin/ajustes", "/admin/usuarios", "/admin/sesiones", "/admin/settings", "/admin/registro", "/admin/papelera"],
   },
 ];
@@ -83,10 +83,39 @@ export function activeArea(pathname: string): AreaNavItem | undefined {
   return best?.item;
 }
 
+/** One tab of a strip: a page of the area, labelled as the tab reads (not as the page's own title). */
+export interface TabItem {
+  href: string;
+  label: string;
+  /** Locked for administrators and hidden from editors (the page enforces it too). */
+  adminOnly?: true;
+  /** Where "+ Crear" goes while this tab is the current one. */
+  create?: string;
+}
+
+/** The Contenido tabs the strip shows in the open, most used first. */
+export const CONTENIDO_TABS: readonly TabItem[] = [
+  { href: "/admin/events", label: "Línea de tiempo", create: "/admin/events/new" },
+  { href: "/admin/news", label: "Novedades", create: "/admin/news/new" },
+  { href: "/admin/faqs", label: "Preguntas", create: "/admin/faqs/new" },
+  { href: "/admin/board", label: "Directiva", create: "/admin/board/new" },
+];
+
+/** The rest of the Contenido types, behind "Más". */
+export const CONTENIDO_MORE: readonly TabItem[] = [
+  { href: "/admin/pillars", label: "Pilares", create: "/admin/pillars/new" },
+  { href: "/admin/commands", label: "Comandos", create: "/admin/commands/new" },
+  { href: "/admin/sponsors", label: "Aliados", create: "/admin/sponsors/new" },
+  { href: "/admin/socials", label: "Redes", create: "/admin/socials/new" },
+];
+
 /** The Ajustes tabs in order; the entry route lands on the first one the role can open. */
-const AJUSTES_TABS: readonly NavItem[] = [
-  { href: "/admin/usuarios", label: "Equipo", icon: "users", adminOnly: true },
-  { href: "/admin/sesiones", label: "Mis sesiones", icon: "monitor" },
+export const AJUSTES_TABS: readonly TabItem[] = [
+  { href: "/admin/usuarios", label: "Equipo", adminOnly: true },
+  { href: "/admin/sesiones", label: "Mis sesiones" },
+  { href: "/admin/settings", label: "Textos del sitio", adminOnly: true },
+  { href: "/admin/registro", label: "Historial", adminOnly: true },
+  { href: "/admin/papelera", label: "Papelera" },
 ];
 
 /** Where /admin/ajustes sends the role: its first visible tab, so an editor never lands on a page that bounces them home. */

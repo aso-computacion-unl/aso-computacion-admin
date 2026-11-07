@@ -4,6 +4,7 @@ import { ROLE_LABELS } from "@/interface/admin/role-labels";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { Panel } from "../_components/form-layout";
 import { EmptyState } from "../_components/empty-state";
@@ -26,6 +27,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
+      <AreaTabs area="ajustes" current="/admin/usuarios" role="ADMIN" />
       <PageHeader
         title="Usuarios"
         status={`${pluralize(active, "activo", "activos")} · ${pluralize(users.length - active, "desactivado", "desactivados")}`}

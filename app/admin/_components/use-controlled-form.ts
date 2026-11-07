@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type RefObject } from "react";
+import { startTransition, useActionState, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type FormEvent, type RefObject } from "react";
 
 import type { ActionResult } from "@/interface/admin/action-result";
 import { fieldMessage } from "@/interface/admin/field-messages";
@@ -15,7 +15,29 @@ interface ControlledFormOptions<V> {
   fieldMessages?: Record<string, string>;
   /** How the values travel; the default sends text as is and only checked boxes as `on`. */
   serialize?: (values: V) => FormData;
+  /**
+   * Saves an unpublished draft by itself once the typing stops. Only an edit page turns it on: a create page
+   * would create a row, and a published item is never saved before "Sí, publicar". It runs only while both the
+   * stored item and the form are drafts (`isPublished` false), through the same action as the button.
+   */
+  autosave?: boolean;
 }
+
+/** Quiet time after the last keystroke before a draft is saved. */
+export const AUTOSAVE_DELAY_MS = 1800;
+const AUTOSAVE_FAILED_MESSAGE = "No se pudo guardar. Use el botón.";
+
+/** What the save status shows: nothing for a form that does not autosave, nothing while a save is only waiting for the typing to stop. */
+export interface AutosaveStatus {
+  enabled: boolean;
+  phase: "idle" | "saving" | "saved" | "failed";
+  /** With `failed`: the line to show. */
+  message?: string;
+}
+
+type AutosaveOutcome = { phase: "idle" | "saving" | "saved" } | { phase: "failed"; message: string; values: object };
+
+const isDraft = (values: object) => (values as { isPublished?: unknown }).isPublished === false;
 
 const NOT_CHECKED_HERE = new Set(["checkbox", "radio", "hidden", "file", "button", "submit", "reset", "image"]);
 
@@ -129,14 +151,65 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
   const [answered, setAnswered] = useState(serverState);
   const state = clientCheck && clientCheck.over === serverState ? clientCheck.result : serverState;
 
+  const dirty = differs(values, stored);
+  const [outcome, setOutcome] = useState<AutosaveOutcome>({ phase: "idle" });
+  // Bumped by every save by hand: an autosave that was already out then finds a newer save was made and leaves `stored` alone.
+  const saves = useRef(0);
+  const autosaving = options.autosave === true && isDraft(stored) && isDraft(values);
+
   useFocusFirstInvalid(state, formRef);
-  useUnsavedChangesGuard(differs(values, stored));
+  useUnsavedChangesGuard(dirty);
 
   // A save the server accepted makes what was submitted the stored text.
   if (answered !== serverState) {
     setAnswered(serverState);
     if (serverState?.success) setStored(submitted);
   }
+
+  // One request at a time: while one is out, or the button's save is, nothing is scheduled; when it ends, the effect
+  // runs again and schedules whatever was typed meanwhile. A failed save is not retried until the owner edits again.
+  const saveDraft = useEffectEvent(async (snapshot: V) => {
+    const form = formRef.current;
+
+    // Nothing is shown for a form that is not valid yet: it simply is not saved.
+    if (!form || Object.keys(collectFieldErrors(form, options.fieldMessages)).length > 0) return;
+
+    const ticket = saves.current;
+    let result: ActionResult;
+
+    setOutcome({ phase: "saving" });
+    try {
+      result = await action(null, (options.serialize ?? toFormData)(snapshot));
+    } catch {
+      result = { error: AUTOSAVE_FAILED_MESSAGE };
+    }
+
+    if (ticket !== saves.current) return;
+    if (result.success) {
+      setStored(snapshot);
+      setOutcome({ phase: "saved" });
+    } else {
+      setOutcome({ phase: "failed", message: result.error ?? AUTOSAVE_FAILED_MESSAGE, values: snapshot });
+    }
+  });
+
+  const waiting = autosaving && dirty && outcome.phase !== "saving" && !isPending && !(outcome.phase === "failed" && outcome.values === values);
+
+  useEffect(() => {
+    if (!waiting) return;
+
+    const timer = setTimeout(() => void saveDraft(values), AUTOSAVE_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [waiting, values]);
+
+  // What was saved or refused says nothing about text typed since.
+  const stale = (outcome.phase === "saved" && dirty) || (outcome.phase === "failed" && outcome.values !== values);
+  const autosaveStatus: AutosaveStatus = {
+    enabled: options.autosave === true,
+    phase: stale ? "idle" : outcome.phase,
+    message: outcome.phase === "failed" ? outcome.message : undefined,
+  };
 
   function bind<K extends StringKeys<V>>(key: K) {
     return {
@@ -173,6 +246,8 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
 
   /** Sends the current values as they are: the caller has already passed `review`. */
   function submit() {
+    saves.current += 1;
+    setOutcome({ phase: "idle" });
     setSubmitted(values);
     startTransition(() => formAction((options.serialize ?? toFormData)(values)));
   }
@@ -187,5 +262,5 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     setStored(initialValues);
   }
 
-  return { values, stored, bind, toggle, handleSubmit, review, submit, reset, setValues, state, isPending, errors: state?.fieldErrors ?? {} };
+  return { values, stored, bind, toggle, handleSubmit, review, submit, reset, setValues, state, isPending, errors: state?.fieldErrors ?? {}, formRef, autosaveStatus };
 }

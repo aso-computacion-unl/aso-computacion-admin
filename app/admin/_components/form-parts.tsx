@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { useToast } from "./toast";
-import { useHasUnsavedChanges } from "./use-controlled-form";
+import { useHasUnsavedChanges, type AutosaveStatus } from "./use-controlled-form";
 
 const SAVED_MESSAGE = "Cambios guardados.";
 
@@ -127,8 +127,10 @@ export function FormFailure({ state }: { state: ActionResult | null }) {
  * A save also shows a toast, which is easier to notice than the line next to the button; the toast
  * is the one screen readers announce, so the line is not a live region too. Pass `toast={false}`
  * when the form already confirms the save its own way, and `savedMessage` for a save that says more (publishing).
+ * An edit page of a draft passes `autosave` too: its quiet status ("Guardando…", "Guardado") replaces the saved
+ * notice once the draft saves by itself, and it never toasts.
  */
-export function FormFeedback({ state, toast = true, savedMessage = SAVED_MESSAGE }: { state: ActionResult | null; toast?: boolean; savedMessage?: string }) {
+export function FormFeedback({ state, toast = true, savedMessage = SAVED_MESSAGE, autosave }: { state: ActionResult | null; toast?: boolean; savedMessage?: string; autosave?: AutosaveStatus }) {
   const { notify } = useToast();
 
   // Each submit hands back a new result object, so saving the same form twice toasts twice.
@@ -139,13 +141,28 @@ export function FormFeedback({ state, toast = true, savedMessage = SAVED_MESSAGE
   return (
     <div data-slot="form-feedback" className="min-w-0 text-sm">
       <FormFailure state={state} />
-      {state?.success ? (
+      {state?.success && (autosave?.phase ?? "idle") === "idle" ? (
         <p className="flex items-center gap-2 font-semibold text-sky">
           <Icon name="check" className="size-4 stroke-[2.25]" />
           {savedMessage}
         </p>
       ) : null}
+      {autosave?.enabled ? <AutosaveLine autosave={autosave} /> : null}
     </div>
+  );
+}
+
+const AUTOSAVE_TEXT = { idle: "", saving: "Guardando…", saved: "Guardado", failed: "" } as const;
+
+/** The quiet status of a draft that saves by itself. It is always in the page, so a screen reader hears it change. */
+function AutosaveLine({ autosave }: { autosave: AutosaveStatus }) {
+  const text = autosave.phase === "failed" ? autosave.message : AUTOSAVE_TEXT[autosave.phase];
+
+  return (
+    <p data-slot="autosave-status" role="status" className={cn("flex min-h-5 items-center gap-2 text-[0.8125rem]", autosave.phase === "failed" ? "font-semibold text-error" : "text-mist")}>
+      {text ? <span aria-hidden="true" className={cn("size-2 rounded-full", autosave.phase === "saved" ? "bg-success" : "bg-mist")} /> : null}
+      {text}
+    </p>
   );
 }
 

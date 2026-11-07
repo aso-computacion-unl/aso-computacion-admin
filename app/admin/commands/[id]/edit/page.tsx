@@ -29,6 +29,7 @@ export default async function EditCommandPage({ params }: EditCommandPageProps) 
       <Panel>
         <CommandForm
           action={updateCommand.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           initialValues={{
             command: command.command,

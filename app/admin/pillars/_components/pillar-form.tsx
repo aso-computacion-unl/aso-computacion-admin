@@ -27,20 +27,22 @@ interface PillarFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: PillarFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
   hasImage?: boolean;
   /** The stored image's address, so the preview before publishing shows it. */
   imageUrl?: string | null;
 }
 
-export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_FORM_VALUES, hasImage = false, imageUrl = null }: PillarFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: PILLAR_FIELD_MESSAGES });
+export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_FORM_VALUES, autosave = false, hasImage = false, imageUrl = null }: PillarFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { fieldMessages: PILLAR_FIELD_MESSAGES, autosave });
   // A published pillar asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
   const image = imageUrl ? { url: imageUrl } : null;
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <Field label="Palabra" help="La palabra grande de la tarjeta, por ejemplo «VOZ»." count={{ length: values.word.length, max: 20 }} error={errors.word}>
           {(control) => <Input {...control} {...bind("word")} required maxLength={20} />}
@@ -58,7 +60,7 @@ export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_F
         </Field>
       ) : null}
       <SwitchField label="Publicado" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

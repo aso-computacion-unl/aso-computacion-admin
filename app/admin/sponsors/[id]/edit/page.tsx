@@ -33,6 +33,7 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
         <SponsorForm
           key={sponsor.logo?.url ?? "no-logo"}
           action={updateSponsor.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           hasLogo={sponsor.logo !== null}
           logoUrl={sponsor.logo?.url ?? null}

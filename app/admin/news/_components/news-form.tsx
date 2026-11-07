@@ -46,6 +46,8 @@ interface NewsFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: NewsFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
   isEditing?: boolean;
   /** The stored cover, once the news item has one: its description is asked for here, and the preview shows it. */
   cover?: { url: string; width: number; height: number } | null;
@@ -56,15 +58,15 @@ const MARKDOWN_HELP = "Separe los párrafos con una línea en blanco. **negrita*
 /** The fields under "Más opciones": an error in one of them opens it. */
 const MORE_OPTIONS_FIELDS = ["publishedAt", "slug", "publishAt", "unpublishAt"] as const;
 
-export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, isEditing = false, cover = null }: NewsFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: NEWS_FIELD_MESSAGES });
+export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, autosave = false, isEditing = false, cover = null }: NewsFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { fieldMessages: NEWS_FIELD_MESSAGES, autosave });
   // A published item asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title}>
         {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
       </Field>
@@ -93,7 +95,7 @@ export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_
         <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} />
       </MoreOptions>
       <SwitchField label="Publicada" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

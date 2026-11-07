@@ -33,6 +33,7 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
         <PillarForm
           key={pillar.image?.url ?? "no-image"}
           action={updatePillar.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           hasImage={pillar.image !== null}
           imageUrl={pillar.image?.url ?? null}

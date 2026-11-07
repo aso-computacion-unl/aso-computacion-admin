@@ -26,14 +26,16 @@ interface BoardMemberFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: BoardMemberFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
   hasPhoto?: boolean;
   /** The stored photo's address, so the preview before publishing shows it. */
   photoUrl?: string | null;
 }
 
 // Only name, role and photo exist for a member: no contact data is collected (S4).
-export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOARD_MEMBER_FORM_VALUES, hasPhoto = false, photoUrl = null }: BoardMemberFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues);
+export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOARD_MEMBER_FORM_VALUES, autosave = false, hasPhoto = false, photoUrl = null }: BoardMemberFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { autosave });
   // A published member asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
@@ -41,7 +43,7 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
   const photo = photoUrl ? { url: photoUrl } : null;
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Nombre" count={{ length: values.name.length, max: 60 }} error={errors.name}>
           {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
@@ -65,7 +67,7 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
         />
         {errors.photo ? <FieldError id={photoErrorId} announce={false}>{errors.photo}</FieldError> : null}
       </div>
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

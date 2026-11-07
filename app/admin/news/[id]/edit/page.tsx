@@ -28,6 +28,7 @@ export default async function EditNewsPage({ params }: EditNewsPageProps) {
         <NewsForm
           key={item.cover?.url ?? "no-cover"}
           action={updateNewsItem.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           isEditing
           cover={item.cover}

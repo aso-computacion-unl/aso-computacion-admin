@@ -29,6 +29,7 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
       <Panel>
         <FaqForm
           action={updateFaq.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           initialValues={{ question: faq.question, answer: faq.answer, command: faq.command ?? "", isPublished: faq.isPublished }}
         />

@@ -45,10 +45,8 @@ Este panel permite que la directiva de ASO Computación mantenga el contenido de
 | **Aliados** | Nombre y logo de quienes apoyan a la asociación, con un enlace opcional |
 | **Redes** | Enlaces a las redes sociales |
 | **Sitio** | Lema, descripción y texto «Acerca de» (solo administradores) |
-| **Medios** | Todas las imágenes guardadas y dónde se usa cada una; un administrador puede buscar y eliminar las que ya no usa nadie |
-| **Papelera** | Lo que se elimina va primero a la papelera: se puede restaurar (como borrador) o, solo un administrador, eliminar para siempre |
+| **Papelera** | Lo que se elimina va primero a la papelera: se puede restaurar (como borrador) o, solo un administrador, eliminar para siempre; ahí también se limpian las imágenes que ya no usa nadie |
 | **Foro** | Reportes de estudiantes: ocultar o mostrar una publicación, cerrar un hilo, suspender a un estudiante y cerrar el reporte |
-| **Vista previa** | Códigos temporales (1 hora, 24 horas o 7 días) para ver borradores y contenido programado en el diseño real antes de publicarlo |
 | **Usuarios** | Quién puede entrar con su cuenta de Google y con qué rol (editor o administrador); se incorporan nuevas personas mediante un enlace de invitación de un solo uso que vence a los 7 días |
 | **Sesiones** | Dónde hay una sesión abierta y cerrarla; el administrador ve las de todos |
 | **Registro** | Quién cambió qué y cuándo (solo administradores) |

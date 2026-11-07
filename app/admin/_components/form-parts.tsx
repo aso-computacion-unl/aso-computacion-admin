@@ -17,6 +17,10 @@ const SAVED_MESSAGE = "Cambios guardados.";
 interface FieldProps {
   label: string;
   hint?: string;
+  /** Help behind a small "?" next to the label: it is not on the page until asked for. */
+  help?: string;
+  /** The text typed and its limit; the count shows only near the limit. */
+  count?: { length: number; max: number };
   error?: string;
   /** Grid span classes, e.g. `@xl:col-span-2` (container query of the enclosing Panel). */
   className?: string;
@@ -37,15 +41,44 @@ export function FieldError({ id, announce = true, children }: { id?: string; ann
   );
 }
 
+/** A count of characters stays out of sight until it is 80% of the limit. */
+const COUNT_FROM = 0.8;
+
 /** Label, control, hint and error wired together with ids so screen readers read them as one field. */
-export function Field({ label, hint, error, className, children }: FieldProps) {
+export function Field({ label, hint, help, count, error, className, children }: FieldProps) {
   const id = useId();
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  const [helpOpen, setHelpOpen] = useState(false);
+  const describedBy = [hint && `${id}-hint`, helpOpen && `${id}-help`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  const showCount = count !== undefined && count.length >= count.max * COUNT_FROM;
 
   return (
     <div className={cn("grid min-w-0 content-start gap-1.5", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      {help || count ? (
+        <div className="flex items-center gap-2">
+          <Label htmlFor={id}>{label}</Label>
+          {help ? (
+            <button
+              type="button"
+              aria-label={`Ayuda: ${label}`}
+              aria-expanded={helpOpen}
+              aria-controls={`${id}-help`}
+              onClick={() => setHelpOpen((open) => !open)}
+              className="grid size-6 place-items-center rounded-full border border-input text-xs leading-none font-bold text-mist hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky aria-expanded:bg-muted aria-expanded:text-foreground"
+            >
+              ?
+            </button>
+          ) : null}
+          {showCount ? <span className="ml-auto font-mono text-[0.8125rem] text-mist">{count.length} / {count.max}</span> : null}
+        </div>
+      ) : (
+        <Label htmlFor={id}>{label}</Label>
+      )}
       {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
+      {help ? (
+        <p id={`${id}-help`} hidden={!helpOpen} className="text-[0.8125rem] leading-[1.4] text-mist">
+          {help}
+        </p>
+      ) : null}
       {hint ? (
         <small id={`${id}-hint`} className="text-[0.8125rem] leading-[1.4] text-mist">
           {hint}

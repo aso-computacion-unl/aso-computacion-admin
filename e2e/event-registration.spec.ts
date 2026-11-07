@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { openMoreOptions } from "./more-options";
+
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 // Signed cookie value of an editor session that scripts/run-e2e.mjs planted in the database.
 const EDITOR_SESSION = process.env.E2E_EDITOR_SESSION ?? "";
@@ -27,8 +29,10 @@ async function createRegistrableEvent(page: Page, title: string) {
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
   await page.getByLabel("Título").fill(title);
   await page.getByLabel("Fecha", { exact: true }).fill("2099-11-28");
+  await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
   await page.getByRole("radio", { name: "Formulario abierto" }).check({ force: true });
   await page.getByLabel("Cupos").fill("2");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.

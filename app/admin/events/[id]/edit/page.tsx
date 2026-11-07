@@ -39,15 +39,6 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
       backLabel="Volver a eventos"
       title={event.title}
       status={recordStatus(event.isPublished, "m", event.slug)}
-      aside={
-        <div id={PHOTOS_SECTION_ID} className={anchor}>
-          <PhotoGallery
-            eventId={id}
-            minWidth={EVENT_PHOTO_MIN_WIDTH}
-            photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
-          />
-        </div>
-      }
     >
       {justCreated ? <EventCreatedArrival /> : null}
       <SectionJumps
@@ -61,9 +52,15 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
       <Panel id="datos" aria-label="Datos del evento" className={anchor}>
         <EventForm action={updateEvent.bind(null, id)} submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} />
       </Panel>
+      <div id={PHOTOS_SECTION_ID} className={anchor}>
+        <PhotoGallery
+          eventId={id}
+          minWidth={EVENT_PHOTO_MIN_WIDTH}
+          photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
+        />
+      </div>
       {takesRegistrations ? (
-        <Panel id="inscripciones" aria-label="Inscripciones" className={`flex flex-wrap items-center justify-between gap-3 ${anchor}`}>
-          <p className="text-mist">Las personas inscritas y sus datos están en una página aparte.</p>
+        <Panel id="inscripciones" aria-label="Inscripciones" className={anchor}>
           <Button asChild variant="line">
             <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
           </Button>

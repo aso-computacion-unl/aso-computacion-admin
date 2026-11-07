@@ -50,7 +50,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
   const message = resultMessage(altAction.result);
 
   return (
-    <li className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-2.5 rounded bg-muted p-2.5 sm:grid-cols-1 sm:p-2 sm:pb-2.5">
+    <li className="grid w-44 shrink-0 snap-start content-start gap-2.5 rounded bg-muted p-2 pb-2.5">
       <div className="relative aspect-4/3 self-start overflow-hidden rounded-xs bg-navy">
         {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -81,7 +81,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
         ) : null}
       </form>
 
-      <div className="col-span-2 flex flex-wrap items-center gap-x-1 gap-y-1 sm:col-span-1">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
         <MoveButtons
           label={label}
           isFirst={position === 1}
@@ -102,7 +102,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
           />
         </div>
       </div>
-      <div aria-live="polite" className="col-span-2 sm:col-span-1">
+      <div aria-live="polite">
         {message ? <FieldError>{message}</FieldError> : null}
       </div>
     </li>
@@ -115,30 +115,29 @@ interface PhotoGalleryProps {
   minWidth: number;
 }
 
+/** The count of photos stays out of sight until the event is close to the maximum. */
+const COUNT_FROM = Math.ceil(MAX_ACTIVE_EVENT_PHOTOS * 0.8);
+
+/** The photos of an event as one strip to scroll: the order of the strip is the order on the site. */
 export function PhotoGallery({ eventId, photos, minWidth }: PhotoGalleryProps) {
   return (
-    <Panel aria-labelledby="gallery-heading" className="grid gap-5">
+    <Panel aria-labelledby="gallery-heading" className="grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <SectionTitle id="gallery-heading">Fotos</SectionTitle>
-        <p className="font-mono text-[0.8125rem] text-mist">
-          {photos.length} de {MAX_ACTIVE_EVENT_PHOTOS}
-        </p>
+        {photos.length >= COUNT_FROM ? (
+          <p className="font-mono text-[0.8125rem] text-mist">
+            {photos.length} de {MAX_ACTIVE_EVENT_PHOTOS}
+          </p>
+        ) : null}
       </div>
       <PhotoUploadForm eventId={eventId} activeCount={photos.length} minWidth={minWidth} />
-      {photos.length === 0 ? (
-        <p role="status" className="text-mist">
-          Todavía no hay fotos. El orden de esta lista es el orden en que se muestran en el sitio.
-        </p>
-      ) : (
-        <>
-          <p className="text-sm text-mist">El orden de esta lista es el orden en que se muestran en el sitio.</p>
-          <ol aria-label="Fotos del evento" className="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] sm:gap-4">
-            {photos.map((photo, index) => (
-              <PhotoItem key={photo.id} eventId={eventId} photo={photo} position={index + 1} total={photos.length} />
-            ))}
-          </ol>
-        </>
-      )}
+      {photos.length > 0 ? (
+        <ol aria-label="Fotos del evento" className="flex snap-x gap-3 overflow-x-auto pb-2">
+          {photos.map((photo, index) => (
+            <PhotoItem key={photo.id} eventId={eventId} photo={photo} position={index + 1} total={photos.length} />
+          ))}
+        </ol>
+      ) : null}
     </Panel>
   );
 }

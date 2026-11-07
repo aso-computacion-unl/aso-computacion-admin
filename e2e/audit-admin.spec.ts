@@ -147,7 +147,10 @@ const publicContent = async (page: Page) => (await page.request.get("/api/public
 test.describe("login", () => {
   test("the emergency password path signs in, a wrong, blank, very long or unicode password is refused with the same message", async ({ page }) => {
     await openLogin(page);
-    await expect(page.getByRole("heading", { name: "Panel de administración" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ASO Computación" })).toBeVisible();
+    // The card carries the full logo, and the admin's light look applies here too (nothing is stored in a fresh browser).
+    await expect(page.locator("main img:visible")).toHaveCount(1);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
     // A blank password never reaches the server: the browser stops the submit on the required field.
     await openPasswordForm(page);

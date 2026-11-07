@@ -7,6 +7,8 @@ import { FaqForm } from "../../../../app/admin/faqs/_components/faq-form";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
+import { controlsPerLabel } from "./one-control-per-label";
+
 afterEach(async () => {
   await unmountAll();
 });
@@ -78,5 +80,15 @@ describe("the FAQ editor", () => {
     await typeInto(field(host, "Pregunta"), "P".repeat(160));
     await typeInto(field(host, "Respuesta"), "R".repeat(800));
     expect(counters()).toEqual(["160 / 200", "800 / 1000"]);
+  });
+});
+
+describe("the labels of the FAQ editor", () => {
+  it("name one control each, so the \"?\" help toggle does not answer to \"Comando (opcional)\"", async () => {
+    const host = await mountForm();
+    const perLabel = controlsPerLabel(host);
+
+    expect(perLabel.get("Comando (opcional)")?.size).toBe(1);
+    for (const [text, controls] of perLabel) expect(controls.size, text).toBe(1);
   });
 });

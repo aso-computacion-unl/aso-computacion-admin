@@ -34,7 +34,7 @@ async function createRegistrableEvent(page: Page, title: string) {
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
   await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-  await page.getByRole("radio", { name: "Formulario abierto" }).check({ force: true });
+  await page.getByRole("radio", { name: "Formulario abierto" }).check();
   await page.getByLabel("Cupos").fill("2");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();

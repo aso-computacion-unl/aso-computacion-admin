@@ -17,7 +17,11 @@ const SAVED_MESSAGE = "Cambios guardados.";
 interface FieldProps {
   label: string;
   hint?: string;
-  /** Help behind a small "?" next to the label: it is not on the page until asked for. */
+  /**
+   * Help behind a small "?" next to the label: it is not on the page until asked for. The "?" is called "Ayuda"
+   * and described by the label, never named after it: a second control whose name carries the label's text
+   * would make the field ambiguous (`getByLabel`, voice control).
+   */
   help?: string;
   /** The text typed and its limit; the count shows only near the limit. */
   count?: { length: number; max: number };
@@ -55,11 +59,12 @@ export function Field({ label, hint, help, count, error, className, children }: 
     <div className={cn("grid min-w-0 content-start gap-1.5", className)}>
       {help || count ? (
         <div className="flex items-center gap-2">
-          <Label htmlFor={id}>{label}</Label>
+          <Label id={`${id}-label`} htmlFor={id}>{label}</Label>
           {help ? (
             <button
               type="button"
-              aria-label={`Ayuda: ${label}`}
+              aria-label="Ayuda"
+              aria-describedby={`${id}-label`}
               aria-expanded={helpOpen}
               aria-controls={`${id}-help`}
               onClick={() => setHelpOpen((open) => !open)}

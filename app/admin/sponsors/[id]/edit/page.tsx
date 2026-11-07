@@ -35,6 +35,7 @@ export default async function EditSponsorPage({ params }: EditSponsorPageProps) 
           action={updateSponsor.bind(null, id)}
           submitLabel="Guardar cambios"
           hasLogo={sponsor.logo !== null}
+          logoUrl={sponsor.logo?.url ?? null}
           initialValues={{ name: sponsor.name, url: sponsor.url ?? "", logoAlt: sponsor.logo?.alt ?? "", isPublished: sponsor.isPublished }}
         />
       </Panel>

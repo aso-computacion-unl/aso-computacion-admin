@@ -35,6 +35,7 @@ export default async function EditPillarPage({ params }: EditPillarPageProps) {
           action={updatePillar.bind(null, id)}
           submitLabel="Guardar cambios"
           hasImage={pillar.image !== null}
+          imageUrl={pillar.image?.url ?? null}
           initialValues={{
             word: pillar.word,
             title: pillar.title,

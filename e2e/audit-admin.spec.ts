@@ -708,7 +708,7 @@ test.describe("pillars", () => {
 
     await page.getByLabel("Texto").fill(text);
     await setSwitch(page, /Publicado/, true);
-    await create.click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/pillars/, SLOW);
     await expect(page).not.toHaveURL(/\/new$/, SLOW);
 
@@ -743,7 +743,8 @@ test.describe("board", () => {
 
     await page.getByLabel("Cargo").fill("Vocal ñ");
     await setSwitch(page, /Publicado/, true);
-    await add.click();
+    // Published asks first; the server refuses on "Sí, publicar" and the preview closes on the error.
+    await publish(page);
     await expect(page.getByText("Suba una foto antes de publicar al integrante.")).toBeVisible();
     expect(((await publicContent(page)).board as { name: string }[]).map((member) => member.name)).not.toContain(name);
 

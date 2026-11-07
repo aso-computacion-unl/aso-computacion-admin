@@ -35,6 +35,7 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
           action={updateBoardMember.bind(null, id)}
           submitLabel="Guardar cambios"
           hasPhoto={member.photo !== null}
+          photoUrl={member.photo?.url ?? null}
           initialValues={{
             name: member.name,
             role: member.role,

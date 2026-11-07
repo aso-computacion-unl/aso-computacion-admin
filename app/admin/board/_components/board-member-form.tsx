@@ -8,7 +8,9 @@ import { SwitchField } from "@/components/ui/switch";
 import type { ActionResult } from "@/interface/admin/action-result";
 
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
+import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
+import { BOARD_MEMBER_PUBLISH_FIELDS, BoardMemberPreview } from "./board-member-preview";
 
 export interface BoardMemberFormValues {
   name: string;
@@ -25,47 +27,58 @@ interface BoardMemberFormProps {
   submitLabel: string;
   initialValues?: BoardMemberFormValues;
   hasPhoto?: boolean;
+  /** The stored photo's address, so the preview before publishing shows it. */
+  photoUrl?: string | null;
 }
 
 // Only name, role and photo exist for a member: no contact data is collected (S4).
-export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOARD_MEMBER_FORM_VALUES, hasPhoto = false }: BoardMemberFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOARD_MEMBER_FORM_VALUES, hasPhoto = false, photoUrl = null }: BoardMemberFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues);
+  // A published member asks first, with the preview; a draft saves as it always did.
+  const publishing = values.isPublished;
+  const publish = usePublishFlow({ state, review, submit });
   const photoErrorId = `${useId()}-photo-error`;
+  const photo = photoUrl ? { url: photoUrl } : null;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        <Field label="Nombre" hint="El nombre que se muestra en el sitio público. Hasta 60 caracteres." error={errors.name}>
+        <Field label="Nombre" count={{ length: values.name.length, max: 60 }} error={errors.name}>
           {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
         </Field>
-        <Field label="Cargo" hint="Por ejemplo «Presidente». Hasta 60 caracteres." error={errors.role}>
+        <Field label="Cargo" count={{ length: values.role.length, max: 60 }} error={errors.role}>
           {(control) => <Input {...control} {...bind("role")} required maxLength={60} />}
         </Field>
       </div>
       {hasPhoto ? (
-        <Field label="Descripción de la foto" hint="Obligatoria, para accesibilidad. Hasta 200 caracteres." error={errors.photoAlt}>
+        <Field label="Descripción de la foto" help="Para quien no ve la foto." count={{ length: values.photoAlt.length, max: 200 }} error={errors.photoAlt}>
           {(control) => <Input {...control} {...bind("photoAlt")} required maxLength={200} />}
         </Field>
       ) : null}
       <div className="grid gap-1">
         <SwitchField
           label="Publicado"
-          description={
-            hasPhoto
-              ? "Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
-              : "Sin foto no se puede publicar: suba la foto primero."
-          }
+          description={hasPhoto ? undefined : "Sin foto no se puede publicar: suba la foto primero."}
           {...toggle("isPublished")}
           aria-describedby={errors.photo ? photoErrorId : undefined}
           aria-invalid={errors.photo ? true : undefined}
         />
         {errors.photo ? <FieldError id={photoErrorId} announce={false}>{errors.photo}</FieldError> : null}
       </div>
-      <ActionBar status={<FormFeedback state={state} />}>
+      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : submitLabel}
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
       </ActionBar>
+      {publish.open ? (
+        <PublishPreview
+          before={stored.isPublished ? stored : null}
+          after={values}
+          fields={BOARD_MEMBER_PUBLISH_FIELDS}
+          render={(shown, changed) => <BoardMemberPreview values={shown} photo={photo} changed={changed} />}
+          {...publish.dialog}
+        />
+      ) : null}
     </form>
   );
 }

@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import { registrationPageUrl } from "@/interface/public/public-event-extras";
 
-import { CopyLink } from "../../../../usuarios/_components/copy-link";
-import { EmptyState } from "../../../../_components/empty-state";
+import { CopyLink } from "../../usuarios/_components/copy-link";
+import { EmptyState } from "../../_components/empty-state";
 
 interface RegistrationsEmptyStateProps {
   eventId: string;

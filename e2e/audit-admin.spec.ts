@@ -1035,7 +1035,7 @@ test.describe("trash", () => {
     await page.getByLabel("Pregunta").fill(question);
     await page.getByLabel("Respuesta").fill("Respuesta");
     await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear pregunta" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
 
     await page.goto("/admin/news/new");
@@ -1232,7 +1232,7 @@ test.describe("faqs and line breaks", () => {
 
     await page.getByLabel("Comando (opcional)").fill("");
     await setSwitch(page, /Publicada/, true);
-    await create.click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
 
     const faq = ((await publicContent(page)).faqs as { question: string; answer: string; command: string }[]).find((item) => item.question === question);

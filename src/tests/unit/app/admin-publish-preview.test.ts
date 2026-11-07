@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { EventForm } from "../../../../app/admin/events/_components/event-form";
+import { FaqForm, type FaqFormValues } from "../../../../app/admin/faqs/_components/faq-form";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { EMPTY_EVENT_FORM_VALUES, type EventFormValues } from "@/interface/admin/events/event-form-values";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
@@ -25,6 +26,15 @@ const PUBLISHED: Partial<EventFormValues> = {
 };
 const mountEvent = (action: Action = ok, initial: Partial<EventFormValues> = PUBLISHED) =>
   mount(createElement(ToastProvider, null, createElement(EventForm, { action, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, ...initial } })));
+const mountFaq = (action: Action = ok, initial: Partial<FaqFormValues> = {}) =>
+  mount(
+    createElement(
+      ToastProvider,
+      null,
+      createElement(FaqForm, { action, submitLabel: "Guardar cambios", initialValues: { question: "¿Cómo entro?", answer: "Con su cuenta.", command: "", isPublished: true, ...initial } }),
+    ),
+  );
+
 const field = (host: HTMLElement, text: string) => {
   const label = [...host.querySelectorAll("label")].find((candidate) => candidate.textContent === text)!;
 
@@ -203,5 +213,63 @@ describe("publishing an event", () => {
 
     expect(dialog()).toBeNull();
     expect(host.textContent).toContain("Use un número entero.");
+  });
+});
+
+describe("publishing a FAQ", () => {
+  it("shows the question card with its command line, and what changed", async () => {
+    const host = await mountFaq();
+
+    await typeInto(field(host, "Respuesta"), "Con su cuenta UNL.");
+    await click(host.querySelector("summary")!);
+    await typeInto(field(host, "Comando (opcional)"), "inscribirme");
+    await click(primary(host));
+
+    expect(primary(host).textContent).toBe("Publicar");
+    expect(site()).toContain("¿Cómo entro?");
+    expect(site()).toContain("Con su cuenta UNL.");
+    expect(site()).toContain("❯ git help inscribirme");
+    expect(changes()).toEqual(["Respuesta: Con su cuenta. → Con su cuenta UNL.", "Comando: Sin comando → inscribirme"]);
+
+    await click(version("before"));
+    expect(site()).not.toContain("git help");
+  });
+
+  it("does not submit on open or on \"Seguir editando\", and submits once on \"Sí, publicar\"", async () => {
+    const action = vi.fn(ok);
+    const host = await mountFaq(action);
+
+    await click(primary(host));
+    await click(inDialog("Seguir editando"));
+    expect(action).not.toHaveBeenCalled();
+
+    await click(primary(host));
+    await click(inDialog("Sí, publicar"));
+    await settle();
+
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("Publicado. El sitio se actualiza en un minuto.");
+  });
+
+  it("keeps its save label for a draft and saves it straight away", async () => {
+    const action = vi.fn(ok);
+    const host = await mountFaq(action, { isPublished: false });
+
+    expect(primary(host).textContent).toBe("Guardar cambios");
+    await click(primary(host));
+    await settle();
+
+    expect(dialog()).toBeNull();
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the errors instead of the preview when the question is empty", async () => {
+    const host = await mountFaq();
+
+    await typeInto(field(host, "Pregunta"), "");
+    await click(primary(host));
+
+    expect(dialog()).toBeNull();
+    expect(host.textContent).toContain("Revise");
   });
 });

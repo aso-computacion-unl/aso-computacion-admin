@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { publish } from "./publish";
+
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 // Signed cookie value of an editor session that scripts/run-e2e.mjs planted in the database.
 const EDITOR_SESSION = process.env.E2E_EDITOR_SESSION ?? "";
@@ -18,7 +20,7 @@ async function createFaq(page: Page, question: string) {
   await page.getByLabel("Pregunta").fill(question);
   await page.getByLabel("Respuesta").fill("Una respuesta corta.");
   await page.getByRole("switch", { name: /Publicada/ }).setChecked(true, { force: true });
-  await page.getByRole("button", { name: "Crear pregunta" }).click();
+  await publish(page);
   await expect(page).toHaveURL(/\/admin\/faqs$/);
   await expect(page.getByRole("link", { name: question }).first()).toBeVisible();
 }

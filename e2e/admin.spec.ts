@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
+import { PUBLISHED_TEXT, publish } from "./publish";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 // Signed cookie values of two editor sessions that scripts/run-e2e.mjs planted in the database.
@@ -51,7 +52,7 @@ test("an event published in the admin appears in the public content API", async 
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
-  await page.getByRole("button", { name: "Crear evento" }).click();
+  await publish(page);
 
   // Creating continues on the edit page of the new event: a toast says what is next and the photo drop zone has focus.
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
@@ -89,7 +90,7 @@ test("a published event moved to the trash leaves the public API, undo brings it
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
-  await page.getByRole("button", { name: "Crear evento" }).click();
+  await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   expect(await publicTitles()).toContain(title);
 
@@ -315,7 +316,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
-  await page.getByRole("button", { name: "Crear evento" }).click();
+  await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   await openMoreOptions(page);
   await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
@@ -331,10 +332,10 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await row.getByRole("link", { name: `Editar: ${scheduled}` }).click();
   await openMoreOptions(page);
   await page.getByLabel("Publicar el").fill("");
-  await page.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+  await publish(page);
+  await expect(page.locator('[data-slot="form-feedback"]').getByText(PUBLISHED_TEXT)).toBeVisible();
   // The save also raises a toast, which the live region announces.
-  await expect(page.getByRole("status").getByRole("listitem").filter({ hasText: "Cambios guardados." })).toBeVisible();
+  await expect(page.getByRole("status").getByRole("listitem").filter({ hasText: PUBLISHED_TEXT })).toBeVisible();
   expect(await publicTitles()).toContain(scheduled);
 
   // A window that already closed: published, yet retired.
@@ -346,7 +347,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
-  await page.getByRole("button", { name: "Crear evento" }).click();
+  await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
 
   expect(await publicTitles()).not.toContain(expired);

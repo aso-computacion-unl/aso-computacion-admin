@@ -2,6 +2,7 @@ import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
+import { publish } from "./publish";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
@@ -36,7 +37,7 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
-  await page.getByRole("button", { name: "Crear evento" }).click();
+  await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/);
 
   return { id: /\/admin\/events\/([^/]+)\/edit(?:#fotos)?$/.exec(page.url())![1]!, slug: title.toLowerCase().replaceAll(" ", "-") };

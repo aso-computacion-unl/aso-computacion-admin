@@ -155,9 +155,10 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     };
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  /** Runs the browser check and shows every field that fails; true when all pass. Nothing is sent. */
+  function review(event: FormEvent<HTMLFormElement>): boolean {
     event.preventDefault();
-    if (isPending) return;
+    if (isPending) return false;
 
     formRef.current = event.currentTarget;
 
@@ -166,10 +167,18 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
 
     // Passing the check clears what the last submit left on screen while this one is on its way.
     setClientCheck({ result: invalid ? { fieldErrors } : {}, over: serverState });
-    if (invalid) return;
 
+    return !invalid;
+  }
+
+  /** Sends the current values as they are: the caller has already passed `review`. */
+  function submit() {
     setSubmitted(values);
     startTransition(() => formAction((options.serialize ?? toFormData)(values)));
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (review(event)) submit();
   }
 
   /** Back to the initial values, e.g. after a form that adds one more row saved. */
@@ -178,5 +187,5 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
     setStored(initialValues);
   }
 
-  return { values, bind, toggle, handleSubmit, reset, setValues, state, isPending, errors: state?.fieldErrors ?? {} };
+  return { values, stored, bind, toggle, handleSubmit, review, submit, reset, setValues, state, isPending, errors: state?.fieldErrors ?? {} };
 }

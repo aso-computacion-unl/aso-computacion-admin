@@ -138,7 +138,7 @@ La interfaz usa **Next.js 16 (App Router)**, **React 19** y **Tailwind 4**.
 - Las páginas no hablan con Prisma: llaman a una server action o a un caso de uso.
 - El panel se usa mucho desde el celular. Revise cada cambio en **390 px** y en escritorio, con el teclado (Tab) y con el lector de pantalla si agrega un control nuevo.
 - Si su cambio se ve, agregue capturas de antes y después en el PR.
-- Los flujos de pantalla se prueban con Playwright (ver [QA](#qa)); si cambia un flujo crítico, actualice su spec en `e2e/`.
+- Los flujos de pantalla se prueban con Playwright (ver [QA](#qa)); si cambia un flujo crítico, actualice su spec en `e2e/`. Un evento o una pregunta publicados se guardan en dos pasos ("Publicar" abre la vista previa y "Sí, publicar" guarda): en los specs use `publish(page)` de `e2e/publish.ts`.
 
 ### QA
 

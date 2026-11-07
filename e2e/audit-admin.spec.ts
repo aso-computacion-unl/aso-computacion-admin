@@ -637,6 +637,7 @@ test.describe("terminal commands", () => {
     await page.goto("/admin/faqs/new");
     await page.getByLabel("Pregunta").fill(`¿Pregunta de ${faqCommand}?`);
     await page.getByLabel("Respuesta").fill("Respuesta");
+    await openMoreOptions(page);
     await page.getByLabel("Comando (opcional)").fill(faqCommand);
     await page.getByRole("button", { name: "Crear pregunta" }).click();
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
@@ -648,6 +649,7 @@ test.describe("terminal commands", () => {
     await page.goto("/admin/faqs/new");
     await page.getByLabel("Pregunta").fill(`¿Otra pregunta de ${command}?`);
     await page.getByLabel("Respuesta").fill("Respuesta");
+    await openMoreOptions(page);
     await page.getByLabel("Comando (opcional)").fill(command);
     await page.getByRole("button", { name: "Crear pregunta" }).click();
     await expect(await errorOf(page, "Comando (opcional)")).toContainText(`«${command}» ya lo usa otro comando`);
@@ -1219,6 +1221,7 @@ test.describe("faqs and line breaks", () => {
     await create.click();
     await expect(await errorOf(page, "Respuesta")).toBeVisible();
 
+    await openMoreOptions(page);
     for (const command of ["Hola", "a", "1x", "dos--guiones", "con espacio"]) {
       await page.getByLabel("Respuesta").fill(answer);
       await fillPastLimit(page.getByLabel("Comando (opcional)"), command);

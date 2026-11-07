@@ -789,7 +789,7 @@ components:
       type: apiKey
       in: header
       name: x-preview-token
-      description: JWT HS256 de vista previa, generado en el admin por un Editor o Administrador (vigencia de 1 h, 24 h o 7 d).
+      description: JWT HS256 de vista previa firmado con `PREVIEW_TOKEN_SECRET` (vigencia de 1 h, 24 h o 7 d). El panel ya no tiene una pantalla para generarlo.
 
   parameters:
     Slug:

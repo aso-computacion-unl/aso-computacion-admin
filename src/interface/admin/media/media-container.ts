@@ -1,4 +1,4 @@
-import { DeleteOrphanImagesUseCase, FindOrphanImagesUseCase, ListMediaLibraryUseCase } from "@/application";
+import { DeleteOrphanImagesUseCase, FindOrphanImagesUseCase } from "@/application";
 import { MediaUsagePrismaReader } from "@/infrastructure/repositories/media-usage-prisma.reader";
 import { CloudinaryMediaLibrary } from "@/infrastructure/storage/cloudinary-media-library";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
@@ -12,7 +12,7 @@ export function getMediaUseCases() {
   const library = new CloudinaryMediaLibrary();
   const usage = new MediaUsagePrismaReader();
 
-  return { list: new ListMediaLibraryUseCase(library, usage), findOrphans: new FindOrphanImagesUseCase(library, usage) };
+  return { findOrphans: new FindOrphanImagesUseCase(library, usage) };
 }
 
 /** Separate from the reads on purpose: only the deletion gets the storage that can destroy files. */

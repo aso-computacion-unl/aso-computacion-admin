@@ -133,32 +133,28 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
   await expect(page.getByRole("button", { name: /Arrastrar para reordenar/ })).toHaveCount(0);
 });
 
-test("the media library opens even when the image storage is not configured, and says so", async ({ page }) => {
+test("the unused-image cleanup lives in the trash: admins open it as a dry run, an editor has no way in, and the old Medios URLs still lead there", async ({ page, context }) => {
   await logInAsAdmin(page);
-  await page.goto("/admin/medios");
+  await page.goto("/admin/papelera");
+  await page.getByRole("link", { name: "Limpiar imágenes sin uso" }).click();
 
-  await expect(page).toHaveURL(/\/admin\/medios$/);
-  await expect(page.getByRole("heading", { name: "Medios", level: 1 })).toBeVisible();
-  await expect(page.getByText("El almacén de imágenes no está configurado")).toBeVisible();
-});
-
-test("the unused-image cleanup is for admins: it opens for them as a dry run, and an editor is sent home without a way in", async ({ page, context }) => {
-  await logInAsAdmin(page);
-  await page.goto("/admin/medios");
-  await page.getByRole("link", { name: "Buscar imágenes sin uso" }).click();
-
-  await expect(page).toHaveURL(/\/admin\/medios\/limpieza$/);
+  await expect(page).toHaveURL(/\/admin\/papelera\/imagenes$/);
   await expect(page.getByRole("heading", { name: "Imágenes sin uso", level: 1 })).toBeVisible();
   await expect(page.getByText("Esta revisión no borra nada")).toBeVisible();
   // No storage in the test environment: nothing to choose, nothing to delete.
   await expect(page.getByText("El almacén de imágenes no está configurado")).toBeVisible();
   await expect(page.getByRole("button", { name: /Eliminar/ })).toHaveCount(0);
 
+  await page.goto("/admin/medios");
+  await expect(page).toHaveURL(/\/admin\/papelera$/);
+  await page.goto("/admin/medios/limpieza");
+  await expect(page).toHaveURL(/\/admin\/papelera\/imagenes$/);
+
   await context.clearCookies();
   await context.addCookies([{ name: "admin_session", value: EDITOR_SESSION, url: BASE_URL }]);
-  await page.goto("/admin/medios");
-  await expect(page.getByRole("heading", { name: "Medios", level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Buscar imágenes sin uso" })).toHaveCount(0);
-  await page.goto("/admin/medios/limpieza");
+  await page.goto("/admin/papelera");
+  await expect(page.getByRole("heading", { name: "Papelera", level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Limpiar imágenes sin uso" })).toHaveCount(0);
+  await page.goto("/admin/papelera/imagenes");
   await expect(page).toHaveURL(/\/admin\?acceso=restringido$/);
 });

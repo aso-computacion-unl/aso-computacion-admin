@@ -69,7 +69,7 @@ describe("red text (WCAG AA 4.5:1)", () => {
       "app/admin/_components/bulk-selection.tsx",
       "app/admin/_components/reorderable-list.tsx",
       "app/admin/_components/window-badge.tsx",
-      ...sourceFiles("app/admin/medios"),
+      ...sourceFiles("app/admin/papelera"),
       ...sourceFiles("app/admin/sesiones"),
     ];
 

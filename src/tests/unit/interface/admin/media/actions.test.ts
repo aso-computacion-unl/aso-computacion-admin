@@ -44,7 +44,7 @@ describe("deleteOrphanImages", () => {
     expect(result.results?.[1]?.error).toContain("se usa");
     expect(result.results?.[2]?.error).toContain("24 horas");
     expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId])).toEqual([["media.delete_orphan", "media", "aso/a"]]);
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/medios");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/papelera/imagenes");
   });
 
   it("writes the audit entry as each file is destroyed, so a request cut short never leaves a deleted file unaudited", async () => {

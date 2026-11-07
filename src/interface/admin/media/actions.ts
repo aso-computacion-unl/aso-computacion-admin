@@ -12,7 +12,7 @@ import { ORPHAN_IDS_MESSAGE, outcomeResult, parseOrphanIds, type OrphanDeleteRes
 // before any input is read, never run by itself (it only acts on the ids a person chose from the dry
 // run) and it re-checks every image before destroying it. One audit entry per file destroyed.
 
-const LIBRARY_PATH = "/admin/medios";
+const CLEANUP_PATH = "/admin/papelera/imagenes";
 
 export async function deleteOrphanImages(publicIds: string[]): Promise<OrphanDeleteResult> {
   try {
@@ -27,8 +27,7 @@ export async function deleteOrphanImages(publicIds: string[]): Promise<OrphanDel
     });
 
     if (deletions.some(({ outcome }) => outcome === "deleted")) {
-      revalidatePath(LIBRARY_PATH);
-      revalidatePath(`${LIBRARY_PATH}/limpieza`);
+      revalidatePath(CLEANUP_PATH);
     }
 
     return { results: deletions.map(({ publicId, outcome }) => outcomeResult(publicId, outcome)) };

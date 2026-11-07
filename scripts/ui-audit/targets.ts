@@ -8,12 +8,10 @@ import { ADMIN_URL, LANDING_URL, type Target } from "./config";
 const ADMIN_ROUTES = [
   "/admin",
   ...MODULE_NAV.map((item) => item.href),
-  "/admin/medios",
   "/admin/registrations",
   "/admin/papelera",
   "/admin/foro/reportes",
   "/admin/foro/categorias",
-  "/admin/vista-previa",
   "/admin/sesiones",
   "/admin/usuarios",
   "/admin/registro",
@@ -33,7 +31,7 @@ export async function adminTargets(page: Page): Promise<Target[]> {
   const add = (path: string, name: string, notes?: string) => targets.push({ area: "admin", name, url: `${ADMIN_URL}${path}`, auth: "admin", notes });
 
   for (const href of ADMIN_ROUTES) add(href, stem(href));
-  add("/admin/medios/limpieza", "medios-limpieza", "Linked from Medios, not in the sidebar.");
+  add("/admin/papelera/imagenes", "papelera-imagenes", "Linked from Papelera (admin only), not in the tabs.");
 
   for (const item of MODULE_NAV) {
     if (!item.action?.href.endsWith("/new")) continue;

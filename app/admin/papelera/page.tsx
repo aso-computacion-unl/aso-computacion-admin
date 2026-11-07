@@ -25,6 +25,13 @@ export default async function AdminTrashPage() {
       <AreaTabs area="ajustes" current="/admin/papelera" role={actor.role} />
       <PageHeader
         title="Papelera"
+        action={
+          canPurge ? (
+            <Button asChild variant="line">
+              <Link href="/admin/papelera/imagenes">Limpiar imágenes sin uso</Link>
+            </Button>
+          ) : undefined
+        }
         status={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`}
         description={
           <>

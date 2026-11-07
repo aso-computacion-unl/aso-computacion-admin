@@ -12,7 +12,6 @@ const RAW_STYLES = [
 const SCREENS = [
   "page.tsx",
   "_components/single-image-panel.tsx",
-  "vista-previa/page.tsx",
   "events/page.tsx",
   "events/_components/photo-gallery.tsx",
   "news/_components/news-preview.tsx",

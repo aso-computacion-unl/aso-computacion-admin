@@ -4,6 +4,7 @@ import type { BoardMemberResult } from "../dto/board-member-result.dto";
 import { toBoardMemberResult } from "../mappers/board-member-result.mapper";
 import type { OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdateBoardMemberCommand = UpdateBoardMemberInput & { id: string };
 
@@ -11,13 +12,13 @@ export type UpdateBoardMemberCommand = UpdateBoardMemberInput & { id: string };
 export class UpdateBoardMemberUseCase {
   constructor(private readonly members: OrderedContentRepository<BoardMember>) {}
 
-  async execute({ id, ...updates }: UpdateBoardMemberCommand): Promise<BoardMemberResult> {
+  async execute({ id, ...updates }: UpdateBoardMemberCommand): Promise<Updated<BoardMemberResult>> {
     const member = await this.members.getById(id);
 
     if (!member) {
       throw new NotFoundError("Board member not found");
     }
 
-    return toBoardMemberResult(await this.members.update(member.update(updates)));
+    return { ...toBoardMemberResult(await this.members.update(member.update(updates))), wasPublished: member.props.isPublished };
   }
 }

@@ -6,6 +6,7 @@ import type { CommandNameRegistry } from "../ports/command-name-registry.port";
 import type { OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { assertCommandNameFree } from "./assert-command-name-free";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdateFaqCommand = UpdateFaqInput & { id: string };
 
@@ -15,7 +16,7 @@ export class UpdateFaqUseCase {
     private readonly commandNames: CommandNameRegistry,
   ) {}
 
-  async execute({ id, ...updates }: UpdateFaqCommand): Promise<FaqResult> {
+  async execute({ id, ...updates }: UpdateFaqCommand): Promise<Updated<FaqResult>> {
     const faq = await this.faqs.getById(id);
 
     if (!faq) {
@@ -29,6 +30,6 @@ export class UpdateFaqUseCase {
       await assertCommandNameFree(this.commandNames, updated.props.command, { kind: "faq", id });
     }
 
-    return toFaqResult(await this.faqs.update(updated));
+    return { ...toFaqResult(await this.faqs.update(updated)), wasPublished: faq.props.isPublished };
   }
 }

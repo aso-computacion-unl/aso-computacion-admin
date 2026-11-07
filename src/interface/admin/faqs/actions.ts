@@ -8,6 +8,7 @@ import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseFaqFormData } from "./faq-form-data";
 import { getFaqUseCases } from "./faqs-container";
@@ -19,15 +20,22 @@ import { getFaqUseCases } from "./faqs-container";
 const LIST_PATH = "/admin/faqs";
 
 export async function createFaq(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  let id: string;
+  let isPublished: boolean;
+
   try {
     const actor = await requireSession();
-    const { id } = await getFaqUseCases().create.execute(parseFaqFormData(formData));
+    ({ id, isPublished } = await getFaqUseCases().create.execute(parseFaqFormData(formData)));
     await recordAudit(actor, { action: "faq.create", entityType: "faq", entityId: id, summary: "Pregunta frecuente creada" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
@@ -35,9 +43,13 @@ export async function createFaq(_prevState: ActionResult | null, formData: FormD
 export async function updateFaq(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getFaqUseCases().update.execute({ id, ...parseFaqFormData(formData) });
+    const saved = await getFaqUseCases().update.execute({ id, ...parseFaqFormData(formData) });
     await recordAudit(actor, { action: "faq.update", entityType: "faq", entityId: id, summary: "Pregunta frecuente editada" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {

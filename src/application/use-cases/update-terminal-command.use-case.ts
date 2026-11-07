@@ -6,6 +6,7 @@ import type { CommandNameRegistry } from "../ports/command-name-registry.port";
 import type { OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { assertCommandNameFree } from "./assert-command-name-free";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdateTerminalCommandCommand = UpdateTerminalCommandInput & { id: string };
 
@@ -15,7 +16,7 @@ export class UpdateTerminalCommandUseCase {
     private readonly commandNames: CommandNameRegistry,
   ) {}
 
-  async execute({ id, ...updates }: UpdateTerminalCommandCommand): Promise<TerminalCommandResult> {
+  async execute({ id, ...updates }: UpdateTerminalCommandCommand): Promise<Updated<TerminalCommandResult>> {
     const command = await this.commands.getById(id);
 
     if (!command) {
@@ -29,6 +30,6 @@ export class UpdateTerminalCommandUseCase {
       await assertCommandNameFree(this.commandNames, updated.props.command, { kind: "command", id });
     }
 
-    return toTerminalCommandResult(await this.commands.update(updated));
+    return { ...toTerminalCommandResult(await this.commands.update(updated)), wasPublished: command.props.isPublished };
   }
 }

@@ -5,13 +5,14 @@ import { toEventResult } from "../mappers/event-result.mapper";
 import type { EventRepository } from "../ports/event-repository.port";
 import { resolveEventSlug } from "./resolve-event-slug";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdateEventCommand = UpdateEventInput & { id: string };
 
 export class UpdateEventUseCase {
   constructor(private readonly events: EventRepository) {}
 
-  async execute({ id, ...updates }: UpdateEventCommand): Promise<EventResult> {
+  async execute({ id, ...updates }: UpdateEventCommand): Promise<Updated<EventResult>> {
     const event = await this.events.getById(id);
 
     if (!event) {
@@ -23,6 +24,6 @@ export class UpdateEventUseCase {
       await resolveEventSlug(this.events, event.props.title, updates.slug, id);
     }
 
-    return toEventResult(await this.events.update(event.update(updates)));
+    return { ...toEventResult(await this.events.update(event.update(updates))), wasPublished: event.props.isPublished };
   }
 }

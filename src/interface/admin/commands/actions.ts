@@ -9,6 +9,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { COMMAND_FIELD_MESSAGES } from "../field-messages";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseCommandFormData } from "./command-form-data";
 import { getCommandUseCases } from "./commands-container";
@@ -20,15 +21,22 @@ import { getCommandUseCases } from "./commands-container";
 const LIST_PATH = "/admin/commands";
 
 export async function createCommand(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  let id: string;
+  let isPublished: boolean;
+
   try {
     const actor = await requireSession();
-    const { id } = await getCommandUseCases().create.execute(parseCommandFormData(formData));
+    ({ id, isPublished } = await getCommandUseCases().create.execute(parseCommandFormData(formData)));
     await recordAudit(actor, { action: "command.create", entityType: "command", entityId: id, summary: "Comando creado" });
   } catch (error) {
     return mapActionError(error, COMMAND_FIELD_MESSAGES);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
@@ -36,9 +44,13 @@ export async function createCommand(_prevState: ActionResult | null, formData: F
 export async function updateCommand(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getCommandUseCases().update.execute({ id, ...parseCommandFormData(formData) });
+    const saved = await getCommandUseCases().update.execute({ id, ...parseCommandFormData(formData) });
     await recordAudit(actor, { action: "command.update", entityType: "command", entityId: id, summary: "Comando editado" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {

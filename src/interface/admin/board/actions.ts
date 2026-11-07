@@ -9,6 +9,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseBoardMemberFormData } from "./board-member-form-data";
 import { getBoardMemberUseCases } from "./board-members-container";
@@ -22,16 +23,21 @@ const editPath = (id: string) => `${LIST_PATH}/${id}/edit`;
 
 export async function createBoardMember(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
+  let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id } = await getBoardMemberUseCases().create.execute(parseBoardMemberFormData(formData)));
+    ({ id, isPublished } = await getBoardMemberUseCases().create.execute(parseBoardMemberFormData(formData)));
     await recordAudit(actor, { action: "board.create", entityType: "board", entityId: id, summary: "Integrante de la directiva creado" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   // The photo needs an existing member, so creating continues on its edit page.
   redirect(editPath(id));
@@ -40,9 +46,13 @@ export async function createBoardMember(_prevState: ActionResult | null, formDat
 export async function updateBoardMember(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getBoardMemberUseCases().update.execute({ id, ...parseBoardMemberFormData(formData) });
+    const saved = await getBoardMemberUseCases().update.execute({ id, ...parseBoardMemberFormData(formData) });
     await recordAudit(actor, { action: "board.update", entityType: "board", entityId: id, summary: "Integrante de la directiva editado" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

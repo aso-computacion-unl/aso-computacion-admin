@@ -9,6 +9,7 @@ import { assertValidImageSignature, imageUploadSchema } from "@/interface/valida
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { createdEventPath } from "./created-flag";
 import { parseEventFormData } from "./event-form-data";
@@ -23,16 +24,21 @@ const editPath = (eventId: string) => `${LIST_PATH}/${eventId}/edit`;
 
 export async function createEvent(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
+  let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id } = await getEventUseCases().create.execute(parseEventFormData(formData)));
+    ({ id, isPublished } = await getEventUseCases().create.execute(parseEventFormData(formData)));
     await recordAudit(actor, { action: "event.create", entityType: "event", entityId: id, summary: "Evento creado" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   // Photos need an existing event, so creating continues on its edit page, aimed at the Photos section.
   redirect(createdEventPath(editPath(id)));
@@ -45,9 +51,13 @@ export async function updateEvent(
 ): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getEventUseCases().update.execute({ id, ...parseEventFormData(formData) });
+    const saved = await getEventUseCases().update.execute({ id, ...parseEventFormData(formData) });
     await recordAudit(actor, { action: "event.update", entityType: "event", entityId: id, summary: "Evento editado" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

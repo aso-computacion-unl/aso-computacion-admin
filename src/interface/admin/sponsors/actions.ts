@@ -10,6 +10,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { SPONSOR_FIELD_MESSAGES } from "../field-messages";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseSponsorFormData } from "./sponsor-form-data";
 import { getSponsorUseCases } from "./sponsors-container";
@@ -27,16 +28,21 @@ const mapActionError = (error: unknown) => mapError(error, SPONSOR_FIELD_MESSAGE
 
 export async function createSponsor(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
+  let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id } = await getSponsorUseCases().create.execute(parseSponsorFormData(formData)));
+    ({ id, isPublished } = await getSponsorUseCases().create.execute(parseSponsorFormData(formData)));
     await recordAudit(actor, { action: "sponsor.create", entityType: "sponsor", entityId: id, summary: "Aliado creado" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   // The logo needs an existing sponsor, so creating continues on its edit page.
   redirect(editPath(id));
@@ -45,9 +51,13 @@ export async function createSponsor(_prevState: ActionResult | null, formData: F
 export async function updateSponsor(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getSponsorUseCases().update.execute({ id, ...parseSponsorFormData(formData) });
+    const saved = await getSponsorUseCases().update.execute({ id, ...parseSponsorFormData(formData) });
     await recordAudit(actor, { action: "sponsor.update", entityType: "sponsor", entityId: id, summary: "Aliado editado" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

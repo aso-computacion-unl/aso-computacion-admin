@@ -1,8 +1,23 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { Page } from "@playwright/test";
 
-import { MODULE_NAV, sideNav } from "../../app/admin/_components/nav-items";
+import { MODULE_NAV } from "../../app/admin/_components/nav-items";
 import { ADMIN_URL, LANDING_URL, type Target } from "./config";
+
+/** Every page the old sidebar listed: the home, the content modules and the pages behind the four areas. */
+const ADMIN_ROUTES = [
+  "/admin",
+  ...MODULE_NAV.map((item) => item.href),
+  "/admin/medios",
+  "/admin/registrations",
+  "/admin/papelera",
+  "/admin/foro/reportes",
+  "/admin/foro/categorias",
+  "/admin/vista-previa",
+  "/admin/sesiones",
+  "/admin/usuarios",
+  "/admin/registro",
+];
 
 const stem = (path: string) => path.replace(/^\/admin\/?/, "").replace(/\//g, "-") || "home";
 
@@ -17,7 +32,7 @@ export async function adminTargets(page: Page): Promise<Target[]> {
   const targets: Target[] = [];
   const add = (path: string, name: string, notes?: string) => targets.push({ area: "admin", name, url: `${ADMIN_URL}${path}`, auth: "admin", notes });
 
-  for (const item of sideNav("ADMIN")) add(item.href, stem(item.href));
+  for (const href of ADMIN_ROUTES) add(href, stem(href));
   add("/admin/medios/limpieza", "medios-limpieza", "Linked from Medios, not in the sidebar.");
 
   for (const item of MODULE_NAV) {

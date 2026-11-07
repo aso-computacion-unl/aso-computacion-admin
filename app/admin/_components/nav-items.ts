@@ -11,7 +11,7 @@ export interface NavItem {
   adminOnly?: true;
 }
 
-/** The eleven content modules, in the order the board uses them most. Home is reached from the logo. */
+/** The content modules the home offers as cards, in the order the board uses them most. Home is reached from the logo. */
 export const MODULE_NAV: readonly NavItem[] = [
   { href: "/admin/events", label: "Eventos", icon: "events", action: { href: "/admin/events/new", label: "Nuevo evento" } },
   { href: "/admin/news", label: "Novedades", icon: "news", action: { href: "/admin/news/new", label: "Nueva noticia" } },
@@ -26,67 +26,70 @@ export const MODULE_NAV: readonly NavItem[] = [
 
 export const HOME_NAV: NavItem = { href: "/admin", label: "Inicio", icon: "home" };
 
-/** Every stored image and where it is used. Read only for everyone; not a content module, so no home card. */
-export const MEDIA_NAV: NavItem = { href: "/admin/medios", label: "Medios", icon: "image" };
-
-/** The registrants of every event in one place. Counts only, open to editors and admins like each event's own page; not a content module (no home card). */
-export const REGISTRATIONS_NAV: NavItem = { href: "/admin/registrations", label: "Inscripciones", icon: "list" };
-
-/** Where deleted content waits for a restore. Not a content module: it has no card on the home. */
-export const TRASH_NAV: NavItem = { href: "/admin/papelera", label: "Papelera", icon: "trash" };
-
-/** The forum's report queue: moderation is open to editors and admins, and it is not a content module (no home card). */
-export const FORUM_NAV: NavItem = { href: "/admin/foro/reportes", label: "Foro", icon: "alert" };
-
-/** The forum's categories: the admin creates and edits them (the actions are ADMIN only), so editors neither see nor reach this. */
-export const FORUM_CATEGORIES_NAV: NavItem = { href: "/admin/foro/categorias", label: "Categorías del foro", icon: "msg", adminOnly: true };
-
-/** Preview codes and sessions are for everyone (an editor sees and revokes their own sessions); users and the audit log are the admin's. */
-export const ACCOUNT_NAV: readonly NavItem[] = [
-  { href: "/admin/vista-previa", label: "Vista previa", icon: "eye" },
-  { href: "/admin/sesiones", label: "Sesiones", icon: "monitor" },
-  { href: "/admin/usuarios", label: "Usuarios", icon: "users", adminOnly: true },
-  { href: "/admin/registro", label: "Registro", icon: "history", adminOnly: true },
-];
-
 export function visibleTo(items: readonly NavItem[], role: Role): NavItem[] {
   return items.filter((item) => !item.adminOnly || role === "ADMIN");
 }
 
-/** The modules on the phone's tab bar, in tab order: the ones the board uses after every event. */
-const TAB_HREFS = ["/admin/events", "/admin/news", "/admin/board", "/admin/faqs"];
-
-export const TAB_NAV: readonly NavItem[] = TAB_HREFS.flatMap((href) => MODULE_NAV.filter((item) => item.href === href));
-
-export interface NavGroup {
-  /** Shown above the group in the sidebar; the home stands alone, without one. */
-  label: string | null;
-  items: NavItem[];
+export interface AreaNavItem extends NavItem {
+  /**
+   * The pages that keep this area lit. A path matches itself and everything under it (whole segments only);
+   * `*` stands for one segment. When two areas match, the longest pattern wins, so the registrations of one
+   * event (under /admin/events) light Inscripciones and not Landing.
+   */
+  matches: readonly string[];
 }
 
-/** The sidebar in groups: the home, what the landing shows, the tools around it, and the account. */
-export function sideNavGroups(role: Role): NavGroup[] {
-  return [
-    { label: null, items: [HOME_NAV] },
-    { label: "landing", items: visibleTo(MODULE_NAV, role) },
-    { label: "herramientas", items: visibleTo([MEDIA_NAV, REGISTRATIONS_NAV, TRASH_NAV, FORUM_NAV, FORUM_CATEGORIES_NAV], role) },
-    { label: "cuenta", items: visibleTo(ACCOUNT_NAV, role) },
-  ];
+/** The four areas of the rail and the phone's tab bar. All are open to editors; each page still enforces its own role. */
+export const AREA_NAV: readonly AreaNavItem[] = [
+  {
+    href: "/admin/events",
+    label: "Landing",
+    icon: "site",
+    matches: ["/admin/events", "/admin/news", "/admin/faqs", "/admin/board", "/admin/pillars", "/admin/commands", "/admin/sponsors", "/admin/socials"],
+  },
+  { href: "/admin/registrations", label: "Inscripciones", icon: "list", matches: ["/admin/registrations", "/admin/events/*/registrations"] },
+  { href: "/admin/foro/reportes", label: "Foro", icon: "msg", matches: ["/admin/foro"] },
+  {
+    href: "/admin/ajustes",
+    label: "Ajustes",
+    icon: "users",
+    matches: ["/admin/ajustes", "/admin/usuarios", "/admin/sesiones", "/admin/settings", "/admin/registro", "/admin/papelera"],
+  },
+];
+
+export function areaNav(role: Role): AreaNavItem[] {
+  return AREA_NAV.filter((item) => !item.adminOnly || role === "ADMIN");
 }
 
-/** The whole sidebar, in order. */
-export function sideNav(role: Role): NavItem[] {
-  return sideNavGroups(role).flatMap((group) => group.items);
+/** The pattern's length when the path matches it, 0 when it does not. */
+function matchLength(pathname: string, pattern: string): number {
+  const source = pattern.split("*").join("[^/]+");
+
+  return new RegExp(`^${source}(?:/|$)`).test(pathname) ? pattern.length : 0;
 }
 
-/** What the "Más" sheet shows: the sidebar's groups and labels minus the tab bar's modules; a group left empty is dropped. */
-export function moreNavGroups(role: Role): NavGroup[] {
-  return sideNavGroups(role)
-    .map((group) => ({ ...group, items: group.items.filter((item) => !TAB_HREFS.includes(item.href)) }))
-    .filter((group) => group.items.length > 0);
+/** The area a page belongs to; undefined for the home and for pages outside every area. */
+export function activeArea(pathname: string): AreaNavItem | undefined {
+  let best: { item: AreaNavItem; length: number } | undefined;
+
+  for (const item of AREA_NAV) {
+    for (const pattern of item.matches) {
+      const length = matchLength(pathname, pattern);
+
+      if (length > (best?.length ?? 0)) best = { item, length };
+    }
+  }
+
+  return best?.item;
 }
 
-/** Everything else (and the home) lives in the "Más" sheet: it changes rarely. */
-export function moreNav(role: Role): NavItem[] {
-  return moreNavGroups(role).flatMap((group) => group.items);
+/** The Ajustes tabs in order; the entry route lands on the first one the role can open. */
+const AJUSTES_TABS: readonly NavItem[] = [
+  { href: "/admin/usuarios", label: "Equipo", icon: "users", adminOnly: true },
+  { href: "/admin/sesiones", label: "Mis sesiones", icon: "monitor" },
+];
+
+/** Where /admin/ajustes sends the role: its first visible tab, so an editor never lands on a page that bounces them home. */
+export function ajustesTarget(role: Role): string {
+  return visibleTo(AJUSTES_TABS, role)[0]?.href ?? "/admin/sesiones";
 }

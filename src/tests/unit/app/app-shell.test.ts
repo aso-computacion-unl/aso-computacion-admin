@@ -93,8 +93,60 @@ describe("the identity chip in the admin top bar", () => {
     expect(outsideBar).not.toContain("Acceso de emergencia");
     expect(outsideBar).not.toContain("Cerrar sesión");
     expect(outsideBar).not.toContain("Modo claro");
-    expect(outsideBar).toContain('aria-label="Secciones"');
+    expect(outsideBar).toContain('aria-label="Áreas"');
     expect(outsideBar).toContain("contenido");
+  });
+});
+
+/** The rail is the `<aside>` of the page; the phone's tab bar is the `<nav>` after it. */
+const rail = (html: string) => html.match(/<aside[\s\S]*?<\/aside>/)?.[0] ?? "";
+const tabBar = (html: string) => html.match(/<nav[^>]*class="[^"]*fixed[^"]*"[\s\S]*?<\/nav>/)?.[0] ?? "";
+const linksOf = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((match) => [match[1], match[2]?.replace(/<[^>]+>/g, "")]);
+
+describe("the navigation rail and the phone's tab bar", () => {
+  const AREAS = [
+    ["/admin/events", "Landing"],
+    ["/admin/registrations", "Inscripciones"],
+    ["/admin/foro/reportes", "Foro"],
+    ["/admin/ajustes", "Ajustes"],
+  ];
+
+  it.each(["ADMIN", "EDITOR"] as const)("offers %s the logo (Inicio) and the four areas in the rail", async (role) => {
+    const links = linksOf(rail(await renderAdmin(actor({ role }))));
+
+    expect(links[0]?.[0]).toBe("/admin");
+    expect(links.slice(1)).toEqual(AREAS);
+  });
+
+  it("puts the real isotype, white on the navy rail, in the logo link, with an accessible name", async () => {
+    const logo = rail(await renderAdmin(actor())).match(/<a [^>]*href="\/admin"[\s\S]*?<\/a>/)?.[0] ?? "";
+
+    expect(logo).toMatch(/aria-label="ASO Computación, inicio de la administración"/);
+    expect(logo).toMatch(/<img alt=""[^>]*src="data:image\/svg\+xml[^"]*fill:%23ffffff/);
+  });
+
+  it("offers the same four areas on the phone's tab bar, with no «Más» sheet and no group labels", async () => {
+    const html = await renderAdmin(actor({ role: "EDITOR" }));
+
+    expect(linksOf(tabBar(html))).toEqual(AREAS);
+    expect(html).not.toContain("<dialog");
+    expect(html).not.toContain("Más");
+
+    for (const label of ["landing/", "herramientas/", "cuenta/"]) expect(html).not.toContain(label);
+  });
+
+  it("hides the rail below the desktop breakpoint and the tab bar above it", async () => {
+    const html = await renderAdmin(actor());
+
+    expect(html.match(/<aside[^>]*>/)?.[0]).toMatch(/\bhidden\b[^"]*\blg:/);
+    expect(tabBar(html)).toContain("lg:hidden");
+  });
+
+  it("keeps the brand in the top bar for the phone, where there is no rail", async () => {
+    const bar = topBar(await renderAdmin(actor()));
+
+    expect(bar).toContain("Admin ASO");
+    expect(bar).toMatch(/<a [^>]*class="[^"]*lg:hidden[^"]*"/);
   });
 });
 

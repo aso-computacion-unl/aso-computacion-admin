@@ -168,7 +168,8 @@ test("an admin creates a category in the panel, a member sees it on /foro, and a
   await admin.getByRole("button", { name: "Iniciar sesión" }).click();
   await expect(admin).toHaveURL(/\/admin$/);
 
-  await admin.getByRole("link", { name: "Categorías del foro" }).first().click();
+  // The categories are a small link inside the Foro area; the URL is the stable way in.
+  await admin.goto("/admin/foro/categorias");
   await expect(admin).toHaveURL(/\/admin\/foro\/categorias$/);
   await expect(admin.getByRole("heading", { level: 1, name: "Categorías del foro" })).toBeVisible();
   await expect(admin.getByRole("link", { name: "Editar: Programación" })).toBeVisible();

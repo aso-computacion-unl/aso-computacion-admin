@@ -135,7 +135,7 @@ test("the seats endpoint counts a registrable event for anyone, and the admin ov
   expect(seats.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=5, must-revalidate");
   expect(body.events).toContainEqual({ slug, capacity: 2, registered: 0, seatsLeft: 2, status: "open" });
 
-  // The overview is one click from the sidebar and lists the event; its link opens that event's registrants.
+  // The overview is one click from the rail and lists the event; its link opens that event's registrants.
   // The table is the layout of wide screens (84rem and up); narrower ones stack each event as a block.
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/admin");

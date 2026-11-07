@@ -27,9 +27,9 @@ test("a signed-in admin gets the admin 404 inside the admin layout, with status 
     expect(response?.status(), path).toBe(404);
     await expect(page.getByRole("heading", { level: 1, name: "No encontrado" }), path).toBeVisible();
     await expect(page.getByText("Esta página no existe, ya no está disponible o la dirección cambió."), path).toBeVisible();
-    // The shell is there: top bar with the admin home link, and the section navigation.
+    // The shell is there: top bar with the admin home link, and the area navigation.
     await expect(page.getByRole("link", { name: "ASO Computación, inicio de la administración" }), path).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Secciones" }), path).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Áreas" }), path).toBeVisible();
     // The way back is the admin home, and the root fallback (brand logo, "Página no encontrada") is not what renders.
     await expect(page.getByRole("link", { name: "Volver al inicio" }), path).toHaveAttribute("href", "/admin");
     await expect(page.getByRole("heading", { name: "Página no encontrada" }), path).toHaveCount(0);
@@ -58,7 +58,7 @@ test("without a session an unknown admin address goes to the login and shows no 
     await page.goto(path);
 
     await expect(page, path).toHaveURL(/\/login$/);
-    await expect(page.getByRole("navigation", { name: "Secciones" }), path).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Áreas" }), path).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "No encontrado" }), path).toHaveCount(0);
   }
 });
@@ -81,7 +81,7 @@ test("an address outside the admin and the forum keeps the root 404, and /api is
 
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { level: 1, name: "Página no encontrada" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Secciones" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Áreas" })).toHaveCount(0);
 
   const api = await request.get("/api/no-existe");
 

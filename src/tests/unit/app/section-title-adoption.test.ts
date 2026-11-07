@@ -15,7 +15,6 @@ const SCREENS = [
   "events/page.tsx",
   "events/_components/photo-gallery.tsx",
   "commands/_components/command-form.tsx",
-  "settings/_components/settings-preview.tsx",
   "papelera/page.tsx",
   "usuarios/page.tsx",
   "registrations/_components/event-list.tsx",

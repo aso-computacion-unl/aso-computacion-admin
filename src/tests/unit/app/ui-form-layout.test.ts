@@ -99,20 +99,18 @@ describe("every create page ends in the same save bar", () => {
   });
 });
 
-describe("the sticky columns sit below the 56px top bar", () => {
-  it("offsets the settings preview by more than the bar", async () => {
-    const settings = renderToStaticMarkup(await AdminSettingsPage());
-
-    expect(settings).toContain("lg:top-22");
-    expect(settings).not.toContain("lg:top-8");
-  });
-});
-
-describe("news has no permanent preview column", () => {
+describe("news and the site texts have no permanent preview column", () => {
   it("lays the news form out in one column: the preview opens from Publicar", () => {
     const news = renderToStaticMarkup(createElement(NewNewsPage));
 
     expect(news).toContain('data-layout="single"');
     expect(news).not.toContain("lg:top-22");
+  });
+
+  it("does the same for the site settings", async () => {
+    const settings = renderToStaticMarkup(await AdminSettingsPage());
+
+    expect(settings).toContain('data-layout="single"');
+    expect(settings).not.toContain("lg:top-22");
   });
 });

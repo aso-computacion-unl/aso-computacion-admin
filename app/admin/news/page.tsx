@@ -12,6 +12,7 @@ import { listCriteria, parseListParams, showListTools } from "@/interface/admin/
 import { parseStatusFilter } from "@/interface/admin/status-filter";
 import { restoreTrashed } from "@/interface/admin/trash/actions";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { TrashButton, PublishedToggle } from "../_components/row-actions";
 import { BulkSelection } from "../_components/bulk-selection";
@@ -41,17 +42,10 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
+      <AreaTabs area="contenido" current="/admin/news" />
       <PageHeader
         title="Novedades"
         status={`main · ${countsSummary(counts)}`}
-        action={
-          <Button asChild>
-            <Link href="/admin/news/new">
-              <Icon name="plus" />
-              Nueva noticia
-            </Link>
-          </Button>
-        }
       />
       {counts.published + counts.draft === 0 ? (
         <EmptyState

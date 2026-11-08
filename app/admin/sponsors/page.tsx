@@ -12,6 +12,7 @@ import { showListTools } from "@/interface/admin/list-params";
 import { BulkSelection } from "../_components/bulk-selection";
 import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { MoveButtons, PublishedToggle, TrashButton } from "../_components/row-actions";
@@ -27,17 +28,10 @@ export default async function AdminSponsorsPage() {
 
   return (
     <div>
+      <AreaTabs area="contenido" current="/admin/sponsors" />
       <PageHeader
         title="Aliados"
         status={`main · ${publicationSummary(sponsors)}`}
-        action={
-          <Button asChild>
-            <Link href="/admin/sponsors/new">
-              <Icon name="plus" />
-              Nuevo aliado
-            </Link>
-          </Button>
-        }
       />
       {sponsors.length === 0 ? (
         <EmptyState

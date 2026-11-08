@@ -134,6 +134,7 @@ La interfaz usa **Next.js 16 (App Router)**, **React 19** y **Tailwind 4**.
 **Reglas prácticas:**
 
 - Reutilice los componentes de `components/ui/` antes de crear uno nuevo, y use los colores del `@theme` en lugar de valores sueltos.
+- El panel (`/admin`) abre en el tema claro editorial; el foro y el login siguen al sistema. La elección del usuario con el botón de tema siempre manda. Los tintes (`tint-red`, `tint-blue`, `tint-navy`, `success`) van siempre con su texto (`on-tint-*`) y cada par tiene su prueba de contraste en `admin-contrast-and-overlays.test.ts`.
 - Las páginas no hablan con Prisma: llaman a una server action o a un caso de uso.
 - El panel se usa mucho desde el celular. Revise cada cambio en **390 px** y en escritorio, con el teclado (Tab) y con el lector de pantalla si agrega un control nuevo.
 - Si su cambio se ve, agregue capturas de antes y después en el PR.

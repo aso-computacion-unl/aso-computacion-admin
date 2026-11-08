@@ -203,7 +203,7 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
         <UpcomingSection agenda={agenda} />
       </div>
 
-      {/* The state of every module in one compact line each; the sidebar already lists them, so no big counters here. */}
+      {/* The state of every module in one compact line each; the rail lists only the four areas, so each module keeps its line here. */}
       <nav aria-labelledby="modules-title" className="mt-10 grid gap-3">
         <SectionTitle id="modules-title">
           Contenido del sitio

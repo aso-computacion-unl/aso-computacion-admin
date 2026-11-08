@@ -8,6 +8,7 @@ import { actorLabel, auditQuery, entityTypeLabel } from "@/interface/admin/audit
 import { formatClock, groupByDay, shortId } from "@/interface/admin/day-groups";
 import { pluralize } from "@/interface/admin/publication-summary";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
 
@@ -24,6 +25,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
 
   return (
     <div>
+      <AreaTabs area="ajustes" current="/admin/registro" role="ADMIN" />
       <PageHeader
         title="Registro de cambios"
         status={`${pluralize(total, "entrada", "entradas")}${filtered ? " con este filtro" : ""} · lo más reciente primero`}

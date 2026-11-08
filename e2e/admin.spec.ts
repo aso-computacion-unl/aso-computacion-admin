@@ -201,7 +201,7 @@ test("an editor cannot open the admin-only pages, and an action refused for thei
   await expect(page.getByRole("button", { name: `Restaurar: ${title}` })).toBeVisible();
   await expect(page.getByRole("button", { name: /Eliminar definitivamente/ })).toHaveCount(0);
 
-  // The admin-only pages send the editor back to the home page, which says why, and the sidebar does not offer them.
+  // The admin-only pages send the editor back to the home page, which says why, and the rail does not offer them.
   for (const path of ["/admin/usuarios", "/admin/registro", "/admin/settings", "/admin/foro/categorias", "/admin/foro/categorias/new"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/admin\?acceso=restringido$/);
@@ -210,7 +210,11 @@ test("an editor cannot open the admin-only pages, and an action refused for thei
   await expect(page.getByRole("link", { name: "Usuarios" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Registro" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Categorías del foro" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Sesiones" }).first()).toBeVisible();
+
+  // Ajustes is open to the editor and lands on the first tab they can use, their sessions.
+  await page.goto("/admin");
+  await page.getByRole("link", { name: "Ajustes", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/admin\/sesiones$/);
 
   // Back as an admin the event is still there, and the audit log recorded what was done.
   await context.clearCookies();
@@ -246,7 +250,7 @@ test("the users page invites by link instead of adding people, and the public in
   expect(await response.text()).toContain("noindex");
 });
 
-test("an editor opens the forum report queue from the sidebar, and a visitor is sent to the login", async ({ browser }) => {
+test("an editor opens the forum report queue from the Foro area, and a visitor is sent to the login", async ({ browser }) => {
   // Students sign in with Google, which the suite cannot do: the queue starts empty, and the data rules live in the integration suites.
   const editorContext = await browser.newContext({ baseURL: BASE_URL });
   await actAsEditor(editorContext);

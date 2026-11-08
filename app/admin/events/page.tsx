@@ -13,6 +13,7 @@ import { parseStatusFilter } from "@/interface/admin/status-filter";
 import { EmptyState } from "../_components/empty-state";
 import { Stamp } from "../_components/timeline-parts";
 import { WindowBadge } from "../_components/window-badge";
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { SectionTitle } from "../_components/section-title";
 import { BulkSelection } from "../_components/bulk-selection";
@@ -191,17 +192,10 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
 
   return (
     <>
+      <AreaTabs area="contenido" current="/admin/events" />
       <PageHeader
         title="Eventos"
         status={`main · ${pluralize(counts.published, "publicado", "publicados")} · ${pluralize(counts.draft, "borrador", "borradores")}`}
-        action={
-          <Button asChild>
-            <Link href="/admin/events/new">
-              <Icon name="plus" />
-              Nuevo evento
-            </Link>
-          </Button>
-        }
       />
 
       {counts.published + counts.draft === 0 ? (

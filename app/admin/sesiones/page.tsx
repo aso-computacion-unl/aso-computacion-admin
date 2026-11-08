@@ -4,6 +4,7 @@ import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-rea
 import { groupSessionsByPerson } from "@/interface/admin/sessions/group-sessions";
 import { describeUserAgent } from "@/interface/admin/sessions/user-agent";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { EmptyState } from "../_components/empty-state";
 import { RevokeOthersButton } from "./_components/revoke-others-button";
@@ -19,6 +20,7 @@ export default async function AdminSessionsPage() {
 
   return (
     <div>
+      <AreaTabs area="ajustes" current="/admin/sesiones" role={actor.role} />
       <PageHeader
         title="Sesiones activas"
         status={pluralize(sessions.length, "sesión abierta", "sesiones abiertas")}

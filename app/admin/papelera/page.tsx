@@ -6,6 +6,7 @@ import { purgeTrashed, restoreTrashed } from "@/interface/admin/trash/actions";
 import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
 import { formatDeletedAt, groupTrash, purgeWarning, TRASH_KIND_LABELS } from "@/interface/admin/trash/trash-labels";
 
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { SectionTitle } from "../_components/section-title";
 import { DeleteButton, RestoreButton } from "../_components/row-actions";
@@ -21,6 +22,7 @@ export default async function AdminTrashPage() {
 
   return (
     <div>
+      <AreaTabs area="ajustes" current="/admin/papelera" role={actor.role} />
       <PageHeader
         title="Papelera"
         status={items.length === 0 ? "Sin elementos" : `${items.length} ${items.length === 1 ? "elemento" : "elementos"}`}

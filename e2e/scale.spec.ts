@@ -135,7 +135,7 @@ test("an ordered list can be reordered by dragging a row's handle or with the ke
 
 test("the media library opens even when the image storage is not configured, and says so", async ({ page }) => {
   await logInAsAdmin(page);
-  await page.getByRole("link", { name: "Medios" }).first().click();
+  await page.goto("/admin/medios");
 
   await expect(page).toHaveURL(/\/admin\/medios$/);
   await expect(page.getByRole("heading", { name: "Medios", level: 1 })).toBeVisible();

@@ -4,7 +4,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/admin" }));
+const nav = vi.hoisted(() => ({ pathname: "/admin" }));
+
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
 
 import { TabBar } from "../../../../app/admin/_components/admin-nav";
 import { WindowBadge } from "../../../../app/admin/_components/window-badge";
@@ -87,33 +89,101 @@ describe("red text (WCAG AA 4.5:1)", () => {
   });
 });
 
-describe("the «Más» sheet", () => {
-  const sheet = () => renderToStaticMarkup(createElement(TabBar, { role: "ADMIN" })).match(/<dialog[^>]*>/)?.[0] ?? "";
+/** Pairs of [text, surface] the admin draws from the editorial design: WCAG AA for text is 4.5:1. */
+const TEXT_PAIRS: Array<[string, string]> = [
+  ["on-tint-red", "tint-red"],
+  ["on-tint-blue", "tint-blue"],
+  ["on-tint-navy", "tint-navy"],
+  ["success", "success-tint"],
+];
 
-  it("never exceeds the space above the tab bar and scrolls inside it", () => {
-    const dialog = sheet();
-
-    expect(dialog).toContain("bottom-[calc(4.25rem+env(safe-area-inset-bottom))]");
-    expect(dialog).toContain("max-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))]");
-    expect(dialog).toContain("overflow-y-auto");
+describe("editorial design tokens (WCAG AA 4.5:1)", () => {
+  it.each(TEXT_PAIRS)("%s reads on %s in both themes", (text, surface) => {
+    expect(contrast(token(text, "light"), token(surface, "light"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token(text, "dark"), token(surface, "dark"))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("lays the sidebar groups out in two columns, each under its label, with an icon per link", () => {
-    const html = renderToStaticMarkup(createElement(TabBar, { role: "ADMIN" })).match(/<dialog[\s\S]*<\/dialog>/)?.[0] ?? "";
-
-    expect(html).toContain("grid-cols-2");
-
-    for (const label of ["landing/", "herramientas/", "cuenta/"]) expect(html).toContain(`>${label}</p>`);
-
-    expect(html.match(/<a /g)?.length).toBe(html.match(/<svg /g)?.length);
-    expect(html.match(/id="/g)?.length).toBe(new Set(html.match(/id="[^"]+"/g)).size);
-    expect(html).not.toMatch(/id="nav-/);
+  it.each([
+    ["tint-red", "#f8e8ea"],
+    ["on-tint-red", "#8d2930"],
+    ["tint-blue", "#e3f2fa"],
+    ["on-tint-blue", "#075a80"],
+    ["tint-navy", "#e4ebf4"],
+    ["on-tint-navy", "#053066"],
+    ["success", "#1f7a4d"],
+    ["success-tint", "#e6f4ec"],
+    ["paper-ring", "#c4d2e4"],
+    ["dash", "#9fb3cc"],
+  ])("the light value of %s is the design's %s", (name, hex) => {
+    expect(token(name, "light")).toBe(hex);
   });
 
-  it("dims the page with a colour token, not a literal black", () => {
-    expect(sheet()).toContain("backdrop:bg-scrim");
-    expect(sheet()).not.toContain("bg-black");
-    expect(darkTokens).toMatch(/--color-scrim:/);
+  it("keeps the deep navy of the rail in both themes, with white text on it", () => {
+    expect(token("deep", "light")).toBe("#03224a");
+    expect(token("deep", "dark")).toBe("#03224a");
+    expect(contrast("#ffffff", token("deep", "light"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("states the brand red as the signal role in the light theme, with white text on it", () => {
+    expect(token("signal", "light")).toBe("#b7353e");
+    expect(lightTokens).toMatch(/--color-signal:\s*#b7353e/);
+  });
+
+  it("reads the tints on the light page and card, not only on themselves", () => {
+    for (const [text] of TEXT_PAIRS.slice(0, 3)) {
+      expect(contrast(token(text, "light"), token("navy", "light"))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps the existing token names the shared components read", () => {
+    for (const name of ["navy", "navy-deep", "navy-lift", "sky", "signal", "error", "ok", "action", "on-action", "background", "foreground", "card", "muted", "primary", "destructive", "border", "input", "ring"]) {
+      expect(css).toMatch(new RegExp(`--color-${name}:`));
+    }
+  });
+});
+
+describe("typography", () => {
+  it("sets the admin in Mona Sans and its numbers and codes in Geist Mono", () => {
+    expect(css).toMatch(/--font-sans:\s*"Mona Sans Variable"/);
+    expect(css).toMatch(/--font-display:\s*"Mona Sans Variable"/);
+    expect(css).toMatch(/--font-mono:\s*"Geist Mono Variable"/);
+    expect(css).toMatch(/@import "@fontsource-variable\/mona-sans\/wdth\.css"/);
+    expect(css).toMatch(/@import "@fontsource-variable\/geist-mono"/);
+    expect(css).toMatch(/body\s*{[^}]*font-family:\s*var\(--font-sans\)/);
+  });
+});
+
+describe("the phone's tab bar", () => {
+  const bar = () => renderToStaticMarkup(createElement(TabBar, { role: "EDITOR" }));
+
+  it("is one row of four tabs, each an icon above its label, and a modal sheet is no longer part of it", () => {
+    const html = bar();
+
+    expect(html.match(/<a /g)?.length).toBe(4);
+    expect(html.match(/<svg /g)?.length).toBe(4);
+    expect(html).toContain("grid-cols-4");
+    expect(html).not.toContain("<dialog");
+    expect(html).not.toContain("backdrop:");
+  });
+
+  it("is the rail's navy, with the safe area under it, and hides from the desktop breakpoint up", () => {
+    const html = bar();
+
+    expect(html).toContain("bg-deep");
+    expect(html).toContain("pb-[env(safe-area-inset-bottom)]");
+    expect(html).toContain("lg:hidden");
+  });
+
+  it("marks no tab as current on the home, and the area of the page elsewhere", () => {
+    expect(bar()).not.toContain("aria-current");
+
+    nav.pathname = "/admin/events/abc/registrations";
+
+    const html = bar();
+
+    nav.pathname = "/admin";
+    expect(html.match(/aria-current="page"/g)?.length).toBe(1);
+    expect(html).toMatch(/<a [^>]*href="\/admin\/registrations"[^>]*aria-current="page"|<a [^>]*aria-current="page"[^>]*href="\/admin\/registrations"/);
   });
 });
 

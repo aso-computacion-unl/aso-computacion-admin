@@ -36,6 +36,16 @@ describe("the board page", () => {
     expect(html).toContain("7 publicados");
     for (let index = 0; index < 7; index += 1) expect(html).toContain(`Integrante ${index}`);
   });
+
+  it("opens with the Contenido tabs, Directiva lit, and one '+ Crear' where the head used to have its own button", async () => {
+    listMock.mockResolvedValue([member(0, true)]);
+
+    const html = renderToStaticMarkup(await AdminBoardPage());
+
+    expect(html).toContain('aria-label="Tipo de contenido"');
+    expect(html).toMatch(/<a[^>]*href="\/admin\/board"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/admin\/board"/);
+    expect(html.match(/Crear<\/a>/g)).toHaveLength(1);
+  });
 });
 
 /** What the browser holds for an element the server streamed in a later chunk: a lazy wrapper with no key. */

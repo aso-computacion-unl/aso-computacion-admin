@@ -8,8 +8,9 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { AppTopBar } from "../_components/app-top-bar";
 import { IdentityChip } from "../_components/identity-chip";
+import { AdminThemeDefault } from "../_components/theme-toggle";
 
-import { SideNav, TabBar } from "./_components/admin-nav";
+import { Rail, TabBar } from "./_components/admin-nav";
 import { ToastProvider } from "./_components/toast";
 import "./timeline.css";
 
@@ -30,7 +31,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   const emergency = actor.kind === "break_glass";
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen lg:grid lg:grid-cols-[6.75rem_minmax(0,1fr)]">
+      <AdminThemeDefault />
       <a
         href="#main"
         className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3"
@@ -38,28 +40,27 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         Saltar al contenido
       </a>
 
-      <AppTopBar productName="Admin ASO" homeHref="/admin" homeLabel="ASO Computación, inicio de la administración">
-        <IdentityChip
-          name={emergency ? undefined : actor.name}
-          roleLabel={emergency ? EMERGENCY_LABEL : ROLE_LABELS[actor.role]}
-          emergency={emergency}
-          notice={emergency ? BREAK_GLASS_NOTICE : undefined}
-          signOut={
-            <form action={logout}>
-              <Button variant="quiet" type="submit" className="w-full justify-start">
-                <Icon name="out" />
-                Cerrar sesión
-              </Button>
-            </form>
-          }
-        />
-      </AppTopBar>
+      <aside className="sticky top-0 hidden h-dvh bg-deep text-white lg:block">
+        <Rail role={actor.role} />
+      </aside>
 
-      <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-        {/* --sidebar-chrome: everything in the viewport that is not nav rows: the 3.5rem top bar, the three group labels, the gaps between groups and the aside's padding; the rows share the rest. */}
-        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] flex-col bg-muted px-3 py-3 shadow-[1px_0_0_var(--color-border)] [--sidebar-chrome:9.6rem] lg:flex">
-          <SideNav role={actor.role} />
-        </aside>
+      <div className="min-w-0">
+        <AppTopBar productName="Admin ASO" homeHref="/admin" homeLabel="ASO Computación, inicio de la administración" brandOnPhoneOnly>
+          <IdentityChip
+            name={emergency ? undefined : actor.name}
+            roleLabel={emergency ? EMERGENCY_LABEL : ROLE_LABELS[actor.role]}
+            emergency={emergency}
+            notice={emergency ? BREAK_GLASS_NOTICE : undefined}
+            signOut={
+              <form action={logout}>
+                <Button variant="quiet" type="submit" className="w-full justify-start">
+                  <Icon name="out" />
+                  Cerrar sesión
+                </Button>
+              </form>
+            }
+          />
+        </AppTopBar>
 
         <main id="main" className="mx-auto w-full max-w-360 px-4 pt-5 pb-[calc(4.25rem+5rem)] lg:px-10 lg:pt-8 lg:pb-24 xl:px-12">
           <ToastProvider>{children}</ToastProvider>

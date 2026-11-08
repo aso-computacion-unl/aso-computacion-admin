@@ -12,6 +12,7 @@ import { showListTools } from "@/interface/admin/list-params";
 import { BulkSelection } from "../_components/bulk-selection";
 import { AddRow } from "../_components/list-row";
 import { OrderedRow } from "../_components/ordered-row";
+import { AreaTabs } from "../_components/area-tabs";
 import { PageHeader } from "../_components/page-header";
 import { ReorderableList } from "../_components/reorderable-list";
 import { TrashButton, MoveButtons, PublishedToggle } from "../_components/row-actions";
@@ -27,17 +28,10 @@ export default async function AdminBoardPage() {
 
   return (
     <div>
+      <AreaTabs area="contenido" current="/admin/board" />
       <PageHeader
         title="Directiva"
         status={`main · ${publicationSummary(members)}`}
-        action={
-          <Button asChild>
-            <Link href="/admin/board/new">
-              <Icon name="plus" />
-              Agregar integrante
-            </Link>
-          </Button>
-        }
       />
       {members.length === 0 ? (
         <EmptyState

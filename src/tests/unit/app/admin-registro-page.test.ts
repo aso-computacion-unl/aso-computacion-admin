@@ -25,6 +25,17 @@ const render = async (items: unknown[]) => {
   return renderToStaticMarkup(await AdminAuditPage({ searchParams: Promise.resolve({}) }));
 };
 
+describe("the audit log page", () => {
+  it("opens with the Ajustes tabs, Historial lit and the admin-only tabs locked", async () => {
+    const html = await render([]);
+
+    expect(html).toContain('aria-label="Ajustes"');
+    expect(html).toMatch(/<a[^>]*href="\/admin\/registro"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/admin\/registro"/);
+    expect(html).toContain('href="/admin/usuarios"');
+    expect(html).toContain("solo administradores");
+  });
+});
+
 describe("the audit log rows", () => {
   it("shows a short id after the entity type for a record that has one", async () => {
     const html = await render([entry({})]);

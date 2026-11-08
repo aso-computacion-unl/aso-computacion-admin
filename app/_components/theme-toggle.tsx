@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { nextTheme, THEME_COLOR, THEME_KEY, type Theme } from "@/interface/theme/theme";
+import { nextTheme, resolveTheme, THEME_COLOR, THEME_KEY, type Theme } from "@/interface/theme/theme";
 
 /** The pre-paint script writes the theme on `<html>`; every toggle on the page reads it from there. */
 function subscribe(onChange: () => void) {
@@ -22,6 +22,39 @@ function currentTheme(): Theme {
 
 function applyThemeColor(theme: Theme) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[theme]);
+}
+
+function hasStoredChoice(): boolean {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+
+    return stored === "light" || stored === "dark";
+  } catch {
+    return false;
+  }
+}
+
+function setTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  applyThemeColor(theme);
+}
+
+/**
+ * Makes the admin light by default on client-side navigations (the login redirects into it without a page
+ * load, so the root layout's pre-paint script does not run again). Renders nothing. A theme the user chose
+ * always wins; on leaving the admin the page goes back to what the system asks for, as the forum and the
+ * login do on a fresh load.
+ */
+export function AdminThemeDefault() {
+  useLayoutEffect(() => {
+    if (!hasStoredChoice()) setTheme("light");
+
+    return () => {
+      if (!hasStoredChoice()) setTheme(resolveTheme(null, window.matchMedia("(prefers-color-scheme: light)").matches));
+    };
+  }, []);
+
+  return null;
 }
 
 interface ThemeToggleProps {

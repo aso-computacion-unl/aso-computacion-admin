@@ -102,6 +102,12 @@ describe("startForumLogin", () => {
       expect(flow).toEqual({ ...FLOW, next: "/foro/hilo/abc?x=1" });
     });
 
+    it("seals the event registration page, which lives outside the forum", async () => {
+      const { flow } = await startWith(`?next=${encodeURIComponent("/inscripciones/taller-git")}`);
+
+      expect(flow).toEqual({ ...FLOW, next: "/inscripciones/taller-git" });
+    });
+
     it("seals the normalized path, not the raw one", async () => {
       expect((await startWith(`?next=${encodeURIComponent("/foro/c/./programacion#top")}`)).flow?.next).toBe("/foro/c/programacion");
     });
@@ -187,6 +193,15 @@ describe("finishForumLogin", () => {
       expect(location(response)).toBe("https://admin.example.org/foro/hilo/abc?x=1");
       expect(testForum.sessions.sessions.size).toBe(1);
       expect(response.headers.get("cache-control")).toBe("no-store");
+    });
+
+    it("brings the student back to the event registration page, outside the forum, with the session set", async () => {
+      await sealWith("/inscripciones/taller-git");
+
+      const response = await finishForumLogin(request("?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/inscripciones/taller-git");
+      expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, expect.any(String), expect.objectContaining({ path: "/" }));
     });
 
     it("ignores a next in the callback URL: without a sealed one it goes to /foro", async () => {

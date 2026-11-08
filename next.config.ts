@@ -1,6 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
+import { REGISTRATION_REDIRECTS } from "@/infrastructure/http/registration-redirects";
 import { SECURITY_HEADERS } from "@/infrastructure/http/security-headers";
 
 const nextConfig: NextConfig = {
@@ -14,6 +15,10 @@ const nextConfig: NextConfig = {
       // own size/signature checks ever run.
       bodySizeLimit: "6mb",
     },
+  },
+  // The registration page left the forum: the old address answers a permanent redirect to the new one.
+  async redirects() {
+    return REGISTRATION_REDIRECTS.map((redirect) => ({ ...redirect }));
   },
   // Apply the shared security-header policy to every route. Kept in the
   // infrastructure layer so it is unit-tested (security-headers.test.ts).

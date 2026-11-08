@@ -21,7 +21,7 @@ import {
   type OpenFormValues,
 } from "@/interface/event-registration/open-registration";
 
-import { ForumField } from "../../_components/form-feedback";
+import { RegistrationField } from "../_components/registration-field";
 import { TurnstileWidget } from "./turnstile-widget";
 
 const PRIVACY_NOTE = "Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.";
@@ -163,7 +163,7 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
 
   return (
     <form onSubmit={handleSubmit} noValidate aria-busy={pending || undefined} className="grid max-w-lg gap-4">
-      <ForumField id={fieldId("name")} label="Nombre completo" error={errors.name}>
+      <RegistrationField id={fieldId("name")} label="Nombre completo" error={errors.name}>
         {(described) => (
           <Input
             id={fieldId("name")}
@@ -176,8 +176,8 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
             aria-invalid={errors.name ? true : undefined}
           />
         )}
-      </ForumField>
-      <ForumField id={fieldId("email")} label="Correo" error={errors.email}>
+      </RegistrationField>
+      <RegistrationField id={fieldId("email")} label="Correo" error={errors.email}>
         {(described) => (
           <Input
             id={fieldId("email")}
@@ -194,8 +194,8 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
             aria-invalid={errors.email ? true : undefined}
           />
         )}
-      </ForumField>
-      <ForumField id={fieldId("career")} label="Carrera" error={errors.career}>
+      </RegistrationField>
+      <RegistrationField id={fieldId("career")} label="Carrera" error={errors.career}>
         {(described) => (
           <Input
             id={fieldId("career")}
@@ -208,8 +208,8 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
             aria-invalid={errors.career ? true : undefined}
           />
         )}
-      </ForumField>
-      <ForumField id={fieldId("semester")} label="Semestre" error={errors.semester}>
+      </RegistrationField>
+      <RegistrationField id={fieldId("semester")} label="Semestre" error={errors.semester}>
         {(described) => (
           <Select
             id={fieldId("semester")}
@@ -228,7 +228,7 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
             ))}
           </Select>
         )}
-      </ForumField>
+      </RegistrationField>
 
       {siteKey ? (
         <TurnstileWidget

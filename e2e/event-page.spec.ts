@@ -66,7 +66,7 @@ test("an open event: a visitor without a session sees the event, its seats and t
   const { slug } = await createEvent(page, title, { mode: "open", capacity: 2 });
   await leave(page);
 
-  await page.goto(`/foro/eventos/${slug}`);
+  await page.goto(`/inscripciones/${slug}`);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
@@ -75,7 +75,7 @@ test("an open event: a visitor without a session sees the event, its seats and t
   await expect(page.getByRole("heading", { name: "Inscríbete" })).toBeVisible();
   await expect(page.getByText("Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
-  await expect(page).toHaveURL(new RegExp(`/foro/eventos/${slug}$`));
+  await expect(page).toHaveURL(new RegExp(`/inscripciones/${slug}$`));
 
   // Nothing leaves the browser while a field is wrong: the first one is flagged and focused, each has its message.
   await page.getByRole("button", { name: "Inscribirme" }).click();
@@ -112,7 +112,7 @@ test("every answer of the public endpoint is shown where the person is looking",
   const answer = (status: number, body: object, headers: Record<string, string> = {}) =>
     page.route(endpoint, (route) => route.fulfill({ status, contentType: "application/json", headers, body: JSON.stringify(body) }), { times: 1 });
 
-  await page.goto(`/foro/eventos/${slug}`, { waitUntil: "networkidle" });
+  await page.goto(`/inscripciones/${slug}`, { waitUntil: "networkidle" });
 
   // A duplicate belongs to the email field.
   await fillForm(page);
@@ -139,7 +139,7 @@ test("every answer of the public endpoint is shown where the person is looking",
   await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
 
   // And a success confirms, with the calendar to add.
-  await page.goto(`/foro/eventos/${slug}`, { waitUntil: "networkidle" });
+  await page.goto(`/inscripciones/${slug}`, { waitUntil: "networkidle" });
   await fillForm(page);
   await answer(201, { ok: true });
   await page.getByRole("button", { name: "Inscribirme" }).click();
@@ -155,7 +155,7 @@ test("the form fits a phone: one column, no sideways scroll, 44 px targets", asy
   const { slug } = await createEvent(page, title, { mode: "open" });
   await leave(page);
   await page.setViewportSize({ width: 360, height: 740 });
-  await page.goto(`/foro/eventos/${slug}`);
+  await page.goto(`/inscripciones/${slug}`);
   await expect(page.getByRole("button", { name: "Inscribirme" })).toBeVisible();
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -177,14 +177,14 @@ test("a full or closed open event hides the form and says why", async ({ page })
     await prisma.eventRegistration.create({ data: { id: `e2e-full-${stamp}`, eventId: full.id, mode: "open", name: "Eva Mora", email: "eva@example.com", career: "Computación", semester: 3 } });
     await leave(page);
 
-    await page.goto(`/foro/eventos/${full.slug}`);
+    await page.goto(`/inscripciones/${full.slug}`);
     await expect(page.getByText("Cupos agotados")).toBeVisible();
     await expect(page.getByText("Quedan 0 de 1 cupos")).toBeVisible();
     await expect(page.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
     await expect(page.getByLabel("Correo")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
 
-    await page.goto(`/foro/eventos/${closed.slug}`);
+    await page.goto(`/inscripciones/${closed.slug}`);
     await expect(page.getByText("Inscripciones cerradas")).toBeVisible();
     await expect(page.getByText("Las inscripciones de este evento ya cerraron.")).toBeVisible();
     await expect(page.getByLabel("Correo")).toHaveCount(0);
@@ -201,13 +201,15 @@ test("a UNL event keeps its Google flow, with no form", async ({ page }) => {
   const { slug } = await createEvent(page, title, { mode: "unl" });
   await leave(page);
 
-  await page.goto(`/foro/eventos/${slug}`);
+  await page.goto(`/inscripciones/${slug}`);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveAttribute("href", `/foro/auth/google/start?next=${encodeURIComponent(`/foro/eventos/${slug}`)}`);
+  await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveAttribute("href", `/foro/auth/google/start?next=${encodeURIComponent(`/inscripciones/${slug}`)}`);
   await expect(page.getByText("@unl.edu.ec")).toBeVisible();
   await expect(page.getByLabel("Correo")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+  // Its own page, not the forum's: no forum link or top bar around it.
+  await expect(page.getByRole("link", { name: "Foro", exact: true })).toHaveCount(0);
 });
 
 test("an event without registration says so and offers the calendar", async ({ page, request }) => {
@@ -217,7 +219,7 @@ test("an event without registration says so and offers the calendar", async ({ p
   const { slug } = await createEvent(page, title, { mode: "none" });
   await leave(page);
 
-  await page.goto(`/foro/eventos/${slug}`);
+  await page.goto(`/inscripciones/${slug}`);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByText("Este evento es de pase libre: no necesitas inscribirte, solo llegar.")).toBeVisible();

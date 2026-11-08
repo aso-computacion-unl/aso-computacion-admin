@@ -106,7 +106,7 @@ describe("auth behaviour baseline (unchanged by T2b)", () => {
 
   describe("middleware", () => {
     it("guards / and /admin and adds only the dynamic public prefixes and backslash paths", () => {
-      expect(config.matcher).toEqual(["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"]);
+      expect(config.matcher).toEqual(["/", "/admin/:path*", "/foro", "/foro/:path+", "/inscripciones/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"]);
     });
 
     it.each(["/", "/admin", "/admin/events", "/admin/board/x/edit"])("%s: no cookie, bad cookie and expired cookie redirect to /login; a valid one passes", async (path) => {

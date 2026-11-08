@@ -70,6 +70,11 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `FORUM_GOOGLE_CLIENT_ID`, `FORUM_GOOGLE_CLIENT_SECRET` | no | A separate Google OAuth client for the forum. Set both or neither; unset, the forum reuses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. |
 | `TURNSTILE_SECRET_KEY` | for the open registration form | Cloudflare Turnstile **secret** key (section 4c). Mark it Sensitive. Missing, empty or a placeholder **in production: the open registration form answers 503** (fail closed), so nobody registers without the antispam check. Set it **together with `TURNSTILE_SITE_KEY`** (the next row): a secret without a site key logs a warning and closes the form of `/inscripciones/<slug>`. |
 | `TURNSTILE_SITE_KEY` | with the secret | The **public** site key of the same Turnstile widget (section 4c), read at request time by `/inscripciones/<slug>` to show the widget. Letters, digits, `_` and `-` only; anything else counts as unset. With the secret set and this missing, that page shows "La inscripción no está disponible" instead of the form and logs the misconfiguration once. |
+| `MAIL_GMAIL_USER` | for email | The Gmail address of the association that sends the registration emails (section 4d). Missing, a placeholder or not an address: no email goes out and the open form answers 503. |
+| `MAIL_GMAIL_APP_PASSWORD` | for email | A Google **app password** for that account (16 letters; the spaces Google shows are ignored). Not the account password. Mark it Sensitive. |
+| `MAIL_FROM_NAME` | no | Display name of the sender. Default `ASO Computación`. |
+| `MAIL_DAILY_LIMIT` | no | Most emails sent in one day (Ecuador time), confirmations and reminders together. Default `400`, under Gmail's ~500. A whole number from 1 to 100000; anything else is ignored (the default applies) and reported by the configuration check. |
+| `REGISTRATION_CONFIRM_SECRET` | for email | Signs the email-confirmation links (valid 48 h). At least 32 characters and different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`. Missing or invalid: the open form answers 503. Rotating it invalidates the links already sent. Mark it Sensitive. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | yes | Cloudinary API secret. Server-side only. |
@@ -191,6 +196,17 @@ Each event chooses its registration mode in the admin (none, UNL Google account,
 
 The contract the landing codes against is in [REFERENCIA.md](REFERENCIA.md#event-registration).
 
+## 4d. Email (registration confirmation and reminders)
+
+The open registration form confirms each address before it takes a seat, and every confirmed registrant gets a reminder before the event. Both go out through the association's Gmail, which needs no domain of its own:
+
+1. In the Google account of the association turn on **2-Step Verification**, then create an **app password** (Google Account → Security → App passwords). Copy the 16 letters.
+2. Set `MAIL_GMAIL_USER` (that address) and `MAIL_GMAIL_APP_PASSWORD` (the 16 letters) in Vercel, and `REGISTRATION_CONFIRM_SECRET` (`openssl rand -base64 48`). All three are required; with any missing the open form answers 503 "no disponible" instead of taking registrations nobody could confirm.
+3. **Daily budget.** Gmail allows about 500 messages a day to a free account. Every send, whatever its reason, first takes one unit of a per-day counter (table `MailDailyCounter`, day in Ecuador time) that refuses past `MAIL_DAILY_LIMIT` (default 400), so one day never goes over however many instances run. A send the provider refuses gives its unit back. A confirmation that finds the budget spent is refused with 503 and nothing is left to block a retry; reminders spread over the days before the event instead (section 6a).
+4. The code talks to a `MailSender` port; the Gmail adapter is the only piece that knows Gmail. Moving to a transactional service with an own domain later replaces that adapter and these variables, nothing else.
+
+The names only (never values) of what is still missing are what the configuration check reports.
+
 ## 5. Seeding the landing content
 
 The landing keeps its real content in `src/data/fallback.json` and its images in `src/assets/`. `npm run seed:landing` loads them into the admin through the same use cases the admin UI calls, so every rule applies: board entries carry only name, role and photo (a file with any other key on a board entry is rejected as a whole), photo minimum widths, and a board member needs a photo to be published.
@@ -263,6 +279,12 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances. The password login and the Google callback spend the same throttle.
 - Sessions live in the `Session` table (24 h, revocable). Only a keyed hash of the client address and a shortened user agent are stored. Old rows are not purged automatically; they are small and expired ones are never listed.
 - The audit log (`AuditLog`) holds who did what to which record, by name and id: never content bodies, passwords, tokens or emails. A failure to write an entry never fails the action it describes; it is logged and reported to Sentry.
+
+### The mail daily counter migration (`20261108130000_add_mail_daily_counter`)
+
+Additive: one new table, `MailDailyCounter` (`day` as `YYYY-MM-DD` primary key, `sent` count, `CHECK`s on both), nothing else touched. Run it before deploying the code that sends email; the previous code ignores the table.
+
+- Rollback (roll the app back first): `DROP TABLE "MailDailyCounter"; DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261108130000_add_mail_daily_counter';`, with the **direct** connection string. It loses only today's send count.
 
 ### The email confirmation migration (`20261108120000_confirm_registration_email`)
 

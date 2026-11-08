@@ -320,6 +320,14 @@ model LoginAttempt {
   @@index([lastAttemptAt])
 }
 
+// Daily budget of outgoing email (the provider caps what one account may send a day). One row per calendar day in
+// Ecuador (`YYYY-MM-DD`), `sent` counts the messages reserved that day; reserving is one atomic upsert that refuses
+// at the limit. Rows are tiny and one a day, so they are never purged.
+model MailDailyCounter {
+  day  String @id
+  sent Int
+}
+
 enum UserRole {
   ADMIN
   EDITOR

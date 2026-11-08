@@ -25,7 +25,7 @@ describe("validateOpenForm", () => {
     expect(errors.name).toBe("Escribe tu nombre.");
     expect(errors.email).toBe("Escribe tu correo.");
     expect(errors.career).toBe("Escribe tu carrera.");
-    expect(errors.semester).toBe("Elige tu semestre, del 1 al 12.");
+    expect(errors.semester).toBe("Elige tu ciclo, del 1 al 12.");
   });
 
   it("flags only the fields that are wrong", () => {

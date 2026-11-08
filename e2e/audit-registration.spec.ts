@@ -73,7 +73,7 @@ async function fillForm(page: Page, values: Partial<Record<"name" | "email" | "c
   await page.getByLabel("Nombre completo").fill(name);
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Carrera").fill(career);
-  await page.getByLabel("Semestre").selectOption(semester);
+  await page.getByLabel("Ciclo").selectOption(semester);
 }
 
 /** Console errors, uncaught exceptions and server errors a page produced while it was open. */
@@ -121,11 +121,11 @@ test.describe("the public event page", () => {
 
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: event.title })).toBeVisible();
-    await expect(page.getByText("Quedan 30 de 30 cupos")).toBeVisible();
+    await expect(page.getByText("Quedan 30 cupos")).toBeVisible();
     await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
     await expect(page.getByText("Laboratorio 2")).toBeVisible();
     await expect(page.getByText("Segunda línea")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Inscribirme" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
     expect(problems).toEqual([]);
   });
 
@@ -161,7 +161,7 @@ test.describe("the public event page", () => {
     for (const event of [todays, monthly, undated]) {
       await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByText("Inscripciones abiertas"), event.slug).toBeVisible();
-      await expect(page.getByRole("button", { name: "Inscribirme" }), event.slug).toBeVisible();
+      await expect(page.getByRole("button", { name: "Reservar mi cupo" }), event.slug).toBeVisible();
     }
   });
 
@@ -178,17 +178,17 @@ test.describe("the public event page", () => {
       await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByText("Inscripciones cerradas"), event.slug).toBeVisible();
       await expect(page.getByText("Las inscripciones de este evento ya cerraron."), event.slug).toBeVisible();
-      await expect(page.getByRole("button", { name: "Inscribirme" }), event.slug).toHaveCount(0);
-      await expect(page.getByText("Inscripciones hasta"), event.slug).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Reservar mi cupo" }), event.slug).toHaveCount(0);
+      await expect(page.getByText("cierra el"), event.slug).toHaveCount(0);
     }
 
     await page.goto(`/inscripciones/${future.slug}`);
     await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
-    await expect(page.getByText("Inscripciones hasta")).toBeVisible();
+    await expect(page.getByText("cierra el")).toBeVisible();
 
     await page.goto(`/inscripciones/${full.slug}`);
     await expect(page.getByText("Cupos agotados")).toBeVisible();
-    await expect(page.getByText("Quedan 0 de 1 cupos")).toBeVisible();
+    await expect(page.getByText("Quedan 0 cupos")).toBeVisible();
     await expect(page.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
 
     // No limit: no seat counter at all.
@@ -203,7 +203,7 @@ test.describe("the public event page", () => {
     const problems = watch(page);
 
     await page.goto(`/inscripciones/${none.slug}`, { waitUntil: "networkidle" });
-    await expect(page.getByText("Este evento es de pase libre: no necesitas inscribirte, solo llegar.")).toBeVisible();
+    await expect(page.getByText("No necesita inscribirse: solo llegue.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
 
     await page.goto(`/inscripciones/${unl.slug}`, { waitUntil: "networkidle" });
@@ -240,10 +240,10 @@ test.describe("the public event page", () => {
 
     try {
       await page.goto(`/inscripciones/${event.slug}`);
-      await expect(page.getByRole("complementary", { name: "Inscripción" }).getByText("Lucía Ñ.")).toBeVisible();
-      await page.getByRole("button", { name: "Inscribirme" }).click();
+      await expect(page.getByRole("region", { name: "Inscripción" }).getByText("Lucía Ñ.")).toBeVisible();
+      await page.getByRole("button", { name: "Reservar mi cupo" }).click();
       await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
-      await expect(page.getByText("Quedan 4 de 5 cupos")).toBeVisible();
+      await expect(page.getByText("Quedan 4 cupos")).toBeVisible();
       expect(await registrations(event)).toMatchObject([{ mode: "unl", name: "Lucía Ñ.", email: member.email, career: null, semester: null }]);
 
       // The member's list shows the event too.
@@ -273,11 +273,11 @@ test.describe("the open form in the browser", () => {
     });
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
 
-    const submit = page.getByRole("button", { name: "Inscribirme" });
+    const submit = page.getByRole("button", { name: "Reservar mi cupo" });
 
     // All empty: every field is flagged and the first one takes the focus.
     await submit.click();
-    for (const label of ["Nombre completo", "Correo", "Carrera", "Semestre"]) {
+    for (const label of ["Nombre completo", "Correo", "Carrera", "Ciclo"]) {
       await expect(page.getByLabel(label)).toHaveAttribute("aria-invalid", "true");
     }
     await expect(page.getByLabel("Nombre completo")).toBeFocused();
@@ -314,15 +314,15 @@ test.describe("the open form in the browser", () => {
     await actAsWidget(page);
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: "  JOSÉ.Ñandú@Exámple.COM ", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
-    await page.getByRole("button", { name: "Inscribirme" }).click();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
 
-    const done = page.getByRole("status").filter({ hasText: `Quedaste inscrito en ${event.title}.` });
+    const done = page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" });
 
     await expect(done).toBeFocused();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     // The page behind refreshes by itself: the seats follow, the confirmation stays.
-    await expect(page.getByText("Quedan 2 de 3 cupos")).toBeVisible();
+    await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
     await expect(done).toBeVisible();
     expect(await registrations(event)).toMatchObject([{ mode: "open", name: "José Ñandú 李雷 😀", email: "josé.ñandú@exámple.com", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12 }]);
   });
@@ -335,12 +335,12 @@ test.describe("the open form in the browser", () => {
     await actAsWidget(page);
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
-    await page.getByRole("button", { name: "Inscribirme" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
 
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page, { name: "Otra Persona", email: " ANA@Example.com " });
-    await page.getByRole("button", { name: "Inscribirme" }).click();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByLabel("Correo")).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByLabel("Correo")).toBeFocused();
     await expect(page.getByText("Ya hay una inscripción con ese correo para este evento.")).toBeVisible();
@@ -363,11 +363,11 @@ test.describe("the open form in the browser", () => {
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
 
-    const submit = page.getByRole("button", { name: /Inscribirme|Enviando/ });
+    const submit = page.getByRole("button", { name: /Reservar mi cupo|Enviando/ });
 
     await submit.dblclick();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
     expect(sent).toBe(1);
     expect(await registrations(event)).toHaveLength(1);
   });
@@ -379,7 +379,7 @@ test.describe("the open form in the browser", () => {
 
     await actAsWidget(page);
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
-    await expect(page.getByText("Queda 1 de 1 cupos")).toBeVisible();
+    await expect(page.getByText("Queda 1 cupo")).toBeVisible();
 
     // Another visitor loaded the form before the seat was taken.
     const late = await browser.newContext({ baseURL: new URL(page.url()).origin, extraHTTPHeaders: { "x-real-ip": nextIp() } });
@@ -388,15 +388,15 @@ test.describe("the open form in the browser", () => {
     await actAsWidget(latePage);
     await latePage.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
-    await page.getByRole("button", { name: "Inscribirme" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
     await expect(page.getByText("Cupos agotados")).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
 
     await fillForm(latePage, { name: "Luis Tarde", email: "luis@example.com" });
-    await latePage.getByRole("button", { name: "Inscribirme" }).click();
+    await latePage.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(latePage.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
-    await expect(latePage.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+    await expect(latePage.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     expect(await registrations(event)).toMatchObject([{ email: ANA.email }]);
     await late.close();
   });
@@ -407,15 +407,15 @@ test.describe("the open form in the browser", () => {
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
     await page.route(OPEN_ENDPOINT, (route) => route.abort("connectionrefused"), { times: 1 });
-    await page.getByRole("button", { name: "Inscribirme" }).click();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar tu inscripción." })).toBeVisible();
     await expect(page.getByLabel("Nombre completo")).toHaveValue(ANA.name);
 
     // An answer that is not JSON at all (a proxy's HTML page) is the same plain failure.
     await page.route(OPEN_ENDPOINT, (route) => route.fulfill({ status: 502, contentType: "text/html", body: "<h1>Bad gateway</h1>" }), { times: 1 });
-    await page.getByRole("button", { name: "Inscribirme" }).click();
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar tu inscripción." })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Inscribirme" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
   });
 
   test("a deployment with a Turnstile secret but no site key offers no form that can never pass, and says the registration is unavailable", async ({ page, request }) => {
@@ -426,7 +426,7 @@ test.describe("the open form in the browser", () => {
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     // Without a site key there is no widget to complete, so the page does not ask for data it cannot send.
     await expect(page.getByText("La inscripción no está disponible en este momento.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
   });
 
@@ -436,7 +436,7 @@ test.describe("the open form in the browser", () => {
     for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 360 }]) {
       await page.setViewportSize(viewport);
       await page.goto(`/inscripciones/${event.slug}`);
-      await expect(page.getByRole("button", { name: "Inscribirme" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${viewport.width}px`).toBe(true);
     }
   });

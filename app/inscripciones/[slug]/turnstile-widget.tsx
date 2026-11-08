@@ -81,7 +81,8 @@ export function TurnstileWidget({ siteKey, onToken, onError, resetCount }: Turns
 
         widgetId.current = api.render(container.current, {
           sitekey: siteKey,
-          theme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
+          // The pass's tear-off is navy in both themes, so the check is always the dark one.
+          theme: "dark",
           language: "es",
           callback: (token) => callbacks.current.onToken(token),
           "expired-callback": () => callbacks.current.onToken(null),

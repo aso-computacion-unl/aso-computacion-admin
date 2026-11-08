@@ -34,7 +34,7 @@ async function createRegistrableEvent(page: Page, title: string) {
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
   await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-  await page.getByRole("radio", { name: "Formulario abierto" }).check({ force: true });
+  await page.getByRole("radio", { name: "Formulario abierto" }).check();
   await page.getByLabel("Cupos").fill("2");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
@@ -90,9 +90,13 @@ test("an event with the open form: the settings stick, the public API and the ca
   expect(await refused.json()).toEqual({ error: "unavailable" });
   expect((await request.post(`/api/public/events/${slug}/registrations`, { data: "{not json", headers: { "content-type": "application/json" } })).status()).toBe(400);
 
-  await page.goto(`/admin/events/${id}/registrations`);
+  await page.goto(`/admin/registrations?evento=${id}`);
   await expect(page.getByText("Todavía no hay inscripciones.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Exportar CSV" })).toBeVisible();
+
+  // The old per-event address still works: it lands on the same screen with the event selected.
+  await page.goto(`/admin/events/${id}/registrations`);
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${id}$`));
 });
 
 test("the registrations belong to the admin and the editor, but only an admin can export them", async ({ page, context, request }) => {
@@ -113,9 +117,9 @@ test("the registrations belong to the admin and the editor, but only an admin ca
 
   // An editor sees the page, without the export or any delete control, and the export itself is refused.
   await actAsEditor(context);
-  await page.goto(`/admin/events/${id}/registrations`);
-  await expect(page.getByRole("heading", { name: "Inscripciones" })).toBeVisible();
-  await expect(page.getByText("Solo un administrador puede exportar o eliminar inscripciones.")).toBeVisible();
+  await page.goto(`/admin/registrations?evento=${id}`);
+  await expect(page.getByRole("heading", { name: "Inscripciones", level: 1 })).toBeVisible();
+  await expect(page.getByText("Solo un administrador puede exportar o eliminar.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Exportar CSV" })).toHaveCount(0);
   expect((await page.request.get(`/admin/events/${id}/registrations/export`)).status()).toBe(403);
 
@@ -140,21 +144,23 @@ test("the seats endpoint counts a registrable event for anyone, and the admin ov
   expect(seats.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=5, must-revalidate");
   expect(body.events).toContainEqual({ slug, capacity: 2, registered: 0, seatsLeft: 2, status: "open" });
 
-  // The overview is one click from the rail and lists the event; its link opens that event's registrants.
-  // The table is the layout of wide screens (84rem and up); narrower ones stack each event as a block.
+  // The screen is one click from the rail and lists the event; its link selects that event and shows its people.
+  // Events and people sit side by side on wide screens (80rem and up); narrower ones show one at a time.
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/admin");
   await page.getByRole("link", { name: "Inscripciones", exact: true }).first().click();
   await expect(page).toHaveURL(/\/admin\/registrations$/);
   await expect(page.getByRole("heading", { name: "Inscripciones", level: 1 })).toBeVisible();
 
-  const row = page.getByRole("row").filter({ hasText: title });
+  const row = page.getByRole("navigation", { name: "Eventos con inscripción" }).getByRole("link", { name: new RegExp(title) });
 
-  await expect(row).toContainText("Formulario abierto");
   await expect(row).toContainText("0 / 2");
   await expect(row).toContainText("Abierta");
-  await row.getByRole("link", { name: /Ver inscritos/ }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/events/${id}/registrations$`));
+  await row.click();
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${id}$`));
+  await expect(row).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("heading", { name: title, level: 2 })).toBeVisible();
+  await expect(page.getByText("Formulario abierto").first()).toBeVisible();
   await expect(page.getByText("Todavía no hay inscripciones.")).toBeVisible();
 });
 

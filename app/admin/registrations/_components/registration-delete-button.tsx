@@ -2,7 +2,7 @@
 
 import { deleteEventRegistration } from "@/interface/admin/event-registrations/actions";
 
-import { DeleteButton } from "../../../../_components/row-actions";
+import { DeleteButton } from "../../_components/row-actions";
 
 /** Deleting a registration is permanent and ADMIN only: it frees the seat and cannot be undone. */
 export function RegistrationDeleteButton({ eventId, registrationId, name }: { eventId: string; registrationId: string; name: string }) {

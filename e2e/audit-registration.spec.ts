@@ -667,7 +667,7 @@ test.describe("the admin registrations", () => {
     await page.goto("/admin/registrations");
     await expect(page.getByRole("heading", { name: "Inscripciones", level: 1 })).toBeVisible();
 
-    const rowOf = (event: Seeded) => page.getByRole("row").filter({ hasText: event.title });
+    const rowOf = (event: Seeded) => page.getByRole("navigation", { name: "Eventos con inscripción" }).getByRole("link", { name: new RegExp(event.title) });
 
     await expect(rowOf(live)).toContainText("3 / 6");
     await expect(rowOf(live)).toContainText("Abierta");
@@ -676,12 +676,7 @@ test.describe("the admin registrations", () => {
     await expect(rowOf(draft)).toContainText("1 / 2");
     await expect(rowOf(past)).toContainText("Cerrada");
     await expect(page.getByRole("heading", { name: "Pasados" })).toBeVisible();
-    await expect(page.getByRole("row").filter({ hasText: none.title })).toHaveCount(0);
-
-    // The header total counts exactly what the rows add up to.
-    const rows = await page.getByRole("table").first().getByRole("row").count();
-
-    expect(rows).toBeGreaterThan(1);
+    await expect(page.getByRole("link", { name: new RegExp(none.title) })).toHaveCount(0);
     expect(problems).toEqual([]);
 
     // The numbers a visitor can read are the numbers the admin reads.
@@ -693,14 +688,15 @@ test.describe("the admin registrations", () => {
       await expect(rowOf(event), event.slug).toContainText(row.capacity === null ? `${row.registered} · sin límite` : `${row.registered} / ${row.capacity}`);
     }
 
-    // The link opens that event's registrants, and the count there is the same.
-    await rowOf(live).getByRole("link", { name: /Ver inscritos/ }).click();
-    await expect(page).toHaveURL(new RegExp(`/admin/events/${live.id}/registrations$`));
-    await expect(page.getByRole("row")).toHaveCount(4);
-    await expect(page.getByText("3 de 6 cupos")).toBeVisible();
+    // The link selects that event and shows its people; the count there is the same.
+    await rowOf(live).click();
+    await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${live.id}$`));
+    await expect(rowOf(live)).toHaveAttribute("aria-current", "true");
+    await expect(page.getByRole("region", { name: "Lista de inscripciones" }).getByRole("row")).toHaveCount(4);
+    await expect(page.getByText("3 / 6").first()).toBeVisible();
   });
 
-  test("on a phone the events stack as blocks and nothing scrolls sideways", async ({ page }) => {
+  test("on a phone the events come first, an event opens its people with a way back, and nothing scrolls sideways", async ({ page }) => {
     const event = await seedEvent("adminmovil", { title: `Auditoría ${"largo".repeat(40)} ${STAMP}`, registrationCapacity: 6 });
 
     await logInAsAdmin(page);
@@ -708,6 +704,13 @@ test.describe("the admin registrations", () => {
     await page.goto("/admin/registrations");
     await expect(page.getByText(event.title.slice(0, 30)).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+    await page.getByRole("link", { name: new RegExp(event.title.slice(0, 30)) }).first().click();
+    await expect(page.getByRole("link", { name: "← Eventos" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Eventos con inscripción" })).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.getByRole("link", { name: "← Eventos" }).click();
+    await expect(page.getByRole("navigation", { name: "Eventos con inscripción" })).toBeVisible();
   });
 
   test("the registrants page lists, exports a safe CSV, deletes one registration, and the counts follow everywhere", async ({ page, request }) => {
@@ -721,9 +724,10 @@ test.describe("the admin registrations", () => {
     });
 
     await logInAsAdmin(page);
-    await page.goto(`/admin/events/${event.id}/registrations`);
+    await page.goto(`/admin/registrations?evento=${event.id}`);
     await expect(page.getByRole("row")).toHaveCount(3);
-    await expect(page.getByText("2 de 2 cupos")).toBeVisible();
+    await expect(page.getByRole("heading", { name: event.title, level: 2 })).toBeVisible();
+    await expect(page.getByText("2 / 2").first()).toBeVisible();
     await expect(page.getByText("María \"la Ñ\", Pérez 李雷")).toBeVisible();
 
     const exported = await page.request.get(`/admin/events/${event.id}/registrations/export`);
@@ -736,13 +740,17 @@ test.describe("the admin registrations", () => {
     expect(csv).toContain("\"María \"\"la Ñ\"\", Pérez 李雷\"");
     expect(csv.trim().split("\r\n")).toHaveLength(3);
 
-    // Unknown event: a 404 page, not a crash; the export has no body to leak.
-    expect((await page.request.get("/admin/events/no-existe/registrations")).status()).toBe(404);
+    // The old per-event address lands here; an unknown event falls back to the screen's default, and the export has no body to leak.
+    await page.goto(`/admin/events/${event.id}/registrations`);
+    await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${event.id}$`));
+    await page.goto("/admin/registrations?evento=no-existe");
+    await expect(page.getByRole("heading", { name: "Inscripciones", level: 1 })).toBeVisible();
     expect((await page.request.get("/admin/events/no-existe/registrations/export")).status()).toBe(404);
+    await page.goto(`/admin/registrations?evento=${event.id}`);
 
     await page.getByRole("row").filter({ hasText: "formula@example.com" }).getByRole("button", { name: "Eliminar" }).click();
     await page.getByRole("button", { name: "Sí, eliminar" }).click();
-    await expect(page.getByText("1 de 2 cupos")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("1 / 2").first()).toBeVisible({ timeout: 15_000 });
     expect(await registrations(event)).toHaveLength(1);
 
     // The freed seat is public at once (the next read; the edge may hold a copy for 5 s at most).

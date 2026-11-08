@@ -28,13 +28,13 @@ describe("event registration server actions require a session and an ADMIN", () 
   registerAdminActionAuthCases(SUITE);
   registerPolicyCases(SUITE);
 
-  it("deletes the registration of that event, refreshes its page and audits without any personal data", async () => {
+  it("deletes the registration of that event, refreshes the registrations screen and audits without any personal data", async () => {
     cookieJar(cookiesMock, await signInAs("ADMIN"));
 
     await expect(actions.deleteEventRegistration("event-1", "registration-1")).resolves.toEqual({ success: true });
 
     expect(remove.execute).toHaveBeenCalledWith({ eventId: "event-1", registrationId: "registration-1" });
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events/event-1/registrations");
+    expect(revalidatePathMock.mock.calls).toEqual([["/admin/registrations"]]);
     expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.summary])).toEqual([
       ["event.registration_delete", "event", "event-1", "Inscripción eliminada de un evento"],
     ]);

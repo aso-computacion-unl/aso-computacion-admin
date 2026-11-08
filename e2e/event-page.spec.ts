@@ -29,7 +29,7 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
 
   if (mode !== "none") {
     await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-    await page.getByRole("radio", { name: MODE_LABELS[mode] }).check({ force: true });
+    await page.getByRole("radio", { name: MODE_LABELS[mode] }).check();
   }
 
   if (capacity !== undefined) await page.getByLabel("Cupos").fill(String(capacity));

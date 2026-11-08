@@ -488,7 +488,7 @@ test.describe("events", () => {
     await page.getByLabel("Título").fill(title);
     await openMoreOptions(page);
     await page.getByLabel("Mensaje de commit").fill("feat: açaí 🍇");
-    await page.getByRole("radio", { name: "Solo mes" }).check({ force: true });
+    await page.getByRole("radio", { name: "Solo mes" }).check();
     await page.getByLabel("Mes", { exact: true }).fill("2031-03");
     await page.getByLabel("Descripción", { exact: true }).fill("Una descripción con ñ, tildes y «comillas».");
     await page.getByLabel("Lugar").fill("Auditorio Ñandú");

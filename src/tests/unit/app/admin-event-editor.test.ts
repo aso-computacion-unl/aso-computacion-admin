@@ -8,6 +8,8 @@ import type { ActionResult } from "@/interface/admin/action-result";
 import { EMPTY_EVENT_FORM_VALUES, type EventFormValues } from "@/interface/admin/events/event-form-values";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
+import { controlsPerLabel } from "./one-control-per-label";
+
 afterEach(async () => {
   await unmountAll();
 });
@@ -87,7 +89,7 @@ describe("the event editor's \"Más opciones\"", () => {
 
   it("explains a field behind a small \"?\" instead of a paragraph", async () => {
     const host = await mountForm();
-    const help = host.querySelector<HTMLButtonElement>('button[aria-label="Ayuda: Identificador (slug)"]')!;
+    const help = field(host, "Identificador (slug)").closest("div")!.querySelector<HTMLButtonElement>("button[aria-controls]")!;
 
     expect(help.getAttribute("aria-expanded")).toBe("false");
     expect(document.getElementById(help.getAttribute("aria-controls")!)?.hidden).toBe(true);
@@ -96,6 +98,52 @@ describe("the event editor's \"Más opciones\"", () => {
 
     expect(help.getAttribute("aria-expanded")).toBe("true");
     expect(document.getElementById(help.getAttribute("aria-controls")!)?.hidden).toBe(false);
+  });
+});
+
+describe("the labels of the event editor", () => {
+  it("name one control each, so no \"?\" help toggle answers to the name of its field", async () => {
+    const host = await mountForm();
+
+    await click(switchNamed(host, "Tiene inscripción"));
+
+    const perLabel = controlsPerLabel(host);
+
+    for (const text of ["Publicar el", "Identificador (slug)", "Cupos", "Puntos destacados"]) expect(perLabel.get(text)?.size, text).toBe(1);
+    for (const [text, controls] of perLabel) expect(controls.size, text).toBe(1);
+  });
+
+  it("gives every help toggle the same short name and describes it with its field's label", async () => {
+    const host = await mountForm();
+    const toggles = [...host.querySelectorAll<HTMLButtonElement>("button[aria-controls]")];
+
+    expect(toggles.length).toBeGreaterThan(0);
+    for (const toggle of toggles) {
+      expect(toggle.getAttribute("aria-label")).toBe("Ayuda");
+      expect(document.getElementById(toggle.getAttribute("aria-describedby")!)?.tagName).toBe("LABEL");
+    }
+  });
+});
+
+describe("the event editor's date type", () => {
+  it("switches to a month-only date with one click and back, showing Mes instead of Fecha", async () => {
+    const host = await mountForm();
+    const radio = (value: string) => host.querySelector<HTMLInputElement>(`input[name="datePrecision"][value="${value}"]`)!;
+
+    expect(radio("day").checked).toBe(true);
+    expect(labelled(host, "Fecha")).toBeDefined();
+
+    await click(radio("month"));
+
+    expect(radio("month").checked).toBe(true);
+    expect(radio("day").checked).toBe(false);
+    expect(labelled(host, "Mes")).toBeDefined();
+    expect(field(host, "Mes").type).toBe("month");
+
+    await click(radio("day"));
+
+    expect(radio("day").checked).toBe(true);
+    expect(labelled(host, "Fecha")).toBeDefined();
   });
 });
 

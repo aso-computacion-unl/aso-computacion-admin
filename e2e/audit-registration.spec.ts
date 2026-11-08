@@ -228,7 +228,7 @@ test.describe("the public event page", () => {
       .setExpirationTime(issued + 3600)
       .sign(new TextEncoder().encode(FORUM_SECRET));
 
-    await context.addCookies([{ name: "forum_session", value: token, domain: "127.0.0.1", path: "/foro" }]);
+    await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
 
     try {
       await page.goto(`/foro/eventos/${event.slug}`);

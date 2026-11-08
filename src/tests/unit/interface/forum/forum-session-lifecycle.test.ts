@@ -15,7 +15,7 @@ vi.mock("next/headers", () => ({
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 
 import { NotFoundError } from "@/application/use-cases/use-case-error";
-import { FORUM_COOKIE_NAME, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
+import { FORUM_COOKIE_NAME, LEGACY_FORUM_COOKIE_NAME, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
 import { closeForumSession, openForumSession } from "@/interface/forum/forum-session-lifecycle";
 import { makeForumMember } from "@/tests/fakes/in-memory-forum";
 import { signInToForumAs, testForum } from "@/tests/support/test-forum";
@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 describe("openForumSession", () => {
-  it("stores the session with a hashed address and the user agent, and sets a /foro cookie that names it", async () => {
+  it("stores the session with a hashed address and the user agent, and sets a site-wide cookie that names it", async () => {
     const { sessionId } = await openForumSession("member-1");
 
     expect(testForum.sessions.sessions.get(sessionId)).toMatchObject({ memberId: "member-1", userAgent: "Test Browser", revokedAt: null });
@@ -39,7 +39,7 @@ describe("openForumSession", () => {
 
     const [name, token, options] = cookieSetMock.mock.calls[0] as [string, string, Record<string, unknown>];
     expect(name).toBe(FORUM_COOKIE_NAME);
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/foro" });
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
     expect(await verifyForumSession(token)).toEqual({ valid: true, payload: { sid: sessionId, memberId: "member-1" } });
   });
 
@@ -75,14 +75,15 @@ describe("openForumSession", () => {
 });
 
 describe("closeForumSession", () => {
-  it("revokes this browser's session and clears the /foro cookie", async () => {
+  it("revokes this browser's session, clears the site-wide cookie and expires the legacy /foro one", async () => {
     const { cookie, sessionId } = await signInToForumAs({ id: "member-1" });
     cookieGetMock.mockImplementation((name: string) => (name === FORUM_COOKIE_NAME ? { name, value: cookie } : undefined));
 
     await closeForumSession();
 
     expect(testForum.sessions.sessions.get(sessionId)?.revokedAt).not.toBeNull();
-    expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ path: "/foro", maxAge: 0 }));
+    expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ path: "/", maxAge: 0 }));
+    expect(cookieSetMock).toHaveBeenCalledWith(LEGACY_FORUM_COOKIE_NAME, "", expect.objectContaining({ path: "/foro", maxAge: 0 }));
   });
 
   it("still revokes the session when the guard would refuse it: the member was suspended since", async () => {
@@ -132,8 +133,8 @@ describe("closeForumSession", () => {
     await closeForumSession();
 
     expect(reportErrorMock).not.toHaveBeenCalled();
-    expect(cookieSetMock).toHaveBeenCalledTimes(3);
-    expect(cookieSetMock).toHaveBeenLastCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ maxAge: 0 }));
+    expect(cookieSetMock).toHaveBeenCalledTimes(6);
+    expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ maxAge: 0 }));
   });
 
   it("clears the cookie even when there was no valid session, without reporting an error", async () => {

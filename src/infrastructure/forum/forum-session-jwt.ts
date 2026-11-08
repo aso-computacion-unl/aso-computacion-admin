@@ -10,16 +10,27 @@ import { forumSessionSecret } from "./forum-config";
  *  - its own claims (`mid`, `typ`, `aud`), none of which an admin token carries and none of the admin's
  *    (`kind`, `uid`, `role`) present here, so neither verifier accepts the other's token even if the
  *    secrets were ever misconfigured to match,
- *  - its own cookie, scoped to `/foro`, which the browser never sends to `/admin`.
+ *  - its own cookie (`forum_sid`), which the admin guard never reads.
  * The admin session module is not touched by any of this.
+ *
+ * The cookie covers the whole site (`/`), not just `/foro`: the event registration page lives at
+ * `/inscripciones/<slug>` and needs the same session. Until 2026-11 it was `forum_session` on `/foro`; that
+ * legacy cookie is moved to the new one by the proxy (see `migrateLegacyForumCookie`) and expired on logout.
  */
-export const FORUM_COOKIE_NAME = "forum_session";
-export const FORUM_COOKIE_PATH = "/foro";
+export const FORUM_COOKIE_NAME = "forum_sid";
+export const FORUM_COOKIE_PATH = "/";
+export const LEGACY_FORUM_COOKIE_NAME = "forum_session";
+export const LEGACY_FORUM_COOKIE_PATH = "/foro";
 export const FORUM_SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
 export const FORUM_AUDIENCE = "aso-computacion-forum";
 export const FORUM_SESSION_TYPE = "forum-session";
 
 const ALGORITHM = "HS256";
+
+/** The attributes of the forum cookies, new and legacy: one place, so a cookie set and the one that expires it agree. */
+export function forumCookieOptions(path: string, maxAge: number) {
+  return { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path, maxAge };
+}
 
 export class ForumSecretError extends Error {
   constructor() {

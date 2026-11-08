@@ -144,7 +144,7 @@ describe("startForumLogin", () => {
 });
 
 describe("finishForumLogin", () => {
-  it("signs a new student in: creates the member, opens a session, sets the /foro cookie and goes to the forum", async () => {
+  it("signs a new student in: creates the member, opens a session, sets the site-wide cookie and goes to the forum", async () => {
     const response = await finishForumLogin(request("?code=auth-code&state=the-state"));
 
     expect(location(response)).toBe("https://admin.example.org/foro");
@@ -153,9 +153,9 @@ describe("finishForumLogin", () => {
     expect(testForum.sessions.sessions.size).toBe(1);
 
     const [name, token, options] = cookieSetMock.mock.calls.find(([cookie]) => cookie === FORUM_COOKIE_NAME) as [string, string, Record<string, unknown>];
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/foro", maxAge: 7 * 24 * 60 * 60 });
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
     expect(await verifyForumSession(token)).toMatchObject({ valid: true });
-    expect(name).toBe("forum_session");
+    expect(name).toBe("forum_sid");
   });
 
   it("recognises a returning student by Google sub and creates nothing new", async () => {

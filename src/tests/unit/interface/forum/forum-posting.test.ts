@@ -86,7 +86,7 @@ describe("the forum actions require a forum member", () => {
     jar({});
 
     expect(await posting.signOutOfForum()).toEqual({ success: true });
-    expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ path: "/foro", maxAge: 0 }));
+    expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, "", expect.objectContaining({ path: "/", maxAge: 0 }));
   });
 });
 

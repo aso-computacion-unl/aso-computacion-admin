@@ -72,11 +72,11 @@ describe("route protection", () => {
     }
   });
 
-  it("the matcher reaches a public route only for the undecodable-path check: the dynamic forum, invitation and public event routes", () => {
+  it("the matcher reaches a public route only for the undecodable-path check (and the forum cookie migration): the dynamic forum, registration, invitation and public event routes", () => {
     const covered = PUBLIC_ROUTES.filter((route) => matcherCovers(config.matcher, route));
 
     expect(covered.length).toBeGreaterThan(0);
-    for (const route of covered) expect(/^\/(foro\/|invitacion\/|api\/public\/events\/)/.test(route), route).toBe(true);
+    for (const route of covered) expect(/^\/(foro(\/|$)|inscripciones\/|invitacion\/|api\/public\/events\/)/.test(route), route).toBe(true);
   });
 
   it("no public route lives under /admin or hides behind an admin-looking prefix", () => {

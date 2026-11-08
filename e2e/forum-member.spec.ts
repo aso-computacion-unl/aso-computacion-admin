@@ -61,7 +61,7 @@ test.afterAll(async () => {
 async function memberContext(browser: Browser): Promise<BrowserContext> {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, baseURL: BASE_URL });
 
-  await context.addCookies([{ name: "forum_session", value: token, domain: "127.0.0.1", path: "/foro" }]);
+  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
 
   return context;
 }
@@ -246,7 +246,7 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 
   // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts.
-  await context.addCookies([{ name: "forum_session", value: token, domain: "127.0.0.1", path: "/foro" }]);
+  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
   await prisma.forumSession.update({ where: { id: "s1" }, data: { revokedAt: null } });
   await prisma.forumMember.update({ where: { id: "m1" }, data: { status: "SUSPENDED", suspendedAt: new Date() } });
   await page.goto("/foro");

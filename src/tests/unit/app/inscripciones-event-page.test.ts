@@ -20,7 +20,7 @@ import RegistrationLayout from "../../../../app/inscripciones/layout";
 
 const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, registered: 0, deadline: null, ...over });
-const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, status: status(over) });
+const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over) });
 const open = (over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "open", siteKey: undefined, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status({ mode: "open", ...over }), ...extra });
 const none = (extra: Record<string, unknown> = {}) => ({ kind: "none", event, calendarHref: "/api/public/events/taller-docker/calendar.ics", ...extra });
 const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
@@ -61,31 +61,51 @@ describe("the event registration page", () => {
     expect(html).not.toContain("data-wide");
   });
 
-  it("asks a visitor to sign in with the forum's one Google button, coming back to this event", async () => {
+  it("asks a visitor to sign in with the forum's one Google button, in the stub, coming back to this event", async () => {
     pageMock.mockResolvedValue(unl(null));
 
     const html = await render();
     const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start[^"]*"[^>]*>.*?<\/a>/)?.[0] ?? "";
+    const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
 
     expect(button).toContain('href="/foro/auth/google/start?next=%2Finscripciones%2Ftaller-docker"');
     expect(button).toContain("google-button");
     expect(button).not.toContain("bg-white");
     expect(button).toContain("<svg");
     expect(button).toContain("Entrar con Google");
+    expect(stub).toContain(button);
+    expect(stub).toContain("@unl.edu.ec");
     expect(html).toContain("volverá a esta página");
     expect(html).not.toContain("vuelva a abrir este enlace");
   });
 
-  it("lays out the event facts as labelled details", async () => {
+  it("keeps the sign-in quiet: one line, one button, no form and no reservation until the visitor is in", async () => {
+    pageMock.mockResolvedValue(unl(null));
+
+    const html = await render();
+    const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+    expect(html).toContain('data-mode="unl"');
+    expect(stub.match(/<a /g)).toHaveLength(1);
+    expect(stub).not.toContain("<form");
+    expect(stub).not.toContain("<button");
+    expect(stub).not.toContain("Reservar mi cupo");
+  });
+
+  it("tells the event's facts on the ticket: date stub, hour and place, and the title as the one heading", async () => {
     pageMock.mockResolvedValue(unl(null, { deadline: new Date("2026-11-18T23:00:00Z") }));
 
     const html = await render();
+    const stub = html.match(/<div class="ticket-date"[^>]*>[\s\S]*?<\/div>/)?.[0] ?? "";
 
-    expect(html).toContain("<dl");
-    for (const label of ["Fecha", "Hora", "Lugar", "Inscripciones hasta"]) expect(html).toMatch(new RegExp(`<dt[^>]*>${label}</dt>`));
-    expect(html).toMatch(/<dt[^>]*>Lugar<\/dt><dd[^>]*>Laboratorio 2<\/dd>/);
-    expect(html).not.toContain(">Cupos<");
-    expect(html).toMatch(/<dt[^>]*>Inscripciones hasta<\/dt>/);
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(stub).toMatch(/ticket-dow">Vie</);
+    expect(stub).toMatch(/ticket-day">20</);
+    expect(stub).toContain("nov 2026");
+    expect(stub).toContain("15:00");
+    expect(html).toMatch(/<time datetime="2026-11-20">vie 20 nov 2026<\/time>/i);
+    expect(html).toMatch(/<ul class="ticket-facts">[\s\S]*15:00[\s\S]*Laboratorio 2/);
+    expect(html).toContain("cierra el 18 nov 2026, 18:00 (hora de Ecuador)");
   });
 
   it("leaves out the details the event does not have", async () => {
@@ -93,10 +113,12 @@ describe("the event registration page", () => {
 
     const html = await render();
 
-    expect(html).not.toContain(">Lugar<");
-    expect(html).not.toContain(">Hora<");
+    expect(html).not.toContain("ticket-facts");
+    expect(html).not.toContain("ticket-time");
     expect(html).not.toContain("cupos");
-    expect(html).toContain(">Fecha<");
+    expect(html).not.toContain("ticket-seats");
+    expect(html).toContain('data-seats="none"');
+    expect(html).toContain("ticket-day");
   });
 
   it("shows the event description under the title, and nothing when there is none", async () => {
@@ -106,42 +128,65 @@ describe("the event registration page", () => {
 
     expect(html).toMatch(/<p[^>]*data-slot="event-description"[^>]*>Aprenda a empaquetar su app\.\nTraiga su laptop\.<\/p>/);
     expect(html.indexOf("Aprenda a empaquetar")).toBeGreaterThan(html.indexOf("Taller de Docker"));
-    expect(html.indexOf("Aprenda a empaquetar")).toBeLessThan(html.indexOf("<dl"));
+    expect(html.indexOf("Aprenda a empaquetar")).toBeLessThan(html.indexOf("ticket-facts"));
 
     pageMock.mockResolvedValue(unl(null));
     expect(await render()).not.toContain("event-description");
   });
 
-  it("says how many seats are left of the total, and nothing when the event has no limit", async () => {
+  it("says how many seats are left with a meter, and nothing when the event has no limit", async () => {
     pageMock.mockResolvedValue(unl(null, { capacity: 60, registered: 48 }));
-    expect(await render()).toContain("Quedan 12 de 60 cupos");
+    let html = await render();
+    expect(html).toContain("Quedan 12 cupos");
+    expect(html).toContain("48 de 60 inscritos");
+    expect(html).toContain('<div class="ticket-meter" aria-hidden="true"><i style="width:80%"></i></div>');
 
     pageMock.mockResolvedValue(unl(null, { capacity: 60, registered: 59 }));
-    expect(await render()).toContain("Queda 1 de 60 cupos");
+    expect(await render()).toContain("Queda 1 cupo");
 
     pageMock.mockResolvedValue(unl(null, { capacity: 60, registered: 60, state: "full" }));
-    expect(await render()).toContain("Quedan 0 de 60 cupos");
+    html = await render();
+    expect(html).toContain("Quedan 0 cupos");
+    expect(html).toContain('style="width:100%"');
 
     pageMock.mockResolvedValue(unl(null, { capacity: null, registered: 48 }));
-    expect(await render()).not.toMatch(/Quedan?\b/);
+    html = await render();
+    expect(html).not.toMatch(/Quedan?\b/);
+    expect(html).not.toContain("ticket-meter");
   });
 
-  it("offers the registration to a signed-in member", async () => {
+  it("offers the one-click reservation to a signed-in member, who sees their name and no sign-in", async () => {
     pageMock.mockResolvedValue(unl(member));
 
     const html = await render();
+    const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
 
-    expect(html).toContain("Ana Pérez");
-    expect(html).toContain("Inscribirme");
+    expect(stub).toContain("Ana Pérez");
+    expect(stub).toMatch(/<button[^>]*class="ticket-cta"[^>]*>Reservar mi cupo/);
+    expect(html).not.toContain("Inscribirme");
     expect(html).not.toContain("auth/google/start");
+    expect(html).not.toContain("<form");
   });
 
-  it("says so when the member is already registered or the seats are gone", async () => {
+  it("says so when the member is already registered, with the calendar, or when the seats are gone", async () => {
     pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true }));
-    expect(await render()).toContain("ya está inscrito");
+    let html = await render();
+    expect(html).toContain("ya está inscrito");
+    expect(html).toMatch(/<a [^>]*href="\/api\/public\/events\/taller-docker\/calendar\.ics"[^>]*>(?:(?!<\/a>).)*Añadir al calendario/);
+    expect(html).not.toContain("Reservar mi cupo");
+
+    pageMock.mockResolvedValue({ ...unl(member, { alreadyRegistered: true }), calendarHref: null });
+    expect(await render()).not.toContain("calendar.ics");
 
     pageMock.mockResolvedValue(unl(member, { state: "full" }));
-    expect(await render()).toContain("Ya no quedan cupos");
+    html = await render();
+    expect(html).toContain("Ya no quedan cupos");
+    expect(html).not.toContain("Reservar mi cupo");
+
+    pageMock.mockResolvedValue(unl(null, { state: "closed" }));
+    html = await render();
+    expect(html).toContain("Las inscripciones de este evento ya cerraron.");
+    expect(html).not.toContain("auth/google/start");
   });
 
   it("is a 404 for an unknown or non-public event", async () => {
@@ -152,21 +197,29 @@ describe("the event registration page", () => {
 });
 
 describe("the open registration of the same page", () => {
-  it("shows the event and the form to someone without a session, with no Google button", async () => {
+  it("shows the event and the form in the stub to someone without a session, with no Google button", async () => {
     pageMock.mockResolvedValue(open({ capacity: 30, registered: 12, deadline: new Date("2026-11-18T23:00:00Z") }));
 
     const html = await render();
 
+    expect(html).toContain('data-mode="open"');
     expect(html).toContain("Taller de Docker");
-    expect(html).toContain("Quedan 18 de 30 cupos");
+    expect(html).toContain("Quedan 18 cupos");
+    expect(html).toContain("12 de 30 inscritos · cierra el 18 nov 2026, 18:00");
     expect(html).toContain("Inscripciones abiertas");
-    expect(html).toMatch(/<dt[^>]*>Inscripciones hasta<\/dt>/);
-    expect(html).toContain("<form");
+    expect(html.match(/<section class="ticket-stub"[\s\S]*<form/)).not.toBeNull();
     for (const name of ["name", "email", "career", "semester"]) expect(html).toContain(`name="${name}"`);
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Reservar mi cupo/);
     expect(html).toContain("Usamos tus datos solo para esta actividad");
     expect(html).not.toContain("auth/google/start");
-    expect(html).not.toContain("Inscribirme como");
+    expect(html).not.toContain("Inscribirme");
     expect(html).not.toMatch(/\busted\b|\bSu inscripción\b/i);
+  });
+
+  it("says the form's last field is the ciclo", async () => {
+    pageMock.mockResolvedValue(open());
+
+    expect(await render()).toMatch(/<label[^>]*>Ciclo<\/label>/);
   });
 
   it("hides the form when the seats are gone and says so, keeping the numbers", async () => {
@@ -176,7 +229,8 @@ describe("the open registration of the same page", () => {
 
     expect(html).not.toContain("<form");
     expect(html).toContain("Ya no quedan cupos para este evento.");
-    expect(html).toContain("Quedan 0 de 2 cupos");
+    expect(html).toContain("Quedan 0 cupos");
+    expect(html).toContain("2 de 2 inscritos");
     expect(html).toContain("Cupos agotados");
   });
 
@@ -188,7 +242,7 @@ describe("the open registration of the same page", () => {
     expect(html).not.toContain("<form");
     expect(html).toContain("Las inscripciones de este evento ya cerraron.");
     expect(html).toContain("Inscripciones cerradas");
-    expect(html).not.toContain("Inscripciones hasta");
+    expect(html).not.toContain("cierra el");
   });
 
   it("shows a working form with the widget key when Turnstile is fully configured", async () => {
@@ -211,34 +265,38 @@ describe("the open registration of the same page", () => {
     expect(html).not.toContain("Completa la verificación");
     expect(html).toContain("La inscripción no está disponible en este momento.");
     expect(html).toContain("Taller de Docker");
-    expect(html).toContain("Quedan 18 de 30 cupos");
+    expect(html).toContain("Quedan 18 cupos");
   });
 
-  it("is a branch of two nodes, the event and the registration, so it matches the sign-in", async () => {
+  it("is one ticket: the event on paper, a perforation, and the tear-off labelled as the registration", async () => {
     pageMock.mockResolvedValue(open());
 
     const html = await render();
 
-    expect(html).toContain('class="reg-branch');
-    expect(html).toMatch(/<aside[^>]*aria-label="Inscripción"/);
-    expect(html).toContain("<h1");
-    expect(html).toMatch(/<h2[^>]*>Inscríbete<\/h2>/);
+    expect(html).toContain('class="ticket"');
+    expect(html).toContain('class="ticket-perf"');
+    expect(html).toMatch(/<section class="ticket-stub" aria-label="Inscripción">/);
+    expect(html).not.toContain("reg-branch");
+    expect(html.match(/<h1/g)).toHaveLength(1);
   });
 });
 
 describe("an event without registration", () => {
-  it("explains that nobody has to sign up and offers the calendar", async () => {
+  it("is free entry: it says so on the ticket, offers the calendar in the stub and has nothing to fill in", async () => {
     pageMock.mockResolvedValue(none());
 
     const html = await render();
+    const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
 
+    expect(html).toContain('data-mode="none"');
     expect(html).toContain("Taller de Docker");
-    expect(html).toContain("pase libre");
-    expect(html).toContain("no necesitas inscribirte");
-    expect(html).toMatch(/<a [^>]*href="\/api\/public\/events\/taller-docker\/calendar\.ics"[^>]*>(?:(?!<\/a>).)*Añadir al calendario/);
+    expect(html).toMatch(/<p class="ticket-chip">Entrada libre<\/p>/);
+    expect(stub).toContain("No necesita inscribirse: solo llegue.");
+    expect(stub).toMatch(/<a [^>]*href="\/api\/public\/events\/taller-docker\/calendar\.ics"[^>]*>(?:(?!<\/a>).)*Añadir al calendario/);
     expect(html).not.toContain("<form");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("Quedan");
+    expect(html).not.toContain("ticket-meter");
   });
 
   it("offers no calendar link when there is nothing to add", async () => {
@@ -246,8 +304,10 @@ describe("an event without registration", () => {
 
     const html = await render();
 
-    expect(html).toContain("pase libre");
+    expect(html).toContain("Entrada libre");
+    expect(html).toContain("No necesita inscribirse");
     expect(html).not.toContain("calendar.ics");
+    expect(html).not.toContain("Guarde la fecha");
   });
 });
 
@@ -299,11 +359,21 @@ describe("the route owns its styles", () => {
     }
   });
 
-  it("defines the .reg-branch the page uses, and the forum stylesheet no longer does", () => {
+  it("defines the .ticket and the .pass the route uses, and the forum stylesheet defines neither", () => {
     const own = files(dir).filter((name) => name.endsWith(".css"));
+    const css = own.map((file) => readFileSync(file, "utf8")).join("\n");
+    const forum = readFileSync(join(dir, "..", "foro", "forum.css"), "utf8");
 
     expect(own.length).toBeGreaterThan(0);
-    expect(own.map((file) => readFileSync(file, "utf8")).join("\n")).toContain(".reg-branch");
-    expect(readFileSync(join(dir, "..", "foro", "forum.css"), "utf8")).not.toContain(".reg-branch");
+    for (const selector of [".ticket-stub", ".pass-stub"]) {
+      expect(css).toContain(selector);
+      expect(forum).not.toContain(selector);
+    }
+  });
+
+  it("does not borrow the forum gate's auth-branch pieces", () => {
+    for (const file of files(dir).filter((name) => /\.(tsx?|css)$/.test(name))) {
+      expect(readFileSync(file, "utf8"), file).not.toContain("auth-branch");
+    }
   });
 });

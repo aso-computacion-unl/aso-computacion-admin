@@ -13,75 +13,946 @@
 }
 
 /*
- * The registration page's branch (the sign-in's idiom, C · Rama): the event is a hollow node and what the visitor can do about
- * it is HEAD, the filled one. Vertical with the nodes on the line at the left, and across the width from 64rem up.
+ * The registration route's one idea is the paper pass: a white sheet with a red tear-off, in both themes (it is a
+ * physical object, so it does not repaint with the theme). Two pieces share it:
  *
- *   <ol class="reg-branch"><li> the event </li><li> the registration </li></ol>
+ *   .pass    the sign-in screen ("Su pase de estudiante"): the sheet and a red stub holding the Google button.
+ *   .ticket  the event: date stub, title and seats on paper, then a perforation and the navy tear-off with the
+ *            action that depends on the mode (form, one-click confirm, free entry).
+ *
+ * Only the notches follow the theme: they cut the sheet with the page's own background.
  */
 @layer components {
-	.reg-branch {
-		--stack: 2rem;
-		position: relative;
-		display: grid;
-		gap: var(--stack);
-		margin: 0;
-		padding: 0 0 0 2.25rem;
-		list-style: none;
+	.pass,
+	.ticket {
+		--paper: #ffffff;
+		--on-paper: var(--color-deep);
+		--paper-soft: #33507a;
+		--paper-edge: #9fb3cc;
+		--paper-red: #8c2730;
+		--paper-track: #e3e9f1;
+		--on-signal: #ffffff;
+		/* The tear-off is navy in both themes: its text colours are fixed, not the theme's mist and error. */
+		--tear: var(--color-deep);
+		--tear-ink: #d9d9d9;
+		--tear-error: #ff9ba2;
+		--tear-ok: #7fe0b0;
+		--tear-sky: #2bb2e4;
+		--tear-sky-hover: #5cc6ee;
+		--cut: var(--color-background);
 	}
 
-	.reg-branch > li {
+	/* ---------- The sign-in pass ---------- */
+
+	.pass-page {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		place-items: center;
+		min-height: calc(100dvh - 3.5rem);
+		padding: 2rem 1rem 4rem;
+		overflow-x: clip;
+	}
+
+	.pass {
 		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		width: 70rem;
+		max-width: 100%;
+		transform: rotate(-1deg);
+	}
+
+	.pass-main {
+		display: grid;
+		gap: 1.75rem;
+		align-content: space-between;
+		padding: 2rem 1.75rem 1.75rem;
+		background: var(--paper);
+		color: var(--on-paper);
+	}
+
+	.pass-tag {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+	}
+
+	.pass-main .pass-tag {
+		color: var(--paper-soft);
+	}
+
+	.pass-title {
+		font-size: clamp(2rem, 10.8vw, 3.5rem);
+		font-weight: 900;
+		font-stretch: 108%;
+		line-height: 0.9;
+		letter-spacing: -0.05em;
+		overflow-wrap: anywhere;
+	}
+
+	.pass-fields {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1.75rem;
+	}
+
+	.pass-fields > span {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--paper-soft);
+	}
+
+	.pass-fields > span::after {
+		content: "";
+		display: block;
+		height: 1px;
+		margin-top: 1.125rem;
+		border-bottom: 2px dotted var(--paper-edge);
+	}
+
+	.pass-stub {
+		position: relative;
+		display: grid;
+		align-content: center;
+		padding: 2.25rem 1.75rem 1.75rem;
+		background: var(--color-signal);
+		color: var(--on-signal);
+	}
+
+	/* Phone: the stub hangs under the sheet and is torn off along its top edge. */
+	.pass-stub::before {
+		content: "";
+		position: absolute;
+		top: -1px;
+		right: 1rem;
+		left: 1rem;
+		border-top: 4px dashed #ffffff;
+	}
+
+	.pass-notch {
+		position: absolute;
+		top: -0.9375rem;
+		width: 1.875rem;
+		height: 1.875rem;
+		border-radius: 50%;
+		background: var(--cut);
+	}
+
+	.pass-notch[data-side="a"] {
+		left: -0.9375rem;
+	}
+
+	.pass-notch[data-side="b"] {
+		right: -0.9375rem;
+	}
+
+	.pass-stub .pass-tag {
+		margin-bottom: 1.25rem;
+		color: var(--on-signal);
+	}
+
+	.pass-google {
+		display: grid;
+	}
+
+	.pass-google .google-button {
+		box-shadow: none;
+	}
+
+	.pass-google[aria-busy="true"] .google-button {
+		--google-button-bg: #e8edf4;
+		--google-button-hover: #e8edf4;
+		cursor: progress;
+		pointer-events: none;
+	}
+
+	.pass-stub a:focus-visible {
+		outline-color: #ffffff;
+		outline-offset: 4px;
+	}
+
+	.pass-note {
+		margin-top: 1rem;
+		font-family: var(--font-mono);
+		font-size: 0.875rem;
+		line-height: 1.4;
+	}
+
+	.pass-note b {
+		font-weight: 700;
+	}
+
+	.pass-error {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		padding: 0.625rem 0.75rem;
+		background: #ffffff;
+		color: var(--paper-red);
+		font-size: 0.875rem;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.pass-error svg {
+		margin-top: 0.125rem;
+		flex: none;
+	}
+
+	@media (min-width: 48rem) {
+		.pass-page {
+			padding-inline: 1.5rem;
+		}
+
+		.pass {
+			grid-template-columns: minmax(0, 1fr) 23.75rem;
+			transform: rotate(-1.4deg);
+		}
+
+		.pass-main {
+			min-height: 26rem;
+			padding: 3.25rem 3.5rem 3rem;
+		}
+
+		.pass-title {
+			font-size: clamp(4rem, 6.4vw, 5.5rem);
+		}
+
+		.pass-fields {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.pass-stub {
+			padding: 3rem 2.5rem;
+		}
+
+		/* Wide: the stub sits beside the sheet and is torn off along its left edge. */
+		.pass-stub::before {
+			inset: 1.125rem auto 1.125rem -1px;
+			border-top: 0;
+			border-left: 4px dashed #ffffff;
+		}
+
+		.pass-notch {
+			width: 2.125rem;
+			height: 2.125rem;
+		}
+
+		.pass-notch[data-side="a"] {
+			top: -1.0625rem;
+			left: -1.0625rem;
+		}
+
+		.pass-notch[data-side="b"] {
+			top: auto;
+			right: auto;
+			bottom: -1.0625rem;
+			left: -1.0625rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.pass {
+			transition: transform 0.25s var(--ease-reveal);
+		}
+
+		.pass:hover,
+		.pass:focus-within {
+			transform: rotate(0deg);
+		}
+	}
+
+	/* ---------- The event ticket ---------- */
+
+	.ticket-kicker {
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
+		margin-bottom: 1.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--color-sky);
+	}
+
+	.ticket-kicker > i {
+		width: 0.625rem;
+		height: 0.625rem;
+		border-radius: 50%;
+		background: var(--color-ok);
+	}
+
+	.ticket-kicker[data-tone="off"] > i {
+		background: var(--color-mist);
+	}
+
+	.ticket {
+		position: relative;
+		box-shadow: 0 28px 48px -36px rgb(1 13 31 / 0.7);
+	}
+
+	.ticket-top {
+		position: relative;
+		display: grid;
+		background: var(--paper);
+		color: var(--on-paper);
+	}
+
+	/* Phone: the date is a red band across the top (day, then weekday, month and hour). */
+	.ticket-date {
+		display: grid;
+		grid-template-areas:
+			"day dow"
+			"day mon"
+			"day time";
+		grid-template-columns: auto 1fr;
+		align-items: center;
+		column-gap: 0.875rem;
+		padding: 0.875rem 1.125rem;
+		background: var(--color-signal);
+		color: var(--on-signal);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 700;
+		line-height: 1.35;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+
+	/* Free entry is told apart at a glance: the date stub is blue, not the red of the events that ask for a seat. */
+	.ticket[data-mode="none"] .ticket-date {
+		background: #0f6fa6;
+	}
+
+	.ticket-day {
+		grid-area: day;
+		font-family: var(--font-sans);
+		font-size: 4rem;
+		font-weight: 900;
+		font-stretch: 100%;
+		line-height: 0.8;
+		letter-spacing: -0.07em;
+	}
+
+	.ticket-dow {
+		grid-area: dow;
+	}
+
+	.ticket-mon {
+		grid-area: mon;
+	}
+
+	.ticket-time {
+		grid-area: time;
+		font-size: 1.25rem;
+		letter-spacing: 0;
+	}
+
+	.ticket-event {
+		display: grid;
+		align-content: center;
+		gap: 0.625rem;
+		min-width: 0;
+		padding: 1rem 1.125rem 0.5rem;
+	}
+
+	/* The date as text for assistive technology; the red stub already says it to the eye. */
+	.ticket-num {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.ticket-title {
+		font-size: clamp(1.875rem, 1.2rem + 3.4vw, 3.75rem);
+		font-weight: 900;
+		font-stretch: 106%;
+		line-height: 1;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.ticket-desc {
+		max-width: 60ch;
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+	}
+
+	.ticket-facts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.375rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		line-height: 1.35;
+		color: var(--paper-soft);
+	}
+
+	.ticket-facts b {
+		font-weight: 700;
+		color: var(--on-paper);
+	}
+
+	/* On a phone the hour is in the band: here it stays only for assistive technology. */
+	.ticket-fact-time {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.ticket-seats {
+		display: grid;
+		align-content: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1.125rem 1.125rem;
+	}
+
+	.ticket-left {
+		font-size: 1.25rem;
+		font-weight: 900;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		color: var(--paper-red);
+	}
+
+	.ticket-meter {
+		height: 0.5rem;
+		background: var(--paper-track);
+	}
+
+	.ticket-meter > i {
+		display: block;
+		height: 100%;
+		background: var(--color-signal);
+	}
+
+	.ticket-seats small {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		line-height: 1.4;
+		color: var(--paper-soft);
+	}
+
+	.ticket-chip {
+		justify-self: start;
+		padding: 0.75rem 0.875rem;
+		border: 2px solid var(--on-paper);
+		background: #e6f6fc;
+		color: var(--on-paper);
+		font-family: var(--font-mono);
+		font-size: 0.9375rem;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.ticket-perf {
+		position: relative;
+		height: 0;
+		border-top: 3px dashed var(--paper-edge);
+		background: var(--paper);
+	}
+
+	.ticket-perf::before,
+	.ticket-perf::after {
+		content: "";
+		position: absolute;
+		top: -0.8125rem;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: 50%;
+		background: var(--cut);
+	}
+
+	.ticket-perf::before {
+		left: -0.75rem;
+	}
+
+	.ticket-perf::after {
+		right: -0.75rem;
+	}
+
+	/* The tear-off: what the visitor can do about the event. */
+	.ticket-stub {
+		padding: 1.25rem 1.125rem 1.5rem;
+		background: var(--tear);
+		color: #ffffff;
+	}
+
+	.ticket-stub a:focus-visible,
+	.ticket-stub button:focus-visible,
+	.ticket-input:focus-visible,
+	.stub-done:focus-visible {
+		outline: 3px solid var(--tear-sky);
+		outline-offset: 3px;
+	}
+
+	.stub-legend {
+		margin-bottom: 1.125rem;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--tear-ink);
+	}
+
+	.stub-form {
+		display: grid;
+	}
+
+	.stub-fields {
+		display: grid;
+		gap: 0.75rem;
+		align-items: start;
+	}
+
+	.stub-pair {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 5.75rem;
+		gap: 0.625rem;
+		align-items: start;
+	}
+
+	.stub-field {
+		display: grid;
+		gap: 0.375rem;
 		min-width: 0;
 	}
 
-	.reg-branch > li::before {
-		content: "";
-		position: absolute;
-		z-index: 1;
-		top: 0.1875rem;
-		left: -2.25rem;
-		box-sizing: border-box;
+	.ticket-label {
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		font-weight: 600;
+		line-height: 1;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--tear-ink);
+	}
+
+	.ticket-input {
+		display: block;
+		width: 100%;
+		height: 3.25rem;
+		padding: 0 0.875rem;
+		border: 2px solid #ffffff;
+		border-radius: 0;
+		background-color: #ffffff;
+		color: var(--on-paper);
+		font-size: 1.0625rem;
+		font-weight: 500;
+		line-height: 1;
+		appearance: none;
+	}
+
+	select.ticket-input {
+		padding-right: 2rem;
+		background-image: linear-gradient(45deg, transparent 50%, var(--on-paper) 50%), linear-gradient(135deg, var(--on-paper) 50%, transparent 50%);
+		background-position:
+			calc(100% - 1.25rem) 1.375rem,
+			calc(100% - 0.875rem) 1.375rem;
+		background-size: 0.375rem 0.375rem;
+		background-repeat: no-repeat;
+		cursor: pointer;
+	}
+
+	.ticket-input[aria-invalid="true"] {
+		border-color: var(--tear-error);
+		box-shadow: 0 0 0 2px var(--tear-error);
+	}
+
+	.ticket-error {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		line-height: 1.3;
+		color: var(--tear-error);
+	}
+
+	.ticket-error svg {
+		flex: none;
+		width: 0.875rem;
+		height: 0.875rem;
+		margin-top: 0.0625rem;
+	}
+
+	.stub-go {
+		display: flex;
+		flex-direction: column;
+		gap: 0.875rem;
+		margin-top: 1.25rem;
+	}
+
+	.stub-note {
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		color: var(--tear-ink);
+	}
+
+	.stub-alert {
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.75rem;
+		border: 1px solid var(--tear-error);
+		background: rgb(183 53 62 / 0.25);
+		font-size: 0.875rem;
+		outline: none;
+	}
+
+	.stub-alert svg {
+		flex: none;
+		width: 1rem;
+		height: 1rem;
+		margin-top: 0.125rem;
+		color: var(--tear-error);
+	}
+
+	.ticket-cta {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		width: 100%;
+		min-height: 3.75rem;
+		border: 0;
+		background: var(--color-signal);
+		color: var(--on-signal);
+		font-size: 1.25rem;
+		font-weight: 900;
+		line-height: 1;
+		letter-spacing: -0.01em;
+		cursor: pointer;
+	}
+
+	.ticket-cta:hover {
+		background: var(--color-signal-press);
+	}
+
+	.ticket-cta svg {
 		width: 1.25rem;
 		height: 1.25rem;
-		border: 3px solid var(--color-sky);
+		transition: transform 0.15s ease;
+	}
+
+	.ticket-cta:hover svg {
+		transform: translateX(4px);
+	}
+
+	.ticket-cta[aria-disabled="true"] {
+		cursor: progress;
+		opacity: 0.75;
+	}
+
+	.ticket-calendar {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.625rem;
+		min-height: 3.5rem;
+		padding: 0 1.375rem;
+		background: var(--tear-sky);
+		color: var(--color-deep);
+		font-size: 1.125rem;
+		font-weight: 800;
+		line-height: 1;
+		text-decoration: none;
+	}
+
+	.ticket-calendar:hover {
+		background: var(--tear-sky-hover);
+	}
+
+	.stub-row {
+		display: grid;
+		gap: 1.25rem;
+	}
+
+	/* Why there is nothing to fill in: full, closed, or not available right now. */
+	.stub-closed {
+		font-size: 1.375rem;
+		font-weight: 800;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+	}
+
+	/* The sign-in's one line, quieter than the confirmations. */
+	.stub-line {
+		font-size: 1.375rem;
+		font-weight: 800;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+	}
+
+	.stub-title {
+		font-size: 1.75rem;
+		font-weight: 900;
+		line-height: 1.02;
+		letter-spacing: -0.035em;
+	}
+
+	.stub-text {
+		margin-top: 0.625rem;
+		line-height: 1.45;
+		color: var(--tear-ink);
+	}
+
+	.stub-text strong {
+		color: #ffffff;
+	}
+
+	.stub-done {
+		display: grid;
+		gap: 1rem;
+		outline: none;
+	}
+
+	.stub-okmark {
+		display: grid;
+		place-items: center;
+		width: 3.25rem;
+		height: 3.25rem;
 		border-radius: 50%;
-		background: var(--color-background);
+		background: var(--tear-ok);
+		color: var(--color-deep);
 	}
 
-	.reg-branch > li:last-child::before {
-		background: var(--color-sky);
-		box-shadow: 0 0 0 3px var(--color-background);
+	.stub-okmark svg {
+		width: 1.75rem;
+		height: 1.75rem;
 	}
 
-	.reg-branch > li:not(:last-child)::after {
-		content: "";
-		position: absolute;
-		top: 1.25rem;
-		bottom: calc(-1 * var(--stack) - 0.5rem);
-		left: calc(-2.25rem + 0.625rem - 1px);
-		width: 2px;
-		background: var(--color-sky);
+	.stub-actions {
+		display: grid;
+		gap: 0.625rem;
 	}
 
 	@media (min-width: 64rem) {
-		.reg-branch {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
-			gap: 2.5rem;
-			padding: 2rem 0 0;
+		.ticket-top {
+			grid-template-columns: 13.5rem minmax(0, 1fr) 18rem;
 		}
 
-		.reg-branch > li::before,
-		.reg-branch > li:last-child::before {
-			top: -2rem;
-			left: 0;
+		.ticket-top[data-seats="none"] {
+			grid-template-columns: 13.5rem minmax(0, 1fr);
 		}
 
-		.reg-branch > li:not(:last-child)::after {
-			top: -1.375rem;
-			bottom: auto;
-			left: 1.25rem;
-			width: calc(100% + 2.5rem - 1.25rem);
-			height: 2px;
+		.ticket-date {
+			grid-template-areas:
+				"dow"
+				"day"
+				"mon";
+			grid-template-columns: 1fr;
+			place-content: center;
+			row-gap: 0.75rem;
+			padding: 1.75rem 0;
+			position: relative;
+			font-size: 0.9375rem;
+			letter-spacing: 0.14em;
+			text-align: center;
+		}
+
+		.ticket-date::after {
+			content: "";
+			position: absolute;
+			top: 0.875rem;
+			right: -1px;
+			bottom: 0.875rem;
+			border-right: 3px dashed var(--paper);
+		}
+
+		.ticket-dow {
+			font-size: 0.875rem;
+			letter-spacing: 0.2em;
+		}
+
+		.ticket-day {
+			font-size: 9.25rem;
+		}
+
+		.ticket-mon {
+			margin-top: 0.25rem;
+		}
+
+		.ticket-time {
+			display: none;
+		}
+
+		.ticket-event {
+			gap: 1rem;
+			padding: 3rem 2.5rem;
+		}
+
+		.ticket-num {
+			position: static;
+			width: auto;
+			height: auto;
+			overflow: visible;
+			clip-path: none;
+			font-family: var(--font-mono);
+			font-size: 0.75rem;
+			font-weight: 600;
+			line-height: 1;
+			letter-spacing: 0.16em;
+			text-transform: uppercase;
+			color: var(--paper-soft);
+		}
+
+		.ticket-facts {
+			font-size: 0.9375rem;
+		}
+
+		.ticket-fact-time {
+			position: static;
+			width: auto;
+			height: auto;
+			overflow: visible;
+			clip-path: none;
+		}
+
+		.ticket-seats {
+			gap: 0.75rem;
+			padding: 3rem 2.25rem 3rem 0.5rem;
+		}
+
+		.ticket-left {
+			font-size: 1.875rem;
+		}
+
+		.ticket-meter {
+			height: 0.625rem;
+		}
+
+		.ticket-seats small {
+			font-size: 0.875rem;
+		}
+
+		.ticket-perf::before,
+		.ticket-perf::after {
+			top: -1.0625rem;
+			width: 2rem;
+			height: 2rem;
+		}
+
+		.ticket-perf::before {
+			left: -1rem;
+		}
+
+		.ticket-perf::after {
+			right: -1rem;
+		}
+
+		.ticket-stub {
+			padding: 2.75rem 2.5rem;
+		}
+
+		.stub-fields {
+			grid-template-columns: 1fr 1.1fr 1.35fr;
+			gap: 1.25rem;
+		}
+
+		.stub-pair {
+			grid-template-columns: minmax(0, 1fr) 6.5rem;
+			gap: 0.75rem;
+		}
+
+		.stub-field {
+			gap: 0.5rem;
+		}
+
+		.ticket-label {
+			font-size: 0.75rem;
+		}
+
+		.ticket-input {
+			height: 3.75rem;
+			padding: 0 1rem;
+			font-size: 1.125rem;
+		}
+
+		select.ticket-input {
+			padding-right: 2.25rem;
+			background-position:
+				calc(100% - 1.375rem) 1.5rem,
+				calc(100% - 1rem) 1.5rem;
+		}
+
+		.stub-go {
+			flex-flow: row wrap;
+			align-items: center;
+			gap: 1.5rem;
+			margin-top: 2rem;
+		}
+
+		.stub-note {
+			flex: 1 1 14rem;
+			font-size: 0.875rem;
+		}
+
+		.stub-alert {
+			flex: 1 0 100%;
+		}
+
+		.ticket-cta {
+			flex: 0 0 22.5rem;
+			width: 22.5rem;
+			min-height: 4.25rem;
+			font-size: 1.375rem;
+		}
+
+		.stub-row {
+			grid-template-columns: minmax(0, 1fr) 22.5rem;
+			align-items: center;
+			gap: 3.5rem;
+		}
+
+		.stub-title {
+			font-size: 2.5rem;
+		}
+
+		.stub-done {
+			grid-template-columns: auto minmax(0, 1fr) 20rem;
+			align-items: center;
+			gap: 1.75rem;
+		}
+
+		.stub-okmark {
+			width: 4rem;
+			height: 4rem;
+		}
+
+		.ticket-calendar {
+			min-height: 3.75rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ticket-cta svg {
+			transition: none;
 		}
 	}
 }

@@ -4,9 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { Icon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
   CAPTCHA_LOAD_MESSAGE,
   endsRegistration,
@@ -22,6 +19,7 @@ import {
 } from "@/interface/event-registration/open-registration";
 
 import { RegistrationField } from "../_components/registration-field";
+import { ArrowGlyph, CalendarLink, CheckMark } from "../_components/ticket-parts";
 import { TurnstileWidget } from "./turnstile-widget";
 
 const PRIVACY_NOTE = "Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.";
@@ -32,7 +30,6 @@ type Phase = { name: "form" } | { name: "registered" } | { name: "ended"; messag
 
 interface OpenRegistrationFormProps {
   slug: string;
-  title: string;
   /** Cloudflare Turnstile's public key; without it the form sends no token and the server decides. */
   siteKey: string | undefined;
   /** The event's `.ics`, offered once the person is in; null when there is nothing to add. */
@@ -49,7 +46,7 @@ interface OpenRegistrationFormProps {
  * same endpoint the landing used (so every server rule applies), and says what happened in the place the person
  * is looking: under the field it concerns, or in one alert for everything else.
  */
-export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, closedMessage }: OpenRegistrationFormProps) {
+export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessage }: OpenRegistrationFormProps) {
   const router = useRouter();
   const id = useId();
   const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", career: "", semester: "" });
@@ -133,128 +130,142 @@ export function OpenRegistrationForm({ slug, title, siteKey, calendarHref, close
 
   if (phase.name === "registered") {
     return (
-      <div ref={doneBox} role="status" tabIndex={-1} className="grid gap-3 outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky">
-        <p className="flex gap-2.5 font-semibold">
-          <Icon name="check" className="mt-0.5 size-4.5 shrink-0 text-ok" />
-          Quedaste inscrito en {title}.
-        </p>
-        <p className="text-sm text-mist">Guarda la fecha y el lugar: no te enviaremos un correo de confirmación.</p>
+      <div ref={doneBox} role="status" tabIndex={-1} className="stub-done">
+        <CheckMark />
+        <div>
+          <h2 className="stub-title">Listo, su cupo está reservado</h2>
+          <p className="stub-text">
+            Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
+          </p>
+        </div>
         {calendarHref ? (
-          <Button asChild variant="line" className="justify-self-start">
-            <a href={calendarHref}>
-              <Icon name="events" />
-              Añadir al calendario
-            </a>
-          </Button>
+          <div className="stub-actions">
+            <CalendarLink href={calendarHref} />
+          </div>
         ) : null}
       </div>
     );
   }
 
-  if (phase.name === "form" && closedMessage) return <p role="status">{closedMessage}</p>;
+  if (phase.name === "form" && closedMessage) return <p role="status" className="stub-closed">{closedMessage}</p>;
 
   if (phase.name === "ended") {
     return (
-      <div ref={doneBox} role="status" tabIndex={-1} className="outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky">
-        <p>{phase.message}</p>
+      <div ref={doneBox} role="status" tabIndex={-1} className="stub-done">
+        <p className="stub-closed">{phase.message}</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-busy={pending || undefined} className="grid max-w-lg gap-4">
-      <RegistrationField id={fieldId("name")} label="Nombre completo" error={errors.name}>
-        {(described) => (
-          <Input
-            id={fieldId("name")}
-            name="name"
-            value={values.name}
-            onChange={(event) => change("name", event.target.value)}
-            autoComplete="name"
-            required
-            aria-describedby={described}
-            aria-invalid={errors.name ? true : undefined}
-          />
-        )}
-      </RegistrationField>
-      <RegistrationField id={fieldId("email")} label="Correo" error={errors.email}>
-        {(described) => (
-          <Input
-            id={fieldId("email")}
-            name="email"
-            type="email"
-            inputMode="email"
-            value={values.email}
-            onChange={(event) => change("email", event.target.value)}
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            aria-describedby={described}
-            aria-invalid={errors.email ? true : undefined}
-          />
-        )}
-      </RegistrationField>
-      <RegistrationField id={fieldId("career")} label="Carrera" error={errors.career}>
-        {(described) => (
-          <Input
-            id={fieldId("career")}
-            name="career"
-            value={values.career}
-            onChange={(event) => change("career", event.target.value)}
-            autoComplete="off"
-            required
-            aria-describedby={described}
-            aria-invalid={errors.career ? true : undefined}
-          />
-        )}
-      </RegistrationField>
-      <RegistrationField id={fieldId("semester")} label="Semestre" error={errors.semester}>
-        {(described) => (
-          <Select
-            id={fieldId("semester")}
-            name="semester"
-            value={values.semester}
-            onChange={(event) => change("semester", event.target.value)}
-            required
-            aria-describedby={described}
-            aria-invalid={errors.semester ? true : undefined}
-          >
-            <option value="">Elige tu semestre</option>
-            {SEMESTERS.map((semester) => (
-              <option key={semester} value={semester}>
-                {semester}
-              </option>
-            ))}
-          </Select>
-        )}
-      </RegistrationField>
-
-      {siteKey ? (
-        <TurnstileWidget
-          siteKey={siteKey}
-          resetCount={resetCount}
-          onToken={(value) => {
-            token.current = value;
-
-            if (value) setNotice(null);
-          }}
-          onError={() => say(CAPTCHA_LOAD_MESSAGE)}
-        />
-      ) : null}
-
-      <p className="text-sm text-mist">{PRIVACY_NOTE}</p>
-
-      {notice ? (
-        <div ref={noticeBox} role="alert" tabIndex={-1} className="flex gap-2 rounded-lg border border-error/45 bg-signal/15 p-3 text-sm outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky">
-          <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-error" />
-          <p>{notice.message}</p>
+    <form onSubmit={handleSubmit} noValidate aria-busy={pending || undefined} className="stub-form">
+      <p className="stub-legend">Su nombre en el boleto</p>
+      <div className="stub-fields">
+        <RegistrationField id={fieldId("name")} label="Nombre completo" error={errors.name}>
+          {(described) => (
+            <input
+              id={fieldId("name")}
+              name="name"
+              className="ticket-input"
+              value={values.name}
+              onChange={(event) => change("name", event.target.value)}
+              autoComplete="name"
+              required
+              aria-describedby={described}
+              aria-invalid={errors.name ? true : undefined}
+            />
+          )}
+        </RegistrationField>
+        <RegistrationField id={fieldId("email")} label="Correo" error={errors.email}>
+          {(described) => (
+            <input
+              id={fieldId("email")}
+              name="email"
+              type="email"
+              className="ticket-input"
+              inputMode="email"
+              value={values.email}
+              onChange={(event) => change("email", event.target.value)}
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              aria-describedby={described}
+              aria-invalid={errors.email ? true : undefined}
+            />
+          )}
+        </RegistrationField>
+        <div className="stub-pair">
+          <RegistrationField id={fieldId("career")} label="Carrera" error={errors.career}>
+            {(described) => (
+              <input
+                id={fieldId("career")}
+                name="career"
+                className="ticket-input"
+                value={values.career}
+                onChange={(event) => change("career", event.target.value)}
+                autoComplete="off"
+                required
+                aria-describedby={described}
+                aria-invalid={errors.career ? true : undefined}
+              />
+            )}
+          </RegistrationField>
+          <RegistrationField id={fieldId("semester")} label="Ciclo" error={errors.semester}>
+            {(described) => (
+              <select
+                id={fieldId("semester")}
+                name="semester"
+                className="ticket-input"
+                value={values.semester}
+                onChange={(event) => change("semester", event.target.value)}
+                required
+                aria-describedby={described}
+                aria-invalid={errors.semester ? true : undefined}
+              >
+                <option value="">—</option>
+                {SEMESTERS.map((semester) => (
+                  <option key={semester} value={semester}>
+                    {semester}
+                  </option>
+                ))}
+              </select>
+            )}
+          </RegistrationField>
         </div>
-      ) : null}
+      </div>
 
-      <Button type="submit" busy={pending} aria-disabled={pending || undefined} className="min-h-12 justify-self-start">
-        {pending ? "Enviando…" : "Inscribirme"}
-      </Button>
+      <div className="stub-go">
+        {notice ? (
+          <div ref={noticeBox} role="alert" tabIndex={-1} className="stub-alert">
+            <Icon name="alert" className="size-4" />
+            <p>{notice.message}</p>
+          </div>
+        ) : null}
+
+        {siteKey ? (
+          // Cloudflare's check is 300px wide: on the narrowest phones it reaches into the tear-off's padding, never past the page.
+          <div>
+            <TurnstileWidget
+              siteKey={siteKey}
+              resetCount={resetCount}
+              onToken={(value) => {
+                token.current = value;
+
+                if (value) setNotice(null);
+              }}
+              onError={() => say(CAPTCHA_LOAD_MESSAGE)}
+            />
+          </div>
+        ) : null}
+
+        <p className="stub-note">{PRIVACY_NOTE}</p>
+
+        <button type="submit" className="ticket-cta" aria-disabled={pending || undefined}>
+          {pending ? "Enviando…" : "Reservar mi cupo"}
+          {pending ? null : <ArrowGlyph />}
+        </button>
+      </div>
     </form>
   );
 }

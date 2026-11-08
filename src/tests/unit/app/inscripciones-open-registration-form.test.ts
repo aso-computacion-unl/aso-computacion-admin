@@ -52,7 +52,7 @@ async function act(run: () => void) {
 }
 
 const open = (props: Partial<Parameters<typeof OpenRegistrationForm>[0]> = {}) =>
-  mount(createElement(OpenRegistrationForm, { slug: "taller-de-git", title: "Taller de Git", siteKey: undefined, calendarHref: CALENDAR, ...props }));
+  mount(createElement(OpenRegistrationForm, { slug: "taller-de-git", siteKey: undefined, calendarHref: CALENDAR, ...props }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -69,7 +69,7 @@ describe("the open registration form", () => {
   it("asks for name, email, career and semester with labels, comfortable targets and the privacy note", async () => {
     const host = await open();
 
-    for (const label of ["Nombre completo", "Correo", "Carrera", "Semestre"]) {
+    for (const label of ["Nombre completo", "Correo", "Carrera", "Ciclo"]) {
       expect([...host.querySelectorAll("label")].map((entry) => entry.textContent)).toContain(label);
     }
 
@@ -78,8 +78,8 @@ describe("the open registration form", () => {
     expect(control<HTMLInputElement>(host, 'input[name="name"]').autocomplete).toBe("name");
     expect(control<HTMLSelectElement>(host, 'select[name="semester"]').options).toHaveLength(13);
     expect(host.textContent).toContain(PRIVACY);
-    expect(submit(host).className).toContain("min-h-12");
-    expect(submit(host).textContent).toBe("Inscribirme");
+    expect(submit(host).className).toContain("ticket-cta");
+    expect(submit(host).textContent).toBe("Reservar mi cupo");
     expect(host.querySelector('[data-testid="widget"]')).toBeNull();
   });
 
@@ -93,8 +93,10 @@ describe("the open registration form", () => {
     for (const name of ["name", "email", "career"]) expect(control(host, `input[name="${name}"]`).getAttribute("aria-invalid")).toBe("true");
     expect(control(host, 'select[name="semester"]').getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(control(host, 'input[name="name"]'));
+    // The stylesheet sizes these icons, but the Icon's own `size-5` utility outranks a component-layer rule, so the size must be explicit.
+    expect(control(host, ".ticket-error svg").getAttribute("class")).toContain("size-3.5");
     expect(host.textContent).toContain("Escribe tu nombre.");
-    expect(host.textContent).toContain("Elige tu semestre, del 1 al 12.");
+    expect(host.textContent).toContain("Elige tu ciclo, del 1 al 12.");
     expect(control(host, 'input[name="name"]').getAttribute("aria-describedby")).toBe(control(host, 'input[name="name"]').id + "-error");
   });
 
@@ -121,7 +123,7 @@ describe("the open registration form", () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
-    const props = { slug: "taller-de-git", title: "Taller de Git", siteKey: undefined, calendarHref: CALENDAR };
+    const props = { slug: "taller-de-git", siteKey: undefined, calendarHref: CALENDAR };
     answer(201, { ok: true });
 
     await act(() => root.render(createElement(OpenRegistrationForm, props)));
@@ -130,7 +132,7 @@ describe("the open registration form", () => {
     await settle();
     await act(() => root.render(createElement(OpenRegistrationForm, { ...props, closedMessage: "Ya no quedan cupos para este evento." })));
 
-    expect(control(host, '[role="status"]').textContent).toContain("Quedaste inscrito en Taller de Git");
+    expect(control(host, '[role="status"]').textContent).toContain("Listo, su cupo está reservado");
     expect(host.textContent).not.toContain("Ya no quedan cupos");
     await act(() => root.unmount());
     host.remove();
@@ -147,7 +149,7 @@ describe("the open registration form", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]![0]).toBe("/api/public/events/taller-de-git/registrations");
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ name: "  Ana   Pérez ", email: "ANA@example.com", career: "Computación", semester: 5 });
-    expect(control(host, '[role="status"]').textContent).toContain("Quedaste inscrito en Taller de Git");
+    expect(control(host, '[role="status"]').textContent).toContain("Listo, su cupo está reservado");
     expect(control<HTMLAnchorElement>(host, `a[href="${CALENDAR}"]`).textContent).toContain("Añadir al calendario");
     expect(host.querySelector("form")).toBeNull();
     expect(routerMock.refresh).toHaveBeenCalledOnce();
@@ -162,7 +164,7 @@ describe("the open registration form", () => {
     await click(submit(host));
     await settle();
 
-    expect(host.textContent).toContain("Quedaste inscrito");
+    expect(host.textContent).toContain("Listo, su cupo está reservado");
     expect(host.querySelector("a[href$='calendar.ics']")).toBeNull();
   });
 
@@ -226,6 +228,7 @@ describe("the open registration form", () => {
     await settle();
 
     expect(control(host, '[role="alert"]').textContent).toContain(message);
+    expect(control(host, ".stub-alert svg").getAttribute("class")).toContain("size-4");
     expect(document.activeElement).toBe(control(host, '[role="alert"]'));
     expect(control<HTMLInputElement>(host, 'input[name="name"]').value).toBe("Ana Pérez");
     expect(submit(host).getAttribute("aria-disabled")).toBeNull();
@@ -248,7 +251,7 @@ describe("the open registration form", () => {
 
     finish(new Response(JSON.stringify({ ok: true }), { status: 201 }));
     await settle();
-    expect(host.textContent).toContain("Quedaste inscrito");
+    expect(host.textContent).toContain("Listo, su cupo está reservado");
   });
 });
 

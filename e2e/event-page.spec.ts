@@ -52,7 +52,7 @@ async function fillForm(page: Page, email = "ana@example.com") {
   await page.getByLabel("Nombre completo").fill("Ana Pérez");
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Carrera").fill("Computación");
-  await page.getByLabel("Semestre").selectOption("5");
+  await page.getByLabel("Ciclo").selectOption("5");
 }
 
 test.beforeAll(() => {
@@ -70,22 +70,24 @@ test("an open event: a visitor without a session sees the event, its seats and t
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
-  await expect(page.getByText("Quedan 2 de 2 cupos")).toBeVisible();
+  await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
   await expect(page.getByText("Laboratorio 2")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Inscríbete" })).toBeVisible();
+  const stub = page.getByRole("region", { name: "Inscripción" });
+  await expect(stub.getByText("Su nombre en el boleto")).toBeVisible();
+  await expect(stub.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
   await expect(page.getByText("Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`/inscripciones/${slug}$`));
 
   // Nothing leaves the browser while a field is wrong: the first one is flagged and focused, each has its message.
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByLabel("Nombre completo")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Nombre completo")).toBeFocused();
   await expect(page.getByText("Escribe tu nombre.")).toBeVisible();
-  await expect(page.getByText("Elige tu semestre, del 1 al 12.")).toBeVisible();
+  await expect(page.getByText("Elige tu ciclo, del 1 al 12.")).toBeVisible();
 
   await fillForm(page, "ana@");
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByLabel("Correo")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Correo")).toBeFocused();
   await expect(page.getByText("Revisa tu correo: no parece una dirección válida.")).toBeVisible();
@@ -95,10 +97,10 @@ test("an open event: a visitor without a session sees the event, its seats and t
   await expect(page.getByLabel("Correo")).not.toHaveAttribute("aria-invalid", "true");
 
   // The e2e app runs in production without a Turnstile secret: the server refuses (fail closed) and the form says so, keeping the data.
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "La inscripción no está disponible en este momento." })).toBeVisible();
   await expect(page.getByLabel("Nombre completo")).toHaveValue("Ana Pérez");
-  await expect(page.getByRole("button", { name: "Inscribirme" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
 });
 
 test("every answer of the public endpoint is shown where the person is looking", async ({ page }) => {
@@ -117,35 +119,35 @@ test("every answer of the public endpoint is shown where the person is looking",
   // A duplicate belongs to the email field.
   await fillForm(page);
   await answer(409, { error: "duplicate" });
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByLabel("Correo")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Correo")).toBeFocused();
   await expect(page.getByText("Ya hay una inscripción con ese correo para este evento.")).toBeVisible();
 
   // A rate limit says how long to wait, in one alert that takes the focus.
   await answer(429, { error: "rate_limited" }, { "Retry-After": "300" });
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Vuelve a intentarlo en 5 minutos." })).toBeFocused();
 
   // The captcha and a down server keep the form.
   await answer(400, { error: "captcha" });
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "No pudimos comprobar que eres una persona." })).toBeVisible();
 
   // A closed registration swaps the form for the state.
   await answer(409, { error: "closed" });
-  await page.getByRole("button", { name: "Inscribirme" }).click();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByText("Las inscripciones de este evento ya cerraron.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
 
   // And a success confirms, with the calendar to add.
   await page.goto(`/inscripciones/${slug}`, { waitUntil: "networkidle" });
   await fillForm(page);
   await answer(201, { ok: true });
-  await page.getByRole("button", { name: "Inscribirme" }).click();
-  await expect(page.getByRole("status").filter({ hasText: `Quedaste inscrito en ${title}.` })).toBeFocused();
+  await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeFocused();
   await expect(page.getByRole("link", { name: "Añadir al calendario" })).toHaveAttribute("href", `/api/public/events/${slug}/calendar.ics`);
-  await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
 });
 
 test("the form fits a phone: one column, no sideways scroll, 44 px targets", async ({ page }) => {
@@ -156,11 +158,11 @@ test("the form fits a phone: one column, no sideways scroll, 44 px targets", asy
   await leave(page);
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto(`/inscripciones/${slug}`);
-  await expect(page.getByRole("button", { name: "Inscribirme" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeVisible();
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
-  for (const control of [page.getByLabel("Nombre completo"), page.getByLabel("Correo"), page.getByLabel("Carrera"), page.getByLabel("Semestre"), page.getByRole("button", { name: "Inscribirme" })]) {
+  for (const control of [page.getByLabel("Nombre completo"), page.getByLabel("Correo"), page.getByLabel("Carrera"), page.getByLabel("Ciclo"), page.getByRole("button", { name: "Reservar mi cupo" })]) {
     expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
 });
@@ -179,10 +181,10 @@ test("a full or closed open event hides the form and says why", async ({ page })
 
     await page.goto(`/inscripciones/${full.slug}`);
     await expect(page.getByText("Cupos agotados")).toBeVisible();
-    await expect(page.getByText("Quedan 0 de 1 cupos")).toBeVisible();
+    await expect(page.getByText("Quedan 0 cupos")).toBeVisible();
     await expect(page.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
     await expect(page.getByLabel("Correo")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
 
     await page.goto(`/inscripciones/${closed.slug}`);
     await expect(page.getByText("Inscripciones cerradas")).toBeVisible();
@@ -207,7 +209,7 @@ test("a UNL event keeps its Google flow, with no form", async ({ page }) => {
   await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveAttribute("href", `/foro/auth/google/start?next=${encodeURIComponent(`/inscripciones/${slug}`)}`);
   await expect(page.getByText("@unl.edu.ec")).toBeVisible();
   await expect(page.getByLabel("Correo")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
   // Its own page, not the forum's: no forum link or top bar around it.
   await expect(page.getByRole("link", { name: "Foro", exact: true })).toHaveCount(0);
 });
@@ -222,7 +224,7 @@ test("an event without registration says so and offers the calendar", async ({ p
   await page.goto(`/inscripciones/${slug}`);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await expect(page.getByText("Este evento es de pase libre: no necesitas inscribirte, solo llegar.")).toBeVisible();
+  await expect(page.getByText("No necesita inscribirse: solo llegue.")).toBeVisible();
   await expect(page.getByLabel("Correo")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
 

@@ -25,7 +25,7 @@ const EMPTY_MESSAGES: Record<OpenField, string> = {
   name: "Escribe tu nombre.",
   email: "Escribe tu correo.",
   career: "Escribe tu carrera.",
-  semester: `Elige tu semestre, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
+  semester: `Elige tu ciclo, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
 };
 
 // Control characters and lone surrogates: the same text the domain refuses to store.

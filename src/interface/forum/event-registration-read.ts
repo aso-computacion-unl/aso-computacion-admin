@@ -16,7 +16,7 @@ export type EventFacts = EventRegistrationStatus["event"];
  */
 export type EventRegistrationPage =
   /** The signed-in member, or null: the page then offers the Google login. */
-  | { kind: "unl"; member: ForumActor | null; status: EventRegistrationStatus }
+  | { kind: "unl"; member: ForumActor | null; status: EventRegistrationStatus; calendarHref: string | null }
   /**
    * The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured.
    * `captchaMisconfigured`: the secret is set without a site key, so the server demands a token the page cannot
@@ -38,7 +38,7 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   const status = await services.status.execute({ slug, now, memberId: member?.memberId });
 
   if (status?.mode === "unl") {
-    return { kind: "unl", member, status };
+    return { kind: "unl", member, status, calendarHref: calendarHrefFor(status.event, now) };
   }
 
   if (status) {

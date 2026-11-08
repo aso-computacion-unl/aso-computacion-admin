@@ -33,7 +33,7 @@ export default function RegistrationLayout({ children }: { children: ReactNode }
         </div>
       </header>
 
-      <main id="registration-main" className="mx-auto w-full max-w-[62rem] px-4 pt-8 pb-16 sm:px-6">
+      <main id="registration-main" className="mx-auto w-full max-w-[70rem] px-4 pt-8 pb-16 sm:px-6">
         {children}
       </main>
     </div>

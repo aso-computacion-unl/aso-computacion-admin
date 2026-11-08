@@ -10,6 +10,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { PILLAR_FIELD_MESSAGES } from "../field-messages";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parsePillarFormData } from "./pillar-form-data";
 import { getPillarUseCases } from "./pillars-container";
@@ -26,16 +27,21 @@ const mapActionError = (error: unknown) => mapError(error, PILLAR_FIELD_MESSAGES
 
 export async function createPillar(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
+  let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id } = await getPillarUseCases().create.execute(parsePillarFormData(formData)));
+    ({ id, isPublished } = await getPillarUseCases().create.execute(parsePillarFormData(formData)));
     await recordAudit(actor, { action: "pillar.create", entityType: "pillar", entityId: id, summary: "Pilar creado" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   // The image needs an existing pillar, so creating continues on its edit page.
   redirect(editPath(id));
@@ -44,9 +50,13 @@ export async function createPillar(_prevState: ActionResult | null, formData: Fo
 export async function updatePillar(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getPillarUseCases().update.execute({ id, ...parsePillarFormData(formData) });
+    const saved = await getPillarUseCases().update.execute({ id, ...parsePillarFormData(formData) });
     await recordAudit(actor, { action: "pillar.update", entityType: "pillar", entityId: id, summary: "Pilar editado" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

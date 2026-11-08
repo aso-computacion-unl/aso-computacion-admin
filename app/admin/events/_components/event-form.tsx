@@ -29,6 +29,8 @@ interface EventFormProps {
   action: EventFormAction;
   submitLabel: string;
   initialValues?: EventFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
 }
 
 const TYPE_OPTIONS = [
@@ -78,9 +80,10 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * everything the owner typed (React 19 resets uncontrolled fields after a
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
-export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES }: EventFormProps) {
-  const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, {
+export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false }: EventFormProps) {
+  const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, {
     serialize: formValuesToFormData,
+    autosave,
   });
   // A published event asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
@@ -99,7 +102,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate>
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate>
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className="@xl:col-span-2">
           {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
@@ -203,7 +206,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         </div>
       </div>
 
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

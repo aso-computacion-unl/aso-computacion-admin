@@ -25,16 +25,18 @@ interface CommandFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: CommandFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
 }
 
-export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND_FORM_VALUES }: CommandFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: COMMAND_FIELD_MESSAGES });
+export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND_FORM_VALUES, autosave = false }: CommandFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { fieldMessages: COMMAND_FIELD_MESSAGES, autosave });
   // A published command asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <Field label="Comando" help="Minúsculas, números y guiones, de 2 a 28 caracteres." count={{ length: values.command.length, max: 28 }} error={errors.command}>
         {(control) => (
           <Input {...control} {...bind("command")} required maxLength={28} autoCapitalize="off" autoComplete="off" spellCheck={false} className="font-mono" />
@@ -47,7 +49,7 @@ export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND
         {(control) => <Textarea {...control} {...bind("output")} rows={6} required maxLength={600} />}
       </Field>
       <SwitchField label="Publicado" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

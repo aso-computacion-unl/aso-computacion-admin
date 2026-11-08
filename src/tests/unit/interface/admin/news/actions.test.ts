@@ -49,7 +49,7 @@ describe("news server actions", () => {
   });
 
   it("createNewsItem creates, asks for a rebuild, refreshes the list and continues on the edit page (the cover needs an id)", async () => {
-    useCases.create.execute.mockResolvedValue({ id: "news-1" });
+    useCases.create.execute.mockResolvedValue({ id: "news-1", isPublished: true });
 
     await expect(actions.createNewsItem(null, form({ ...FIELDS, slug: "git", publishedAt: "2026-03-14" }))).rejects.toThrow("REDIRECT");
 
@@ -95,7 +95,7 @@ describe("news server actions", () => {
   });
 
   it("updateNewsItem passes the id and the parsed form, rebuilds and refreshes the list and the edit page", async () => {
-    useCases.update.execute.mockResolvedValue({});
+    useCases.update.execute.mockResolvedValue({ wasPublished: false, isPublished: true });
 
     await expect(actions.updateNewsItem("news-1", null, form({ ...FIELDS, coverAlt: "Taller", isPublished: "on" }))).resolves.toEqual({ success: true });
 

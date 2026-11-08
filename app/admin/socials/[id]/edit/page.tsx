@@ -29,6 +29,7 @@ export default async function EditSocialLinkPage({ params }: EditSocialLinkPageP
       <Panel>
         <SocialForm
           action={updateSocialLink.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           initialValues={{
             platform: link.platform,

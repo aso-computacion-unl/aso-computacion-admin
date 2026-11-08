@@ -33,6 +33,7 @@ export default async function EditBoardMemberPage({ params }: EditBoardMemberPag
         <BoardMemberForm
           key={member.photo?.url ?? "no-photo"}
           action={updateBoardMember.bind(null, id)}
+          autosave
           submitLabel="Guardar cambios"
           hasPhoto={member.photo !== null}
           photoUrl={member.photo?.url ?? null}

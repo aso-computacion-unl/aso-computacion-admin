@@ -8,6 +8,7 @@ import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseSocialLinkFormData } from "./social-form-data";
 import { getSocialLinkUseCases } from "./socials-container";
@@ -19,15 +20,22 @@ import { getSocialLinkUseCases } from "./socials-container";
 const LIST_PATH = "/admin/socials";
 
 export async function createSocialLink(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  let id: string;
+  let isPublished: boolean;
+
   try {
     const actor = await requireSession();
-    const { id } = await getSocialLinkUseCases().create.execute(parseSocialLinkFormData(formData));
+    ({ id, isPublished } = await getSocialLinkUseCases().create.execute(parseSocialLinkFormData(formData)));
     await recordAudit(actor, { action: "social.create", entityType: "social", entityId: id, summary: "Red social creada" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
@@ -35,9 +43,13 @@ export async function createSocialLink(_prevState: ActionResult | null, formData
 export async function updateSocialLink(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getSocialLinkUseCases().update.execute({ id, ...parseSocialLinkFormData(formData) });
+    const saved = await getSocialLinkUseCases().update.execute({ id, ...parseSocialLinkFormData(formData) });
     await recordAudit(actor, { action: "social.update", entityType: "social", entityId: id, summary: "Red social editada" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     return { success: true };
   } catch (error) {

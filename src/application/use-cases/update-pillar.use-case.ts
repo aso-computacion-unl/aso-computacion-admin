@@ -4,6 +4,7 @@ import type { PillarResult } from "../dto/pillar-result.dto";
 import { toPillarResult } from "../mappers/pillar-result.mapper";
 import type { OrderedContentRepository } from "../ports/ordered-content-repository.port";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdatePillarCommand = UpdatePillarInput & { id: string };
 
@@ -11,13 +12,13 @@ export type UpdatePillarCommand = UpdatePillarInput & { id: string };
 export class UpdatePillarUseCase {
   constructor(private readonly pillars: OrderedContentRepository<Pillar>) {}
 
-  async execute({ id, ...updates }: UpdatePillarCommand): Promise<PillarResult> {
+  async execute({ id, ...updates }: UpdatePillarCommand): Promise<Updated<PillarResult>> {
     const pillar = await this.pillars.getById(id);
 
     if (!pillar) {
       throw new NotFoundError("Pillar not found");
     }
 
-    return toPillarResult(await this.pillars.update(pillar.update(updates)));
+    return { ...toPillarResult(await this.pillars.update(pillar.update(updates))), wasPublished: pillar.props.isPublished };
   }
 }

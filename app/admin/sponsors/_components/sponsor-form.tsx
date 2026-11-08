@@ -28,13 +28,15 @@ interface SponsorFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: SponsorFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
   hasLogo?: boolean;
   /** The stored logo's address, so the preview before publishing shows it. */
   logoUrl?: string | null;
 }
 
-export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR_FORM_VALUES, hasLogo = false, logoUrl = null }: SponsorFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: SPONSOR_FIELD_MESSAGES });
+export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR_FORM_VALUES, autosave = false, hasLogo = false, logoUrl = null }: SponsorFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { fieldMessages: SPONSOR_FIELD_MESSAGES, autosave });
   // A published sponsor asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
@@ -42,7 +44,7 @@ export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR
   const logo = logoUrl ? { url: logoUrl } : null;
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Nombre" count={{ length: values.name.length, max: 60 }} error={errors.name}>
           {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
@@ -66,7 +68,7 @@ export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR
         />
         {errors.logo ? <FieldError id={logoErrorId} announce={false}>{errors.logo}</FieldError> : null}
       </div>
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

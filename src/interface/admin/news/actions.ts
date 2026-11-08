@@ -35,6 +35,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
 import { NEWS_FIELD_MESSAGES } from "../field-messages";
+import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { parseNewsFormData } from "./news-form-data";
 import { getNewsUseCases } from "./news-container";
@@ -56,16 +57,21 @@ function mapActionError(error: unknown): ActionResult {
 
 export async function createNewsItem(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
+  let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id } = await getNewsUseCases().create.execute(parseNewsFormData(formData)));
+    ({ id, isPublished } = await getNewsUseCases().create.execute(parseNewsFormData(formData)));
     await recordAudit(actor, { action: "news.create", entityType: "news", entityId: id, summary: "Novedad creada" });
   } catch (error) {
     return mapActionError(error);
   }
 
-  requestSiteRebuild();
+  // A new draft is not on the site yet.
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
   revalidatePath(LIST_PATH);
   // The cover needs an existing item, so creating continues on its edit page.
   redirect(editPath(id));
@@ -74,9 +80,13 @@ export async function createNewsItem(_prevState: ActionResult | null, formData: 
 export async function updateNewsItem(id: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    await getNewsUseCases().update.execute({ id, ...parseNewsFormData(formData) });
+    const saved = await getNewsUseCases().update.execute({ id, ...parseNewsFormData(formData) });
     await recordAudit(actor, { action: "news.update", entityType: "news", entityId: id, summary: "Novedad editada" });
-    requestSiteRebuild();
+    // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
+    if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {
+      requestSiteRebuild();
+    }
+
     revalidatePath(LIST_PATH);
     revalidatePath(editPath(id));
     return { success: true };

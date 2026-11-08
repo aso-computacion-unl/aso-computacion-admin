@@ -4,7 +4,7 @@ const { cookiesMock, requestSiteRebuildMock, executeMock, order, containers } = 
   const order: string[] = [];
   const executeMock = vi.fn(async () => {
     order.push("write");
-    return { id: "item-1", wasPublished: true };
+    return { id: "item-1", wasPublished: true, isPublished: true };
   });
   // Every use case of every module is the same recording stub: this suite is about when the hook fires, not what the use cases do.
   const useCases = new Proxy({}, { get: () => ({ execute: executeMock }) });
@@ -239,7 +239,7 @@ describe("deploy hook and the trash (S4)", () => {
   });
 
   it.each(TRASH_CALLS)("%s of a draft does NOT ask for a rebuild: the public content did not change", async (_name, call) => {
-    executeMock.mockResolvedValueOnce({ id: "item-1", wasPublished: false });
+    executeMock.mockResolvedValueOnce({ id: "item-1", wasPublished: false, isPublished: false });
 
     expect(await call()).toEqual({ success: true });
 

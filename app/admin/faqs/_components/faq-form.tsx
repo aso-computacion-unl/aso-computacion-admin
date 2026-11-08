@@ -25,17 +25,19 @@ interface FaqFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   initialValues?: FaqFormValues;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
 }
 
-export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VALUES }: FaqFormProps) {
-  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues);
+export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VALUES, autosave = false }: FaqFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { autosave });
   const command = bind("command").value.trim();
   // A published question asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
 
   return (
-    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <Field label="Pregunta" count={{ length: values.question.length, max: 200 }} error={errors.question}>
         {(control) => <Input {...control} {...bind("question")} required maxLength={200} className="text-lg" />}
       </Field>
@@ -55,7 +57,7 @@ export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VA
         {command ? <p className="font-mono text-[0.8125rem] text-mist">❯ git help {command}</p> : null}
       </MoreOptions>
       <SwitchField label="Publicada" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
+      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>

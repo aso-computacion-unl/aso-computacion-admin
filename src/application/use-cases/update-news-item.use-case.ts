@@ -5,6 +5,7 @@ import { toNewsItemResult } from "../mappers/news-item-result.mapper";
 import type { NewsRepository } from "../ports/news-repository.port";
 import { resolveNewsSlug } from "./resolve-news-slug";
 import { NotFoundError } from "./use-case-error";
+import type { Updated } from "./updated-result";
 
 export type UpdateNewsItemCommand = UpdateNewsItemInput & { id: string };
 
@@ -12,7 +13,7 @@ export type UpdateNewsItemCommand = UpdateNewsItemInput & { id: string };
 export class UpdateNewsItemUseCase {
   constructor(private readonly news: NewsRepository) {}
 
-  async execute({ id, ...updates }: UpdateNewsItemCommand): Promise<NewsItemResult> {
+  async execute({ id, ...updates }: UpdateNewsItemCommand): Promise<Updated<NewsItemResult>> {
     const item = await this.news.getById(id);
 
     if (!item) {
@@ -24,6 +25,6 @@ export class UpdateNewsItemUseCase {
       await resolveNewsSlug(this.news, item.props.title, updates.slug, id);
     }
 
-    return toNewsItemResult(await this.news.update(item.update(updates)));
+    return { ...toNewsItemResult(await this.news.update(item.update(updates))), wasPublished: item.props.isPublished };
   }
 }

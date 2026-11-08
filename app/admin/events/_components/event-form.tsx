@@ -18,7 +18,9 @@ import {
 
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
+import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
+import { EVENT_PUBLISH_FIELDS, EventPreview } from "./event-preview";
 import { RegistrationFields } from "./registration-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -77,9 +79,12 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
 export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES }: EventFormProps) {
-  const { values, setValues, bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, {
+  const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, {
     serialize: formValuesToFormData,
   });
+  // A published event asks first, with the preview; a draft saves as it always did.
+  const publishing = values.isPublished;
+  const publish = usePublishFlow({ state, review, submit });
   const isEditing = initialValues.slug !== "";
 
   function setDatePrecision(datePrecision: string) {
@@ -94,7 +99,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
+    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate>
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className="@xl:col-span-2">
           {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
@@ -198,11 +203,20 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         </div>
       </div>
 
-      <ActionBar status={<FormFeedback state={state} />}>
+      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : submitLabel}
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
       </ActionBar>
+      {publish.open ? (
+        <PublishPreview
+          before={stored.isPublished ? stored : null}
+          after={values}
+          fields={EVENT_PUBLISH_FIELDS}
+          render={(shown, changed, previous) => <EventPreview values={shown} changed={changed} previous={previous} />}
+          {...publish.dialog}
+        />
+      ) : null}
     </form>
   );
 }

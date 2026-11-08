@@ -3,6 +3,7 @@ import { expect, test, type Browser, type BrowserContext, type Locator, type Pag
 import { SignJWT } from "jose";
 
 import { openMoreOptions } from "./more-options";
+import { publish } from "./publish";
 
 /*
  * Audit of the admin panel (T3): what e2e/admin.spec.ts and e2e/scale.spec.ts do not cover. Login (the
@@ -495,7 +496,7 @@ test.describe("events", () => {
     await page.getByLabel("Texto del enlace").fill("Inscripción");
     await page.getByLabel("Puntos destacados").fill(highlights.join("\n\n"));
     await setSwitch(page, /Publicado/, true);
-    await page.getByRole("button", { name: "Crear evento" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     type PublicEvent = { title: string; slug: string; date: string; datePrecision: string; linkUrl: string; linkLabel: string; highlights: string[]; lugar: string; commitMessage: string };
@@ -518,7 +519,7 @@ test.describe("events", () => {
     // "Cambios guardados." stays on screen after a save, so the public content is what says the next save landed.
     await openMoreOptions(page);
     await page.getByLabel("Lugar").fill("Sala 2");
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await publish(page);
     await expect.poll(async () => (await find())?.lugar).toBe("Sala 2");
 
     await setSwitch(page, /Publicado/, false);
@@ -1034,7 +1035,7 @@ test.describe("trash", () => {
     await page.getByLabel("Pregunta").fill(question);
     await page.getByLabel("Respuesta").fill("Respuesta");
     await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear pregunta" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
 
     await page.goto("/admin/news/new");
@@ -1231,7 +1232,7 @@ test.describe("faqs and line breaks", () => {
 
     await page.getByLabel("Comando (opcional)").fill("");
     await setSwitch(page, /Publicada/, true);
-    await create.click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
 
     const faq = ((await publicContent(page)).faqs as { question: string; answer: string; command: string }[]).find((item) => item.question === question);
@@ -1251,7 +1252,7 @@ test.describe("faqs and line breaks", () => {
     await page.getByLabel("Título").fill(title);
     await page.getByLabel("Descripción", { exact: true }).fill(description);
     await setSwitch(page, /Publicado/, true);
-    await page.getByRole("button", { name: "Crear evento" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
 
     const event = ((await publicContent(page)).events as { title: string; description: string }[]).find((item) => item.title === title);

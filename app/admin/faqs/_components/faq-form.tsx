@@ -8,7 +8,9 @@ import type { ActionResult } from "@/interface/admin/action-result";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
+import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
+import { FAQ_PUBLISH_FIELDS, FaqPreview } from "./faq-preview";
 
 export interface FaqFormValues {
   question: string;
@@ -26,11 +28,14 @@ interface FaqFormProps {
 }
 
 export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VALUES }: FaqFormProps) {
-  const { values, bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues);
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues);
   const command = bind("command").value.trim();
+  // A published question asks first, with the preview; a draft saves as it always did.
+  const publishing = values.isPublished;
+  const publish = usePublishFlow({ state, review, submit });
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <Field label="Pregunta" count={{ length: values.question.length, max: 200 }} error={errors.question}>
         {(control) => <Input {...control} {...bind("question")} required maxLength={200} className="text-lg" />}
       </Field>
@@ -50,11 +55,20 @@ export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VA
         {command ? <p className="font-mono text-[0.8125rem] text-mist">❯ git help {command}</p> : null}
       </MoreOptions>
       <SwitchField label="Publicada" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} />}>
+      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : submitLabel}
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
       </ActionBar>
+      {publish.open ? (
+        <PublishPreview
+          before={stored.isPublished ? stored : null}
+          after={values}
+          fields={FAQ_PUBLISH_FIELDS}
+          render={(shown, changed) => <FaqPreview values={shown} changed={changed} />}
+          {...publish.dialog}
+        />
+      ) : null}
     </form>
   );
 }

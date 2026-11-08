@@ -121,15 +121,15 @@ export function FormFailure({ state }: { state: ActionResult | null }) {
  * Whole-form outcome: the failure summary (`FormFailure`) or the saved notice.
  * A save also shows a toast, which is easier to notice than the line next to the button; the toast
  * is the one screen readers announce, so the line is not a live region too. Pass `toast={false}`
- * when the form already confirms the save its own way.
+ * when the form already confirms the save its own way, and `savedMessage` for a save that says more (publishing).
  */
-export function FormFeedback({ state, toast = true }: { state: ActionResult | null; toast?: boolean }) {
+export function FormFeedback({ state, toast = true, savedMessage = SAVED_MESSAGE }: { state: ActionResult | null; toast?: boolean; savedMessage?: string }) {
   const { notify } = useToast();
 
   // Each submit hands back a new result object, so saving the same form twice toasts twice.
   useEffect(() => {
-    if (toast && state?.success) notify(SAVED_MESSAGE);
-  }, [state, toast, notify]);
+    if (toast && state?.success) notify(savedMessage);
+  }, [state, toast, savedMessage, notify]);
 
   return (
     <div data-slot="form-feedback" className="min-w-0 text-sm">
@@ -137,7 +137,7 @@ export function FormFeedback({ state, toast = true }: { state: ActionResult | nu
       {state?.success ? (
         <p className="flex items-center gap-2 font-semibold text-sky">
           <Icon name="check" className="size-4 stroke-[2.25]" />
-          {SAVED_MESSAGE}
+          {savedMessage}
         </p>
       ) : null}
     </div>

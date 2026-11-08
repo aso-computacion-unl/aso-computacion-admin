@@ -34,6 +34,7 @@ import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 type HomeQuery = { error?: string; next?: string | string[]; estado?: string; categoria?: string; pagina?: string };
 
 const renderQuery = async (query: HomeQuery) => renderToStaticMarkup(await ForumHomePage({ searchParams: Promise.resolve(query) }));
+const textOf = (html: string, glue = "") => html.replace(/<[^>]+>/g, glue).replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
 const renderHome = (error?: string, next?: string | string[]) => renderQuery({ error, next });
 const renderLayout = async () => renderToStaticMarkup(await ForumLayout({ children: createElement("p", null, "contenido") }));
 
@@ -60,28 +61,41 @@ describe("/foro as a visitor", () => {
   it("draws the Google button from the shared style, not from colours of its own, and the title in the shared title face", async () => {
     const html = await renderHome();
     const button = html.match(/<a [^>]*href="\/foro\/auth\/google\/start"[^>]*>/)?.[0] ?? "";
-    const title = html.match(/<h1[^>]*id="gate-title"[^>]*>/)?.[0] ?? "";
+    const title = html.match(/<h1[^>]*id="gate-title"[^>]*>[\s\S]*?<\/h1>/)?.[0] ?? "";
 
     expect(button).toContain('class="google-button');
     expect(button).not.toMatch(/#[0-9a-f]{3,6}|bg-white|border-white|rgb\(/i);
     expect(title).toContain("font-display");
-    expect(html).toMatch(/<h1[^>]*>El foro de Computación<\/h1>/);
+    expect(textOf(title)).toBe("Su carrera se resuelve aquí");
   });
 
-  it("sets the sign-in as the first node of a branch, followed by sample threads hidden from assistive technology", async () => {
+  it("gives three reasons to enter as tiles, in the order Preguntar, Proponer, Armar equipo", async () => {
     const html = await renderHome();
-    const branch = html.match(/<ol class="branch">[\s\S]*?<\/ol>\s*<\/section>/)?.[0] ?? "";
-    const head = branch.match(/<li>[\s\S]*?<\/li>/)?.[0] ?? "";
+    const tiles = [...html.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((match) => match[1] ?? "");
 
-    expect(head).toContain("HEAD → foro");
-    expect(head).toContain("Entrar con Google");
-    expect(branch).toContain("materias");
-    expect(branch).toContain("¿Cómo preparo el examen de Estructuras de Datos?");
-    expect(branch).toMatch(/<li aria-hidden="true" inert="">/);
+    expect(tiles.map((tile) => textOf(tile))).toEqual(["PreguntarDudas de materias", "ProponerTalleres y charlas", "Armar equipoPara el próximo evento"]);
+    for (const tile of tiles) expect(tile).toMatch(/<svg[^>]*aria-hidden="true"/);
     expect(html.match(/<h1/g)).toHaveLength(1);
-    expect(html.match(/<h2/g)).toBeNull();
-    expect(html).toContain("Hilos de ejemplo");
     expect(html).toContain("data-bleed");
+  });
+
+  it("has one sign-in action, and the note says only @unl.edu.ec works and the first entry creates the account", async () => {
+    const html = await renderHome();
+
+    expect(html.match(/href="\/foro\/auth\/google\/start/g)).toHaveLength(1);
+    expect(textOf(html)).toContain("Solo con su correo @unl.edu.ec. La primera vez se crea su cuenta.");
+  });
+
+  it("shows no sample threads and no git branch, and says little: 40 words at most", async () => {
+    const html = await renderHome();
+    const text = textOf(html, " ");
+
+    for (const gone of ["Estructuras de Datos", "Postgres", "hackathon", "hace 2 h", "respuestas", "Hilos de ejemplo", "git branch", "HEAD"]) {
+      expect(html, gone).not.toContain(gone);
+    }
+    expect(html).not.toContain("inert");
+    expect(html).not.toContain('class="branch"');
+    expect(text.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(40);
   });
 
   it("passes the path the visitor came for to the sign-in as next", async () => {

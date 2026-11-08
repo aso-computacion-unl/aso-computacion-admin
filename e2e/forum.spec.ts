@@ -15,10 +15,15 @@ test("a visitor at /foro sees the sign-in and none of the forum, on a phone too"
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto("/foro");
 
-  await expect(page.getByRole("heading", { level: 1, name: "El foro de Computación" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Su carrera se resuelve aquí" })).toBeVisible();
+  for (const reason of ["Preguntar", "Proponer", "Armar equipo"]) await expect(page.getByRole("heading", { level: 2, name: reason })).toBeVisible();
+  await expect(page.getByText("Solo con su correo @unl.edu.ec. La primera vez se crea su cuenta.")).toBeVisible();
+  await expect(page.getByText("Hilos de ejemplo")).toHaveCount(0);
   const signIn = page.getByRole("link", { name: "Entrar con Google" });
   await expect(signIn).toBeVisible();
   await expect(signIn).toHaveAttribute("href", "/foro/auth/google/start");
+  // The way in is on the first screen of a phone, not below the reasons.
+  await expect(signIn).toBeInViewport();
   await expect(page.getByRole("link", { name: "Cerrar sesión" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Menú de cuenta/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Hilos" })).toHaveCount(0);

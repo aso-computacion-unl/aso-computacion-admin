@@ -88,6 +88,11 @@ describe("BudgetedMailSender", () => {
     expect(await mailer.remainingToday(EVENING)).toBe(0);
   });
 
+  it("says whether a provider is set up", () => {
+    expect(sender().isConfigured()).toBe(true);
+    expect(sender(3, null).isConfigured()).toBe(false);
+  });
+
   it("sends nothing with a limit below 1", async () => {
     expect(await sender(0).send(mail(), EVENING)).toEqual({ status: "budget_exhausted" });
     expect(transport.delivered).toEqual([]);

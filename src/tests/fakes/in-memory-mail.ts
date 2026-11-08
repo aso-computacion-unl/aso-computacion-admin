@@ -55,6 +55,10 @@ export class RecordingMailSender implements MailSender {
 
   constructor(public allowance = Number.POSITIVE_INFINITY) {}
 
+  isConfigured(): boolean {
+    return this.refuse !== "not_configured";
+  }
+
   async send(message: MailMessage): Promise<MailSendResult> {
     this.attempts.push(message);
 

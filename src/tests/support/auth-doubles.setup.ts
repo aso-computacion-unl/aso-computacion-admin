@@ -25,8 +25,16 @@ vi.mock("@/interface/public/event-registration-container", async () => {
   return { getEventRegistrationServices: () => testEventRegistration.services };
 });
 
+// And for mail: the real budgeted sender over a recording transport (see test-mail.ts); nothing ever leaves the process.
+vi.mock("@/interface/mail/mail-container", async () => {
+  const { getTestMailSender } = await import("./test-mail");
+
+  return { getMailSender: getTestMailSender };
+});
+
 beforeEach(async () => {
   (await import("./test-auth")).resetTestAuth();
   (await import("./test-forum")).resetTestForum();
   (await import("./test-event-registration")).resetTestEventRegistration();
+  (await import("./test-mail")).resetTestMail();
 });

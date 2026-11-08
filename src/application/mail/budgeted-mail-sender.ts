@@ -14,6 +14,10 @@ export class BudgetedMailSender implements MailSender {
     private readonly dailyLimit: number,
   ) {}
 
+  isConfigured(): boolean {
+    return this.transport !== null;
+  }
+
   async send(message: MailMessage, now: Date = new Date()): Promise<MailSendResult> {
     if (!this.transport) {
       return { status: "not_configured" };

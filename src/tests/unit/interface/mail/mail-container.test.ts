@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The setup file replaces the container with the test double; this suite is about the real one.
+vi.unmock("@/interface/mail/mail-container");
 
 import { getMailSender } from "@/interface/mail/mail-container";
 

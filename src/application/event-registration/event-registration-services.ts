@@ -6,6 +6,7 @@ import { ListEventSeatsUseCase } from "./list-event-seats.use-case";
 import { ListRegistrationOverviewUseCase } from "./list-registration-overview.use-case";
 import { ListOpenUnlEventsUseCase } from "./list-open-unl-events.use-case";
 import {
+  ConfirmOpenRegistrationUseCase,
   DeleteEventRegistrationUseCase,
   GetEventRegistrationStatusUseCase,
   ListEventRegistrationsUseCase,
@@ -28,6 +29,7 @@ export function buildEventRegistrationServices({ events, registrations, members 
     overview: new ListRegistrationOverviewUseCase(events, registrations),
     openUnl: new ListOpenUnlEventsUseCase(events, registrations),
     registerOpen: new RegisterWithOpenFormUseCase(events, registrations),
+    confirmOpen: new ConfirmOpenRegistrationUseCase(events, registrations),
     registerUnl: new RegisterWithUnlAccountUseCase(events, registrations, members, unl),
     list: new ListEventRegistrationsUseCase(events, registrations),
     remove: new DeleteEventRegistrationUseCase(registrations),

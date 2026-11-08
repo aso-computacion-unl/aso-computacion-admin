@@ -208,9 +208,9 @@ describe("the open registration of the same page", () => {
     expect(html).toContain("12 de 30 inscritos · cierra el 18 nov 2026, 18:00");
     expect(html).toContain("Inscripciones abiertas");
     expect(html.match(/<section class="ticket-stub"[\s\S]*<form/)).not.toBeNull();
-    for (const name of ["name", "email", "career", "semester"]) expect(html).toContain(`name="${name}"`);
+    for (const name of ["name", "email", "institution", "career", "semester"]) expect(html).toContain(`name="${name}"`);
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Reservar mi cupo/);
-    expect(html).toContain("Usamos tus datos solo para esta actividad");
+    expect(html).toContain("Usamos sus datos solo para esta actividad");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("Inscribirme");
     expect(html).not.toMatch(/\busted\b|\bSu inscripción\b/i);

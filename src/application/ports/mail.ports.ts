@@ -18,6 +18,8 @@ export type MailSendResult = { status: "sent" | "not_configured" | "budget_exhau
  * transactional service with an own domain later, by swapping the `MailTransport` it is built on.
  */
 export interface MailSender {
+  /** Whether a provider is set up at all. `false`: every send answers `not_configured`. */
+  isConfigured(): boolean;
   /** Sends one message, spending one unit of today's budget (Ecuador day). Throws only when the budget itself cannot be reached. */
   send(message: MailMessage, now?: Date): Promise<MailSendResult>;
   /** How many more messages today's budget allows; 0 when nothing can be sent at all. */

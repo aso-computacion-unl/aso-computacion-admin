@@ -8,7 +8,7 @@ import { OpenRegistrationForm } from "./open-registration-form";
 import { RegisterButton } from "./register-button";
 
 /** The form is not offered when its spam check cannot run on this page (operator misconfiguration, already logged). */
-const UNAVAILABLE_MESSAGE = "La inscripción no está disponible en este momento. Inténtalo de nuevo en unos minutos.";
+const UNAVAILABLE_MESSAGE = "La inscripción no está disponible en este momento. Inténtelo de nuevo en unos minutos.";
 
 const CLOSED_MESSAGES = {
   full: "Ya no quedan cupos para este evento.",
@@ -47,7 +47,7 @@ export function RegistrationView({ page, slug }: { page: EventRegistrationPage; 
           </p>
         ) : (
           /* Always the form: when it is full or closed it says so, unless this visitor just took the last seat. */
-          <OpenRegistrationForm slug={slug} siteKey={page.siteKey} calendarHref={page.calendarHref} closedMessage={status.state === "open" ? undefined : CLOSED_MESSAGES[status.state]} />
+          <OpenRegistrationForm slug={slug} siteKey={page.siteKey} closedMessage={status.state === "open" ? undefined : CLOSED_MESSAGES[status.state]} />
         )}
       </EventTicket>
     );

@@ -14,7 +14,7 @@ Esta página documenta los 13 *route handlers* (`app/**/route.ts`) del panel de 
 | `POST`, `OPTIONS` | `/api/public/events/{slug}/registrations` | Ninguna; Cloudflare Turnstile en el cuerpo | Inscripción a un evento con el formulario abierto |
 | `GET`, `OPTIONS` | `/api/public/events/{slug}/calendar.ics` | Ninguna (CORS con lista de orígenes) | Descarga `.ics` de un evento público |
 | `GET` | `/api/health` | Ninguna | Comprobación de vida (*liveness*) |
-| `GET` | `/api/cron/scheduled-rebuild` | `Authorization: Bearer <CRON_SECRET>` | Tareas diarias: reconstrucción programada de la landing y depuración de inscripciones |
+| `GET` | `/api/cron/scheduled-rebuild` | `Authorization: Bearer <CRON_SECRET>` | Tareas diarias: reconstrucción programada de la landing, depuración de inscripciones y recordatorios por correo |
 | `GET` | `/auth/google/start` | Ninguna | Inicia el inicio de sesión del admin con Google |
 | `GET` | `/auth/google/callback` | Cookie `oauth_state` + `state` | Termina el inicio de sesión del admin y abre la sesión |
 | `GET` | `/foro/auth/google/start` | Ninguna | Inicia el inicio de sesión del foro con Google |
@@ -34,7 +34,7 @@ Las rutas JSON responden los errores, por regla general, con un objeto de una so
 Hay dos excepciones a esa forma:
 
 - **Inscripción abierta:** un error `validation` incluye además la clave `field` con el primer campo inválido (`{ "error": "validation", "field": "semester" }`).
-- **Cron (`scheduled-rebuild`):** solo la autenticación fallida (`401`) usa `{ "error": "Unauthorized" }`. Los fallos de cada tarea no llevan `error` en el nivel superior: la respuesta tiene siempre las claves `rebuild` y `retention`, y la tarea que lanzó una excepción trae `{ "error": "Service unavailable" }` en su propia clave.
+- **Cron (`scheduled-rebuild`):** solo la autenticación fallida (`401`) usa `{ "error": "Unauthorized" }`. Los fallos de cada tarea no llevan `error` en el nivel superior: la respuesta tiene siempre las claves `rebuild`, `retention` y `reminders`, y la tarea que lanzó una excepción trae `{ "error": "Service unavailable" }` en su propia clave.
 
 El valor de `error` **no** es uniforme entre grupos; cada uno tiene su propio vocabulario:
 
@@ -117,7 +117,7 @@ Los detalles de cada endpoint (parámetros, esquemas, ejemplos y códigos de est
 ### Operación
 
 - `GET /api/health`: solo comprueba que el proceso responde; no consulta la base de datos. `no-store`.
-- `GET /api/cron/scheduled-rebuild`: `Authorization: Bearer <CRON_SECRET>` (mínimo 32 caracteres; falla cerrado). Hace dos tareas independientes: reconstrucción de la landing si un elemento programado cruzó su ventana, y depuración de inscripciones a los 90 días del evento. `200` si ambas terminan, `502` si el *hook* rechazó la reconstrucción, `500` si alguna lanzó una excepción (prevalece). `vercel.json` lo programa a las `0 11 * * *`.
+- `GET /api/cron/scheduled-rebuild`: `Authorization: Bearer <CRON_SECRET>` (mínimo 32 caracteres; falla cerrado). Hace tres tareas independientes: reconstrucción de la landing si un elemento programado cruzó su ventana, depuración de inscripciones a los 90 días del evento (y de las que no confirmaron su correo en 48 horas), y recordatorios por correo a las personas inscritas de los eventos que ocurren dentro de 1 a 3 días. `200` si ambas terminan, `502` si el *hook* rechazó la reconstrucción, `500` si alguna lanzó una excepción (prevalece). `vercel.json` lo programa a las `0 11 * * *`.
 
 ### Autenticación
 

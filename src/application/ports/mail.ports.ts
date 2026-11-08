@@ -24,11 +24,15 @@ export interface MailSender {
   send(message: MailMessage, now?: Date): Promise<MailSendResult>;
   /** How many more messages today's budget allows; 0 when nothing can be sent at all. */
   remainingToday(now?: Date): Promise<number>;
+  /** Releases what a burst of sends kept open (a pooled connection). Safe to call when there is nothing to release. */
+  close(): Promise<void>;
 }
 
 /** The provider adapter: delivers one message or throws. No budget, no policy. */
 export interface MailTransport {
   deliver(message: MailMessage): Promise<void>;
+  /** Optional: releases a connection kept open between sends. */
+  close?(): Promise<void> | void;
 }
 
 /** The daily send counter, one per Ecuador calendar day (`YYYY-MM-DD`), shared by every instance. */

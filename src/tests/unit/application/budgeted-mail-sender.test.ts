@@ -88,6 +88,16 @@ describe("BudgetedMailSender", () => {
     expect(await mailer.remainingToday(EVENING)).toBe(0);
   });
 
+  it("closes the transport's connection when asked, and is fine with no transport at all", async () => {
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    await new BudgetedMailSender(Object.assign(new RecordingMailTransport(), { close }), budget, 3).close();
+    await sender(3, null).close();
+    await sender().close();
+
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it("says whether a provider is set up", () => {
     expect(sender().isConfigured()).toBe(true);
     expect(sender(3, null).isConfigured()).toBe(false);

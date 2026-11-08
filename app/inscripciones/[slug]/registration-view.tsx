@@ -61,7 +61,13 @@ export function RegistrationView({ page, slug }: { page: EventRegistrationPage; 
     <EventTicket event={status.event} mode="unl" registration={status}>
       {status.alreadyRegistered ? (
         <StubDone title="Usted ya está inscrito en este evento." calendarHref={page.calendarHref}>
-          No necesita hacer nada más. Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
+          {page.remindersOn ? (
+            <>No necesita hacer nada más. Guarde la fecha y el lugar: unos días antes del evento le enviaremos un recordatorio a su correo.</>
+          ) : (
+            <>
+              No necesita hacer nada más. Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
+            </>
+          )}
         </StubDone>
       ) : status.state !== "open" ? (
         <p role="status" className="stub-closed">

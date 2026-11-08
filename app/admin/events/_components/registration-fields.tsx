@@ -1,5 +1,8 @@
+import { useId, useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
+import { SwitchField } from "@/components/ui/switch";
 import type { EventRegistrationMode } from "@/domain/event-registration";
 
 import { Field, FieldError } from "../../_components/form-parts";
@@ -16,51 +19,54 @@ interface RegistrationFieldsProps {
 }
 
 const MODE_OPTIONS = [
-  { value: "none", label: "Sin inscripción" },
   { value: "unl", label: "Cuenta UNL" },
   { value: "open", label: "Formulario abierto" },
 ] as const satisfies readonly { value: EventRegistrationMode; label: string }[];
 
-const MODE_HINTS: Record<EventRegistrationMode, string> = {
-  none: "El evento no recibe inscripciones.",
-  unl: "La persona entra con su cuenta de Google @unl.edu.ec: el nombre y el correo vienen verificados y solo puede inscribirse una vez.",
-  open: "Cualquier persona completa nombre, correo, carrera y ciclo, con verificación antispam. El correo no se verifica.",
-};
-
-/** How people sign up for the event, with an optional seat limit and deadline (Ecuador time). */
+/** One switch: off is mode `none`; on asks how people sign up, with an optional seat limit and deadline (Ecuador time). */
 export function RegistrationFields({ mode, onModeChange, capacity, deadline, errors }: RegistrationFieldsProps) {
+  const panelId = useId();
+  const on = mode !== "none";
+  // Turning the switch back on returns to the way the event signed people up before.
+  const [lastMode, setLastMode] = useState<EventRegistrationMode>(on ? mode : "unl");
+
+  function chooseMode(value: EventRegistrationMode) {
+    setLastMode(value);
+    onModeChange(value);
+  }
+
   return (
     <>
-      <div className="grid min-w-0 content-start gap-1.5 @xl:col-span-2">
-        <Segmented
-          legend="Inscripción"
-          name="registrationMode"
-          value={mode}
-          options={MODE_OPTIONS}
-          columnsClassName="grid-cols-1 sm:grid-cols-3"
-          onChange={(value) => onModeChange(value as EventRegistrationMode)}
-          aria-describedby="registrationMode-hint"
-          aria-invalid={errors.registrationMode ? true : undefined}
-        />
-        <p id="registrationMode-hint" className="text-sm text-mist">
-          {MODE_HINTS[mode]}
-        </p>
-        {errors.registrationMode ? <FieldError id="registrationMode-error">{errors.registrationMode}</FieldError> : null}
-      </div>
-      {mode === "none" ? null : (
-        <>
-          <Field label="Cupos" hint="Vacío: sin límite. Al llegar al límite se cierran las inscripciones." error={errors.registrationCapacity}>
+      <SwitchField
+        label="Tiene inscripción"
+        checked={on}
+        aria-controls={on ? panelId : undefined}
+        onChange={() => onModeChange(on ? "none" : lastMode)}
+        className="@xl:col-span-2"
+      />
+      {on ? (
+        <div id={panelId} className="grid min-w-0 gap-x-4 gap-y-5 @xl:col-span-2 @xl:grid-cols-2">
+          <div className="grid min-w-0 content-start gap-1.5 @xl:col-span-2">
+            <Segmented
+              legend="Inscripción"
+              name="registrationMode"
+              value={mode}
+              options={MODE_OPTIONS}
+              columnsClassName="grid-cols-1 sm:grid-cols-2"
+              onChange={(value) => chooseMode(value as EventRegistrationMode)}
+              aria-describedby={errors.registrationMode ? "registrationMode-error" : undefined}
+              aria-invalid={errors.registrationMode ? true : undefined}
+            />
+            {errors.registrationMode ? <FieldError id="registrationMode-error">{errors.registrationMode}</FieldError> : null}
+          </div>
+          <Field label="Cupos" help="Vacío: sin límite." error={errors.registrationCapacity}>
             {(control) => <Input {...control} {...capacity} type="number" inputMode="numeric" min={1} max={5000} step={1} />}
           </Field>
-          <Field
-            label="Inscripciones hasta"
-            hint="Hora de Ecuador. Vacío: se cierran cuando pasa el día del evento."
-            error={errors.registrationDeadline}
-          >
+          <Field label="Cierre" help="Hora de Ecuador. Vacío: se cierra cuando pasa el día del evento." error={errors.registrationDeadline}>
             {(control) => <Input {...control} {...deadline} type="datetime-local" />}
           </Field>
-        </>
-      )}
+        </div>
+      ) : null}
     </>
   );
 }

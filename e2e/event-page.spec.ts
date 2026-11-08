@@ -1,6 +1,8 @@
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Page } from "@playwright/test";
 
+import { openMoreOptions } from "./more-options";
+
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
 type Mode = "none" | "unl" | "open";
@@ -12,7 +14,7 @@ async function logInAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
-const MODE_LABELS: Record<Mode, string> = { none: "Sin inscripción", unl: "Cuenta UNL", open: "Formulario abierto" };
+const MODE_LABELS: Record<Exclude<Mode, "none">, string> = { unl: "Cuenta UNL", open: "Formulario abierto" };
 
 /** Creates a published event through the admin form; returns its id and public slug. The browser stays signed in as admin. */
 async function createEvent(page: Page, title: string, { mode, date = "2099-11-28", capacity }: { mode: Mode; date?: string; capacity?: number }) {
@@ -20,9 +22,14 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
   await page.getByLabel("Título").fill(title);
   await page.getByLabel("Fecha", { exact: true }).fill(date);
+  await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
-  await page.getByRole("radio", { name: MODE_LABELS[mode] }).check({ force: true });
+
+  if (mode !== "none") {
+    await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
+    await page.getByRole("radio", { name: MODE_LABELS[mode] }).check({ force: true });
+  }
 
   if (capacity !== undefined) await page.getByLabel("Cupos").fill(String(capacity));
 

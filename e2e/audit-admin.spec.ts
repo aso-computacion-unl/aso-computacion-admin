@@ -2,6 +2,8 @@ import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
+import { openMoreOptions } from "./more-options";
+
 /*
  * Audit of the admin panel (T3): what e2e/admin.spec.ts and e2e/scale.spec.ts do not cover. Login (the
  * emergency password path), access control, the CRUD sections one by one (validation, bad dates and URLs, long
@@ -450,6 +452,7 @@ test.describe("events", () => {
 
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(title);
+    await openMoreOptions(page);
 
     for (const { label, value, past } of cases) {
       const field = page.getByLabel(label, { exact: true });
@@ -482,6 +485,7 @@ test.describe("events", () => {
 
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(title);
+    await openMoreOptions(page);
     await page.getByLabel("Mensaje de commit").fill("feat: açaí 🍇");
     await page.getByRole("radio", { name: "Solo mes" }).check({ force: true });
     await page.getByLabel("Mes", { exact: true }).fill("2031-03");
@@ -512,6 +516,7 @@ test.describe("events", () => {
 
     // Edit: a changed place reaches the public content; unpublishing removes the event from it.
     // "Cambios guardados." stays on screen after a save, so the public content is what says the next save landed.
+    await openMoreOptions(page);
     await page.getByLabel("Lugar").fill("Sala 2");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect.poll(async () => (await find())?.lugar).toBe("Sala 2");
@@ -533,6 +538,7 @@ test.describe("events", () => {
 
     await page.goto("/admin/events/new");
     await page.getByLabel("Título").fill(`Otro ${STAMP}`);
+    await openMoreOptions(page);
     await page.getByLabel("Identificador (slug)").fill(`slug-repetido-${STAMP}`);
     await page.getByRole("button", { name: "Crear evento" }).click();
     await expect(await errorOf(page, "Identificador (slug)")).toBeVisible();
@@ -541,6 +547,7 @@ test.describe("events", () => {
     await page.getByLabel("Identificador (slug)").fill("");
     await page.getByRole("button", { name: "Crear evento" }).click();
     await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
+    await openMoreOptions(page);
     await expect(page.getByLabel("Identificador (slug)")).toHaveValue(/^evento(-\d+)?$/, SLOW);
     await context.close();
   });
@@ -630,6 +637,7 @@ test.describe("terminal commands", () => {
     await page.goto("/admin/faqs/new");
     await page.getByLabel("Pregunta").fill(`¿Pregunta de ${faqCommand}?`);
     await page.getByLabel("Respuesta").fill("Respuesta");
+    await openMoreOptions(page);
     await page.getByLabel("Comando (opcional)").fill(faqCommand);
     await page.getByRole("button", { name: "Crear pregunta" }).click();
     await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
@@ -641,6 +649,7 @@ test.describe("terminal commands", () => {
     await page.goto("/admin/faqs/new");
     await page.getByLabel("Pregunta").fill(`¿Otra pregunta de ${command}?`);
     await page.getByLabel("Respuesta").fill("Respuesta");
+    await openMoreOptions(page);
     await page.getByLabel("Comando (opcional)").fill(command);
     await page.getByRole("button", { name: "Crear pregunta" }).click();
     await expect(await errorOf(page, "Comando (opcional)")).toContainText(`«${command}» ya lo usa otro comando`);
@@ -1094,6 +1103,7 @@ test.describe("trash", () => {
     const create = async (eventTitle: string, eventSlug: string) => {
       await page.goto("/admin/events/new");
       await page.getByLabel("Título").fill(eventTitle);
+      await openMoreOptions(page);
       await page.getByLabel("Identificador (slug)").fill(eventSlug);
       await page.getByRole("button", { name: "Crear evento" }).click();
       await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/, SLOW);
@@ -1211,6 +1221,7 @@ test.describe("faqs and line breaks", () => {
     await create.click();
     await expect(await errorOf(page, "Respuesta")).toBeVisible();
 
+    await openMoreOptions(page);
     for (const command of ["Hola", "a", "1x", "dos--guiones", "con espacio"]) {
       await page.getByLabel("Respuesta").fill(answer);
       await fillPastLimit(page.getByLabel("Comando (opcional)"), command);

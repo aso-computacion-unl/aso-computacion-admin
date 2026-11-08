@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   summary: Route handlers del panel de administración (Next.js, App Router).
   description: |
-    Documenta los 12 *route handlers* (`app/**/route.ts`) del panel. Todo se deriva del código.
+    Documenta los 13 *route handlers* (`app/**/route.ts`) del panel. Todo se deriva del código.
 
     **Convenciones**
 
@@ -279,6 +279,12 @@ paths:
         decide cupo, plazo y duplicados de forma atómica. Nada se guarda si algún paso falla y la respuesta nunca
         repite lo enviado.
 
+        La inscripción queda **pendiente**: no ocupa cupo ni se cuenta hasta que la persona abre el enlace de
+        confirmación que recibe por correo (vale 48 horas) y pulsa «Confirmar mi cupo»
+        (`POST …/registrations/confirm`). Antes de guardar se comprueba que pueda salir un correo (cuenta de Gmail,
+        `REGISTRATION_CONFIRM_SECRET`, `AUTH_URL` y presupuesto diario); si no, se responde `503` y no se guarda
+        nada. Repetir el mismo correo mientras está pendiente renueva esa misma inscripción y reenvía el enlace.
+
         - **Turnstile:** `turnstileToken` se verifica en el servidor con `TURNSTILE_SECRET_KEY`. Falla cerrado: en
           producción sin secreto, o si Cloudflare no responde, la respuesta es `503`. Un token ausente, vacío o de
           más de 2048 caracteres es inválido cuando hay secreto. Fuera de producción, sin secreto, se omite.
@@ -301,12 +307,13 @@ paths:
             example:
               name: Ana Pérez
               email: ana@example.com
+              institution: Universidad Nacional de Loja
               career: Computación
               semester: 5
               turnstileToken: "<token del widget de Turnstile>"
       responses:
         "201":
-          description: Inscripción registrada.
+          description: Inscripción guardada como pendiente y enlace de confirmación enviado por correo; aún no ocupa cupo.
           headers:
             Cache-Control:
               schema: { type: string, const: no-store }
@@ -316,10 +323,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ok]
+                required: [ok, confirm]
                 properties:
                   ok: { type: boolean, const: true }
-              example: { ok: true }
+                  confirm: { type: string, const: email }
+              example: { ok: true, confirm: email }
         "400":
           description: |
             Solicitud inválida. `bad_request`: JSON mal formado o la raíz no es un objeto. `captcha`: Turnstile
@@ -338,7 +346,7 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: not_found }
         "409":
-          description: "`closed` (plazo vencido o día del evento pasado), `full` (cupo agotado) o `duplicate` (ese correo ya está inscrito; se informa antes que `full`)."
+          description: "`closed` (plazo vencido o día del evento pasado), `full` (cupo agotado, contando solo inscripciones confirmadas) o `duplicate` (ese correo ya está inscrito y confirmado; se informa antes que `full`)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }
@@ -368,11 +376,18 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: rate_limited }
         "503":
-          description: Turnstile no disponible o mal configurado, o fallo interno (`unavailable`). El registro y el reporte reciben solo la clase y el código del error.
+          description: |
+            `unavailable`: Turnstile no disponible o mal configurado, o fallo interno (el registro y el reporte reciben
+            solo la clase y el código del error). `email_unavailable`: no puede salir el correo de confirmación
+            (cuenta de Gmail, secreto de los enlaces o `AUTH_URL` sin configurar, o el proveedor lo rechazó).
+            `email_budget`: se agotó el presupuesto diario de correos (`MAIL_DAILY_LIMIT`, día de Ecuador); nada se guarda.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }
-              example: { error: unavailable }
+              examples:
+                unavailable: { value: { error: unavailable } }
+                email_unavailable: { value: { error: email_unavailable } }
+                email_budget: { value: { error: email_budget } }
     options:
       tags: [Público]
       operationId: preflightEventRegistration
@@ -393,6 +408,100 @@ paths:
               schema: { type: integer, const: 86400 }
             Vary:
               $ref: "#/components/headers/Vary"
+
+  /api/public/events/{slug}/registrations/confirm:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      tags: [Público]
+      operationId: confirmEventRegistration
+      summary: Confirmar el correo de una inscripción pendiente
+      description: |
+        Toma el cupo de una inscripción pendiente con el token del enlace del correo. Solo existe `POST`: la página
+        a la que lleva el enlace muestra un botón y nunca confirma por `GET`, porque los escáneres de correo abren
+        todos los enlaces. El token (JWT HS256, 48 h) prueba que el enlace es nuestro; si el cupo sigue libre lo
+        decide el servidor, de forma atómica y con el mismo bloqueo que la inscripción. Un rechazo deja la
+        inscripción como estaba.
+
+        - **Mismo origen:** sin CORS. **Sin Turnstile:** el token es la credencial.
+        - **Tasa:** 5 solicitudes por 10 min por cliente (presupuesto propio).
+        - **Caché:** `no-store`.
+      security: []
+      requestBody:
+        required: true
+        description: "JSON con `Content-Type: application/json`, objeto en la raíz, máximo 2048 bytes."
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, description: Token del enlace del correo. }
+      responses:
+        "200":
+          description: Cupo reservado (`confirmed`) o ya lo estaba (`already_confirmed`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, status]
+                properties:
+                  ok: { type: boolean, const: true }
+                  status: { type: string, enum: [confirmed, already_confirmed] }
+              example: { ok: true, status: confirmed }
+        "400":
+          description: Token ausente, falsificado, de otro evento o de una inscripción inexistente (`invalid`); JSON mal formado (`bad_request`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: invalid }
+        "404":
+          description: Slug inválido, evento inexistente o no visible (`not_found`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: not_found }
+        "409":
+          description: "`full` (los cupos se agotaron mientras tanto) o `closed` (cerró la inscripción). La inscripción sigue pendiente."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              examples:
+                full: { value: { error: full } }
+                closed: { value: { error: closed } }
+        "410":
+          description: El enlace venció (48 horas) o la inscripción pendiente ya pasó su plazo (`expired`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: expired }
+        "413":
+          description: El cuerpo supera 2048 bytes (`too_large`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: too_large }
+        "415":
+          description: El `Content-Type` no empieza por `application/json` (`unsupported_media_type`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unsupported_media_type }
+        "429":
+          description: Límite superado (`rate_limited`).
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: rate_limited }
+        "503":
+          description: Fallo interno (`unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unavailable }
 
   /api/public/events/{slug}/calendar.ics:
     parameters:
@@ -863,13 +972,17 @@ components:
             - unsupported_media_type
             - rate_limited
             - unavailable
+            - email_unavailable
+            - email_budget
+            - expired
+            - invalid
         field:
           type: string
-          enum: [name, email, career, semester]
+          enum: [name, email, institution, career, semester]
           description: "Solo con `error = validation`: el primer campo inválido."
     OpenRegistrationRequest:
       type: object
-      required: [name, email, career, semester, turnstileToken]
+      required: [name, email, institution, turnstileToken]
       properties:
         name:
           type: string
@@ -880,16 +993,21 @@ components:
           type: string
           maxLength: 254
           description: Se normaliza a minúsculas; debe ser una dirección válida.
+        institution:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Institución de la persona. Igual que `name`.
         career:
           type: string
           minLength: 1
           maxLength: 120
-          description: Igual que `name`.
+          description: Opcional. Igual que `name`.
         semester:
           type: integer
           minimum: 1
           maximum: 12
-          description: También se acepta un texto numérico de 1 a 2 dígitos.
+          description: Opcional. También se acepta un texto numérico de 1 a 2 dígitos.
         turnstileToken:
           type: string
           maxLength: 2048

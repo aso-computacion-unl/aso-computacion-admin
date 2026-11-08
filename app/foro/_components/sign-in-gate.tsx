@@ -73,7 +73,7 @@ export function SignInGate({ problem, next }: SignInGateProps) {
             ) : null}
             <GoogleButton
               href={next ? `/foro/auth/google/start?next=${encodeURIComponent(next)}` : "/foro/auth/google/start"}
-              className="min-h-16 w-full text-[1.1875rem] font-extrabold min-[900px]:min-h-[4.5rem] min-[900px]:w-auto min-[900px]:px-10 min-[900px]:text-[1.4375rem] [&_svg]:size-[1.2em]"
+              className="min-h-16 w-full px-4 text-center text-[1.0625rem] font-extrabold min-[900px]:min-h-[4.5rem] min-[900px]:w-auto min-[900px]:px-10 min-[900px]:text-[1.4375rem] [&_svg]:size-[1.2em]"
             >
               {problem ? "Entrar de nuevo con Google" : "Entrar con Google"}
             </GoogleButton>

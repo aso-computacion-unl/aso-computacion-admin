@@ -3,7 +3,7 @@ import { expect, test, type Browser, type BrowserContext, type Locator, type Pag
 import { SignJWT } from "jose";
 
 import { openMoreOptions } from "./more-options";
-import { publish } from "./publish";
+import { PUBLISHED_TEXT, publish } from "./publish";
 
 /*
  * Audit of the admin panel (T3): what e2e/admin.spec.ts and e2e/scale.spec.ts do not cover. Login (the
@@ -287,6 +287,7 @@ async function fillNews(page: Page, fields: { title?: string; summary?: string; 
   if (fields.title !== undefined) await page.getByLabel("Título").fill(fields.title);
   if (fields.summary !== undefined) await page.getByLabel("Resumen").fill(fields.summary);
   if (fields.body !== undefined) await page.getByLabel("Texto", { exact: true }).fill(fields.body);
+  if (fields.slug !== undefined || fields.date !== undefined) await openMoreOptions(page);
   if (fields.slug !== undefined) await page.getByLabel("Identificador (slug)").fill(fields.slug);
   if (fields.date !== undefined) await page.getByLabel("Fecha de publicación").fill(fields.date);
 }
@@ -353,16 +354,16 @@ test.describe("news", () => {
     await page.goto("/admin/news/new");
     await fillNews(page, { title, summary: "Resumen con ñ y 日本語", body });
 
-    // The preview follows the typing and never turns a javascript: link into a link.
-    const preview = page.getByRole("region", { name: "Vista previa" });
+    // "Publicar" opens the preview with the item as the site shows it; it never turns a javascript: link into a link.
+    await setSwitch(page, /Publicada/, true);
+    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    const preview = page.getByRole("dialog", { name: "Así queda" });
     await expect(preview.locator("strong", { hasText: "negrita" })).toBeVisible();
     await expect(preview.locator('a[href="https://example.org/ñ"], a[href="https://example.org/%C3%B1"]')).toHaveCount(1);
     await expect(preview.locator('a[href^="javascript:"]')).toHaveCount(0);
     await expect(preview.locator("script")).toHaveCount(0);
     await expect(preview.getByText("dos 🚀")).toBeVisible();
-
-    await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear noticia" }).click();
+    await preview.getByRole("button", { name: "Sí, publicar" }).click();
     await expect(page).toHaveURL(/\/admin\/news\/[^/]+\/edit$/, SLOW);
 
     const news = (await publicContent(page)).news as { title: string; slug: string; publishedAt: string; body: string }[];
@@ -393,6 +394,7 @@ test.describe("news", () => {
       await expect(page.getByLabel("Identificador (slug)")).toHaveValue(expectedSlug, SLOW);
     }
 
+    await openMoreOptions(page);
     await page.getByLabel("Identificador (slug)").fill(`mismo-titulo-${STAMP}`);
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("El identificador solo admite minúsculas, números y guiones, y no puede repetirse.")).toBeVisible();
@@ -852,52 +854,61 @@ test.describe("social links", () => {
 });
 
 test.describe("site settings", () => {
-  test("the preview follows the typing, cancel discards it, bad values are refused on their field, and a save reaches the public content (restored afterwards)", async ({ browser, baseURL }) => {
+  test("Publicar previews the typing in Antes / Después, cancel discards it, bad values are refused on their field, and a publish reaches the public content (restored afterwards)", async ({ browser, baseURL }) => {
     const { context, page } = await asAdmin(browser, baseURL);
     const original = (await publicContent(page)).settings as { tagline: string; description: string; about: string } | null;
     const tagline = `Lema ñ 🚀 ${STAMP}`;
     const about = ["Acerca de: primera línea", "", "Segunda línea con 日本語"].join("\n");
 
     await page.goto("/admin/settings");
-    const preview = page.getByRole("region", { name: "Vista previa" });
+    const preview = page.getByRole("dialog", { name: "Así queda" });
     await page.getByRole("button", { name: "Editar" }).click();
     await expect(page.getByLabel("Lema")).toBeFocused();
 
-    // Live preview, and cancel puts the saved texts back.
+    // The preview shows the typing against the saved texts, and cancel puts the saved texts back.
     const saved = { tagline: await page.getByLabel("Lema").inputValue(), description: await page.getByLabel("Descripción").inputValue(), about: await page.getByLabel("Acerca de").inputValue() };
     await page.getByLabel("Lema").fill("Un lema provisional");
-    await expect(preview.getByText("ASO Computación · Un lema provisional")).toBeVisible();
+    // A fresh database opens every field blank, and the preview only opens for a form that passes the check.
+    await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
+    await page.getByLabel("Acerca de").fill(saved.about || "Acerca de auditoría");
+    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    // Highlighted as changed, or plain when the database has no saved texts yet to compare with.
+    await expect(preview.getByText("Un lema provisional").first()).toBeVisible();
+    await preview.getByRole("radio", { name: "Antes" }).check();
+    await expect(preview.getByText("Un lema provisional")).toHaveCount(0);
+    await preview.getByRole("button", { name: "Seguir editando" }).click();
     await page.getByRole("button", { name: "Cancelar" }).click();
     await expect(page.getByRole("button", { name: "Editar" })).toBeFocused();
-    await expect(preview.getByText("Un lema provisional")).toHaveCount(0);
+    await expect(page.getByText("Un lema provisional")).toHaveCount(0);
 
     // Required and over-long values never reach the public content.
     await page.getByRole("button", { name: "Editar" }).click();
     await page.getByLabel("Lema").fill("");
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await page.getByRole("button", { name: "Publicar", exact: true }).click();
     await expect(await errorOf(page, "Lema")).toBeVisible();
+    await expect(preview).toHaveCount(0);
     // A fresh database opens the form with every field blank: the empty ones are told all at once, before any
     // over-long value can reach the server, so the other fields get valid texts first.
     await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
     await page.getByLabel("Acerca de").fill(saved.about || "Acerca de auditoría");
     await fillPastLimit(page.getByLabel("Lema"), "L".repeat(121));
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await publish(page);
     await expect(await errorOf(page, "Lema")).toBeVisible();
     await page.getByLabel("Lema").fill(tagline);
     await fillPastLimit(page.getByLabel("Descripción"), "D".repeat(301));
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await publish(page);
     await expect(await errorOf(page, "Descripción")).toBeVisible();
     await page.getByLabel("Descripción").fill(saved.description || "Descripción de auditoría");
     await fillPastLimit(page.getByLabel("Acerca de"), "A".repeat(601));
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await publish(page);
     await expect(await errorOf(page, "Acerca de")).toBeVisible();
     // A fresh database has no settings row yet (the form shows defaults), so the public content may say null.
     expect(((await publicContent(page)).settings as { tagline: string } | null)?.tagline).not.toBe(tagline);
 
-    // The save: line breaks arrive as plain line breaks, and the fields close.
+    // The publish: line breaks arrive as plain line breaks, and the fields close.
     await page.getByLabel("Acerca de").fill(about);
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
-    await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+    await publish(page);
+    await expect(page.locator('[data-slot="form-feedback"]').getByText(PUBLISHED_TEXT)).toBeVisible();
     await expect(page.getByRole("button", { name: "Editar" })).toBeFocused();
     expect((await publicContent(page)).settings).toMatchObject({ tagline, about });
 
@@ -906,8 +917,8 @@ test.describe("site settings", () => {
       await page.getByLabel("Lema").fill(original.tagline);
       await page.getByLabel("Descripción").fill(original.description);
       await page.getByLabel("Acerca de").fill(original.about);
-      await page.getByRole("button", { name: "Guardar cambios" }).click();
-      await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+      await publish(page);
+      await expect(page.locator('[data-slot="form-feedback"]').getByText(PUBLISHED_TEXT)).toBeVisible();
     }
 
     await context.close();
@@ -1044,7 +1055,7 @@ test.describe("trash", () => {
     await page.goto("/admin/news/new");
     await fillNews(page, { title: newsTitle, summary: "Resumen", body: "Cuerpo" });
     await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Crear noticia" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/news\/[^/]+\/edit$/, SLOW);
 
     await page.goto("/admin/socials/new");

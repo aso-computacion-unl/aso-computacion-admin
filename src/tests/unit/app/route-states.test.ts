@@ -145,20 +145,27 @@ describe("the trash page", () => {
 
 describe("the site settings preview", () => {
   const values = { tagline: "Lema", description: "Descripción", about: "Acerca" };
+  const html = (changed: string[]) => renderToStaticMarkup(createElement(SettingsPreview, { values, changed: new Set(changed) }));
 
-  it("says it follows the typing only while the fields are open", () => {
-    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: true }))).toContain("se actualiza al escribir");
-    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: false }))).not.toContain("al escribir");
+  it("puts the tagline in the tab title, the description in the hero and the about text in the README", () => {
+    const markup = html([]);
+
+    expect(markup).toContain("ASO Computación");
+    for (const text of [" · ", "Lema", "Descripción", "README.md", "Acerca"]) expect(markup).toContain(text);
+    expect(markup).not.toContain("<mark");
   });
 
-  it("says what it shows when the screen is read-only", () => {
-    expect(renderToStaticMarkup(createElement(SettingsPreview, { values, editing: false }))).toContain("textos guardados");
+  it("highlights only the texts that changed", () => {
+    const markup = html(["tagline"]);
+
+    expect(markup.match(/<mark/g)).toHaveLength(1);
+    expect(markup).toMatch(/<mark[^>]*>Lema<\/mark>/);
   });
 
-  it("does not ask for typing on a read-only screen with nothing saved", () => {
-    const empty = { tagline: "", description: "", about: "" };
+  it("leaves out the texts that are empty instead of asking for typing", () => {
+    const markup = renderToStaticMarkup(createElement(SettingsPreview, { values: { tagline: "", description: "", about: "" }, changed: new Set<string>() }));
 
-    expect(renderToStaticMarkup(createElement(SettingsPreview, { values: empty, editing: false }))).not.toContain("Escriba");
-    expect(renderToStaticMarkup(createElement(SettingsPreview, { values: empty, editing: true }))).toContain("Escriba");
+    expect(markup).not.toContain(" · ");
+    expect(markup).not.toContain("Escriba");
   });
 });

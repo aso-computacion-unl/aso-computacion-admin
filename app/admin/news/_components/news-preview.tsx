@@ -4,21 +4,28 @@ import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { parseMarkdownSubset, type InlineNode } from "@/interface/admin/markdown-subset";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
-import { Panel } from "../../_components/form-layout";
-import { SectionTitle } from "../../_components/section-title";
+import { Changed, SiteSection } from "../../_components/publish-preview";
+import type { PublishField } from "../../_components/publish-diff";
+import type { NewsFormValues } from "./news-form";
 
-export interface NewsPreviewValues {
-  title: string;
-  summary: string;
-  body: string;
-  publishedAt: string;
-}
+/** What the owner can change on a news item, in the words of the list of changes. */
+export const NEWS_PUBLISH_FIELDS: readonly PublishField<NewsFormValues>[] = [
+  { name: "title", label: "Título" },
+  { name: "summary", label: "Resumen" },
+  { name: "body", label: "Texto" },
+  { name: "coverAlt", label: "Descripción de la portada" },
+  { name: "publishedAt", label: "Fecha de publicación", format: (values) => (values.publishedAt ? formatEventDate(values.publishedAt) : "Hoy") },
+  { name: "publishAt", label: "Publicar el" },
+  { name: "unpublishAt", label: "Retirar el" },
+  { name: "slug", label: "Identificador" },
+];
 
 interface NewsPreviewProps {
-  values: NewsPreviewValues;
+  values: NewsFormValues;
   /** The stored cover, when the item has one; its alt is the one in the form. */
   cover: { url: string; width: number; height: number } | null;
-  coverAlt: string;
+  /** The names of the fields to highlight. */
+  changed: ReadonlySet<string>;
 }
 
 function renderInline(nodes: InlineNode[]): ReactNode[] {
@@ -43,31 +50,35 @@ function renderInline(nodes: InlineNode[]): ReactNode[] {
 }
 
 /** Approximate: the same Markdown subset as the site, in the admin's own type. The site applies its own design. */
-export function NewsPreview({ values, cover, coverAlt }: NewsPreviewProps) {
+export function NewsPreview({ values, cover, changed }: NewsPreviewProps) {
   const blocks = parseMarkdownSubset(values.body);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(values.publishedAt) ? formatEventDate(values.publishedAt) : "";
-  const empty = values.title.trim() === "" && values.summary.trim() === "" && blocks.length === 0;
 
   return (
-    <Panel aria-labelledby="news-preview-heading" className="grid gap-4 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <SectionTitle id="news-preview-heading">Vista previa</SectionTitle>
-        <p className="font-mono text-[0.8125rem] text-mist">se actualiza al escribir</p>
-      </div>
-      {empty ? (
-        <p role="status" className="text-mist">
-          Escriba el título, el resumen o el texto para ver cómo se lee.
-        </p>
-      ) : (
-        <article className="grid gap-3 rounded bg-muted p-4">
-          {cover ? (
-            // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumbnailUrl(cover.url, 400, 267)} alt={coverAlt} loading="lazy" decoding="async" width={cover.width} height={cover.height} className="aspect-3/2 w-full rounded-xs object-cover" />
-          ) : null}
-          {date ? <p className="font-mono text-xs font-semibold text-sky tabular-nums">{date}</p> : null}
-          {values.title.trim() ? <h3 className="font-display text-xl leading-tight wrap-anywhere">{values.title}</h3> : null}
-          {values.summary.trim() ? <p className="text-mist wrap-anywhere">{values.summary}</p> : null}
+    <>
+      <SiteSection number="01">Novedades</SiteSection>
+      <article className="grid gap-3 rounded border border-paper-ring p-5">
+        {cover ? (
+          // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumbnailUrl(cover.url, 400, 267)} alt={values.coverAlt} loading="lazy" decoding="async" width={cover.width} height={cover.height} className="aspect-3/2 w-full max-w-md rounded-xs object-cover" />
+        ) : null}
+        {date ? (
+          <p className="font-mono text-xs font-semibold text-sky tabular-nums">
+            <Changed on={changed.has("publishedAt")}>{date}</Changed>
+          </p>
+        ) : null}
+        {values.title.trim() ? (
+          <h3 className="font-display text-2xl leading-tight wrap-anywhere text-foreground">
+            <Changed on={changed.has("title")}>{values.title}</Changed>
+          </h3>
+        ) : null}
+        {values.summary.trim() ? (
+          <p className="text-mist wrap-anywhere">
+            <Changed on={changed.has("summary")}>{values.summary}</Changed>
+          </p>
+        ) : null}
+        <Changed on={changed.has("body")}>
           <div className="grid gap-3 text-[0.9375rem] wrap-anywhere">
             {blocks.map((block, index) =>
               block.type === "paragraph" ? (
@@ -81,8 +92,8 @@ export function NewsPreview({ values, cover, coverAlt }: NewsPreviewProps) {
               ),
             )}
           </div>
-        </article>
-      )}
-    </Panel>
+        </Changed>
+      </article>
+    </>
   );
 }

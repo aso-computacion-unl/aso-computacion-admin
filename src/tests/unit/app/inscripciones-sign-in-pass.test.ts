@@ -80,6 +80,20 @@ describe("the pass's Google button while Google opens", () => {
     expect(host.querySelector("a")!.getAttribute("href")).toBe(START);
   });
 
+  it.each(["ctrlKey", "metaKey", "shiftKey", "altKey"] as const)("stays idle when clicked with %s, since the link opens elsewhere and this page never leaves", async (modifier) => {
+    const host = await mount(createElement(Button, { href: START }, "Entrar con Google"));
+    const link = host.querySelector("a")!;
+    const { act } = await import("react");
+
+    link.addEventListener("click", (event) => event.preventDefault());
+    await act(async () => {
+      link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true }));
+    });
+
+    expect(host.querySelector("[aria-busy]")).toBeNull();
+    expect(host.textContent).toContain("Entrar con Google");
+  });
+
   it("comes back to idle when the page is restored from the back/forward cache", async () => {
     const host = await mount(createElement(Button, { href: START }, "Entrar con Google"));
 

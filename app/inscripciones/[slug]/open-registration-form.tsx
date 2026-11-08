@@ -238,7 +238,7 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
       <div className="stub-go">
         {notice ? (
           <div ref={noticeBox} role="alert" tabIndex={-1} className="stub-alert">
-            <Icon name="alert" />
+            <Icon name="alert" className="size-4" />
             <p>{notice.message}</p>
           </div>
         ) : null}

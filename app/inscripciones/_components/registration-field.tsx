@@ -19,7 +19,7 @@ export function RegistrationField({ id, label, hint, error, children }: { id: st
       ) : null}
       {error ? (
         <small id={`${id}-error`} role="alert" className="ticket-error">
-          <Icon name="alert" />
+          <Icon name="alert" className="size-3.5" />
           {error}
         </small>
       ) : null}

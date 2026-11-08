@@ -15,7 +15,12 @@ export function PassGoogleButton({ href, children }: { href: string; children: R
 
   useEffect(() => {
     const element = box.current;
-    const start = () => setOpening(true);
+    const start = (event: MouseEvent) => {
+      // A modified click opens Google in another tab or window: this page stays, so it must stay clickable.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      setOpening(true);
+    };
     const restore = (event: PageTransitionEvent) => {
       if (event.persisted) setOpening(false);
     };

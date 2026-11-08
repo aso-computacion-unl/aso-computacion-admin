@@ -93,6 +93,8 @@ describe("the open registration form", () => {
     for (const name of ["name", "email", "career"]) expect(control(host, `input[name="${name}"]`).getAttribute("aria-invalid")).toBe("true");
     expect(control(host, 'select[name="semester"]').getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(control(host, 'input[name="name"]'));
+    // The stylesheet sizes these icons, but the Icon's own `size-5` utility outranks a component-layer rule, so the size must be explicit.
+    expect(control(host, ".ticket-error svg").getAttribute("class")).toContain("size-3.5");
     expect(host.textContent).toContain("Escribe tu nombre.");
     expect(host.textContent).toContain("Elige tu ciclo, del 1 al 12.");
     expect(control(host, 'input[name="name"]').getAttribute("aria-describedby")).toBe(control(host, 'input[name="name"]').id + "-error");
@@ -226,6 +228,7 @@ describe("the open registration form", () => {
     await settle();
 
     expect(control(host, '[role="alert"]').textContent).toContain(message);
+    expect(control(host, ".stub-alert svg").getAttribute("class")).toContain("size-4");
     expect(document.activeElement).toBe(control(host, '[role="alert"]'));
     expect(control<HTMLInputElement>(host, 'input[name="name"]').value).toBe("Ana Pérez");
     expect(submit(host).getAttribute("aria-disabled")).toBeNull();

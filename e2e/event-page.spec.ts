@@ -72,7 +72,9 @@ test("an open event: a visitor without a session sees the event, its seats and t
   await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
   await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
   await expect(page.getByText("Laboratorio 2")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Inscríbete" })).toBeVisible();
+  const stub = page.getByRole("region", { name: "Inscripción" });
+  await expect(stub.getByText("Su nombre en el boleto")).toBeVisible();
+  await expect(stub.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
   await expect(page.getByText("Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`/inscripciones/${slug}$`));

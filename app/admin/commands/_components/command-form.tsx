@@ -8,9 +8,9 @@ import type { ActionResult } from "@/interface/admin/action-result";
 import { COMMAND_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
-import { Panel } from "../../_components/form-layout";
-import { SectionTitle } from "../../_components/section-title";
+import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
+import { COMMAND_PUBLISH_FIELDS, CommandPreview } from "./command-preview";
 
 export interface CommandFormValues {
   command: string;
@@ -28,54 +28,39 @@ interface CommandFormProps {
 }
 
 export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND_FORM_VALUES }: CommandFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: COMMAND_FIELD_MESSAGES });
-  const command = bind("command").value.trim();
-  const description = bind("description").value.trim();
-  const output = bind("output").value.trim();
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: COMMAND_FIELD_MESSAGES });
+  // A published command asks first, with the preview; a draft saves as it always did.
+  const publishing = values.isPublished;
+  const publish = usePublishFlow({ state, review, submit });
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
-      <Field
-        label="Comando"
-        hint="Una palabra corta: minúsculas, números y guiones, de 2 a 28 caracteres. No puede repetirse ni coincidir con el comando de una pregunta."
-        error={errors.command}
-      >
+    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
+      <Field label="Comando" help="Minúsculas, números y guiones, de 2 a 28 caracteres." count={{ length: values.command.length, max: 28 }} error={errors.command}>
         {(control) => (
           <Input {...control} {...bind("command")} required maxLength={28} autoCapitalize="off" autoComplete="off" spellCheck={false} className="font-mono" />
         )}
       </Field>
-      <Field label="Descripción" hint="Se muestra junto al comando en la ayuda del terminal. Hasta 80 caracteres." error={errors.description}>
+      <Field label="Descripción" count={{ length: values.description.length, max: 80 }} error={errors.description}>
         {(control) => <Input {...control} {...bind("description")} required maxLength={80} />}
       </Field>
-      <Field label="Respuesta" hint="Lo que imprime el terminal. Hasta 600 caracteres; puede usar varias líneas." error={errors.output}>
+      <Field label="Respuesta" count={{ length: values.output.length, max: 600 }} error={errors.output}>
         {(control) => <Textarea {...control} {...bind("output")} rows={6} required maxLength={600} />}
       </Field>
-      <Panel aria-labelledby="command-preview-heading" className="grid gap-3">
-        <SectionTitle id="command-preview-heading">Vista previa</SectionTitle>
-        {command || output ? (
-          <div className="grid gap-1 rounded bg-muted p-4 font-mono text-sm">
-            <p className="text-sky">❯ {command || "…"}</p>
-            <p className="wrap-anywhere whitespace-pre-wrap">{output}</p>
-          </div>
-        ) : (
-          <p className="text-mist">Escriba el comando y la respuesta para ver cómo se lee en el terminal.</p>
-        )}
-        {command && description ? (
-          <p className="font-mono text-[0.8125rem] text-mist wrap-anywhere">
-            En la ayuda: {command} — {description}
-          </p>
-        ) : null}
-      </Panel>
-      <SwitchField
-        label="Publicado"
-        description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
-        {...toggle("isPublished")}
-      />
-      <ActionBar status={<FormFeedback state={state} />}>
+      <SwitchField label="Publicado" {...toggle("isPublished")} />
+      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : submitLabel}
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
       </ActionBar>
+      {publish.open ? (
+        <PublishPreview
+          before={stored.isPublished ? stored : null}
+          after={values}
+          fields={COMMAND_PUBLISH_FIELDS}
+          render={(shown, changed) => <CommandPreview values={shown} changed={changed} />}
+          {...publish.dialog}
+        />
+      ) : null}
     </form>
   );
 }

@@ -11,7 +11,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { SettingsForm } from "../../../../app/admin/settings/_components/settings-form";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { FIELD_MESSAGES, SETTINGS_FIELD_MESSAGES, fieldMessage } from "@/interface/admin/field-messages";
-import { click, mount, typeInto, unmountAll } from "@/tests/support/dom";
+import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
 afterEach(async () => {
   await unmountAll();
@@ -339,11 +339,18 @@ describe.each([
 ])("the %s form's missing-image error", (_name, key, message, render) => {
   const rejected: Action = async () => ({ fieldErrors: { [key]: message } });
   const publishedSwitch = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[role="switch"]')!;
+  // A published item asks first with the preview: the refusal comes on "Sí, publicar".
+  const publishOrSubmit = async (host: HTMLElement) => {
+    await submit(host);
+    const confirm = [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((button) => button.textContent === "Sí, publicar");
+    if (confirm) await click(confirm);
+    await settle();
+  };
 
   it("belongs to the Publicado switch: described by it, flagged invalid and focused", async () => {
     const host = await mount(render(rejected));
 
-    await submit(host);
+    await publishOrSubmit(host);
 
     const toggle = publishedSwitch(host);
 
@@ -355,7 +362,7 @@ describe.each([
   it("stays one announcement: the error is not an alert of its own", async () => {
     const host = await mount(render(rejected));
 
-    await submit(host);
+    await publishOrSubmit(host);
 
     expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1);
     expect(feedback(host).textContent).toContain("Revise 1 campo.");

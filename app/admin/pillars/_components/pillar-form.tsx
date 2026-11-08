@@ -8,7 +8,9 @@ import type { ActionResult } from "@/interface/admin/action-result";
 import { PILLAR_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
+import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
+import { PILLAR_PUBLISH_FIELDS, PillarPreview } from "./pillar-preview";
 
 export interface PillarFormValues {
   word: string;
@@ -26,39 +28,50 @@ interface PillarFormProps {
   submitLabel: string;
   initialValues?: PillarFormValues;
   hasImage?: boolean;
+  /** The stored image's address, so the preview before publishing shows it. */
+  imageUrl?: string | null;
 }
 
-export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_FORM_VALUES, hasImage = false }: PillarFormProps) {
-  const { bind, toggle, handleSubmit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: PILLAR_FIELD_MESSAGES });
+export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_FORM_VALUES, hasImage = false, imageUrl = null }: PillarFormProps) {
+  const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors } = useControlledForm(action, initialValues, { fieldMessages: PILLAR_FIELD_MESSAGES });
+  // A published pillar asks first, with the preview; a draft saves as it always did.
+  const publishing = values.isPublished;
+  const publish = usePublishFlow({ state, review, submit });
+  const image = imageUrl ? { url: imageUrl } : null;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+    <form onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <Field label="Palabra" hint="La palabra grande de la tarjeta, por ejemplo «VOZ». Hasta 20 caracteres." error={errors.word}>
+        <Field label="Palabra" help="La palabra grande de la tarjeta, por ejemplo «VOZ»." count={{ length: values.word.length, max: 20 }} error={errors.word}>
           {(control) => <Input {...control} {...bind("word")} required maxLength={20} />}
         </Field>
-        <Field label="Título" hint="Hasta 60 caracteres." error={errors.title}>
+        <Field label="Título" count={{ length: values.title.length, max: 60 }} error={errors.title}>
           {(control) => <Input {...control} {...bind("title")} required maxLength={60} />}
         </Field>
       </div>
-      <Field label="Texto" hint="Hasta 300 caracteres." error={errors.text}>
+      <Field label="Texto" count={{ length: values.text.length, max: 300 }} error={errors.text}>
         {(control) => <Textarea {...control} {...bind("text")} rows={4} required maxLength={300} />}
       </Field>
       {hasImage ? (
-        <Field label="Descripción de la imagen" hint="Obligatoria, para accesibilidad. Hasta 200 caracteres." error={errors.imageAlt}>
+        <Field label="Descripción de la imagen" help="Para quien no ve la imagen." count={{ length: values.imageAlt.length, max: 200 }} error={errors.imageAlt}>
           {(control) => <Input {...control} {...bind("imageAlt")} required maxLength={200} />}
         </Field>
       ) : null}
-      <SwitchField
-        label="Publicado"
-        description="Los borradores no salen en el sitio. Los cambios llegan al sitio público en su próxima actualización."
-        {...toggle("isPublished")}
-      />
-      <ActionBar status={<FormFeedback state={state} />}>
+      <SwitchField label="Publicado" {...toggle("isPublished")} />
+      <ActionBar status={<FormFeedback state={state} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : submitLabel}
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
       </ActionBar>
+      {publish.open ? (
+        <PublishPreview
+          before={stored.isPublished ? stored : null}
+          after={values}
+          fields={PILLAR_PUBLISH_FIELDS}
+          render={(shown, changed) => <PillarPreview values={shown} image={image} changed={changed} />}
+          {...publish.dialog}
+        />
+      ) : null}
     </form>
   );
 }

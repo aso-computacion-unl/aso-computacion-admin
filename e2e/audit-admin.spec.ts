@@ -567,8 +567,12 @@ async function createCommand(page: Page, fields: { command: string; description?
   await page.getByLabel("Comando", { exact: true }).fill(fields.command);
   await page.getByLabel("Descripción").fill(fields.description ?? "Una descripción");
   await page.getByLabel("Respuesta").fill(fields.output ?? "Una respuesta");
-  if (fields.published) await setSwitch(page, /Publicado/, true);
-  await page.getByRole("button", { name: "Crear comando" }).click();
+  if (fields.published) {
+    await setSwitch(page, /Publicado/, true);
+    await publish(page);
+  } else {
+    await page.getByRole("button", { name: "Crear comando" }).click();
+  }
 }
 
 test.describe("terminal commands", () => {
@@ -620,7 +624,7 @@ test.describe("terminal commands", () => {
     expect(output).toHaveLength(600);
     await page.getByLabel("Respuesta").fill(output);
     await setSwitch(page, /Publicado/, true);
-    await page.getByRole("button", { name: "Crear comando" }).click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/commands$/, SLOW);
 
     const published = ((await publicContent(page)).commands as { command: string; output: string }[]).find((item) => item.command === command);
@@ -708,7 +712,7 @@ test.describe("pillars", () => {
 
     await page.getByLabel("Texto").fill(text);
     await setSwitch(page, /Publicado/, true);
-    await create.click();
+    await publish(page);
     await expect(page).toHaveURL(/\/admin\/pillars/, SLOW);
     await expect(page).not.toHaveURL(/\/new$/, SLOW);
 
@@ -743,7 +747,8 @@ test.describe("board", () => {
 
     await page.getByLabel("Cargo").fill("Vocal ñ");
     await setSwitch(page, /Publicado/, true);
-    await add.click();
+    // Published asks first; the server refuses on "Sí, publicar" and the preview closes on the error.
+    await publish(page);
     await expect(page.getByText("Suba una foto antes de publicar al integrante.")).toBeVisible();
     expect(((await publicContent(page)).board as { name: string }[]).map((member) => member.name)).not.toContain(name);
 
@@ -786,7 +791,8 @@ test.describe("sponsors", () => {
 
     await page.getByLabel("Enlace (opcional)").fill(`https://aliado.example.org/ñ?x=1&y=2#${STAMP}`);
     await setSwitch(page, /Publicado/, true);
-    await create.click();
+    // Published asks first; the server refuses on "Sí, publicar" and the preview closes on the error.
+    await publish(page);
     await expect(page.getByText("Suba un logo antes de publicar al aliado.")).toBeVisible();
 
     await setSwitch(page, /Publicado/, false);
@@ -833,6 +839,7 @@ test.describe("social links", () => {
     }
 
     await page.getByLabel("Enlace", { exact: true }).fill(`https://youtube.com/@aso?x=${STAMP}`);
+    await openMoreOptions(page);
     await fillPastLimit(page.getByLabel("Nota (opcional)"), "N".repeat(41));
     await add.click();
     await expect(await errorOf(page, "Nota (opcional)")).toBeVisible();
@@ -843,7 +850,7 @@ test.describe("social links", () => {
     await page.getByLabel("Descripción corta (opcional)").fill("Videos 🎥 de los talleres");
 
     await setSwitch(page, /Publicada/, true);
-    await add.click();
+    await publish(page);
     await expect(page).not.toHaveURL(/\/new$/, SLOW);
 
     const link = ((await publicContent(page)).socials as { handle: string; label: string; platform: string; url: string; note: string; blurb: string }[]).find((item) => item.handle === handle);
@@ -1063,7 +1070,7 @@ test.describe("trash", () => {
     await page.getByLabel("Usuario").fill("@papelera");
     await page.getByLabel("Enlace", { exact: true }).fill("https://example.org/papelera");
     await setSwitch(page, /Publicada/, true);
-    await page.getByRole("button", { name: "Agregar red" }).click();
+    await publish(page);
     await expect(page).not.toHaveURL(/\/new$/, SLOW);
 
     const before = await publicText();

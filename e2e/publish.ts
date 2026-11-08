@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 /**
- * A published event or FAQ is saved through the full-screen preview: "Publicar" opens it and "Sí, publicar"
+ * A published item (event, FAQ, news, site texts, board member, pillar…) is saved through the full-screen preview: "Publicar" opens it and "Sí, publicar"
  * saves and rebuilds the site. A draft keeps its own save button and does not come through here.
  */
 export async function publish(page: Page) {

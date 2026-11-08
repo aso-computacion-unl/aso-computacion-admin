@@ -652,7 +652,7 @@ paths:
           in: query
           required: false
           description: |
-            Ruta del foro a la que volver. Solo se acepta `/foro` o `/foro/**` (hasta 512 caracteres, sin `//`,
+            Ruta a la que volver. Solo se acepta `/foro`, `/foro/**` o `/inscripciones/<slug>` (la página de inscripción a un evento) (hasta 512 caracteres, sin `//`,
             contrabarras, espacios ni caracteres de control, y nunca `/foro/auth/**`). Cualquier otro valor se
             ignora sin error.
           schema: { type: string, maxLength: 512 }

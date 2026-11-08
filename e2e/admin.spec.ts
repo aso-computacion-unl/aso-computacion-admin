@@ -263,7 +263,7 @@ test("an editor opens the forum report queue from the Foro area, and a visitor i
   await editorPage.getByRole("link", { name: "Foro", exact: true }).first().click();
   await expect(editorPage).toHaveURL(/\/admin\/foro\/reportes$/);
   await expect(editorPage.getByRole("heading", { name: "Reportes del foro" })).toBeVisible();
-  await expect(editorPage.getByText("No hay reportes abiertos.")).toBeVisible();
+  await expect(editorPage.getByText("No hay reportes abiertos")).toBeVisible();
 
   await editorPage.getByRole("link", { name: "Cerrados" }).click();
   await expect(editorPage).toHaveURL(/estado=cerrados$/);

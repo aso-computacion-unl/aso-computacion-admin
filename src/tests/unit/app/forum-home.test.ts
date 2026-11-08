@@ -303,7 +303,7 @@ describe("/foro as a member", () => {
     const html = await renderQuery({});
 
     expect(html).not.toContain("Inscripciones abiertas");
-    expect(html).not.toContain('href="/foro/eventos/');
+    expect(html).not.toContain('href="/inscripciones/');
     expect(html).not.toContain("Taller de Docker");
     expect(html).not.toContain("open-registrations-title");
     expect(html.match(/<aside/g)).toHaveLength(1);

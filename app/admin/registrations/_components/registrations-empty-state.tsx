@@ -52,11 +52,11 @@ export function RegistrationsEmptyState({ eventId, slug, mode, isPublished, admi
 
   return link ? (
     <EmptyState icon="board" action={<CopyLink link={link} label="Link de la página de inscripción" />}>
-      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de este evento en el foro. Comparta este link.
+      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de inscripción de este evento. Comparta este link.
     </EmptyState>
   ) : (
-    <EmptyState icon="board" action={<code className="font-mono text-[0.8125rem] text-mist wrap-anywhere">/foro/eventos/{slug}</code>}>
-      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de este evento en el foro. Para copiar el link completo falta configurar AUTH_URL con la dirección pública del panel.
+    <EmptyState icon="board" action={<code className="font-mono text-[0.8125rem] text-mist wrap-anywhere">/inscripciones/{slug}</code>}>
+      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de inscripción de este evento. Para copiar el link completo falta configurar AUTH_URL con la dirección pública del panel.
     </EmptyState>
   );
 }

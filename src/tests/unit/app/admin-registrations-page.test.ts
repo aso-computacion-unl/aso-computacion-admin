@@ -44,7 +44,7 @@ describe("the people of the selected event, with nobody registered yet", () => {
 
     expect(html).toContain("Todavía no hay inscripciones.");
     expect(html).toContain("cuenta UNL");
-    expect(html).toContain('value="http://localhost:3000/foro/eventos/hackathon-unl-2026"');
+    expect(html).toContain('value="http://localhost:3000/inscripciones/hackathon-unl-2026"');
     expect(html).toContain("Copiar link");
     expect(html).not.toContain("<table");
   });
@@ -54,7 +54,7 @@ describe("the people of the selected event, with nobody registered yet", () => {
 
     const html = await render(await addTestEvent({ slug: "hackathon-unl-2026", registrationMode: "unl" }));
 
-    expect(html).toContain("/foro/eventos/hackathon-unl-2026");
+    expect(html).toContain("/inscripciones/hackathon-unl-2026");
     expect(html).toContain("AUTH_URL");
     expect(html).not.toContain("Copiar link");
   });
@@ -65,7 +65,7 @@ describe("the people of the selected event, with nobody registered yet", () => {
     expect(html).toContain("Todavía no hay inscripciones.");
     expect(html).toContain("formulario abierto");
     expect(html).toContain("#evento-hackathon-unl-2026");
-    expect(html).not.toContain("/foro/eventos/");
+    expect(html).not.toContain("/inscripciones/");
     expect(html).not.toContain("Copiar link");
   });
 

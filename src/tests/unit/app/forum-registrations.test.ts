@@ -73,8 +73,8 @@ describe("/foro/eventos as a member", () => {
     const list = html.match(/<ul>[\s\S]*?<\/ul>/)?.[0] ?? "";
 
     expect(list.match(/<li>/g)).toHaveLength(3);
-    expect(list).toContain(`href="/foro/eventos/${sooner.slug}"`);
-    expect(list).toContain(`href="/foro/eventos/${later.slug}"`);
+    expect(list).toContain(`href="/inscripciones/${sooner.slug}"`);
+    expect(list).toContain(`href="/inscripciones/${later.slug}"`);
     expect(list).toContain("28 nov 2099");
     expect(list).toContain("Quedan 29 cupos");
     expect(list).toContain("Quedan 60 cupos");
@@ -136,7 +136,7 @@ describe("/foro/eventos as a member", () => {
     expect(html).toContain("No hay inscripciones abiertas.");
     expect(html).toContain("Cuando la directiva abra una, la verá aquí.");
     expect(html).toContain('href="/foro"');
-    expect(html).not.toContain('href="/foro/eventos/');
+    expect(html).not.toContain('href="/inscripciones/');
     expect(html).not.toContain("thread-graph");
   });
 

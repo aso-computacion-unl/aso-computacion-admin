@@ -67,7 +67,7 @@ describe("registerForEvent", () => {
 
     expect(await registration.registerForEvent("taller-de-git")).toEqual({ success: true });
     expect(stored()).toEqual([expect.objectContaining({ mode: "unl", name: "Ana Pérez", email: "ana@unl.edu.ec", career: null, semester: null })]);
-    expect(revalidatePathMock).toHaveBeenCalledWith("/foro/eventos/taller-de-git");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/inscripciones/taller-de-git");
   });
 
   it("registers a person once: the second try says so and changes nothing", async () => {

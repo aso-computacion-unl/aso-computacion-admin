@@ -39,6 +39,21 @@ test("a wrong password shows the error and keeps the login screen", async ({ pag
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("the home greets, says what waits and offers '+ Crear' with the three things to create", async ({ page }) => {
+  await logInAsAdmin(page);
+
+  await expect(page.getByRole("heading", { level: 1, name: "Hola" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lo que te espera" })).toBeVisible();
+  // The old module grid is gone: the four areas are the way around.
+  await expect(page.getByText("Contenido del sitio")).toHaveCount(0);
+
+  await page.locator("summary", { hasText: "Crear" }).click();
+  await expect(page.getByRole("link", { name: "Evento", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Novedad", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Pregunta", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
+});
+
 test("an event published in the admin appears in the public content API", async ({ page, request }) => {
   const title = `E2E evento ${Date.now()}`;
 

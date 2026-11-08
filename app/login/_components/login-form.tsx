@@ -46,7 +46,7 @@ export function LoginForm({ action }: LoginFormProps) {
           {fieldError}
         </p>
       ) : null}
-      <Button type="submit" busy={isPending} disabled={isPending} className="mt-1 min-h-12">
+      <Button type="submit" busy={isPending} disabled={isPending} className="mt-1 min-h-14 text-lg">
         {isPending ? "Iniciando sesión…" : "Iniciar sesión"}
       </Button>
     </form>

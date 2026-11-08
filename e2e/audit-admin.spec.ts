@@ -147,7 +147,10 @@ const publicContent = async (page: Page) => (await page.request.get("/api/public
 test.describe("login", () => {
   test("the emergency password path signs in, a wrong, blank, very long or unicode password is refused with the same message", async ({ page }) => {
     await openLogin(page);
-    await expect(page.getByRole("heading", { name: "Panel de administración" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ASO Computación" })).toBeVisible();
+    // The card carries the full logo, and the admin's light look applies here too (nothing is stored in a fresh browser).
+    await expect(page.locator("main img:visible")).toHaveCount(1);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
     // A blank password never reaches the server: the browser stops the submit on the required field.
     await openPasswordForm(page);
@@ -1309,24 +1312,25 @@ test.describe("theme and dashboard", () => {
     await context.close();
   });
 
-  test("the dashboard counts follow what is created: a new draft raises the draft count of its section", async ({ browser, baseURL }) => {
+  test("the home's drafts card follows what is created: a new draft event raises its count", async ({ browser, baseURL }) => {
     const { context, page } = await asAdmin(browser, baseURL);
-    const draftsOf = async (section: string) => {
+    const draftsOnHome = async () => {
       await page.goto("/admin");
-      const text = await page.getByRole("link", { name: new RegExp(`^${section}`) }).filter({ hasText: /publicados?/ }).first().innerText();
+      const card = page.locator('[data-slot="todo-card"]').filter({ hasText: /sin publicar/ });
 
-      return Number(/(\d+) borradores?/.exec(text)?.[1] ?? NaN);
+      return (await card.count()) === 0 ? 0 : Number((await card.locator("h3 span").innerText()).trim());
     };
 
-    const before = await draftsOf("FAQ");
+    const before = await draftsOnHome();
 
-    await page.goto("/admin/faqs/new");
-    await page.getByLabel("Pregunta").fill(`¿Borrador del panel ${STAMP}?`);
-    await page.getByLabel("Respuesta").fill("Respuesta");
-    await page.getByRole("button", { name: "Crear pregunta" }).click();
-    await expect(page).toHaveURL(/\/admin\/faqs$/, SLOW);
+    await page.goto("/admin/events/new");
+    await page.getByLabel("Título").fill(`Borrador del panel ${STAMP}`);
+    await page.getByRole("button", { name: "Crear evento" }).click();
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/, SLOW);
 
-    expect(await draftsOf("FAQ")).toBe(before + 1);
+    expect(await draftsOnHome()).toBe(before + 1);
+    await page.getByRole("link", { name: "Continuar" }).click();
+    await expect(page).toHaveURL(/\/admin\/(events|news)\/[^/]+\/edit$/, SLOW);
     await context.close();
   });
 });

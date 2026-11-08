@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { BrandLogo } from "./brand-mark";
 import { GoogleButton } from "./google-button";
 import "./auth-branch.css";
 
@@ -18,12 +17,8 @@ interface AuthBranchProps {
   nodes: ReactNode;
   /** The line under the branch. */
   note: string;
-  /** The brand at the top left. The forum's top bar already carries it. */
-  logo?: boolean;
   /** A bar above the screen (the forum's) takes this much of the height. */
   belowTopBar?: boolean;
-  /** Pinned to the top right, e.g. the theme toggle. */
-  corner?: ReactNode;
 }
 
 /**
@@ -31,7 +26,7 @@ interface AuthBranchProps {
  * The way in is HEAD, its first node; the hollow nodes after it say what the visitor will be able to do. On phones
  * the branch turns vertical. The caller supplies the page's `<main>` (the forum's layout already has one).
  */
-export function AuthBranch({ branch, title, titleId, head, nodes, note, logo = false, belowTopBar = false, corner }: AuthBranchProps) {
+export function AuthBranch({ branch, title, titleId, head, nodes, note, belowTopBar = false }: AuthBranchProps) {
   return (
     <div
       className={cn(
@@ -39,14 +34,10 @@ export function AuthBranch({ branch, title, titleId, head, nodes, note, logo = f
         belowTopBar ? "min-h-[calc(100dvh-3.5rem)]" : "min-h-dvh",
       )}
     >
-      <div className="flex items-center justify-between gap-6">
-        {logo ? <BrandLogo alt="ASO Computación" width={156} className="h-auto w-[clamp(5rem,8vw,9.75rem)]" /> : <span />}
-        <div className="flex items-center gap-4">
-          <p aria-hidden="true" className="hidden font-mono text-[0.9375rem] text-sky min-[900px]:block">
-            $ git branch --show-current <b className="font-semibold text-foreground">{branch}</b>
-          </p>
-          {corner}
-        </div>
+      <div className="flex items-center justify-end gap-6">
+        <p aria-hidden="true" className="hidden font-mono text-[0.9375rem] text-sky min-[900px]:block">
+          $ git branch --show-current <b className="font-semibold text-foreground">{branch}</b>
+        </p>
       </div>
 
       <section
@@ -102,16 +93,6 @@ export function BranchNode({ hash, children, decorative = false }: BranchNodePro
 /** What HEAD says: the one sentence above the way in. */
 export function BranchLead({ children }: { children: ReactNode }) {
   return <p className="mb-7 max-w-[36ch] font-stretch-[108%] text-[clamp(1.125rem,1.35vw,1.625rem)] leading-[1.35] text-foreground">{children}</p>;
-}
-
-/** The title of a node after HEAD. */
-export function BranchNodeTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-3 font-[750] font-stretch-[112%] text-[clamp(1.25rem,1.75vw,2.125rem)] leading-[1.15] tracking-[-0.015em] text-balance">{children}</h2>;
-}
-
-/** The text under a node's title. */
-export function BranchNodeText({ children }: { children: ReactNode }) {
-  return <p className="text-[clamp(1rem,1.1vw,1.3125rem)] leading-normal text-mist min-[900px]:max-w-[30ch]">{children}</p>;
 }
 
 /** HEAD's Google button, sized as the page's main action; the width of the way in. */

@@ -9,10 +9,10 @@ import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { getForumCategories, getForumFeed } from "@/interface/forum/forum-read";
 import { getForumMember } from "@/interface/forum/require-forum-member";
 
+import { SignInPass } from "../../inscripciones/_components/sign-in-pass";
 import { ForumRail } from "../_components/forum-rail";
 import { ForumShell } from "../_components/forum-shell";
 import { RegistrationRow } from "../_components/registration-row";
-import { SignInGate } from "../_components/sign-in-gate";
 import { ThreadListEmpty } from "../_components/thread-list-empty";
 
 export const metadata: Metadata = { title: "Inscripciones" };
@@ -27,8 +27,8 @@ type Param = string | string[] | undefined;
 export default async function ForumRegistrationsPage({ searchParams }: { searchParams: Promise<{ error?: Param }> }) {
   const [member, { error }] = await Promise.all([getForumMember(), searchParams]);
 
-  // Same gate as the forum home: a visitor signs in and comes back here.
-  if (!member) return <SignInGate problem={parseForumLoginError(error)} next={PATH} />;
+  // The registrations have their own sign-in (the student pass, not the forum's gate): a visitor signs in and comes back here.
+  if (!member) return <SignInPass problem={parseForumLoginError(error)} next={PATH} />;
 
   // The rail is the forum's: it carries the thread counts too, so the page reads what the home reads for it.
   const [events, feed, categories] = await Promise.all([

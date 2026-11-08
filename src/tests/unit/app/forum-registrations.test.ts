@@ -33,19 +33,26 @@ beforeEach(() => {
 });
 
 describe("/foro/eventos as a visitor", () => {
-  it("shows the same Google gate as the forum home, coming back to this page, and none of the events", async () => {
+  it("shows the registrations' own sign-in (the student pass), not the forum gate, coming back to this page, and none of the events", async () => {
     await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
 
     const html = await render();
 
+    expect(html).toMatch(/<h1[^>]*>Su pase de estudiante<\/h1>/);
     expect(html).toContain("Entrar con Google");
     expect(html).toContain('href="/foro/auth/google/start?next=%2Fforo%2Feventos"');
+    expect(html).toMatch(/Solo con su correo <b[^>]*>@unl\.edu\.ec<\/b>/);
+    expect(html).not.toContain("El foro de Computación");
+    expect(html).not.toContain("auth-branch");
     expect(html).not.toContain("Taller de Docker");
-    expect(html).not.toContain("Inscripciones");
   });
 
-  it("explains a failed sign-in the way the home does", async () => {
-    expect(await render({ error: "denied" })).toContain('role="alert"');
+  it("explains a failed sign-in in the pass, in words about the registrations", async () => {
+    const html = await render({ error: "denied" });
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Intentar de nuevo");
+    expect(html).not.toContain("El acceso al foro");
   });
 });
 

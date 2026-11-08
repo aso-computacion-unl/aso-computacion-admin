@@ -123,7 +123,7 @@ Los detalles de cada endpoint (parámetros, esquemas, ejemplos y códigos de est
 Google OAuth con código de autorización, **PKCE (S256)**, `state` y `nonce`, todo en el servidor (alcances `openid email profile`). Son navegaciones del navegador: siempre responden con una redirección y `no-store`. La cookie de flujo (`oauth_state` para el admin, `forum_oauth_state` para el foro) es sellada, `HttpOnly`, `SameSite=Lax`, `Secure` en producción, dura 600 s y se consume en cada callback, por lo que una URL de callback no se puede reutilizar. Ningún paso registra códigos, tokens ni correos. Los errores vuelven como `?error=<código>` a `/login` (admin) o a `/foro` (foro); el motivo exacto de un rechazo de cuenta se oculta para no revelar qué correos existen.
 
 - **Admin:** `invite` opcional en `start`; el callback aplica primero el límite de intentos de inicio de sesión y abre la cookie `admin_session`.
-- **Foro:** `next` opcional en `start`, solo rutas `/foro` o `/foro/**` de hasta 512 caracteres; la sesión es la cookie `forum_session` y solo admite el dominio `FORUM_ALLOWED_EMAIL_DOMAIN`. Los detalles de configuración están en [REFERENCIA.md](../REFERENCIA.md) y en [DEPLOY.md](../DEPLOY.md).
+- **Foro:** `next` opcional en `start`, solo rutas `/foro`, `/foro/**` o `/inscripciones/<slug>` de hasta 512 caracteres; la sesión es la cookie `forum_sid` (ruta `/`; sustituye a `forum_session` de `/foro`, que el proxy migra en la primera visita) y solo admite el dominio `FORUM_ALLOWED_EMAIL_DOMAIN`. Los detalles de configuración están en [REFERENCIA.md](../REFERENCIA.md) y en [DEPLOY.md](../DEPLOY.md).
 
 ### Administración
 

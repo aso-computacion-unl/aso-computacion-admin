@@ -11,7 +11,7 @@ import { getForumMember } from "./require-forum-member";
 export type EventFacts = EventRegistrationStatus["event"];
 
 /**
- * What `/foro/eventos/[slug]` shows, by the event's registration mode. `calendarHref` is the public `.ics` of the
+ * What `/inscripciones/[slug]` shows, by the event's registration mode. `calendarHref` is the public `.ics` of the
  * event, or null when there is nothing to add (no exact day, or the day already passed).
  */
 export type EventRegistrationPage =

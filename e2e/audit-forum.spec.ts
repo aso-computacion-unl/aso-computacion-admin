@@ -46,7 +46,7 @@ test.afterAll(async () => {
 
 async function memberContext(browser: Browser, baseURL: string | undefined): Promise<BrowserContext> {
   const context = await browser.newContext({ baseURL });
-  await context.addCookies([{ name: "forum_session", value: token, domain: "127.0.0.1", path: "/foro" }]);
+  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
 
   return context;
 }

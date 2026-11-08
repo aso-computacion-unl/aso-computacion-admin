@@ -7,6 +7,10 @@ describe("parseForumReturnPath", () => {
     expect(parseForumReturnPath(path)).toBe(path);
   });
 
+  it.each(["/inscripciones/taller-git", "/inscripciones/taller-git?utm_source=landing", "/inscripciones/a%20b"])("keeps the same-origin event registration path %s", (path) => {
+    expect(parseForumReturnPath(path)).toBe(path);
+  });
+
   it("normalizes dot segments that stay inside the forum and drops a fragment", () => {
     expect(parseForumReturnPath("/foro/c/./programacion")).toBe("/foro/c/programacion");
     expect(parseForumReturnPath("/foro/c/x/../y#respuesta")).toBe("/foro/c/y");
@@ -37,6 +41,13 @@ describe("parseForumReturnPath", () => {
     ["a raw newline", "/foro/hilo/1\nx"],
     ["a raw tab hiding a slash", "/foro/\t/evil.example"],
     ["a raw space", "/foro/hilo/1 x"],
+    ["the registration root without an event", "/inscripciones"],
+    ["the registration root with a slash", "/inscripciones/"],
+    ["a look-alike of the registration prefix", "/inscripcionesx/taller"],
+    ["dot segments that leave the registration route", "/inscripciones/../admin"],
+    ["encoded dot segments that leave the registration route", "/inscripciones/%2e%2e/admin"],
+    ["a double slash after the registration prefix", "/inscripciones//evil.example"],
+    ["a backslash after the registration prefix", "/inscripciones/x\\evil.example"],
     ["the OAuth start route", "/foro/auth/google/start"],
     ["the OAuth callback route", "/foro/auth/google/callback?code=c"],
     ["the auth namespace in other case", "/foro/AUTH/google/start"],

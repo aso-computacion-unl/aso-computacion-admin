@@ -5,9 +5,9 @@ import { eventSchedule } from "./event-schedule";
 
 type RegistrationFields = Pick<EventResult, "slug" | "date" | "datePrecision" | "hora" | "lugar"> & Partial<Pick<EventResult, "registrationMode" | "registrationCapacity" | "registrationDeadline">>;
 
-/** The page where a UNL-account registration happens: on this admin, in the forum's zone. */
+/** The page where a UNL-account registration happens: on this admin, at its own `/inscripciones/<slug>` route. */
 export function registrationPageUrl(slug: string, adminOrigin: string | undefined): string | null {
-  return adminOrigin ? `${adminOrigin}/foro/eventos/${slug}` : null;
+  return adminOrigin ? `${adminOrigin}/inscripciones/${slug}` : null;
 }
 
 /** The public endpoint the landing's open form POSTs to. */

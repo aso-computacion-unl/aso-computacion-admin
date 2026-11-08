@@ -2,7 +2,14 @@ import "server-only";
 import { cookies } from "next/headers";
 
 import { FORUM_OAUTH_STATE_COOKIE_NAME, FORUM_OAUTH_STATE_MAX_AGE_SECONDS } from "./forum-oauth-state";
-import { FORUM_COOKIE_NAME, FORUM_COOKIE_PATH, FORUM_SESSION_DURATION_SECONDS } from "./forum-session-jwt";
+import {
+  FORUM_COOKIE_NAME,
+  FORUM_COOKIE_PATH,
+  FORUM_SESSION_DURATION_SECONDS,
+  LEGACY_FORUM_COOKIE_NAME,
+  LEGACY_FORUM_COOKIE_PATH,
+  forumCookieOptions,
+} from "./forum-session-jwt";
 
 /** Only the forum's Google routes ever receive it. `lax`, because Google sends the browser back with a top-level GET. */
 export const FORUM_OAUTH_COOKIE_PATH = "/foro/auth/google";
@@ -10,25 +17,23 @@ export const FORUM_OAUTH_COOKIE_PATH = "/foro/auth/google";
 const secure = () => process.env.NODE_ENV === "production";
 
 /**
- * Scoped to `/foro`: the browser never attaches it to `/admin`, so even a bug there could not read it.
- * (The admin cookie, path `/`, is sent to `/foro`, and the forum guard never looks at it.)
+ * Site-wide (`/`), so the registration page at `/inscripciones/<slug>` sees the session too. It is HttpOnly, has its
+ * own name and secret, and the admin guard reads only the admin cookie, so being sent to `/admin` opens nothing.
  */
 export async function setForumSessionCookie(token: string): Promise<void> {
-  (await cookies()).set(FORUM_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: secure(),
-    sameSite: "lax",
-    path: FORUM_COOKIE_PATH,
-    maxAge: FORUM_SESSION_DURATION_SECONDS,
-  });
+  (await cookies()).set(FORUM_COOKIE_NAME, token, forumCookieOptions(FORUM_COOKIE_PATH, FORUM_SESSION_DURATION_SECONDS));
 }
 
 export async function readForumSessionCookie(): Promise<string | undefined> {
   return (await cookies()).get(FORUM_COOKIE_NAME)?.value;
 }
 
+/** Logout: expires the cookie and the legacy `/foro` one, so a browser that still has it cannot come back signed in. */
 export async function clearForumSessionCookie(): Promise<void> {
-  (await cookies()).set(FORUM_COOKIE_NAME, "", { httpOnly: true, secure: secure(), sameSite: "lax", path: FORUM_COOKIE_PATH, maxAge: 0 });
+  const jar = await cookies();
+
+  jar.set(FORUM_COOKIE_NAME, "", forumCookieOptions(FORUM_COOKIE_PATH, 0));
+  jar.set(LEGACY_FORUM_COOKIE_NAME, "", forumCookieOptions(LEGACY_FORUM_COOKIE_PATH, 0));
 }
 
 export async function setForumOAuthStateCookie(sealed: string): Promise<void> {

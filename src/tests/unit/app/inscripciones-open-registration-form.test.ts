@@ -6,7 +6,7 @@ const { routerMock, widgetMock } = vi.hoisted(() => ({ routerMock: { push: vi.fn
 
 vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
 // The real widget loads Cloudflare's script; the stub hands the form a token on click and records its resets.
-vi.mock("../../../../app/foro/eventos/[slug]/turnstile-widget", () => ({
+vi.mock("../../../../app/inscripciones/[slug]/turnstile-widget", () => ({
   TurnstileWidget: (props: { onToken: (token: string | null) => void; onError: () => void; resetCount: number }) => {
     widgetMock(props);
 
@@ -19,7 +19,7 @@ vi.mock("../../../../app/foro/eventos/[slug]/turnstile-widget", () => ({
   },
 }));
 
-import { OpenRegistrationForm } from "../../../../app/foro/eventos/[slug]/open-registration-form";
+import { OpenRegistrationForm } from "../../../../app/inscripciones/[slug]/open-registration-form";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
 const PRIVACY = "Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.";

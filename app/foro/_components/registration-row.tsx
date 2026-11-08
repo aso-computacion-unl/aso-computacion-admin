@@ -18,7 +18,7 @@ export function RegistrationRow({ event }: { event: OpenUnlEvent }) {
   return (
     <li>
       <Link
-        href={`/foro/eventos/${event.slug}`}
+        href={`/inscripciones/${event.slug}`}
         className="thread-cols group gap-y-0.5 py-3.5 transition-colors hover:bg-card focus-visible:-outline-offset-3 xl:py-4 2xl:py-5"
       >
         <span className="relative z-10 row-span-2 h-6 self-start rounded-full bg-background pt-0.5 text-sky transition-colors group-hover:bg-card">

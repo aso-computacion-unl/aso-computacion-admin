@@ -4,6 +4,8 @@ export const FORUM_HOME_PATH = "/foro";
 export const FORUM_RETURN_PATH_MAX_LENGTH = 512;
 
 const FORUM_AUTH_PATH = "/foro/auth";
+/** The event registration page lives outside the forum but signs in through it, so a sign-in may return there. */
+const REGISTRATION_PATH = "/inscripciones";
 // Never resolved against a real host: only here to let the URL parser do the dot-segment normalization.
 const PROBE_ORIGIN = "https://forum.invalid";
 
@@ -13,16 +15,16 @@ const PROBE_ORIGIN = "https://forum.invalid";
 const FORBIDDEN = /[\u0000-\u0020\u007f\\]|\/\/|%(?:2f|5c|25|[01][0-9a-f]|7f)/i;
 
 /**
- * The same-origin forum path a sign-in may return to, normalized, or null for anything else (the caller
- * falls back to the forum landing; a bad value is never an error). Only `/foro` and `/foro/**` pass, never
- * the forum's own auth routes, so the value is safe to put in a redirect.
+ * The same-origin path a sign-in may return to, normalized, or null for anything else (the caller falls back
+ * to the forum landing; a bad value is never an error). Only `/foro` and `/foro/**` pass (never the forum's own
+ * auth routes), and `/inscripciones/<slug>`, the event registration page; so the value is safe to put in a redirect.
  */
 export function parseForumReturnPath(value: string | null | undefined): string | null {
   if (!value || value.length > FORUM_RETURN_PATH_MAX_LENGTH || FORBIDDEN.test(value)) {
     return null;
   }
 
-  if (value !== FORUM_HOME_PATH && !value.startsWith(`${FORUM_HOME_PATH}/`)) {
+  if (value !== FORUM_HOME_PATH && !value.startsWith(`${FORUM_HOME_PATH}/`) && !value.startsWith(`${REGISTRATION_PATH}/`)) {
     return null;
   }
 
@@ -36,10 +38,12 @@ export function parseForumReturnPath(value: string | null | undefined): string |
 
   const { pathname } = url;
   const inForum = pathname === FORUM_HOME_PATH || pathname.startsWith(`${FORUM_HOME_PATH}/`);
+  // An event page needs a slug: the bare `/inscripciones/` is not a page.
+  const inRegistration = pathname.startsWith(`${REGISTRATION_PATH}/`) && pathname.length > REGISTRATION_PATH.length + 1;
   const lowered = pathname.toLowerCase();
   const inAuth = lowered === FORUM_AUTH_PATH || lowered.startsWith(`${FORUM_AUTH_PATH}/`);
 
-  if (url.origin !== PROBE_ORIGIN || !inForum || inAuth || pathname.includes("//")) {
+  if (url.origin !== PROBE_ORIGIN || !(inForum || inRegistration) || inAuth || pathname.includes("//")) {
     return null;
   }
 

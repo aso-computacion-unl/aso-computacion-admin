@@ -652,7 +652,7 @@ paths:
           in: query
           required: false
           description: |
-            Ruta del foro a la que volver. Solo se acepta `/foro` o `/foro/**` (hasta 512 caracteres, sin `//`,
+            Ruta a la que volver. Solo se acepta `/foro`, `/foro/**` o `/inscripciones/<slug>` (la página de inscripción a un evento) (hasta 512 caracteres, sin `//`,
             contrabarras, espacios ni caracteres de control, y nunca `/foro/auth/**`). Cualquier otro valor se
             ignora sin error.
           schema: { type: string, maxLength: 512 }
@@ -674,7 +674,7 @@ paths:
       summary: Termina el inicio de sesión del foro con Google
       description: |
         Consume la cookie de flujo `forum_oauth_state` (una URL de callback no se puede reutilizar), compara los
-        `state`, intercambia el código y abre la sesión del foro (cookie `forum_session`, ruta `/foro`). Solo
+        `state`, intercambia el código y abre la sesión del foro (cookie `forum_sid`, ruta `/`). Solo
         entran estudiantes con cuenta del dominio institucional. El `next` de la URL del callback nunca se lee:
         solo cuenta el sellado en la cookie, que se valida otra vez.
         Es una navegación del navegador: no se puede probar desde «Try it out».
@@ -707,7 +707,7 @@ paths:
               schema: { type: string }
             Set-Cookie:
               schema: { type: string }
-              description: Cookie `forum_session` en el éxito; la cookie `forum_oauth_state` se borra siempre.
+              description: Cookie `forum_sid` en el éxito; la cookie `forum_oauth_state` se borra siempre.
             Cache-Control:
               schema: { type: string, const: no-store }
 

@@ -5,14 +5,14 @@ import { matcherCovers } from "./support";
 
 describe("middleware matcher: public routes", () => {
   it("PUB-MW: the matcher is exactly the protected paths, the dynamic public prefixes and the backslash paths", () => {
-    expect(config.matcher).toEqual(["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"]);
+    expect(config.matcher).toEqual(["/", "/admin/:path*", "/foro", "/foro/:path+", "/inscripciones/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"]);
   });
 
   it.each(["/api/health", "/api/public/events", "/api/public/site", "/api/public/content"])("PUB-MW: matcher does not intercept %s", (path) => {
     expect(matcherCovers(config.matcher, path)).toBe(false);
   });
 
-  it.each(["/foro", "/foro/", "/invitacion", "/login", "/auth/google/start", "/api/cron/scheduled-rebuild", "/_next/static/chunk.js", "/favicon.ico"])(
+  it.each(["/foro/", "/invitacion", "/inscripciones", "/login", "/auth/google/start", "/api/cron/scheduled-rebuild", "/_next/static/chunk.js", "/favicon.ico"])(
     "PUB-MW: matcher leaves %s alone",
     (path) => {
       expect(matcherCovers(config.matcher, path)).toBe(false);
@@ -20,7 +20,9 @@ describe("middleware matcher: public routes", () => {
   );
 
   it.each([
+    "/foro",
     "/foro/eventos/x",
+    "/inscripciones/x",
     "/foro/hilo/x",
     "/foro/c/x/nuevo",
     "/invitacion/x",
@@ -42,7 +44,7 @@ describe("middleware matcher: public routes", () => {
     },
   );
 
-  it.each(["/%2561dmin", "/%255Cadmin", "/foro", "/login", "/administrator", "/api/health"])("PUB-MW: the backslash entry does not widen the matcher to %s", (path) => {
+  it.each(["/%2561dmin", "/%255Cadmin", "/login", "/administrator", "/api/health"])("PUB-MW: the backslash entry does not widen the matcher to %s", (path) => {
     expect(matcherCovers(config.matcher, path)).toBe(false);
   });
 });

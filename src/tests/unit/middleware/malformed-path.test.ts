@@ -6,12 +6,14 @@ import { TEST_SECRET, buildRequest, signTestToken } from "./support";
 let proxy: typeof import("../../../../proxy").proxy;
 
 // `new URL()` keeps a malformed percent escape as written, which is what Next hands the middleware.
-const MALFORMED_PAGES = ["/foro/eventos/%E0%A4%A", "/foro/hilo/%E0%A4%A", "/foro/c/%E0%A4%A/nuevo", "/invitacion/%E0%A4%A", "/admin/events/%E0%A4%A/edit", "/admin/%"];
+const MALFORMED_PAGES = ["/foro/eventos/%E0%A4%A", "/inscripciones/%E0%A4%A", "/foro/hilo/%E0%A4%A", "/foro/c/%E0%A4%A/nuevo", "/invitacion/%E0%A4%A", "/admin/events/%E0%A4%A/edit", "/admin/%"];
 const MALFORMED_API = ["/api/public/events/%E0%A4%A/calendar.ics", "/api/public/events/%E0%A4%A/registrations", "/api/admin/%E0%A4%A"];
 const WELL_FORMED_PUBLIC = [
   "/foro",
   "/foro/eventos/x",
   "/foro/eventos/a%20b",
+  "/inscripciones/x",
+  "/inscripciones/a%20b",
   "/foro/hilo/x",
   "/foro/c/x/nuevo",
   "/invitacion/x",

@@ -89,7 +89,7 @@ describe("public API: event registration, calendar and structured data (additive
       mode: "unl",
       capacity: 40,
       deadline: "2026-11-27T23:00:00.000Z",
-      url: `${ORIGIN}/foro/eventos/hackaton`,
+      url: `${ORIGIN}/inscripciones/hackaton`,
       endpoint: null,
     });
   });
@@ -106,7 +106,7 @@ describe("public API: event registration, calendar and structured data (additive
 
   it("gives the structured data the landing needs for a schema.org Event, with the registration link only when this admin hosts it", () => {
     expect(event().structuredData).toEqual({ startDate: "2026-11-28T09:00:00-05:00", endDate: "2026-11-28T17:00:00-05:00", location: "Lab 2", registrationUrl: null });
-    expect(event({ registrationMode: "unl" }).structuredData?.registrationUrl).toBe(`${ORIGIN}/foro/eventos/hackaton`);
+    expect(event({ registrationMode: "unl" }).structuredData?.registrationUrl).toBe(`${ORIGIN}/inscripciones/hackaton`);
     expect(event({ hora: null, lugar: null }).structuredData).toEqual({ startDate: "2026-11-28", endDate: null, location: null, registrationUrl: null });
   });
 

@@ -66,9 +66,9 @@ describe("buildEventIcs", () => {
   });
 
   it("carries the registration link when there is one, and nothing about who registered", () => {
-    const ics = buildEventIcs(event(), { url: "https://admin.example/foro/eventos/taller-de-git" })!;
+    const ics = buildEventIcs(event(), { url: "https://admin.example/inscripciones/taller-de-git" })!;
 
-    expect(unfolded(ics)).toContain("URL:https://admin.example/foro/eventos/taller-de-git");
+    expect(unfolded(ics)).toContain("URL:https://admin.example/inscripciones/taller-de-git");
     expect(ics).not.toMatch(/ATTENDEE|ORGANIZER|@unl\.edu\.ec|mailto:/i);
   });
 

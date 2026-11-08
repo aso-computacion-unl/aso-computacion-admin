@@ -165,5 +165,5 @@ test("the seats endpoint counts a registrable event for anyone, and the admin ov
 });
 
 test("the UNL-account registration page answers 404 for an unknown event", async ({ request }) => {
-  expect((await request.get("/foro/eventos/no-existe")).status()).toBe(404);
+  expect((await request.get("/inscripciones/no-existe")).status()).toBe(404);
 });

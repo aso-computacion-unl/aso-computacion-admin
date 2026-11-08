@@ -35,7 +35,7 @@ export async function registerForEvent(slug: string): Promise<ForumActionResult>
       return { error: REFUSAL_MESSAGES[outcome.status] };
     }
 
-    revalidatePath(`/foro/eventos/${slug}`);
+    revalidatePath(`/inscripciones/${slug}`);
 
     return { success: true };
   } catch (error) {

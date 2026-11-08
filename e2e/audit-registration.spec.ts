@@ -117,7 +117,7 @@ test.describe("the public event page", () => {
     const event = await seedEvent("pagina", { registrationCapacity: 30, description: "Primera línea\nSegunda línea" });
     const problems = watch(page);
 
-    const response = await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    const response = await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
 
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: event.title })).toBeVisible();
@@ -129,6 +129,13 @@ test.describe("the public event page", () => {
     expect(problems).toEqual([]);
   });
 
+  test("the old /foro/eventos/<slug> address is a permanent redirect that keeps the query string", async ({ request }) => {
+    const response = await request.get("/foro/eventos/algun-evento?utm_source=landing&y=1", { maxRedirects: 0 });
+
+    expect(response.status()).toBe(308);
+    expect(new URL(response.headers().location ?? "", "http://127.0.0.1").pathname + new URL(response.headers().location ?? "", "http://127.0.0.1").search).toBe("/inscripciones/algun-evento?utm_source=landing&y=1");
+  });
+
   test("an unknown, malformed, hidden or trashed event is a 404, never a 500", async ({ request }) => {
     const draft = await seedEvent("borrador", { isPublished: false });
     const scheduled = await seedEvent("programado", { publishAt: new Date(Date.now() + 86_400_000) });
@@ -136,10 +143,11 @@ test.describe("the public event page", () => {
     const trashed = await seedEvent("papelera", { deletedAt: new Date() });
 
     // A malformed percent sequence never reaches the page: the framework itself answers 400.
+    expect((await request.get("/inscripciones/%E0%A4%A")).status()).toBe(400);
     expect((await request.get("/foro/eventos/%E0%A4%A")).status()).toBe(400);
 
     for (const slug of [draft.slug, scheduled.slug, retired.slug, trashed.slug, "no-existe", "UPPER-Case", "%00", "a%20b", "..%2F..%2Fetc", "a".repeat(3000), "-", "x".repeat(200)]) {
-      expect((await request.get(`/foro/eventos/${slug}`)).status(), slug.slice(0, 40)).toBe(404);
+      expect((await request.get(`/inscripciones/${slug}`)).status(), slug.slice(0, 40)).toBe(404);
     }
   });
 
@@ -151,7 +159,7 @@ test.describe("the public event page", () => {
     const undated = await seedEvent("sinfecha", { date: null });
 
     for (const event of [todays, monthly, undated]) {
-      await page.goto(`/foro/eventos/${event.slug}`);
+      await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByText("Inscripciones abiertas"), event.slug).toBeVisible();
       await expect(page.getByRole("button", { name: "Inscribirme" }), event.slug).toBeVisible();
     }
@@ -167,24 +175,24 @@ test.describe("the public event page", () => {
     await prisma.eventRegistration.create({ data: { id: `${full.id}-r`, eventId: full.id, mode: "open", name: "Eva Mora", email: "eva@example.com", career: "Computación", semester: 3 } });
 
     for (const event of [past, deadline]) {
-      await page.goto(`/foro/eventos/${event.slug}`);
+      await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByText("Inscripciones cerradas"), event.slug).toBeVisible();
       await expect(page.getByText("Las inscripciones de este evento ya cerraron."), event.slug).toBeVisible();
       await expect(page.getByRole("button", { name: "Inscribirme" }), event.slug).toHaveCount(0);
       await expect(page.getByText("Inscripciones hasta"), event.slug).toHaveCount(0);
     }
 
-    await page.goto(`/foro/eventos/${future.slug}`);
+    await page.goto(`/inscripciones/${future.slug}`);
     await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
     await expect(page.getByText("Inscripciones hasta")).toBeVisible();
 
-    await page.goto(`/foro/eventos/${full.slug}`);
+    await page.goto(`/inscripciones/${full.slug}`);
     await expect(page.getByText("Cupos agotados")).toBeVisible();
     await expect(page.getByText("Quedan 0 de 1 cupos")).toBeVisible();
     await expect(page.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
 
     // No limit: no seat counter at all.
-    await page.goto(`/foro/eventos/${open.slug}`);
+    await page.goto(`/inscripciones/${open.slug}`);
     await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
     await expect(page.getByText(/cupos$/)).toHaveCount(0);
   });
@@ -194,11 +202,11 @@ test.describe("the public event page", () => {
     const unl = await seedEvent("unl", { registrationMode: "unl" });
     const problems = watch(page);
 
-    await page.goto(`/foro/eventos/${none.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${none.slug}`, { waitUntil: "networkidle" });
     await expect(page.getByText("Este evento es de pase libre: no necesitas inscribirte, solo llegar.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
 
-    await page.goto(`/foro/eventos/${unl.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${unl.slug}`, { waitUntil: "networkidle" });
     await expect(page.getByRole("link", { name: /Entrar con Google/ })).toBeVisible();
     expect(problems).toEqual([]);
 
@@ -228,10 +236,10 @@ test.describe("the public event page", () => {
       .setExpirationTime(issued + 3600)
       .sign(new TextEncoder().encode(FORUM_SECRET));
 
-    await context.addCookies([{ name: "forum_session", value: token, domain: "127.0.0.1", path: "/foro" }]);
+    await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
 
     try {
-      await page.goto(`/foro/eventos/${event.slug}`);
+      await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByRole("complementary", { name: "Inscripción" }).getByText("Lucía Ñ.")).toBeVisible();
       await page.getByRole("button", { name: "Inscribirme" }).click();
       await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
@@ -243,7 +251,7 @@ test.describe("the public event page", () => {
       await expect(page.getByText(event.title)).toBeVisible();
 
       // Coming back never registers twice.
-      await page.goto(`/foro/eventos/${event.slug}`);
+      await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
       expect(await registrations(event)).toHaveLength(1);
     } finally {
@@ -263,7 +271,7 @@ test.describe("the open form in the browser", () => {
 
       return route.abort();
     });
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
 
     const submit = page.getByRole("button", { name: "Inscribirme" });
 
@@ -304,7 +312,7 @@ test.describe("the open form in the browser", () => {
     const event = await seedEvent("exito", { registrationCapacity: 3 });
 
     await actAsWidget(page);
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: "  JOSÉ.Ñandú@Exámple.COM ", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
     await page.getByRole("button", { name: "Inscribirme" }).click();
 
@@ -325,12 +333,12 @@ test.describe("the open form in the browser", () => {
     const event = await seedEvent("duplicado");
 
     await actAsWidget(page);
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
     await page.getByRole("button", { name: "Inscribirme" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
 
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page, { name: "Otra Persona", email: " ANA@Example.com " });
     await page.getByRole("button", { name: "Inscribirme" }).click();
     await expect(page.getByLabel("Correo")).toHaveAttribute("aria-invalid", "true");
@@ -352,7 +360,7 @@ test.describe("the open form in the browser", () => {
 
       return route.fallback();
     });
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
 
     const submit = page.getByRole("button", { name: /Inscribirme|Enviando/ });
@@ -370,15 +378,15 @@ test.describe("the open form in the browser", () => {
     const event = await seedEvent("ultimo", { registrationCapacity: 1 });
 
     await actAsWidget(page);
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await expect(page.getByText("Queda 1 de 1 cupos")).toBeVisible();
 
     // Another visitor loaded the form before the seat was taken.
-    const late = await browser.newContext({ baseURL: page.url().split("/foro")[0], extraHTTPHeaders: { "x-real-ip": nextIp() } });
+    const late = await browser.newContext({ baseURL: new URL(page.url()).origin, extraHTTPHeaders: { "x-real-ip": nextIp() } });
     const latePage = await late.newPage();
 
     await actAsWidget(latePage);
-    await latePage.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await latePage.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
     await page.getByRole("button", { name: "Inscribirme" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Quedaste inscrito" })).toBeVisible();
@@ -396,7 +404,7 @@ test.describe("the open form in the browser", () => {
   test("when registration closes while the form is open, the form gives way to the state; a network failure keeps the data", async ({ page }) => {
     const event = await seedEvent("cierra");
 
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page);
     await page.route(OPEN_ENDPOINT, (route) => route.abort("connectionrefused"), { times: 1 });
     await page.getByRole("button", { name: "Inscribirme" }).click();
@@ -415,7 +423,7 @@ test.describe("the open form in the browser", () => {
 
     const event = await seedEvent("sinwidget");
 
-    await page.goto(`/foro/eventos/${event.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     // Without a site key there is no widget to complete, so the page does not ask for data it cannot send.
     await expect(page.getByText("La inscripción no está disponible en este momento.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Inscribirme" })).toHaveCount(0);
@@ -427,7 +435,7 @@ test.describe("the open form in the browser", () => {
 
     for (const viewport of [{ width: 320, height: 640 }, { width: 640, height: 360 }]) {
       await page.setViewportSize(viewport);
-      await page.goto(`/foro/eventos/${event.slug}`);
+      await page.goto(`/inscripciones/${event.slug}`);
       await expect(page.getByRole("button", { name: "Inscribirme" })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${viewport.width}px`).toBe(true);
     }

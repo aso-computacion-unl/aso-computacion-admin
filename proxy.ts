@@ -8,6 +8,7 @@ import {
   SessionSecretError,
   verifySession,
 } from "@/infrastructure/auth/session-jwt";
+import { migrateLegacyForumCookie } from "@/interface/forum/migrate-legacy-forum-cookie";
 
 function isApiRequest(request: NextRequest): boolean {
   return request.nextUrl.pathname.startsWith("/api/");
@@ -28,6 +29,11 @@ function normalizePath(pathname: string): string {
 
 function isProtectedPath(pathname: string): boolean {
   return isProtectedPathname(normalizePath(pathname)) || isProtectedPathname(normalizePath(decodeURIComponent(pathname)));
+}
+
+// The forum and the event registration page share the forum session cookie, which moved from `/foro` to `/`.
+function sharesForumSession(pathname: string): boolean {
+  return pathname === "/foro" || pathname.startsWith("/foro/") || pathname.startsWith("/inscripciones/");
 }
 
 function isDecodablePath(pathname: string): boolean {
@@ -84,7 +90,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   if (!isProtectedPath(pathname)) {
-    return NextResponse.next();
+    return sharesForumSession(pathname) ? migrateLegacyForumCookie(request) : NextResponse.next();
   }
 
   try {
@@ -126,13 +132,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 // The matcher is an allowlist: a new protected route or admin API is NOT
 // guarded until its path is added here AND `isProtectedPath` accepts it.
-// It also lists the dynamic public prefixes (`/foro`, `/invitacion`,
-// `/api/public/events`), but only for the undecodable-path check above: auth
-// is decided by `isProtectedPath`, so those requests pass through untouched.
+// It also lists the public prefixes (`/foro`, `/inscripciones`, `/invitacion`,
+// `/api/public/events`), but only for the undecodable-path check above and, for
+// the first two, the move of the forum session cookie: auth is decided by
+// `isProtectedPath`, so those requests are never guarded.
 // `/login`, `/api/health` and `/api/public/content` stay outside it.
 // The last entry sends every path with an encoded (`%5C`) or literal backslash to the proxy: Next 16 reads a
 // decoded backslash as a slash, but none of the other entries match `/%5Cadmin`, so without it the session check
 // would be skipped for those spellings of `/` and `/admin`.
 export const config = {
-  matcher: ["/", "/admin/:path*", "/foro/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"],
+  matcher: ["/", "/admin/:path*", "/foro", "/foro/:path+", "/inscripciones/:path+", "/invitacion/:path+", "/api/public/events/:path+", "/(.*(?:%5[Cc]|\\\\).*)"],
 };

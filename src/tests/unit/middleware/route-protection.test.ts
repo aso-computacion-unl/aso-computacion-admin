@@ -13,15 +13,16 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 // The forum is a separate zone with its own session (`forum_session`, own secret, own guard): its pages and
 // its two Google routes are outside the admin middleware on purpose, and its guard fails closed. Every page
 // of the student screens (`requireForumPageMember`) sends a visitor to the sign-in at `/foro`.
-// `/foro/eventos/<slug>` is the UNL-account event registration page: it shows the event's registration state to
-// anyone, and its action only works for a signed-in forum member (the forum guard, never the admin one).
 // `/foro/x` stands for the catch-all that answers an unknown forum address with the forum's own 404 (it shows no data).
 // `/foro/eventos` lists the events open for registration: a student screen like the home, so a visitor without a
 // forum session gets the same sign-in gate and no event.
-const FORUM_ROUTES = ["/foro", "/foro/x", "/foro/c/x", "/foro/c/x/nuevo", "/foro/hilo/x", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos", "/foro/eventos/x"];
+const FORUM_ROUTES = ["/foro", "/foro/x", "/foro/c/x", "/foro/c/x/nuevo", "/foro/hilo/x", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos"];
+// `/inscripciones/<slug>` is the event registration page, outside the forum: it shows the event's registration state to
+// anyone (open form, pase libre or the UNL sign-in), and its UNL action only works for a signed-in forum member (the
+// forum guard, never the admin one). The old `/foro/eventos/<slug>` is a redirect in next.config.ts, not a route.
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
-const PUBLIC_ROUTES: string[] = ["/login", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
+const PUBLIC_ROUTES: string[] = ["/login", "/inscripciones/x", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
 // The open-form event registration is public by design: Turnstile, a strict rate limit and the atomic use case are its guards.
 // The `.ics` download is public read-only data of a published event, with no personal data.
 // `/api/public/events/seats` is public read-only counts (slug, capacity, registered, seats left): no personal data.
@@ -72,11 +73,11 @@ describe("route protection", () => {
     }
   });
 
-  it("the matcher reaches a public route only for the undecodable-path check: the dynamic forum, invitation and public event routes", () => {
+  it("the matcher reaches a public route only for the undecodable-path check (and the forum cookie migration): the dynamic forum, registration, invitation and public event routes", () => {
     const covered = PUBLIC_ROUTES.filter((route) => matcherCovers(config.matcher, route));
 
     expect(covered.length).toBeGreaterThan(0);
-    for (const route of covered) expect(/^\/(foro\/|invitacion\/|api\/public\/events\/)/.test(route), route).toBe(true);
+    for (const route of covered) expect(/^\/(foro(\/|$)|inscripciones\/|invitacion\/|api\/public\/events\/)/.test(route), route).toBe(true);
   });
 
   it("no public route lives under /admin or hides behind an admin-looking prefix", () => {

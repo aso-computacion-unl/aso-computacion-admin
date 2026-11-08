@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -7,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 
-import { GoogleButton } from "../../../_components/google-button";
+import { GoogleButton } from "../../_components/google-button";
 import { EventSummary } from "./event-summary";
 import { OpenRegistrationForm } from "./open-registration-form";
 import { RegisterButton } from "./register-button";
@@ -28,7 +27,7 @@ const CLOSED_MESSAGES = {
 /** The page's two nodes on one branch: the event, then what the visitor can do about it (the sign-in's idiom). */
 function Branch({ event, action, hash }: { event: ReactNode; action: ReactNode; hash: string }) {
   return (
-    <ol className="reg-branch mt-3">
+    <ol className="reg-branch">
       <li>
         <span aria-hidden="true" className="mb-2 block font-mono text-sm text-sky">
           evento
@@ -62,17 +61,9 @@ export default async function EventRegistrationPage({ params }: { params: Promis
 
   if (!page) notFound();
 
-  const back = (
-    <Link href="/foro" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-mist hover:text-foreground">
-      <Icon name="left" className="size-4" />
-      Foro
-    </Link>
-  );
-
   if (page.kind === "none") {
     return (
       <>
-        {back}
         <Branch
           hash="pase-libre"
           event={<EventSummary event={page.event} eyebrow="Evento" />}
@@ -93,7 +84,6 @@ export default async function EventRegistrationPage({ params }: { params: Promis
   if (page.kind === "open") {
     return (
       <>
-        {back}
         <Branch
           hash="inscripcion"
           event={summary}
@@ -120,11 +110,11 @@ export default async function EventRegistrationPage({ params }: { params: Promis
   }
 
   const { member } = page;
-  const signIn = `/foro/auth/google/start?next=${encodeURIComponent(`/foro/eventos/${slug}`)}`;
+  // The Google sign-in is the forum's (one identity for both); it brings the visitor back to this page.
+  const signIn = `/foro/auth/google/start?next=${encodeURIComponent(`/inscripciones/${slug}`)}`;
 
   return (
     <>
-      {back}
       <Branch
         hash="inscripcion"
         event={summary}
@@ -150,7 +140,7 @@ export default async function EventRegistrationPage({ params }: { params: Promis
                   La inscripción es con su cuenta institucional de Google <strong className="font-semibold">@unl.edu.ec</strong>. Al entrar volverá a esta página para confirmarla.
                 </p>
                 <GoogleButton href={signIn}>Entrar con Google</GoogleButton>
-                <p className="text-sm text-mist">La primera vez se crea su cuenta del foro: no hay que registrarse aparte.</p>
+                <p className="text-sm text-mist">La primera vez se crea su cuenta sola: no hay que registrarse aparte.</p>
               </>
             )}
           </aside>

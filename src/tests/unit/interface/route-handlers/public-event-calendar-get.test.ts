@@ -49,7 +49,7 @@ describe("GET /api/public/events/[slug]/calendar.ics", () => {
     expect(cookiesMock).not.toHaveBeenCalled();
     expect(body).toContain("SUMMARY:Taller de Git");
     expect(body).toContain("DTSTART:20991128T140000Z");
-    expect(body).toContain("URL:https://admin.example/foro/eventos/taller-de-git");
+    expect(body).toContain("URL:https://admin.example/inscripciones/taller-de-git");
   });
 
   it("contains no personal data even when people have registered", async () => {

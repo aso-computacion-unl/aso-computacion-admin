@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { hideMock, lockMock, suspendMock, hideReplyMock, closeMock } = vi.hoisted(() => ({
@@ -19,6 +20,7 @@ vi.mock("@/interface/admin/forum/moderation-actions", () => ({
   closeForumReport: closeMock,
 }));
 
+import { Icon } from "@/components/icons";
 import { ReportActions } from "../../../../app/admin/foro/reportes/_components/report-controls";
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
@@ -120,6 +122,28 @@ describe("the report actions", () => {
 
     expect(suspendMock).toHaveBeenCalledWith("m1", true);
     expect(document.body.textContent).toContain("Cuenta suspendida y sesiones cerradas.");
+  });
+
+  it("mark Suspender… with a lock, not the trash can that means moving to the papelera", async () => {
+    const host = await mountControls();
+    const iconPath = (name: "lock" | "trash") => /<path d="([^"]+)"/.exec(renderToStaticMarkup(createElement(Icon, { name })))![1];
+    const trigger = controls(host, "Suspender…").querySelector("svg path")!.getAttribute("d");
+
+    expect(trigger).toBe(iconPath("lock"));
+    expect(trigger).not.toBe(iconPath("trash"));
+  });
+
+  it("keep the confirmation of Suspender… as a labelled group that can be declined", async () => {
+    const host = await mountControls();
+
+    await click(controls(host, "Suspender…"));
+
+    expect(host.querySelector('[role="group"][aria-label="Confirmar: suspender… Ana"]')?.textContent).toContain("«Ana» ya no podrá publicar");
+
+    await click(controls(host, "No, conservar"));
+
+    expect(controls(host, "Suspender…")).toBeDefined();
+    expect(suspendMock).not.toHaveBeenCalled();
   });
 
   it("reactivate a suspended account, and reopen a locked thread", async () => {

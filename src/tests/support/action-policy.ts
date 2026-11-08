@@ -96,9 +96,6 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     // Drag and drop is the single-step move with a destination: an editor may reorder, audited as `<kind>.move`.
     reorderContent: { role: "EDITOR", audit: "faq.move" },
   },
-  "src/interface/admin/preview/actions.ts": {
-    createPreviewToken: { role: "EDITOR", audit: "preview.token_create" },
-  },
   "src/interface/admin/settings/actions.ts": {
     updateSiteSettings: { role: "ADMIN", audit: "settings.update" },
   },

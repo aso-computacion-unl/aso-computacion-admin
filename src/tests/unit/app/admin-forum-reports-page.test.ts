@@ -149,6 +149,20 @@ describe("the forum report queue page", () => {
     expect(html).not.toContain("de 0");
   });
 
+  it("lands on the empty state, at any position, once the last open report is closed", async () => {
+    addReports(2);
+    testForum.store.reports.get("p0")!.status = "RESOLVED";
+    testForum.store.reports.get("p1")!.status = "DISMISSED";
+
+    for (const n of ["1", "2", "999"]) {
+      const html = await render({ n });
+
+      expect(html).toContain("No hay reportes abiertos");
+      expect(html).not.toContain("Motivo");
+      expect(html).not.toContain("Marcar como resuelto");
+    }
+  });
+
   it("counts both queues in the tabs", async () => {
     addReports(2);
     testForum.store.reports.set("c1", makeForumReport({ id: "c1", reporterId: "m2", threadId: "t1", status: "DISMISSED", resolvedAt: new Date(), resolvedBy: "u1" }));

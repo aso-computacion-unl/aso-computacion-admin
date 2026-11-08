@@ -31,11 +31,12 @@ const answer = (status: number, body: unknown, headers: Record<string, string> =
 const control = <T extends HTMLElement>(host: HTMLElement, selector: string) => host.querySelector<T>(selector)!;
 const submit = (host: HTMLElement) => control<HTMLButtonElement>(host, 'button[type="submit"]');
 
-async function fill(host: HTMLElement, values: Partial<Record<"name" | "email" | "career" | "semester", string>> = {}) {
-  const all = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: "5", ...values };
+async function fill(host: HTMLElement, values: Partial<Record<"name" | "email" | "institution" | "career" | "semester", string>> = {}) {
+  const all = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: "5", ...values };
 
   await typeInto(control(host, 'input[name="name"]'), all.name);
   await typeInto(control(host, 'input[name="email"]'), all.email);
+  await typeInto(control(host, 'input[name="institution"]'), all.institution);
   await typeInto(control(host, 'input[name="career"]'), all.career);
   await act(() => {
     const select = control<HTMLSelectElement>(host, 'select[name="semester"]');
@@ -66,10 +67,10 @@ afterEach(async () => {
 });
 
 describe("the open registration form", () => {
-  it("asks for name, email, career and semester with labels, comfortable targets and the privacy note", async () => {
+  it("asks for name, email, institution and, optionally, career and semester with labels, comfortable targets and the privacy note", async () => {
     const host = await open();
 
-    for (const label of ["Nombre completo", "Correo", "Carrera", "Ciclo"]) {
+    for (const label of ["Nombre completo", "Correo", "Institución", "Carrera (opcional)", "Ciclo (opcional)"]) {
       expect([...host.querySelectorAll("label")].map((entry) => entry.textContent)).toContain(label);
     }
 
@@ -90,13 +91,15 @@ describe("the open registration form", () => {
     await settle();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    for (const name of ["name", "email", "career"]) expect(control(host, `input[name="${name}"]`).getAttribute("aria-invalid")).toBe("true");
-    expect(control(host, 'select[name="semester"]').getAttribute("aria-invalid")).toBe("true");
+    for (const name of ["name", "email", "institution"]) expect(control(host, `input[name="${name}"]`).getAttribute("aria-invalid")).toBe("true");
+    // Career and semester are optional: left empty they are not flagged.
+    expect(control(host, 'input[name="career"]').getAttribute("aria-invalid")).toBeNull();
+    expect(control(host, 'select[name="semester"]').getAttribute("aria-invalid")).toBeNull();
     expect(document.activeElement).toBe(control(host, 'input[name="name"]'));
     // The stylesheet sizes these icons, but the Icon's own `size-5` utility outranks a component-layer rule, so the size must be explicit.
     expect(control(host, ".ticket-error svg").getAttribute("class")).toContain("size-3.5");
     expect(host.textContent).toContain("Escribe tu nombre.");
-    expect(host.textContent).toContain("Elige tu ciclo, del 1 al 12.");
+    expect(host.textContent).toContain("Escribe tu institución.");
     expect(control(host, 'input[name="name"]').getAttribute("aria-describedby")).toBe(control(host, 'input[name="name"]').id + "-error");
   });
 
@@ -148,12 +151,23 @@ describe("the open registration form", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0]![0]).toBe("/api/public/events/taller-de-git/registrations");
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ name: "  Ana   Pérez ", email: "ANA@example.com", career: "Computación", semester: 5 });
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ name: "  Ana   Pérez ", email: "ANA@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5 });
     expect(control(host, '[role="status"]').textContent).toContain("Listo, su cupo está reservado");
     expect(control<HTMLAnchorElement>(host, `a[href="${CALENDAR}"]`).textContent).toContain("Añadir al calendario");
     expect(host.querySelector("form")).toBeNull();
     expect(routerMock.refresh).toHaveBeenCalledOnce();
     expect(document.activeElement).toBe(control(host, '[role="status"]'));
+  });
+
+  it("sends a form with only name, email and institution: career and semester are optional", async () => {
+    answer(201, { ok: true });
+    const host = await open();
+
+    await fill(host, { career: "", semester: "" });
+    await click(submit(host));
+    await settle();
+
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja" });
   });
 
   it("leaves the calendar out of the confirmation when the event has no exact upcoming day", async () => {

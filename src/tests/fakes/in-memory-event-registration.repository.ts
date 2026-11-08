@@ -1,10 +1,11 @@
 import type {
+  ConfirmOutcome,
   EventRegistrationRecord,
   EventRegistrationRepository,
   NewEventRegistration,
   RegisterOutcome,
 } from "@/application/ports/event-registration-repository.port";
-import { registrationRefusal } from "@/domain/event-registration";
+import { isConfirmationExpired, registrationRefusal } from "@/domain/event-registration";
 
 import type { InMemoryEventRepository } from "./in-memory-event.repository";
 
@@ -22,9 +23,12 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     return [...this.rows];
   }
 
-  /** Stores a row as is, bypassing the registration rules: for tests that need people registered for past events. */
-  seed(row: EventRegistrationRecord): void {
-    this.rows.push(row);
+  /**
+   * Stores a row as is, bypassing the registration rules: for tests that need people registered for past events.
+   * Unless told otherwise the row is a confirmed seat (confirmed when created), outside the UNL-free fields.
+   */
+  seed(row: Omit<EventRegistrationRecord, "institution" | "confirmedAt" | "reminderSentAt"> & Partial<EventRegistrationRecord>): void {
+    this.rows.push({ institution: null, confirmedAt: row.createdAt, reminderSentAt: null, ...row });
   }
 
   async register(input: NewEventRegistration, now: Date): Promise<RegisterOutcome> {
@@ -46,25 +50,70 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
       return { status: refusal };
     }
 
-    const registration = { ...input, createdAt: now };
+    const pending = this.rows.findIndex((row) => row.eventId === input.eventId && row.email === input.email);
+    const registration: EventRegistrationRecord = { ...input, createdAt: now, reminderSentAt: null };
 
-    this.rows.push(registration);
+    if (pending === -1) {
+      this.rows.push(registration);
 
-    return { status: "registered", registration };
+      return { status: "registered", registration };
+    }
+
+    const refreshed = { ...registration, id: this.rows[pending]!.id };
+
+    this.rows[pending] = refreshed;
+
+    return { status: "registered", registration: refreshed };
+  }
+
+  async confirm(eventId: string, id: string, now: Date): Promise<ConfirmOutcome> {
+    const event = await this.events.getById(eventId);
+    const index = this.rows.findIndex((row) => row.eventId === eventId && row.id === id);
+    const row = this.rows[index];
+
+    if (!event || !row) {
+      return { status: "invalid" };
+    }
+
+    if (row.confirmedAt) {
+      return { status: "already_confirmed", registration: row };
+    }
+
+    if (isConfirmationExpired(row.createdAt, now)) {
+      return { status: "expired" };
+    }
+
+    const refusal = registrationRefusal({ event: event.props, mode: row.mode, registered: await this.count(eventId), alreadyRegistered: false, now });
+
+    if (refusal) {
+      return { status: refusal as Exclude<typeof refusal, "duplicate"> };
+    }
+
+    const registration = { ...row, confirmedAt: now };
+
+    this.rows[index] = registration;
+
+    return { status: "confirmed", registration };
+  }
+
+  private confirmed(): EventRegistrationRecord[] {
+    return this.rows.filter((row) => row.confirmedAt !== null);
   }
 
   async list(eventId: string): Promise<EventRegistrationRecord[]> {
-    return this.rows.filter((row) => row.eventId === eventId).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return this.confirmed()
+      .filter((row) => row.eventId === eventId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
   async count(eventId: string): Promise<number> {
-    return this.rows.filter((row) => row.eventId === eventId).length;
+    return this.confirmed().filter((row) => row.eventId === eventId).length;
   }
 
   async countByEvents(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>> {
     const counts = new Map<string, number>();
 
-    for (const row of this.rows) {
+    for (const row of this.confirmed()) {
       if (eventIds.includes(row.eventId)) counts.set(row.eventId, (counts.get(row.eventId) ?? 0) + 1);
     }
 
@@ -72,7 +121,7 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
   }
 
   async exists(eventId: string, email: string): Promise<boolean> {
-    return this.rows.some((row) => row.eventId === eventId && row.email === email);
+    return this.confirmed().some((row) => row.eventId === eventId && row.email === email);
   }
 
   async delete(eventId: string, id: string): Promise<boolean> {

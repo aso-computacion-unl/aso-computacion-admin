@@ -187,7 +187,7 @@ Each event chooses its registration mode in the admin (none, UNL Google account,
 - `PUBLIC_CORS_ORIGINS` must list the landing's origin, or the browser blocks its `POST` (and the preflight).
 - `AUTH_URL` must be set: the public API builds the registration page, endpoint and calendar URLs from it (they are `null` otherwise).
 
-- **Retention.** Registrations are deleted automatically **90 days after their event ends** (the end of its date in Ecuador time, or of its month for a month-only date; undated events are never purged). Nothing to configure beyond the cron of section 6a: the same daily route runs it, and each run that deleted rows leaves one `event.registration_purge` entry in the audit log with the count only. Without `CRON_SECRET` nothing is purged. The full rule is in [REFERENCIA.md](REFERENCIA.md#event-registration).
+- **Retention.** Registrations are deleted automatically **90 days after their event ends** (the end of its date in Ecuador time, or of its month for a month-only date; undated events are never purged). Nothing to configure beyond the cron of section 6a: the same daily route runs it, and each run that deleted rows leaves one `event.registration_purge` entry in the audit log with the count only. Without `CRON_SECRET` nothing is purged. The same run also deletes the open-form registrations whose email was never confirmed once their 48 h window is over (nobody can confirm them any more); they are counted with the rest. The full rule is in [REFERENCIA.md](REFERENCIA.md#event-registration).
 
 The contract the landing codes against is in [REFERENCIA.md](REFERENCIA.md#event-registration).
 
@@ -263,6 +263,13 @@ What never leaves the server: `sendDefaultPii` is off, and a `beforeSend` scrubb
 - The login throttle lives in the database (table `LoginAttempt`), so it holds across Vercel instances. The password login and the Google callback spend the same throttle.
 - Sessions live in the `Session` table (24 h, revocable). Only a keyed hash of the client address and a shortened user agent are stored. Old rows are not purged automatically; they are small and expired ones are never listed.
 - The audit log (`AuditLog`) holds who did what to which record, by name and id: never content bodies, passwords, tokens or emails. A failure to write an entry never fails the action it describes; it is logged and reported to Sentry.
+
+### The email confirmation migration (`20261108120000_confirm_registration_email`)
+
+Additive: three nullable columns on `EventRegistration` (`institution`, `confirmedAt`, `reminderSentAt`), no table rewrite and no new table. Every registration that exists today was already a reserved seat, so the migration backfills `confirmedAt = createdAt` and each keeps counting exactly as before (their `institution` stays empty). It also adds `CHECK`s: `institution` 1 to 120 characters when present; a `unl` row has no institution and must be confirmed (Google already verified its address); `reminderSentAt` only on a confirmed row. From then on an open-form row is stored with `confirmedAt` empty and takes no seat until its email is confirmed.
+
+- Deploy order: run the migration first, then deploy the new code immediately after. In the gap the previous code still runs: a UNL registration is refused by the new `CHECK` (the person sees the generic failure and can retry once the new code is up) and an open-form one is stored unconfirmed, so it neither counts nor lists, and the purge deletes it 48 h later.
+- Rollback, only if the feature is abandoned (roll the app back first): `ALTER TABLE "EventRegistration" DROP CONSTRAINT "EventRegistration_reminder_check", DROP CONSTRAINT "EventRegistration_unl_data_check", DROP CONSTRAINT "EventRegistration_institution_check", DROP COLUMN "institution", DROP COLUMN "confirmedAt", DROP COLUMN "reminderSentAt"; ALTER TABLE "EventRegistration" ADD CONSTRAINT "EventRegistration_unl_data_check" CHECK ("mode" <> 'unl' OR ("career" IS NULL AND "semester" IS NULL)); DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261108120000_confirm_registration_email';`, with the **direct** connection string. Registrations still waiting for their email would turn into reserved seats, so delete them first: `DELETE FROM "EventRegistration" WHERE "confirmedAt" IS NULL;`.
 
 ### The event registration migration (`20261027100000_add_event_registration`)
 

@@ -15,7 +15,7 @@ import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-
 import { OPTIONS, POST } from "../../../../../app/api/public/events/[slug]/registrations/route";
 
 const LANDING = "https://aso-computacion.pages.dev";
-const FORM = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5, turnstileToken: "good-token" };
+const FORM = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, turnstileToken: "good-token" };
 
 let sequence = 0;
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -34,6 +34,12 @@ function post(body: unknown, { slug = "taller-de-git", ip, headers = {} }: { slu
 }
 
 const stored = () => testEventRegistration.registrations.all();
+/** The person opens the link sent to their email: the pending row takes its seat. */
+const confirmStored = async (index = 0) => {
+  const row = stored()[index]!;
+
+  await testEventRegistration.registrations.confirm(row.eventId, row.id, new Date());
+};
 const turnstile = (success: boolean, extra: object = {}) => fetchMock.mockImplementation(async () => new Response(JSON.stringify({ success, ...extra }), { status: 200 }));
 
 beforeEach(async () => {
@@ -61,7 +67,7 @@ describe("POST /api/public/events/[slug]/registrations", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(cookiesMock).not.toHaveBeenCalled();
     expect(response.headers.get("Set-Cookie")).toBeNull();
-    expect(stored()).toEqual([expect.objectContaining({ mode: "open", name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 })]);
+    expect(stored()).toEqual([expect.objectContaining({ mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, confirmedAt: null })]);
     expect(JSON.stringify(stored())).not.toContain("good-token");
   });
 
@@ -183,8 +189,19 @@ describe("POST /api/public/events/[slug]/registrations", () => {
   });
 
   describe("rules", () => {
-    it("answers 409 duplicate for the same email and leaves the first registration as it was", async () => {
+    it("answers 201 again for the same email while it is still pending, refreshing the same row", async () => {
       await post(FORM);
+      const [first] = stored();
+
+      const response = await post({ ...FORM, name: "Ana María", email: "ANA@example.com" });
+
+      expect(response.status).toBe(201);
+      expect(stored()).toEqual([expect.objectContaining({ id: first!.id, name: "Ana María", confirmedAt: null })]);
+    });
+
+    it("answers 409 duplicate for the same email once it is confirmed and leaves the first registration as it was", async () => {
+      await post(FORM);
+      await confirmStored();
       const [first] = stored();
 
       const response = await post({ ...FORM, name: "Otro Nombre", semester: 9, email: "ANA@example.com" });
@@ -199,6 +216,7 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       await addTestEvent({ title: "Cerrado", registrationDeadline: new Date("2020-01-01T00:00:00.000Z") });
 
       await post(FORM, { slug: "pequeno" });
+      await confirmStored();
       expect(await (await post({ ...FORM, email: "luis@example.com" }, { slug: "pequeno" })).json()).toEqual({ error: "full" });
 
       const closed = await post(FORM, { slug: "cerrado" });
@@ -206,6 +224,11 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       expect(closed.status).toBe(409);
       expect(await closed.json()).toEqual({ error: "closed" });
       expect(stored()).toHaveLength(1);
+
+      // A pending row takes no seat: others can still ask while one waits for its email.
+      await addTestEvent({ title: "Con espera", registrationCapacity: 1 });
+      await post(FORM, { slug: "con-espera" });
+      expect((await post({ ...FORM, email: "luis@example.com" }, { slug: "con-espera" })).status).toBe(201);
     });
 
     it("answers 404 for an unknown event, a draft, an event without registration and one that wants a UNL account", async () => {
@@ -251,7 +274,7 @@ describe("POST /api/public/events/[slug]/registrations", () => {
     it("ignores fields it does not collect", async () => {
       await post({ ...FORM, role: "ADMIN", id: "evil", mode: "unl" });
 
-      expect(Object.keys(stored()[0]!).sort()).toEqual(["career", "createdAt", "email", "eventId", "id", "mode", "name", "semester"]);
+      expect(Object.keys(stored()[0]!).sort()).toEqual(["career", "confirmedAt", "createdAt", "email", "eventId", "id", "institution", "mode", "name", "reminderSentAt", "semester"]);
       expect(stored()[0]).toMatchObject({ mode: "open" });
     });
 

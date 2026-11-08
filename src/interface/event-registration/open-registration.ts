@@ -9,21 +9,23 @@ import { ValidationError } from "@/domain/domain-error";
 import {
   parseOpenRegistration,
   REGISTRATION_CAREER_MAX_LENGTH,
+  REGISTRATION_INSTITUTION_MAX_LENGTH,
   REGISTRATION_NAME_MAX_LENGTH,
   REGISTRATION_SEMESTER_MAX,
 } from "@/domain/event-registration";
 
-export const OPEN_FIELDS = ["name", "email", "career", "semester"] as const;
+export const OPEN_FIELDS = ["name", "email", "institution", "career", "semester"] as const;
 export type OpenField = (typeof OPEN_FIELDS)[number];
 export type OpenFormValues = Record<OpenField, string>;
 export type OpenFieldErrors = Partial<Record<OpenField, string>>;
 
 // A value each field accepts, swapped in for one that failed so the next field can be checked in the same pass.
-const ACCEPTED: OpenFormValues = { name: "x", email: "x@x.co", career: "x", semester: "1" };
+const ACCEPTED: OpenFormValues = { name: "x", email: "x@x.co", institution: "x", career: "x", semester: "1" };
 
 const EMPTY_MESSAGES: Record<OpenField, string> = {
   name: "Escribe tu nombre.",
   email: "Escribe tu correo.",
+  institution: "Escribe tu institución.",
   career: "Escribe tu carrera.",
   semester: `Elige tu ciclo, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
 };
@@ -40,6 +42,8 @@ export function fieldMessage(field: OpenField, value: string): string {
   switch (field) {
     case "name":
       return CONTROL_CHARACTERS.test(text) ? "Tu nombre tiene caracteres que no podemos guardar." : `Tu nombre es muy largo: usa hasta ${REGISTRATION_NAME_MAX_LENGTH} caracteres.`;
+    case "institution":
+      return CONTROL_CHARACTERS.test(text) ? "Tu institución tiene caracteres que no podemos guardar." : `El nombre de tu institución es muy largo: usa hasta ${REGISTRATION_INSTITUTION_MAX_LENGTH} caracteres.`;
     case "career":
       return CONTROL_CHARACTERS.test(text) ? "Tu carrera tiene caracteres que no podemos guardar." : `Tu carrera es muy larga: usa hasta ${REGISTRATION_CAREER_MAX_LENGTH} caracteres.`;
     case "email":
@@ -78,8 +82,10 @@ export function openPayload(values: OpenFormValues, turnstileToken: string | nul
   return {
     name: values.name,
     email: values.email,
-    career: values.career,
-    semester: Number(values.semester),
+    institution: values.institution,
+    // Career and semester are optional: an empty one is left out rather than sent blank.
+    ...(values.career.trim() ? { career: values.career } : {}),
+    ...(values.semester ? { semester: Number(values.semester) } : {}),
     ...(turnstileToken ? { turnstileToken } : {}),
   };
 }

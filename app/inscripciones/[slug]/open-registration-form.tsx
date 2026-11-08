@@ -49,7 +49,7 @@ interface OpenRegistrationFormProps {
 export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessage }: OpenRegistrationFormProps) {
   const router = useRouter();
   const id = useId();
-  const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", career: "", semester: "" });
+  const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", institution: "", career: "", semester: "" });
   const [errors, setErrors] = useState<OpenFieldErrors>({});
   const [notice, setNotice] = useState<{ message: string; shown: number } | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: "form" });
@@ -195,8 +195,23 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
             />
           )}
         </RegistrationField>
+        <RegistrationField id={fieldId("institution")} label="Institución" error={errors.institution}>
+          {(described) => (
+            <input
+              id={fieldId("institution")}
+              name="institution"
+              className="ticket-input"
+              value={values.institution}
+              onChange={(event) => change("institution", event.target.value)}
+              autoComplete="organization"
+              required
+              aria-describedby={described}
+              aria-invalid={errors.institution ? true : undefined}
+            />
+          )}
+        </RegistrationField>
         <div className="stub-pair">
-          <RegistrationField id={fieldId("career")} label="Carrera" error={errors.career}>
+          <RegistrationField id={fieldId("career")} label="Carrera (opcional)" error={errors.career}>
             {(described) => (
               <input
                 id={fieldId("career")}
@@ -205,13 +220,12 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
                 value={values.career}
                 onChange={(event) => change("career", event.target.value)}
                 autoComplete="off"
-                required
                 aria-describedby={described}
                 aria-invalid={errors.career ? true : undefined}
               />
             )}
           </RegistrationField>
-          <RegistrationField id={fieldId("semester")} label="Ciclo" error={errors.semester}>
+          <RegistrationField id={fieldId("semester")} label="Ciclo (opcional)" error={errors.semester}>
             {(described) => (
               <select
                 id={fieldId("semester")}
@@ -219,7 +233,6 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
                 className="ticket-input"
                 value={values.semester}
                 onChange={(event) => change("semester", event.target.value)}
-                required
                 aria-describedby={described}
                 aria-invalid={errors.semester ? true : undefined}
               >

@@ -13,4 +13,6 @@ export interface EventRegistrationRetentionStore {
   candidates(onOrBefore: string): Promise<RetentionCandidate[]>;
   /** Deletes at most `limit` registrations of the given events and resolves with how many it deleted. Registrations only. */
   deleteBatch(eventIds: string[], limit: number): Promise<number>;
+  /** Deletes at most `limit` pending registrations (email never confirmed) stored at or before `createdOnOrBefore`, and resolves with how many. */
+  deleteStalePendingBatch(createdOnOrBefore: Date, limit: number): Promise<number>;
 }

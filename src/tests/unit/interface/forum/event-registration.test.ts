@@ -183,9 +183,16 @@ describe("getEventRegistrationPage", () => {
   });
 
   it("keeps showing an open event that is full or closed, so the page can say so instead of hiding it", async () => {
-    await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
+    const event = await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
     await addTestEvent({ title: "Pasado", registrationMode: "open", date: "2000-01-01" });
-    await testEventRegistration.services.registerOpen.execute({ slug: "lleno", form: { name: "Ana", email: "ana@example.com", career: "Computación", semester: 3 } });
+    const registered = await testEventRegistration.services.registerOpen.execute({
+      slug: "lleno",
+      form: { name: "Ana", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 3 },
+    });
+
+    // The seat is taken when the email is confirmed, not before.
+    expect(registered.status).toBe("registered");
+    await testEventRegistration.registrations.confirm(event.id, registered.status === "registered" ? registered.registration.id : "", new Date());
     jar({});
 
     expect(await getEventRegistrationPage("lleno")).toMatchObject({ kind: "open", status: { state: "full", registered: 1 } });

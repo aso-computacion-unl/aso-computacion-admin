@@ -10,7 +10,7 @@ import {
   type OpenFormValues,
 } from "@/interface/event-registration/open-registration";
 
-const VALID: OpenFormValues = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: "5" };
+const VALID: OpenFormValues = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: "5" };
 
 describe("validateOpenForm", () => {
   it("accepts what the server accepts", () => {
@@ -19,34 +19,52 @@ describe("validateOpenForm", () => {
   });
 
   it("names every empty field in Spanish, in the order of the form", () => {
-    const errors = validateOpenForm({ name: "", email: "  ", career: "", semester: "" });
+    const errors = validateOpenForm({ name: "", email: "  ", institution: " ", career: "", semester: "" });
 
-    expect(Object.keys(errors)).toEqual([...OPEN_FIELDS]);
+    expect(Object.keys(errors)).toEqual(["name", "email", "institution"]);
     expect(errors.name).toBe("Escribe tu nombre.");
     expect(errors.email).toBe("Escribe tu correo.");
-    expect(errors.career).toBe("Escribe tu carrera.");
-    expect(errors.semester).toBe("Elige tu ciclo, del 1 al 12.");
+    expect(errors.institution).toBe("Escribe tu institución.");
+  });
+
+  it("accepts a form without career and semester: both are optional", () => {
+    expect(OPEN_FIELDS).toEqual(["name", "email", "institution", "career", "semester"]);
+    expect(validateOpenForm({ ...VALID, career: "", semester: "" })).toEqual({});
+    expect(validateOpenForm({ ...VALID, career: "   " })).toEqual({});
   });
 
   it("flags only the fields that are wrong", () => {
     expect(Object.keys(validateOpenForm({ ...VALID, email: "ana@" }))).toEqual(["email"]);
     expect(Object.keys(validateOpenForm({ ...VALID, semester: "13" }))).toEqual(["semester"]);
     expect(Object.keys(validateOpenForm({ ...VALID, semester: "0" }))).toEqual(["semester"]);
-    expect(Object.keys(validateOpenForm({ ...VALID, name: "a".repeat(121), career: "b".repeat(121) }))).toEqual(["name", "career"]);
+    expect(Object.keys(validateOpenForm({ ...VALID, name: "a".repeat(121), institution: "c".repeat(121), career: "b".repeat(121) }))).toEqual(["name", "institution", "career"]);
   });
 
   it("explains a filled but invalid field differently from an empty one", () => {
     expect(validateOpenForm({ ...VALID, email: "ana@" }).email).toBe("Revisa tu correo: no parece una dirección válida.");
     expect(validateOpenForm({ ...VALID, name: "a".repeat(121) }).name).toBe("Tu nombre es muy largo: usa hasta 120 caracteres.");
     expect(validateOpenForm({ ...VALID, name: "Ana\u0000" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, institution: "UN\u0000L" }).institution).toBe("Tu institución tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, institution: "c".repeat(121) }).institution).toBe("El nombre de tu institución es muy largo: usa hasta 120 caracteres.");
     expect(validateOpenForm({ ...VALID, career: "Compu\u0007tación" }).career).toBe("Tu carrera tiene caracteres que no podemos guardar.");
     expect(validateOpenForm({ ...VALID, name: "Ana \ud800" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
   });
 });
 
 describe("openPayload", () => {
-  it("sends the four fields and the Turnstile token, with the semester as a number", () => {
-    expect(openPayload(VALID, "tok")).toEqual({ name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5, turnstileToken: "tok" });
+  it("sends the fields and the Turnstile token, with the semester as a number", () => {
+    expect(openPayload(VALID, "tok")).toEqual({
+      name: "Ana Pérez",
+      email: "ana@example.com",
+      institution: "Universidad Nacional de Loja",
+      career: "Computación",
+      semester: 5,
+      turnstileToken: "tok",
+    });
+  });
+
+  it("leaves out the career and semester left empty instead of sending them blank", () => {
+    expect(openPayload({ ...VALID, career: "  ", semester: "" }, null)).toEqual({ name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja" });
   });
 
   it("leaves the token out when there is no widget", () => {

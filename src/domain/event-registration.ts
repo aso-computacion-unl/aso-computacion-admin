@@ -13,6 +13,9 @@ export type RegistrationMode = Exclude<EventRegistrationMode, "none">;
 export const EVENT_REGISTRATION_CAPACITY_MAX = 5000;
 export const REGISTRATION_NAME_MAX_LENGTH = 120;
 export const REGISTRATION_CAREER_MAX_LENGTH = 120;
+export const REGISTRATION_INSTITUTION_MAX_LENGTH = 120;
+/** An open-form registration waits this long for its email to be confirmed; until then it takes no seat. */
+export const REGISTRATION_CONFIRMATION_TTL_MS = 48 * 60 * 60 * 1000;
 export const REGISTRATION_SEMESTER_MAX = 12;
 
 export interface RegistrationSettings {
@@ -64,6 +67,16 @@ export interface RegistrableEvent {
 
 export type RegistrationRefusal = "not_found" | "mode_mismatch" | "closed" | "full" | "duplicate";
 
+/** Pending rows stored at or before this instant can no longer be confirmed: they hold a stranger's data for nothing. */
+export function pendingPurgeCutoff(now: Date): Date {
+  return new Date(now.getTime() - REGISTRATION_CONFIRMATION_TTL_MS);
+}
+
+/** A pending registration whose confirmation window has run out: its link no longer confirms anything. */
+export function isConfirmationExpired(pendingSince: Date, now: Date): boolean {
+  return now.getTime() - pendingSince.getTime() >= REGISTRATION_CONFIRMATION_TTL_MS;
+}
+
 /** The deadline instant has passed, or the event day is before today in Ecuador (a month-only or missing date never closes). */
 function isClosed(event: RegistrableEvent, now: Date): boolean {
   if (event.registrationDeadline && now.getTime() >= event.registrationDeadline.getTime()) {
@@ -91,9 +104,9 @@ export interface RegistrationContext {
   event: RegistrableEvent;
   /** The way this person is trying to register. */
   mode: RegistrationMode;
-  /** Registrations already stored for the event. */
+  /** Confirmed registrations of the event: a pending one takes no seat. */
   registered: number;
-  /** This same person (by email) is already registered. */
+  /** This same person (by email) is already registered and confirmed. */
   alreadyRegistered: boolean;
   now: Date;
 }
@@ -127,12 +140,13 @@ export function registrationRefusal({ event, mode, registered, alreadyRegistered
   return null;
 }
 
-/** What the open form collects: nothing else is stored. */
+/** What the open form collects: nothing else is stored. Career and semester are optional (people from outside the UNL). */
 export interface OpenRegistrationData {
   name: string;
   email: string;
-  career: string;
-  semester: number;
+  institution: string;
+  career: string | null;
+  semester: number | null;
 }
 
 // Control characters (including NUL, line breaks and tabs) have no place in a name that ends up in a CSV and a sheet.
@@ -154,7 +168,19 @@ function text(field: string, value: unknown, max: number): string {
   return collapsed;
 }
 
-function semester(value: unknown): number {
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === "string" && value.trim().length === 0);
+}
+
+function optionalText(field: string, value: unknown, max: number): string | null {
+  return isBlank(value) ? null : text(field, value, max);
+}
+
+function semester(value: unknown): number | null {
+  if (isBlank(value)) {
+    return null;
+  }
+
   const parsed = typeof value === "number" ? value : typeof value === "string" && /^\d{1,2}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
 
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > REGISTRATION_SEMESTER_MAX) {
@@ -173,5 +199,11 @@ export function parseOpenRegistration(input: Record<string, unknown>): OpenRegis
     throw new ValidationError("email", "email must be a valid address");
   }
 
-  return { name, email, career: text("career", input.career, REGISTRATION_CAREER_MAX_LENGTH), semester: semester(input.semester) };
+  return {
+    name,
+    email,
+    institution: text("institution", input.institution, REGISTRATION_INSTITUTION_MAX_LENGTH),
+    career: optionalText("career", input.career, REGISTRATION_CAREER_MAX_LENGTH),
+    semester: semester(input.semester),
+  };
 }

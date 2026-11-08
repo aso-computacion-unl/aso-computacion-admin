@@ -216,10 +216,10 @@ describe("the open registration of the same page", () => {
     expect(html).not.toMatch(/\busted\b|\bSu inscripción\b/i);
   });
 
-  it("says the form's last field is the ciclo", async () => {
+  it("says the form's last field is the optional ciclo", async () => {
     pageMock.mockResolvedValue(open());
 
-    expect(await render()).toMatch(/<label[^>]*>Ciclo<\/label>/);
+    expect(await render()).toMatch(/<label[^>]*>Ciclo \(opcional\)<\/label>/);
   });
 
   it("hides the form when the seats are gone and says so, keeping the numbers", async () => {

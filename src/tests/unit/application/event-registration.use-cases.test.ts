@@ -15,7 +15,7 @@ import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repositor
 import { InMemoryForumMemberRepository, makeForumMember } from "@/tests/fakes/in-memory-forum";
 
 const NOW = new Date("2026-11-20T15:00:00.000Z");
-const FORM = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 };
+const FORM = { name: "Ana Pérez", email: "ana@example.com", institution: "UNL", career: "Computación", semester: 5 };
 
 let events: InMemoryEventRepository;
 let registrations: InMemoryEventRegistrationRepository;
@@ -31,6 +31,13 @@ async function addEvent(overrides: Partial<CreateEventInput> = {}) {
 
 const openForm = () => new RegisterWithOpenFormUseCase(events, registrations);
 const unlAccount = (allowedDomain = "unl.edu.ec") => new RegisterWithUnlAccountUseCase(events, registrations, members, { allowedDomain });
+
+/** Confirms every pending registration, as the people would by opening their link. */
+async function confirmAll(now = NOW) {
+  for (const row of registrations.all()) {
+    if (!row.confirmedAt) await registrations.confirm(row.eventId, row.id, now);
+  }
+}
 
 beforeEach(() => {
   events = new InMemoryEventRepository();
@@ -66,8 +73,10 @@ describe("registration mode", () => {
     const outcome = await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: " ANA@Example.com ", extra: "ignored" }, now: NOW });
 
     expect(outcome.status).toBe("registered");
-    expect(registrations.all()).toEqual([expect.objectContaining({ mode: "open", name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 })]);
-    expect(Object.keys(registrations.all()[0]!).sort()).toEqual(["career", "createdAt", "email", "eventId", "id", "mode", "name", "semester"]);
+    expect(registrations.all()).toEqual([
+      expect.objectContaining({ mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "UNL", career: "Computación", semester: 5, confirmedAt: null, reminderSentAt: null }),
+    ]);
+    expect(Object.keys(registrations.all()[0]!).sort()).toEqual(["career", "confirmedAt", "createdAt", "email", "eventId", "id", "institution", "mode", "name", "reminderSentAt", "semester"]);
   });
 
   it("registers a UNL member with the verified name and email, and no career or semester", async () => {
@@ -75,7 +84,9 @@ describe("registration mode", () => {
     members.members.set("m1", makeForumMember({ id: "m1", email: "ana@unl.edu.ec", displayName: "Ana Pérez" }));
 
     expect((await unlAccount().execute({ slug: "taller-de-git", memberId: "m1", now: NOW })).status).toBe("registered");
-    expect(registrations.all()).toEqual([expect.objectContaining({ mode: "unl", name: "Ana Pérez", email: "ana@unl.edu.ec", career: null, semester: null })]);
+    expect(registrations.all()).toEqual([
+      expect.objectContaining({ mode: "unl", name: "Ana Pérez", email: "ana@unl.edu.ec", institution: null, career: null, semester: null, confirmedAt: NOW }),
+    ]);
   });
 
   it("refuses a suspended member, an unknown member and an email outside the institutional domain", async () => {
@@ -120,14 +131,16 @@ describe("deadline, capacity and duplicates", () => {
   it("refuses when the seats are taken, and the person who was already in keeps theirs", async () => {
     await addEvent({ registrationCapacity: 1 });
     await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    await confirmAll();
 
     expect(await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "luis@example.com" }, now: NOW })).toEqual({ status: "full" });
     expect(registrations.all()).toHaveLength(1);
   });
 
-  it("refuses the same email twice and leaves the first registration as it was", async () => {
+  it("refuses the same email twice once confirmed and leaves the first registration as it was", async () => {
     await addEvent();
     await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    await confirmAll();
     const [first] = registrations.all();
 
     const again = await openForm().execute({ slug: "taller-de-git", form: { ...FORM, name: "Otro Nombre", career: "Otra", semester: 9, email: "ANA@example.com" }, now: new Date(NOW.getTime() + 1000) });
@@ -187,6 +200,8 @@ describe("listing and deleting registrations", () => {
     const event = await addEvent();
     await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
     await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "luis@example.com", name: "Luis" }, now: new Date(NOW.getTime() + 60_000) });
+    await confirmAll();
+    await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "pendiente@example.com", name: "Pendiente" }, now: NOW });
 
     const listing = await new ListEventRegistrationsUseCase(events, registrations).execute({ eventId: event.id });
 
@@ -198,6 +213,7 @@ describe("listing and deleting registrations", () => {
   it("deletes one registration of that event only, frees the seat, and says so when it is not there", async () => {
     const event = await addEvent({ registrationCapacity: 1 });
     await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    await confirmAll();
     const [registration] = registrations.all();
     const remove = new DeleteEventRegistrationUseCase(registrations);
 
@@ -209,5 +225,85 @@ describe("listing and deleting registrations", () => {
     expect(registrations.all()).toHaveLength(0);
     expect((await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "luis@example.com" }, now: NOW })).status).toBe("registered");
     await expect(remove.execute({ eventId: event.id, registrationId: registration!.id })).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("email confirmation", () => {
+  const HOUR = 60 * 60 * 1000;
+  const only = () => registrations.all()[0]!;
+
+  it("stores an open registration as pending: it takes no seat and nobody counts it", async () => {
+    const event = await addEvent({ registrationCapacity: 1 });
+
+    expect((await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW })).status).toBe("registered");
+    expect(only().confirmedAt).toBeNull();
+    expect(await registrations.count(event.id)).toBe(0);
+    expect(await registrations.countByEvents([event.id])).toEqual(new Map());
+    expect(await registrations.exists(event.id, "ana@example.com")).toBe(false);
+    expect(await registrations.list(event.id)).toEqual([]);
+    expect((await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "luis@example.com" }, now: NOW })).status).toBe("registered");
+  });
+
+  it("refreshes a pending registration of the same email instead of calling it a duplicate", async () => {
+    await addEvent();
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    const first = only();
+    const later = new Date(NOW.getTime() + HOUR);
+
+    const again = await openForm().execute({ slug: "taller-de-git", form: { ...FORM, name: "Ana María", institution: "UTPL", email: "ANA@example.com" }, now: later });
+
+    expect(again).toEqual({ status: "registered", registration: expect.objectContaining({ id: first.id, name: "Ana María", institution: "UTPL", confirmedAt: null, createdAt: later }) });
+    expect(registrations.all()).toEqual([expect.objectContaining({ id: first.id, name: "Ana María", institution: "UTPL", createdAt: later })]);
+  });
+
+  it("confirms a pending registration once, then counts it", async () => {
+    const event = await addEvent();
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    const later = new Date(NOW.getTime() + HOUR);
+
+    expect(await registrations.confirm(event.id, only().id, later)).toEqual({ status: "confirmed", registration: expect.objectContaining({ confirmedAt: later }) });
+    expect(await registrations.count(event.id)).toBe(1);
+    expect(await registrations.exists(event.id, "ana@example.com")).toBe(true);
+    expect(await registrations.confirm(event.id, only().id, new Date(later.getTime() + HOUR))).toEqual({ status: "already_confirmed", registration: expect.objectContaining({ confirmedAt: later }) });
+    expect(only().confirmedAt).toEqual(later);
+  });
+
+  it("gives the last seat to whoever confirms first; the other one stays pending", async () => {
+    const event = await addEvent({ registrationCapacity: 1 });
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    await openForm().execute({ slug: "taller-de-git", form: { ...FORM, email: "luis@example.com" }, now: NOW });
+    const [ana, luis] = registrations.all();
+
+    expect((await registrations.confirm(event.id, luis!.id, NOW)).status).toBe("confirmed");
+    expect(await registrations.confirm(event.id, ana!.id, NOW)).toEqual({ status: "full" });
+    expect(registrations.all().find((row) => row.id === ana!.id)?.confirmedAt).toBeNull();
+  });
+
+  it("refuses a link older than 48 hours, an unknown registration, and a closed event, changing nothing", async () => {
+    const event = await addEvent({ registrationDeadline: new Date(NOW.getTime() + 72 * HOUR) });
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    const before = registrations.all();
+
+    expect(await registrations.confirm(event.id, only().id, new Date(NOW.getTime() + 48 * HOUR))).toEqual({ status: "expired" });
+    expect(await registrations.confirm(event.id, "ghost", NOW)).toEqual({ status: "invalid" });
+    expect(await registrations.confirm("other-event", only().id, NOW)).toEqual({ status: "invalid" });
+    expect(registrations.all()).toEqual(before);
+
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: new Date(NOW.getTime() + 47 * HOUR) });
+
+    expect(await registrations.confirm(event.id, only().id, new Date(NOW.getTime() + 73 * HOUR))).toEqual({ status: "closed" });
+    expect(only().confirmedAt).toBeNull();
+  });
+
+  it("reports the status from confirmed people only", async () => {
+    await addEvent({ registrationCapacity: 1 });
+    await openForm().execute({ slug: "taller-de-git", form: FORM, now: NOW });
+    const status = () => new GetEventRegistrationStatusUseCase(events, registrations).execute({ slug: "taller-de-git", now: NOW, email: "ana@example.com" });
+
+    expect(await status()).toMatchObject({ registered: 0, state: "open", alreadyRegistered: false });
+
+    await confirmAll();
+
+    expect(await status()).toMatchObject({ registered: 1, state: "full", alreadyRegistered: true });
   });
 });

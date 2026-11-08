@@ -9,9 +9,12 @@ const row = (overrides: Partial<EventRegistrationRecord> = {}): EventRegistratio
   mode: "open",
   name: "Ana Pérez",
   email: "ana@example.com",
+  institution: null,
   career: "Computación",
   semester: 5,
   createdAt: new Date("2026-11-20T15:30:00.000Z"),
+  confirmedAt: new Date("2026-11-20T15:30:00.000Z"),
+  reminderSentAt: null,
   ...overrides,
 });
 

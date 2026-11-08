@@ -13,8 +13,10 @@ const newRegistration = (overrides: Record<string, unknown> = {}) => ({
   mode: "open" as const,
   name: "Ana Pérez",
   email: "ana@example.com",
+  institution: "Universidad Nacional de Loja",
   career: "Computación",
   semester: 5,
+  confirmedAt: NOW,
   ...overrides,
 });
 
@@ -61,9 +63,50 @@ describe("event registration schema (integration)", () => {
     await expect(prisma.eventRegistration.create({ data: newRegistration({ semester: 13 }) })).rejects.toThrow();
     await expect(prisma.eventRegistration.create({ data: newRegistration({ name: "" }) })).rejects.toThrow();
 
-    await prisma.eventRegistration.create({ data: newRegistration({ mode: "unl", career: null, semester: null }) });
+    await prisma.eventRegistration.create({ data: newRegistration({ mode: "unl", institution: null, career: null, semester: null }) });
 
     expect(await prisma.eventRegistration.count()).toBe(1);
+  });
+
+  it("lets an open row leave career and semester empty, but not institution out of range", async () => {
+    await prisma.event.create({ data: newEvent({ registrationMode: "open" }) });
+
+    await expect(prisma.eventRegistration.create({ data: newRegistration({ institution: "" }) })).rejects.toThrow();
+    await expect(prisma.eventRegistration.create({ data: newRegistration({ institution: "x".repeat(121) }) })).rejects.toThrow();
+
+    await prisma.eventRegistration.create({ data: newRegistration({ career: null, semester: null }) });
+    await prisma.eventRegistration.create({ data: newRegistration({ id: "r2", email: "luis@example.com", institution: "x".repeat(120) }) });
+
+    expect(await prisma.eventRegistration.count()).toBe(2);
+  });
+
+  it("refuses a UNL row that carries an institution or that is not confirmed", async () => {
+    await prisma.event.create({ data: newEvent({ registrationMode: "unl" }) });
+    const unl = { mode: "unl" as const, career: null, semester: null, institution: null };
+
+    await expect(prisma.eventRegistration.create({ data: newRegistration({ ...unl, institution: "Universidad Nacional de Loja" }) })).rejects.toThrow();
+    await expect(prisma.eventRegistration.create({ data: newRegistration({ ...unl, confirmedAt: null }) })).rejects.toThrow();
+    expect(await prisma.eventRegistration.count()).toBe(0);
+
+    await prisma.eventRegistration.create({ data: newRegistration(unl) });
+
+    expect(await prisma.eventRegistration.count()).toBe(1);
+  });
+
+  it("lets an open row wait unconfirmed, and refuses a reminder for a row that was never confirmed", async () => {
+    await prisma.event.create({ data: newEvent({ registrationMode: "open" }) });
+
+    await prisma.eventRegistration.create({ data: newRegistration({ confirmedAt: null }) });
+
+    await expect(prisma.eventRegistration.update({ where: { id: "r1" }, data: { reminderSentAt: NOW } })).rejects.toThrow();
+    await expect(prisma.eventRegistration.create({ data: newRegistration({ id: "r2", email: "luis@example.com", confirmedAt: null, reminderSentAt: NOW }) })).rejects.toThrow();
+    expect((await prisma.eventRegistration.findUnique({ where: { id: "r1" } }))?.reminderSentAt).toBeNull();
+
+    await prisma.eventRegistration.update({ where: { id: "r1" }, data: { confirmedAt: NOW } });
+    await prisma.eventRegistration.update({ where: { id: "r1" }, data: { reminderSentAt: NOW } });
+
+    expect((await prisma.eventRegistration.findUnique({ where: { id: "r1" } }))?.reminderSentAt).toEqual(NOW);
+    await expect(prisma.eventRegistration.update({ where: { id: "r1" }, data: { confirmedAt: null } })).rejects.toThrow();
   });
 
   it("removes the registrations together with their event", async () => {

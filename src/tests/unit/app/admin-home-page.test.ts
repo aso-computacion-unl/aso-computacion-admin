@@ -121,12 +121,61 @@ describe("lo que te espera", () => {
     expect(hrefs.filter((href) => /settings|usuarios|sesiones|registro|papelera/.test(href ?? ""))).toEqual([]);
   });
 
-  it("drops the old module grid and agenda", async () => {
+  it("drops the old module grid", async () => {
     const html = await render();
 
     expect(html).not.toContain("Contenido del sitio");
     expect(html).not.toContain("Por atender");
+  });
+});
+
+describe("the panorama under the pending cards", () => {
+  const upcomingEvent = (id: string, title: string, date: string, registrationMode = "none") => ({ ...draftEvent, id, title, date, isPublished: true, registrationMode });
+  const panorama = (html: string) => html.match(/<section aria-labelledby="panorama-[\s\S]*$/)?.[0] ?? "";
+
+  it("lists the upcoming events soonest first, with the sign-ups against the capacity, even when nothing is pending", async () => {
+    reads.events.mockResolvedValue([upcomingEvent("e2", "Hackathon", "2099-03-10", "internal"), upcomingEvent("e3", "Charla IA", "2099-02-01")]);
+    reads.overview.mockResolvedValue({ upcoming: [{ ...openRow, id: "e2", registered: 0, capacity: 40 }], past: [] });
+    const html = await render();
+    const section = panorama(html);
+
+    expect(html).toContain("Todo al día");
+    expect(section).toContain("Próximos eventos");
+    expect(section.indexOf("Charla IA")).toBeLessThan(section.indexOf("Hackathon"));
+    expect(section).toContain("1 feb 2099");
+    expect(section).toContain("0 / 40 inscritos");
+    expect(cardButtons(section)).toEqual(expect.arrayContaining([["/admin/registrations?evento=e2", "0 / 40 inscritos"]]));
+  });
+
+  it("counts sign-ups without a limit as a plain number", async () => {
+    reads.events.mockResolvedValue([upcomingEvent("e2", "Hackathon", "2099-03-10", "internal")]);
+    reads.overview.mockResolvedValue({ upcoming: [{ ...openRow, id: "e2", registered: 1, capacity: null }], past: [] });
+
+    expect(panorama(await render())).toContain("1 inscrito<");
+  });
+
+  it("lists the drafts by name, marking the scheduled ones", async () => {
+    reads.events.mockResolvedValue([draftEvent, { ...draftEvent, id: "e9", title: "Taller Git", publishAt: new Date("2099-01-01T00:00:00Z") }]);
+    const section = panorama(await render());
+
+    expect(section).toContain("Borradores");
+    expect(cardButtons(section)).toEqual(expect.arrayContaining([["/admin/events/e1/edit", "Charla"], ["/admin/events/e9/edit", "Taller Git"]]));
+    expect(section).toContain("Programado");
+  });
+
+  it("says plainly when there is nothing coming up and no draft", async () => {
+    const section = panorama(await render());
+
+    expect(section).toContain("No hay eventos próximos");
+    expect(section).toContain("No hay borradores");
+  });
+
+  it("shows no panorama when the content could not be read, rather than an empty one", async () => {
+    reads.events.mockRejectedValue(new Error("down"));
+    const html = await render();
+
     expect(html).not.toContain("Próximos eventos");
+    expect(html).not.toContain("No hay borradores");
   });
 });
 

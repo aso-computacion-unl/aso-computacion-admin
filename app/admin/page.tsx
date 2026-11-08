@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Icon, type IconName } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { describeDeployStatus } from "@/interface/admin/deploy-status-label";
 import { getAdminRegistrationOverview } from "@/interface/admin/event-registrations/registrations-overview-admin-read";
 import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { getAdminForumReports } from "@/interface/admin/forum/forum-moderation-read";
-import { buildHomeAgenda } from "@/interface/admin/home-agenda";
+import { buildHomeAgenda, type HomeAgenda } from "@/interface/admin/home-agenda";
 import { buildHomeCards, nextOpenRegistration, type HomeCard } from "@/interface/admin/home-cards";
 import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
 
@@ -36,8 +37,19 @@ async function attempt<T>(read: () => Promise<T>): Promise<T | undefined> {
   }
 }
 
+/** Sign-ups of an event that takes registrations, keyed by event id. */
+type SignUps = Map<string, { registered: number; capacity: number | null }>;
+
+interface HomeReads {
+  cards: HomeCard[];
+  readable: boolean;
+  /** Null when the events or news could not be read: the page then shows no panorama rather than an empty one. */
+  agenda: HomeAgenda | null;
+  signUps: SignUps;
+}
+
 /** The cards come from reads the admin already makes; `readable` is false when any of them failed, so the page never claims "Todo al día" blind. */
-async function readCards(now: Date): Promise<{ cards: HomeCard[]; readable: boolean }> {
+async function readHome(now: Date): Promise<HomeReads> {
   const [events, news, reports, overview] = await Promise.all([
     attempt(getAdminEvents),
     attempt(getAdminNewsItems),
@@ -54,7 +66,82 @@ async function readCards(now: Date): Promise<{ cards: HomeCard[]; readable: bool
       firstDraftHref: agenda.drafts[0]?.href ?? null,
     }),
     readable: [events, news, reports, overview].every((read) => read !== undefined),
+    agenda: events !== undefined && news !== undefined ? agenda : null,
+    signUps: new Map((overview?.upcoming ?? []).map((row) => [row.id, { registered: row.registered, capacity: row.capacity }])),
   };
+}
+
+const signUpLabel = ({ registered, capacity }: { registered: number; capacity: number | null }) =>
+  `${capacity === null ? registered : `${registered} / ${capacity}`} ${registered === 1 && capacity === null ? "inscrito" : "inscritos"}`;
+
+const rowClass = "flex min-h-14 items-center justify-between gap-4 border-b border-paper-ring px-1 py-3 last:border-b-0";
+const rowLink = "font-bold hover:underline focus-visible:outline-2 focus-visible:outline-sky";
+
+function PanoramaList({ id, title, children, empty, more }: { id: string; title: string; children: ReactNode[]; empty: string; more?: { href: string; label: string } }) {
+  return (
+    <section aria-labelledby={`panorama-${id}`} className="grid content-start gap-3 bg-card p-5 ring-1 ring-paper-ring ring-inset">
+      <SectionTitle id={`panorama-${id}`} variant="label">
+        {title}
+      </SectionTitle>
+      {children.length > 0 ? <ul>{children}</ul> : <p className="py-3 text-mist">{empty}</p>}
+      {more ? (
+        <Link href={more.href} className={`${rowLink} text-sm`}>
+          {more.label}
+        </Link>
+      ) : null}
+    </section>
+  );
+}
+
+/** What is coming and what is half done, always visible, so the home tells the state of the site even when nothing waits. */
+function Panorama({ agenda, signUps }: { agenda: HomeAgenda; signUps: SignUps }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <PanoramaList
+        id="upcoming"
+        title="Próximos eventos"
+        empty="No hay eventos próximos."
+        more={agenda.upcomingTotal > agenda.upcoming.length ? { href: "/admin/events", label: `Ver los ${agenda.upcomingTotal} eventos` } : undefined}
+      >
+        {agenda.upcoming.map((event) => {
+          const seats = signUps.get(event.id);
+
+          return (
+            <li key={event.id} className={rowClass}>
+              <span className="grid gap-0.5">
+                <span className="font-mono text-[0.8125rem] text-mist">{event.when}</span>
+                <Link href={event.href} className={rowLink}>
+                  {event.title}
+                </Link>
+              </span>
+              {seats ? (
+                <Link href={`/admin/registrations?evento=${event.id}`} className={`${rowLink} shrink-0 rounded-xs bg-tint-navy px-2 py-1 text-sm text-on-tint-navy`}>
+                  {signUpLabel(seats)}
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </PanoramaList>
+      <PanoramaList
+        id="drafts"
+        title="Borradores"
+        empty="No hay borradores."
+      >
+        {agenda.drafts.map((draft) => (
+          <li key={`${draft.kind}-${draft.id}`} className={rowClass}>
+            <span className="grid gap-0.5">
+              <span className="font-mono text-[0.8125rem] text-mist">{draft.kind}</span>
+              <Link href={draft.href} className={rowLink}>
+                {draft.title}
+              </Link>
+            </span>
+            {draft.scheduled ? <span className="shrink-0 text-sm font-semibold text-mist">Programado</span> : null}
+          </li>
+        ))}
+      </PanoramaList>
+    </div>
+  );
 }
 
 function Waiting({ cards, readable }: { cards: readonly HomeCard[]; readable: boolean }) {
@@ -119,7 +206,7 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
   const actor = await requirePageSession();
   const restricted = (await searchParams).acceso === "restringido";
   const now = new Date();
-  const [{ cards, readable }, deployStatus] = await Promise.all([readCards(now), getLastDeployStatus()]);
+  const [{ cards, readable, agenda, signUps }, deployStatus] = await Promise.all([readHome(now), getLastDeployStatus()]);
   const deploy = deployStatus === undefined ? undefined : describeDeployStatus(deployStatus, now);
   // The emergency access has no person to greet.
   const firstName = actor.kind === "break_glass" ? undefined : actor.name.trim().split(/\s+/)[0];
@@ -142,6 +229,8 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
       <div>
         <CreateMenu />
       </div>
+
+      {agenda ? <Panorama agenda={agenda} signUps={signUps} /> : null}
 
       {deploy ? (
         <p role="status" className="font-mono text-[0.8125rem] text-mist">

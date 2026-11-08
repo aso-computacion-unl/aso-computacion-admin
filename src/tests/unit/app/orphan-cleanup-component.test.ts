@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/interface/admin/media/actions", () => ({ deleteOrphanImages: vi.fn() }));
 
-import { OrphanCleanup, type OrphanItem } from "../../../../app/admin/medios/limpieza/_components/orphan-cleanup";
+import { OrphanCleanup, type OrphanItem } from "../../../../app/admin/papelera/imagenes/_components/orphan-cleanup";
 
 const item = (publicId: string, deletable: boolean): OrphanItem => ({ publicId, url: `https://res.cloudinary.com/demo/image/upload/v1/${publicId}.jpg`, width: 800, height: 600, bytes: 2048, uploaded: "1 oct 2026", deletable });
 const render = (items: OrphanItem[]) => renderToStaticMarkup(createElement(OrphanCleanup, { items }));

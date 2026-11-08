@@ -232,13 +232,12 @@ test.describe("access control", () => {
     "/admin/board/new",
     "/admin/socials",
     "/admin/socials/new",
-    "/admin/medios",
+    "/admin/papelera/imagenes",
     "/admin/settings",
     "/admin/usuarios",
     "/admin/sesiones",
     "/admin/papelera",
     "/admin/registro",
-    "/admin/vista-previa",
     "/admin/does-not-exist",
   ];
 
@@ -262,7 +261,7 @@ test.describe("access control", () => {
   test("an editor opens the content sections, and the admin-only sections bounce them with the reason", async ({ browser, baseURL }) => {
     const { context } = await asEditor(browser, baseURL);
 
-    for (const path of ["/admin", "/admin/events", "/admin/news", "/admin/sponsors", "/admin/commands", "/admin/faqs", "/admin/pillars", "/admin/board", "/admin/socials", "/admin/medios", "/admin/papelera", "/admin/sesiones", "/admin/vista-previa"]) {
+    for (const path of ["/admin", "/admin/events", "/admin/news", "/admin/sponsors", "/admin/commands", "/admin/faqs", "/admin/pillars", "/admin/board", "/admin/socials", "/admin/papelera", "/admin/sesiones"]) {
       expect((await context.request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
     }
 
@@ -1257,7 +1256,7 @@ test.describe("lists and pages under hostile query strings", () => {
     const { context } = await asAdmin(browser, baseURL);
     const queries = ["?q=%00", "?q=" + "ñ".repeat(500), "?estado=zzz", "?estado[]=a&estado[]=b", "?pagina=-1", "?pagina=1e9", "?pagina=99999999999999999999", "?pagina=0&q=%E2%80%AE", "?despues=%00", "?despues=" + "z".repeat(2000), "?acceso=<script>"];
 
-    for (const path of ["/admin", "/admin/events", "/admin/news", "/admin/faqs", "/admin/commands", "/admin/board", "/admin/pillars", "/admin/socials", "/admin/sponsors", "/admin/papelera", "/admin/medios", "/admin/sesiones", "/admin/usuarios", "/admin/vista-previa"]) {
+    for (const path of ["/admin", "/admin/events", "/admin/news", "/admin/faqs", "/admin/commands", "/admin/board", "/admin/pillars", "/admin/socials", "/admin/sponsors", "/admin/papelera", "/admin/papelera/imagenes", "/admin/sesiones", "/admin/usuarios"]) {
       for (const query of queries) {
         const response = await context.request.get(`${path}${query}`, { maxRedirects: 0, timeout: 90_000 });
 

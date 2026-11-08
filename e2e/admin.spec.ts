@@ -375,11 +375,10 @@ test("previews and the cron fail closed: no token, no secret and no session reve
   expect(cron.status()).toBe(401);
   expect((await request.get("/api/cron/scheduled-rebuild", { headers: { authorization: "Bearer not-the-secret" } })).status()).toBe(401);
 
-  // The page that generates codes is admin-only territory and says plainly when the server has no secret.
+  // The preview-code page left the admin: its old URL sends a signed-in person home and shows an anonymous one the login.
   await page.goto("/admin/vista-previa");
   await expect(page).toHaveURL(/\/login$/);
   await logInAsAdmin(page);
   await page.goto("/admin/vista-previa");
-  await expect(page.getByRole("heading", { name: "Vista previa", level: 1 })).toBeVisible();
-  await expect(page.getByText(/falta|no está configurada/i).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/admin$/);
 });

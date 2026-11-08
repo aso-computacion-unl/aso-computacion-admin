@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes, mediaHref, parseMediaCursor, usageHref } from "@/interface/admin/media/media-labels";
+import { formatBytes, parseMediaCursor } from "@/interface/admin/media/media-labels";
 
 describe("parseMediaCursor", () => {
   it("accepts an opaque token", () => {
@@ -23,24 +23,5 @@ describe("formatBytes", () => {
     [Number.NaN, "—"],
   ])("%d is %s", (bytes, text) => {
     expect(formatBytes(bytes)).toBe(text);
-  });
-});
-
-describe("links", () => {
-  it("points a use at the edit page of its owner", () => {
-    expect(usageHref({ kind: "pillar", id: "p1" })).toBe("/admin/pillars/p1/edit");
-    expect(usageHref({ kind: "board", id: "b1" })).toBe("/admin/board/b1/edit");
-    expect(usageHref({ kind: "event", id: "e1" })).toBe("/admin/events/e1/edit");
-    expect(usageHref({ kind: "news", id: "n1" })).toBe("/admin/news/n1/edit");
-    expect(usageHref({ kind: "sponsor", id: "s1" })).toBe("/admin/sponsors/s1/edit");
-  });
-
-  it("has no link for a testimonial: its page is gone but its photo is still in use", () => {
-    expect(usageHref({ kind: "testimonial", id: "t1" })).toBeNull();
-  });
-
-  it("builds the page link with the cursor encoded, and the plain path for the first page", () => {
-    expect(mediaHref()).toBe("/admin/medios");
-    expect(mediaHref("a b")).toBe("/admin/medios?despues=a%20b");
   });
 });

@@ -124,6 +124,22 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     return this.confirmed().some((row) => row.eventId === eventId && row.email === email);
   }
 
+  async listDueForReminder(eventId: string, limit: number): Promise<EventRegistrationRecord[]> {
+    return (await this.list(eventId)).filter((row) => row.reminderSentAt === null).slice(0, Math.max(0, limit));
+  }
+
+  async markReminderSent(eventId: string, id: string, at: Date): Promise<boolean> {
+    const index = this.rows.findIndex((row) => row.eventId === eventId && row.id === id && row.confirmedAt !== null && row.reminderSentAt === null);
+
+    if (index === -1) {
+      return false;
+    }
+
+    this.rows[index] = { ...this.rows[index]!, reminderSentAt: at };
+
+    return true;
+  }
+
   async delete(eventId: string, id: string): Promise<boolean> {
     const index = this.rows.findIndex((row) => row.eventId === eventId && row.id === id);
 

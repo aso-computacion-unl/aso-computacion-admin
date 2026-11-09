@@ -2,25 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isAuthorizedCron } from "@/infrastructure/http/cron-auth";
 import { reportError } from "@/infrastructure/observability/report-error";
+import { runRegistrationReminders } from "@/interface/cron/registration-reminders";
 import { runRegistrationRetention } from "@/interface/cron/registration-retention";
 import { getRebuildOnWindowCrossing } from "@/interface/cron/scheduled-rebuild-container";
 
 // Read from Postgres on every request: never prerendered at build time.
 export const dynamic = "force-dynamic";
-// The hook call (5 s) and its status write (3 s) fit well inside this.
-export const maxDuration = 30;
+// The hook call (5 s) and its status write (3 s) fit well inside 30 s on their own, but the reminders send up to the
+// day's mail budget in this same run (about 0.2 s a message on a shared connection), so the run gets a minute, the
+// most the Hobby plan gives: the reminders stop starting sends 45 s in (REMINDER_TIME_BUDGET_MS).
+export const maxDuration = 60;
 
 const NO_STORE = { "Cache-Control": "no-store" };
 const UNAVAILABLE = { error: "Service unavailable" } as const;
 
 /**
- * Vercel Cron target (see vercel.json); Hobby allows one cron, so this one route does the daily jobs as two
- * independent steps. A failure of one never stops or hides the other.
+ * Vercel Cron target (see vercel.json); Hobby allows one cron, so this one route does the daily jobs as three
+ * independent steps. A failure of one never stops or hides the others.
  *
  * 1. Rebuild: a static landing only shows scheduled content once it is rebuilt after the moment it should appear
  *    or disappear, so this asks for a rebuild exactly when a published event or news item crossed its window
  *    since the last accepted rebuild, and does nothing otherwise.
- * 2. Retention: deletes the registrations of events that ended more than 90 days ago.
+ * 2. Retention: deletes the registrations of events that ended more than 90 days ago, and the ones whose email was
+ *    never confirmed.
+ * 3. Reminders: emails the confirmed people of the events one to three days ahead, nearest events first, within the
+ *    day's mail budget; what does not fit goes out the next day. Last, because it is the one that takes time.
  *
  * Protected by `Authorization: Bearer <CRON_SECRET>` (Vercel adds it by itself). The answer is 502 when the
  * deploy hook refused and 500 when a step threw, so a failing cron is visible in Vercel; a missing hook URL is a
@@ -31,21 +37,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE });
   }
 
-  const now = new Date();
+  const startedAt = Date.now();
+  const now = new Date(startedAt);
   let status = 200;
 
   const rebuild = await runStep("Scheduled rebuild failed", "cron-scheduled-rebuild", () => getRebuildOnWindowCrossing().execute(now));
   const retention = await runStep("Registration retention failed", "cron-registration-retention", () => runRegistrationRetention(now));
+  const reminders = await runStep("Registration reminders failed", "cron-registration-reminders", () => runRegistrationReminders(now, { startedAt }));
 
   if (rebuild.ok && rebuild.value.outcome === "failed") {
     status = 502;
   }
 
-  if (!rebuild.ok || !retention.ok) {
+  if (!rebuild.ok || !retention.ok || !reminders.ok) {
     status = 500;
   }
 
-  return NextResponse.json({ rebuild: rebuild.ok ? rebuild.value : UNAVAILABLE, retention: retention.ok ? retention.value : UNAVAILABLE }, { status, headers: NO_STORE });
+  return NextResponse.json({ rebuild: rebuild.ok ? rebuild.value : UNAVAILABLE, retention: retention.ok ? retention.value : UNAVAILABLE, reminders: reminders.ok ? reminders.value : UNAVAILABLE }, { status, headers: NO_STORE });
 }
 
 type StepResult<T> = { ok: true; value: T } | { ok: false };

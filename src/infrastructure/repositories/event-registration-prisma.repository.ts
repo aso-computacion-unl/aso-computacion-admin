@@ -144,6 +144,21 @@ export class EventRegistrationPrismaRepository implements EventRegistrationRepos
     return (await prisma.eventRegistration.findFirst({ where: { eventId, email, ...CONFIRMED }, select: { id: true } })) !== null;
   }
 
+  async listDueForReminder(eventId: string, limit: number): Promise<EventRegistrationRecord[]> {
+    if (limit < 1) return [];
+
+    const rows = await prisma.eventRegistration.findMany({ where: { eventId, ...CONFIRMED, reminderSentAt: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: limit });
+
+    return rows.map(toRecord);
+  }
+
+  async markReminderSent(eventId: string, id: string, at: Date): Promise<boolean> {
+    // One conditional statement: of two runs racing for the same person only one changes the row.
+    const { count } = await prisma.eventRegistration.updateMany({ where: { id, eventId, ...CONFIRMED, reminderSentAt: null }, data: { reminderSentAt: at } });
+
+    return count === 1;
+  }
+
   async delete(eventId: string, id: string): Promise<boolean> {
     const { count } = await prisma.eventRegistration.deleteMany({ where: { id, eventId } });
 

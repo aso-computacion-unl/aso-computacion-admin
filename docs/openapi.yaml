@@ -600,17 +600,21 @@ paths:
       operationId: runScheduledJobs
       summary: Tareas diarias programadas (cron de Vercel)
       description: |
-        Destino del cron de Vercel (`vercel.json`, `0 11 * * *`). Como el plan Hobby permite un solo cron, hace dos
-        tareas independientes; el fallo de una no detiene ni oculta a la otra:
+        Destino del cron de Vercel (`vercel.json`, `0 11 * * *`). Como el plan Hobby permite un solo cron, hace tres
+        tareas independientes; el fallo de una no detiene ni oculta a las otras:
 
         1. **Reconstrucción:** pide reconstruir la landing solo si un evento o noticia publicados cruzaron su
            ventana de publicación desde la última reconstrucción aceptada.
-        2. **Retención:** elimina las inscripciones de eventos que terminaron hace más de 90 días y lo audita con el
-           conteo, sin datos personales.
+        2. **Retención:** elimina las inscripciones de eventos que terminaron hace más de 90 días, y las que nunca
+           confirmaron su correo en 48 horas, y lo audita con el conteo, sin datos personales.
+        3. **Recordatorios:** envía un correo, una sola vez, a cada persona con inscripción confirmada en un evento
+           público cuyo día cae entre 1 y 3 días después (hora de Ecuador), empezando por los eventos más cercanos y
+           hasta donde alcance el presupuesto diario de correos (`MAIL_DAILY_LIMIT`); lo que no cabe sale al día
+           siguiente. Solo registra el envío si tuvo éxito, así que uno fallido sigue pendiente.
 
         Autenticación: `Authorization: Bearer <CRON_SECRET>` (Vercel lo añade solo). Falla cerrado: sin secreto
         utilizable (ausente, marcador de posición o menor de 32 caracteres) nadie queda autorizado. Comparación en
-        tiempo constante; el secreto nunca se lee de la URL. `maxDuration` de 30 s. Sin CORS.
+        tiempo constante; el secreto nunca se lee de la URL. `maxDuration` de 60 s (los recordatorios dejan de iniciar envíos a los 45 s). Sin CORS.
 
         Si se dan a la vez un fallo del *hook* (502) y una excepción (500), prevalece el `500`. Un `200` incluye el
         caso «sin URL de *hook*» (`outcome: disabled`).
@@ -618,7 +622,7 @@ paths:
         - cronSecret: []
       responses:
         "200":
-          description: Ambas tareas terminaron.
+          description: Las tres tareas terminaron.
           headers:
             Cache-Control:
               schema: { type: string, const: no-store }
@@ -628,6 +632,7 @@ paths:
               example:
                 rebuild: { crossed: 1, outcome: triggered }
                 retention: { deleted: 0 }
+                reminders: { sent: 0, failed: 0, events: 0, stoppedBy: done }
         "401":
           description: Cabecera ausente o secreto incorrecto.
           headers:
@@ -648,6 +653,7 @@ paths:
               example:
                 rebuild: { error: Service unavailable }
                 retention: { deleted: 0 }
+                reminders: { sent: 0, failed: 0, events: 0, stoppedBy: done }
         "502":
           description: El *hook* de despliegue rechazó la solicitud (`rebuild.outcome` = `failed`).
           headers:
@@ -659,6 +665,7 @@ paths:
               example:
                 rebuild: { crossed: 1, outcome: failed }
                 retention: { deleted: 0 }
+                reminders: { sent: 0, failed: 0, events: 0, stoppedBy: done }
 
   /auth/google/start:
     get:
@@ -1031,7 +1038,7 @@ components:
           description: "`closed` (plazo vencido o día pasado) prevalece sobre `full`."
     CronResult:
       type: object
-      required: [rebuild, retention]
+      required: [rebuild, retention, reminders]
       properties:
         rebuild:
           oneOf:
@@ -1054,7 +1061,23 @@ components:
                 deleted:
                   type: integer
                   minimum: 0
-                  description: Inscripciones eliminadas (90 días después de cada evento).
+                  description: Inscripciones eliminadas (90 días después de cada evento, o correo sin confirmar en 48 horas).
+            - $ref: "#/components/schemas/Error"
+        reminders:
+          oneOf:
+            - type: object
+              required: [sent, failed, events, stoppedBy]
+              properties:
+                sent: { type: integer, minimum: 0, description: Recordatorios enviados en esta ejecución. }
+                failed: { type: integer, minimum: 0, description: Envíos rechazados por el proveedor; siguen pendientes para la próxima ejecución. }
+                events: { type: integer, minimum: 0, description: Eventos dentro de la ventana de 1 a 3 días. }
+                stoppedBy:
+                  type: string
+                  enum: [done, budget, time, provider, not_configured]
+                  description: |
+                    `done`: se atendió todo lo pendiente. `budget`: se agotó el presupuesto diario de correos con personas
+                    pendientes. `time`: se agotó el tiempo de la función. `provider`: fallaron tres envíos seguidos.
+                    `not_configured`: sin cuenta de Gmail o sin `AUTH_URL`; no se envió nada.
             - $ref: "#/components/schemas/Error"
     PublicImage:
       type: object

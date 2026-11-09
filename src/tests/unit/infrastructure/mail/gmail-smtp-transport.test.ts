@@ -59,6 +59,21 @@ describe("GmailSmtpTransport", () => {
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("ana@example.com");
   });
 
+  it("reuses one connection for a burst of sends only when asked to (the reminders), and closes it", async () => {
+    const plain = createGmailTransporter(CONFIG).options as Record<string, unknown>;
+    const pooled = createGmailTransporter(CONFIG, { pooled: true }).options as Record<string, unknown>;
+
+    expect(plain.pool).toBeFalsy();
+    expect(pooled).toMatchObject({ pool: true, maxConnections: 1 });
+
+    const mailer = { sendMail: vi.fn(), close: vi.fn() };
+
+    await new GmailSmtpTransport(CONFIG, mailer).close();
+    await new GmailSmtpTransport(CONFIG, { sendMail: vi.fn() }).close();
+
+    expect(mailer.close).toHaveBeenCalledOnce();
+  });
+
   it("builds a bounded SMTPS connection to Gmail with the app password", () => {
     const options = createGmailTransporter(CONFIG).options as Record<string, unknown>;
 

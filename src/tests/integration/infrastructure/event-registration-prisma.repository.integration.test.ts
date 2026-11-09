@@ -339,4 +339,73 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
       expect(await registrations.count(event.id)).toBe(1);
     });
   });
+
+  describe("reminders", () => {
+    const confirmed = (eventId: string, overrides: Partial<NewEventRegistration> = {}) => person(eventId, overrides);
+
+    it("lists the confirmed people who have not been reminded, oldest first, up to the limit", async () => {
+      const event = await addEvent();
+      const first = confirmed(event.id, { name: "Primera" });
+      const second = confirmed(event.id, { name: "Segunda" });
+      const third = confirmed(event.id, { name: "Tercera" });
+
+      await registrations.register(second, new Date(NOW.getTime() + 1000));
+      await registrations.register(first, NOW);
+      await registrations.register(third, new Date(NOW.getTime() + 2000));
+      await registrations.register(pendingPerson(event.id, { name: "Pendiente" }), NOW);
+
+      expect((await registrations.listDueForReminder(event.id, 10)).map((row) => row.name)).toEqual(["Primera", "Segunda", "Tercera"]);
+      expect((await registrations.listDueForReminder(event.id, 2)).map((row) => row.name)).toEqual(["Primera", "Segunda"]);
+      expect(await registrations.listDueForReminder(event.id, 0)).toEqual([]);
+    });
+
+    it("stops listing a person once their reminder is recorded, and records it once", async () => {
+      const event = await addEvent();
+      const ana = confirmed(event.id, { name: "Ana" });
+      const sentAt = new Date(NOW.getTime() + HOUR);
+
+      await registrations.register(ana, NOW);
+      await registrations.register(confirmed(event.id, { name: "Luis" }), new Date(NOW.getTime() + 1000));
+
+      expect(await registrations.markReminderSent(event.id, ana.id, sentAt)).toBe(true);
+      expect(await registrations.markReminderSent(event.id, ana.id, new Date(sentAt.getTime() + HOUR))).toBe(false);
+      expect((await registrations.listDueForReminder(event.id, 10)).map((row) => row.name)).toEqual(["Luis"]);
+      expect(await prisma.eventRegistration.findUnique({ where: { id: ana.id } })).toMatchObject({ reminderSentAt: sentAt });
+    });
+
+    it("refuses to record a reminder for a pending registration, for another event's one or for an unknown one", async () => {
+      const event = await addEvent();
+      const other = await addEvent({ title: "Otro taller" });
+      const pending = pendingPerson(event.id);
+      const ana = confirmed(event.id);
+
+      await registrations.register(pending, NOW);
+      await registrations.register(ana, NOW);
+
+      expect(await registrations.markReminderSent(event.id, pending.id, NOW)).toBe(false);
+      expect(await registrations.markReminderSent(other.id, ana.id, NOW)).toBe(false);
+      expect(await registrations.markReminderSent(event.id, "nobody", NOW)).toBe(false);
+      expect(await prisma.eventRegistration.count({ where: { reminderSentAt: { not: null } } })).toBe(0);
+    });
+
+    it("records a reminder once when two runs race for the same person", async () => {
+      const event = await addEvent();
+      const ana = confirmed(event.id);
+
+      await registrations.register(ana, NOW);
+
+      const results = await Promise.all(Array.from({ length: 5 }, () => registrations.markReminderSent(event.id, ana.id, NOW)));
+
+      expect(results.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("does not list the people of another event", async () => {
+      const event = await addEvent();
+      const other = await addEvent({ title: "Otro taller" });
+
+      await registrations.register(confirmed(other.id), NOW);
+
+      expect(await registrations.listDueForReminder(event.id, 10)).toEqual([]);
+    });
+  });
 });

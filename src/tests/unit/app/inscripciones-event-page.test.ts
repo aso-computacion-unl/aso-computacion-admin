@@ -20,7 +20,7 @@ import RegistrationLayout from "../../../../app/inscripciones/layout";
 
 const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, registered: 0, deadline: null, ...over });
-const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over) });
+const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, remindersOn: false, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over) });
 const open = (over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "open", siteKey: undefined, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status({ mode: "open", ...over }), ...extra });
 const none = (extra: Record<string, unknown> = {}) => ({ kind: "none", event, calendarHref: "/api/public/events/taller-docker/calendar.ics", ...extra });
 const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
@@ -166,6 +166,22 @@ describe("the event registration page", () => {
     expect(html).not.toContain("Inscribirme");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("<form");
+  });
+
+  it("promises a reminder by email to a registered member only when reminders are on, and says there is no confirmation email otherwise", async () => {
+    pageMock.mockResolvedValue({ ...unl(member, { alreadyRegistered: true }), remindersOn: true });
+
+    const on = await render();
+
+    expect(on).toContain("unos días antes del evento le enviaremos un recordatorio");
+    expect(on).not.toContain("no enviamos correo de confirmación");
+
+    pageMock.mockResolvedValue({ ...unl(member, { alreadyRegistered: true }), remindersOn: false });
+
+    const off = await render();
+
+    expect(off).toContain("no enviamos correo de confirmación");
+    expect(off).not.toContain("le enviaremos un recordatorio");
   });
 
   it("says so when the member is already registered, with the calendar, or when the seats are gone", async () => {

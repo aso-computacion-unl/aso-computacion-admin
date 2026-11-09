@@ -3,14 +3,16 @@ import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { runMock, purgeMock, reportErrorMock } = vi.hoisted(() => ({ runMock: vi.fn(), purgeMock: vi.fn(), reportErrorMock: vi.fn() }));
+const { runMock, purgeMock, remindersMock, reportErrorMock } = vi.hoisted(() => ({ runMock: vi.fn(), purgeMock: vi.fn(), remindersMock: vi.fn(), reportErrorMock: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 vi.mock("@/interface/cron/scheduled-rebuild-container", () => ({ getRebuildOnWindowCrossing: () => ({ execute: runMock }) }));
 vi.mock("@/interface/cron/registration-retention", () => ({ runRegistrationRetention: purgeMock }));
+vi.mock("@/interface/cron/registration-reminders", () => ({ runRegistrationReminders: remindersMock }));
 
 const SECRET = "c".repeat(40);
+const IDLE_REMINDERS = { sent: 0, failed: 0, events: 0, stoppedBy: "done" };
 const URL = "https://admin.test/api/cron/scheduled-rebuild";
 
 let route: typeof import("../../../../../app/api/cron/scheduled-rebuild/route");
@@ -22,6 +24,8 @@ beforeEach(async () => {
   runMock.mockResolvedValue({ crossed: 0, outcome: "not-needed" });
   purgeMock.mockReset();
   purgeMock.mockResolvedValue({ deleted: 0 });
+  remindersMock.mockReset();
+  remindersMock.mockResolvedValue(IDLE_REMINDERS);
   reportErrorMock.mockReset();
   vi.stubEnv("CRON_SECRET", SECRET);
   vi.resetModules();
@@ -45,6 +49,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
 
     expect(runMock).not.toHaveBeenCalled();
     expect(purgeMock).not.toHaveBeenCalled();
+    expect(remindersMock).not.toHaveBeenCalled();
   });
 
   it("refuses everything, even the secret-looking header, while CRON_SECRET is unset, empty, a placeholder or too short", async () => {
@@ -72,7 +77,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const response = await route.GET(get(`Bearer ${SECRET}`));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 0 } });
+    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 0 }, reminders: IDLE_REMINDERS });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(runMock).toHaveBeenCalledTimes(1);
     expect(runMock.mock.calls[0]![0].getTime()).toBeGreaterThanOrEqual(before);
@@ -84,7 +89,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const response = await route.GET(get(`Bearer ${SECRET}`));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 12 } });
+    expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 12 }, reminders: IDLE_REMINDERS });
     expect(purgeMock).toHaveBeenCalledTimes(1);
     expect(purgeMock.mock.calls[0]![0]).toBe(runMock.mock.calls[0]![0]);
   });
@@ -100,7 +105,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const failed = await route.GET(get(`Bearer ${SECRET}`));
 
     expect(failed.status).toBe(502);
-    expect(await failed.json()).toEqual({ rebuild: { crossed: 1, outcome: "failed" }, retention: { deleted: 0 } });
+    expect(await failed.json()).toEqual({ rebuild: { crossed: 1, outcome: "failed" }, retention: { deleted: 0 }, reminders: IDLE_REMINDERS });
     expect(purgeMock).toHaveBeenCalledTimes(3);
   });
 
@@ -112,7 +117,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
     const text = await response.text();
 
     expect(response.status).toBe(500);
-    expect(JSON.parse(text)).toEqual({ rebuild: { error: "Service unavailable" }, retention: { deleted: 0 } });
+    expect(JSON.parse(text)).toEqual({ rebuild: { error: "Service unavailable" }, retention: { deleted: 0 }, reminders: IDLE_REMINDERS });
     expect(text).not.toContain("secret");
     expect(reportErrorMock).toHaveBeenCalledTimes(1);
     expect(reportErrorMock.mock.calls[0]![1]).toEqual({ route: "cron-scheduled-rebuild" });
@@ -129,7 +134,7 @@ describe("GET /api/cron/scheduled-rebuild", () => {
       const text = await response.text();
 
       expect(response.status).toBe(500);
-      expect(JSON.parse(text)).toEqual({ rebuild: { crossed: 2, outcome: "triggered" }, retention: { error: "Service unavailable" } });
+      expect(JSON.parse(text)).toEqual({ rebuild: { crossed: 2, outcome: "triggered" }, retention: { error: "Service unavailable" }, reminders: IDLE_REMINDERS });
       expect(text).not.toContain("secret");
       expect(runMock).toHaveBeenCalledTimes(1);
       expect(reportErrorMock).toHaveBeenCalledTimes(1);
@@ -166,9 +171,73 @@ describe("GET /api/cron/scheduled-rebuild", () => {
       const response = await route.GET(get(`Bearer ${SECRET}`));
 
       expect(response.status).toBe(500);
-      expect(await response.json()).toEqual({ rebuild: { error: "Service unavailable" }, retention: { error: "Service unavailable" } });
+      expect(await response.json()).toEqual({ rebuild: { error: "Service unavailable" }, retention: { error: "Service unavailable" }, reminders: IDLE_REMINDERS });
       expect(reportErrorMock).toHaveBeenCalledTimes(2);
     });
+  });
+
+  describe("the reminders step", () => {
+    it("runs once, after the retention, at the same time as the other steps, and reports its counts only", async () => {
+      remindersMock.mockResolvedValue({ sent: 7, failed: 1, events: 2, stoppedBy: "budget" });
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 0 }, reminders: { sent: 7, failed: 1, events: 2, stoppedBy: "budget" } });
+      expect(remindersMock).toHaveBeenCalledTimes(1);
+      expect(remindersMock.mock.calls[0]![0]).toBe(runMock.mock.calls[0]![0]);
+      expect(remindersMock.mock.invocationCallOrder[0]).toBeGreaterThan(purgeMock.mock.invocationCallOrder[0]!);
+    });
+
+    it("hands the step the moment the route started, so it can keep inside the function's time", async () => {
+      const before = Date.now();
+
+      await route.GET(get(`Bearer ${SECRET}`));
+
+      const { startedAt } = remindersMock.mock.calls[0]![1] as { startedAt: number };
+
+      expect(startedAt).toBeGreaterThanOrEqual(before);
+      expect(startedAt).toBeLessThanOrEqual(Date.now());
+    });
+
+    it("still runs when the rebuild and the purge fail, and shows red when it fails itself, leaking nothing", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      runMock.mockRejectedValue(new Error("a"));
+      purgeMock.mockRejectedValue(new Error("b"));
+      remindersMock.mockResolvedValue({ sent: 3, failed: 0, events: 1, stoppedBy: "done" });
+
+      const afterOthers = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(afterOthers.status).toBe(500);
+      expect((await afterOthers.json()).reminders).toEqual({ sent: 3, failed: 0, events: 1, stoppedBy: "done" });
+
+      remindersMock.mockRejectedValue(new Error("connect ECONNREFUSED smtp://user:secret@smtp.gmail.com"));
+      runMock.mockResolvedValue({ crossed: 0, outcome: "not-needed" });
+      purgeMock.mockResolvedValue({ deleted: 2 });
+      reportErrorMock.mockReset();
+
+      const failed = await route.GET(get(`Bearer ${SECRET}`));
+      const text = await failed.text();
+
+      expect(failed.status).toBe(500);
+      expect(JSON.parse(text)).toEqual({ rebuild: { crossed: 0, outcome: "not-needed" }, retention: { deleted: 2 }, reminders: { error: "Service unavailable" } });
+      expect(text).not.toContain("secret");
+      expect(reportErrorMock).toHaveBeenCalledTimes(1);
+      expect(reportErrorMock.mock.calls[0]![1]).toEqual({ route: "cron-registration-reminders" });
+    });
+
+    it("runs even when the hook refused, which keeps answering 502", async () => {
+      runMock.mockResolvedValue({ crossed: 1, outcome: "failed" });
+
+      const response = await route.GET(get(`Bearer ${SECRET}`));
+
+      expect(response.status).toBe(502);
+      expect(remindersMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("keeps the function's time at a minute: the reminders send up to the day's budget in one run, which a 30 s limit cannot hold", () => {
+    expect(route.maxDuration).toBe(60);
   });
 
   it("is rendered per request and only reads: GET is the only verb", () => {

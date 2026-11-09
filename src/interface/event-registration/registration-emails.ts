@@ -90,3 +90,34 @@ export function confirmationEmail({ event, confirmUrl }: { event: EmailEvent; co
     ]),
   };
 }
+
+/** The reminder a few days before the event: what, when and where, the event page and, when there is one, the calendar file. */
+export function reminderEmail({ event, eventUrl, calendarUrl }: { event: EmailEvent; eventUrl: string; calendarUrl: string | null }): EmailBody {
+  const text = [
+    "Hola:",
+    "",
+    "Le recordamos que usted está inscrito en el siguiente evento.",
+    "",
+    ...eventFacts(event),
+    "",
+    `Detalles del evento: ${eventUrl}`,
+    ...(calendarUrl ? [`Añadir al calendario: ${calendarUrl}`] : []),
+    "",
+    "Si ya no puede asistir, no necesita hacer nada más.",
+    "",
+    SIGNATURE,
+  ].join("\n");
+  const link = (url: string) => `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`;
+
+  return {
+    subject: `Recordatorio: «${event.title}», ${eventWhen({ ...event, hora: null })}`,
+    text,
+    html: emailHtml([
+      "<p>Hola:</p>",
+      "<p>Le recordamos que usted está inscrito en el siguiente evento.</p>",
+      eventFactsHtml(event),
+      `<p>Detalles del evento: ${link(eventUrl)}${calendarUrl ? `<br>Añadir al calendario: ${link(calendarUrl)}` : ""}</p>`,
+      "<p>Si ya no puede asistir, no necesita hacer nada más.</p>",
+    ]),
+  };
+}

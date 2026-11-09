@@ -29,9 +29,10 @@ Conventions:
 
 ### F2. A visitor follows a deep link
 
-- **Entry**: `/foro/hilo/<id>`, `/foro/c/<slug>`, `/foro/c/<slug>/nuevo`, `/foro/eventos`.
+- **Entry**: `/foro/hilo/<id>`, `/foro/c/<slug>`, `/foro/c/<slug>/nuevo`. (`/foro/eventos` is no longer a forum page: it redirects out, R3.)
 - **Expected**: redirect to `/foro?next=<path>`; after signing in the student lands on the page they asked for.
 - `next` is kept only for `/foro…` and `/inscripciones/<slug>`; anything else ends at `/foro`.
+- **A sign-in that began on an event's page** (`next=/inscripciones/<slug>`, R2) also *fails* back to that page, with `?error=<code>` and told in registration words (D5, D8): the forum landing never shows a registration student a forum screen. A suspended account gets the generic `denied` there; the suspension code is for the forum landing only.
 
 ### F3. A student signs in with Google
 
@@ -44,7 +45,7 @@ Conventions:
 ### F4. A student browses threads
 
 - **Entry**: `/foro`, with `?estado=resueltos`, `?categoria=<slug>`, `?pagina=N` (20 per page).
-- **Sees**: the rail (Abiertos / Resueltos counts, categories, link to Inscripciones) and the thread list.
+- **Sees**: the rail (Abiertos / Resueltos counts and the categories) and the thread list. The forum is only the forum: no registrations page, no link to one, no "Eventos" group in the rail or on phones (D8).
 - **Empty states**: "Todavía no hay categorías." / "La directiva las irá creando. Vuelva pronto."; "Todavía no hay hilos[ en X]." / "Sea la primera persona en abrir uno."; "No hay hilos abiertos…" / "Todos los hilos ya están resueltos."; "No hay hilos resueltos…" / "Un hilo queda resuelto cuando se marca su mejor respuesta."
 - **Edges**: a page past the end shows the last page; unknown category → 404; `/foro/c/<slug>` → `/foro?categoria=<slug>` keeping filters; `/foro/<anything else>` → 404 inside the forum; a render error → "Algo salió mal" with "Reintentar" and "Volver al foro".
 
@@ -116,16 +117,17 @@ Conventions:
 
 ## Registrations
 
-A published event has one registration mode: `none`, `unl` (students, with the forum Google account) or `open` (anyone, email confirmed). Every event has its page at `/inscripciones/<slug>`; unknown, unpublished or trashed events → 404.
+A published event has one registration mode: `none`, `unl` (students, with their UNL Google account, which is the forum's sign-in under the hood) or `open` (anyone, email confirmed). Registrations are a section of their own, apart from the forum (D8): a public list at `/inscripciones` and one page per event at `/inscripciones/<slug>`, both under the same top bar ("Inscripciones", whose brand leads to the list; no "Foro" anywhere). Unknown, unpublished or trashed events → 404. Every screen of this section says "Inscripciones", never "foro".
 
 ### R1. Someone opens an event without registration
 
-- **Mode**: `none`. **Sees**: the ticket, "Pase libre — No necesita inscribirse: solo llegue.", and the `.ics` only when the event has an exact day that has not passed.
+- **Mode**: `none`. **Sees**: under the registrations' bar, the ticket, "Pase libre — No necesita inscribirse: solo llegue.", and the `.ics` only when the event has an exact day that has not passed.
 
 ### R2. A student registers for a UNL event
 
-- **Mode**: `unl`. **Entry**: `/inscripciones/<slug>`.
-- **Signed out**: "Entre con su correo @unl.edu.ec para reservar su cupo." and "Entrar con Google" (→ F3 with `next=/inscripciones/<slug>`, back to the page).
+- **Mode**: `unl`. **Entry**: `/inscripciones/<slug>` (from the list, R3, or a shared link).
+- **Signed out**: "Entre con su correo @unl.edu.ec para reservar su cupo." and "Entrar con Google" (→ F3 with `next=/inscripciones/<slug>`, back to the page). After a failed sign-in the page shows the reason above the button, in registration words ("El acceso no está disponible ahora…", "No se pudo completar el acceso con Google…", "Esa cuenta no puede entrar. Use su correo institucional @unl.edu.ec.", "No pudimos verificar su cuenta con Google…"), and the button reads "Intentar de nuevo".
+- **Google login not configured** (S8): instead of the sign-in, "La inscripción con cuenta UNL no está disponible en este momento. Inténtelo de nuevo más tarde." (a full or closed event still says so first; someone already signed in can still reserve).
 - **Signed in**: "Se reservará a nombre de <nombre>" and "Reservar mi cupo". No form: name and email come from the forum account. The seat is taken at once.
 - **Expected**: "Usted ya está inscrito en este evento." and the `.ics`, plus a line on whether a reminder will be emailed.
 - **Errors**:
@@ -137,17 +139,21 @@ A published event has one registration mode: `none`, `unl` (students, with the f
 | Closed (checked before full) | "Las inscripciones de este evento ya cerraron." |
 | Mode changed meanwhile | "Este evento no admite inscripción con cuenta UNL." |
 | Event gone | "No se encontró el evento." |
-| Session expired | "Inicie sesión para participar en el foro." (D5) |
-| Account not allowed or suspended | "Su cuenta no puede participar en el foro." (D5) |
+| Session expired (D5) | "Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para reservar su cupo." and, where the login works, an "Entrar con Google" button that returns to this same event page |
+| Account not allowed or suspended (D5) | "Su cuenta no puede reservar cupos. Use su cuenta institucional @unl.edu.ec." |
 | Unexpected | "Ocurrió un error inesperado. Intente nuevamente." |
 
 - A full or closed event shows its message instead of the button, before anyone tries.
 
-### R3. A student finds UNL events from the forum
+### R3. Someone finds the events they can register for
 
-- **Entry**: `/foro/eventos` (signed out: "Su pase de estudiante" sign-in, `next=/foro/eventos`).
-- **Sees**: open UNL events with live seats, or "No hay inscripciones abiertas." / "Cuando la directiva abra una, la verá aquí." with «Volver a los hilos». Open-form events are not listed (D8).
-- `/foro/eventos/<slug>` → 308 to `/inscripciones/<slug>`.
+- **Entry**: `/inscripciones`, public: no sign-in, no session read (D8). The landing and the old forum address link to it.
+- **Sees**: under the registrations' bar, "Inscripciones" and one card per event that takes a registration **right now**, UNL and open form alike: the date on a stub, the title, "Con cuenta UNL" or "Abierta al público", date, hour and place, a two-line description, and the live seats ("Quedan N cupos", "Queda 1 cupo", "Sin límite de cupos"). The kicker counts them ("3 eventos con inscripción abierta").
+- **Order**: soonest first, events without a date last, the title breaking ties. A card leads to `/inscripciones/<slug>`; the card is a link, the title is its heading.
+- **Left out**: events that are closed (deadline or day passed), full, free entry (`none`), drafts, scheduled or withdrawn.
+- **Empty**: "No hay inscripciones abiertas." / "Cuando la directiva abra una, la verá aquí." and the kicker "Sin inscripciones abiertas".
+- A failed read is an error page, not an empty list: an empty one would say nothing is open when it could not be read.
+- `/foro/eventos` → 308 to `/inscripciones` (the query string is kept); `/foro/eventos/<slug>` → 308 to `/inscripciones/<slug>`.
 
 ### R4. An external person registers with the open form
 
@@ -205,6 +211,7 @@ A published event has one registration mode: `none`, `unl` (students, with the f
 ### R8. An admin sets up registration on an event
 
 - **Entry**: the event form, "Tiene inscripción" switch, "Cuenta UNL" / "Formulario abierto", "Cupos" (1-5000, empty = no limit), "Cierre" (Ecuador time, empty = when the day passes).
+- **Where people register**: both modes on `/inscripciones/<slug>`, which is also listed at `/inscripciones` (R3) while it is open; the admin copies that link from R9.
 - **Errors**: "Elija una forma de inscripción de la lista.", "Indique un número entero de 1 a 5000.", "Indique una fecha y hora válidas."
 - Changing mode or lowering seats when people are already registered is not checked (D14).
 
@@ -214,7 +221,7 @@ A published event has one registration mode: `none`, `unl` (students, with the f
 - **Sees**: upcoming and past events on the left, the registrants table on the right; empty: "Ningún evento pide inscripción todavía…".
 - **Delete**: "Se borrarán los datos de X y se liberará su cupo." / "Esta acción no se puede deshacer." Audited without the name.
 - **Export CSV**: spreadsheet-safe, audited with the count only. Editor → 403.
-- **Empty states per event**: no registration, not published, UNL (copyable link). For open events the text points to the landing card and gives no link (D15).
+- **Empty states per event**: no registration, not published, and UNL or open: the copyable link `/inscripciones/<slug>` with "Copiar link" (D15; without `AUTH_URL` it shows the path and names the missing setting). The open-form text no longer points to the landing card.
 
 ### R10. The landing shows live seats
 
@@ -230,20 +237,20 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | D2 | F8 | Build it now | A student edits their own thread and replies (shown as "editado"); «Me sirvió» is offered on the opening post too |
 | D3 | F6 | Name the limit, in minutes | **Built** (`e2e/forum-ux.spec.ts`). The throttle message says which limit was hit (per minute or per hour) and the wait in minutes |
 | D4 | F5 | Visible placeholder | **Built** (`e2e/forum-ux.spec.ts`). A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
-| D5 | F6, F7, R2 | Keep text, return, own wording | **Built for the forum** (F6, F7; `e2e/forum-ux.spec.ts`): an expired session keeps the typed text and the sign-in link returns to the same page. **Pending (R2)**: registration screens use registration wording, never "participar en el foro" |
+| D5 | F6, F7, R2 | Keep text, return, own wording | **Built** (forum: F6, F7, `e2e/forum-ux.spec.ts`; registrations: R2, `e2e/audit-registration.spec.ts`, unit tests of the action, the event page and the sign-in return): an expired session keeps the typed text and the sign-in link returns to the same page; the registration screens use registration wording, never "participar en el foro", and a failed sign-in that began on an event's page comes back to it |
 | D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
 | D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
-| D8 | F4, R3 | Forum and registrations are separate sections | The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |
+| D8 | F4, R3 | Forum and registrations are separate sections | **Built** (`e2e/audit-registration.spec.ts`, `e2e/forum-member.spec.ts`, `e2e/event-page.spec.ts`). The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |
 | D9 | R4 | Only the latest link works | Registering again while pending makes the previous link answer "Este enlace no sirve" |
 | D10 | R4 | Accept | "Ya hay una inscripción con ese correo…" stays |
 | D11 | R5 | Clear message | The confirm page of an event no longer open says "Este evento ya no recibe inscripciones" instead of a 404 |
 | D12 | R4, R6 | Reserve budget for confirmations | Reminders use at most ~70 % of the daily email cap; the rest stays for confirmation emails |
 | D13 | R6 | No reminder | People who register less than a day before get no reminder (unchanged) |
 | D14 | R8 | Warn and confirm | Changing the mode or lowering seats below the registered count asks "Este evento ya tiene N inscritos…" before saving |
-| D15 | R9 | Copyable link | Open events show the copyable `/inscripciones/<slug>` link in the admin, like UNL |
+| D15 | R9 | Copyable link | **Built** (`e2e/audit-registration.spec.ts`). Open events show the copyable `/inscripciones/<slug>` link in the admin, like UNL |
 
 Found while mapping coverage:
 
-- **UNL mode with Google not configured.** No branch hides the registration (`isForumEnabled`, `src/infrastructure/forum/forum-config.ts:52`, is never called); the page offers "Entrar con Google", which ends at the `unavailable` error. `docs/DEPLOY.md:190` says the page does not offer it. Under D8 the page says the UNL registration is not available right now instead of offering a sign-in that cannot work.
+- **UNL mode with Google not configured** (S8, **built**: `e2e/event-page.spec.ts`, `e2e/audit-registration.spec.ts`). The page used to offer "Entrar con Google", which ended at the `unavailable` error, though `docs/DEPLOY.md` said it did not. It now asks `isForumEnabled` (`src/infrastructure/forum/forum-config.ts`) and says the UNL registration is not available right now instead of offering a sign-in that cannot work (R2).
 - **F12 categories**: name required, ≤ 60; description optional, ≤ 200; blank slug derived from the name on create and kept on edit; invalid or taken slug → error on the slug field; new category goes last; delete refused while it has any thread, hidden ones too: "La categoría todavía tiene hilos y no se puede eliminar."
 - **Display name**: set once from Google at sign-up and never updated; there is no way to change it.

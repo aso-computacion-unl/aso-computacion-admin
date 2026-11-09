@@ -4,7 +4,7 @@ import type { ForumMemberRepository } from "../ports/forum.ports";
 import { GetPublicEventUseCase } from "../use-cases/get-public-event.use-case";
 import { ListEventSeatsUseCase } from "./list-event-seats.use-case";
 import { ListRegistrationOverviewUseCase } from "./list-registration-overview.use-case";
-import { ListOpenUnlEventsUseCase } from "./list-open-unl-events.use-case";
+import { ListOpenRegistrationEventsUseCase } from "./list-open-registration-events.use-case";
 import {
   ConfirmOpenRegistrationUseCase,
   DeleteEventRegistrationUseCase,
@@ -27,7 +27,7 @@ export function buildEventRegistrationServices({ events, registrations, members 
     status: new GetEventRegistrationStatusUseCase(events, registrations, members),
     seats: new ListEventSeatsUseCase(events, registrations),
     overview: new ListRegistrationOverviewUseCase(events, registrations),
-    openUnl: new ListOpenUnlEventsUseCase(events, registrations),
+    openRegistrations: new ListOpenRegistrationEventsUseCase(events, registrations),
     registerOpen: new RegisterWithOpenFormUseCase(events, registrations),
     confirmOpen: new ConfirmOpenRegistrationUseCase(events, registrations),
     registerUnl: new RegisterWithUnlAccountUseCase(events, registrations, members, unl),

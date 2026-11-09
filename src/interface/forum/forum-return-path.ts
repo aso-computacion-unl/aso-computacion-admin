@@ -50,6 +50,11 @@ export function parseForumReturnPath(value: string | null | undefined): string |
   return `${pathname}${url.search}`;
 }
 
+/** Whether a (validated) return path is an event's registration page: a sign-in that began there must end there, even when it fails. */
+export function isRegistrationReturnPath(path: string | null): path is string {
+  return path !== null && path.startsWith(`${REGISTRATION_PATH}/`);
+}
+
 /** Where to send a visitor so the sign-in brings them back to `returnTo` (an invalid or missing one is just the landing). */
 export function forumSignInHref(returnTo?: string | null): string {
   const next = parseForumReturnPath(returnTo);

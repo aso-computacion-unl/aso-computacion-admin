@@ -9,7 +9,7 @@ web
 ## Users
 
 - **The ASO Computación board** (students of the Computer Science program at Universidad Nacional de Loja). Each member signs in with their own Google account and has a role: Editor (day-to-day content, moderation) or Admin (site texts, users, permanent deletion, the change log). They work on phones and laptops equally: right after an event from a phone, and calmly from a laptop when preparing content.
-- **Students** (secondary, never see the admin). They sign in to the forum (`/foro`) with their institutional `@unl.edu.ec` Google account, and register for events from `/foro/eventos/<slug>`, with that account or with an open form.
+- **Students** (secondary, never see the admin). They sign in to the forum (`/foro`) with their institutional `@unl.edu.ec` Google account. Event registration is a separate public section, `/inscripciones` (a list of the open events; each event at `/inscripciones/<slug>`), with no sign-in to browse it: students prove that same account only to reserve a seat, or anyone registers with an open form. The forum has no registrations page.
 
 ## Product Purpose
 

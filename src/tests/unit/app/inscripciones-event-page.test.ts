@@ -20,12 +20,13 @@ import RegistrationLayout from "../../../../app/inscripciones/layout";
 
 const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, registered: 0, deadline: null, ...over });
-const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, remindersOn: false, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over) });
+const unl = (member: unknown, over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "unl", member, loginAvailable: true, remindersOn: false, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over), ...extra });
 const open = (over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "open", siteKey: undefined, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status({ mode: "open", ...over }), ...extra });
 const none = (extra: Record<string, unknown> = {}) => ({ kind: "none", event, calendarHref: "/api/public/events/taller-docker/calendar.ics", ...extra });
 const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
 
-const render = async () => renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }) }));
+const render = async (query: { error?: string | string[] } = {}) =>
+  renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }), searchParams: Promise.resolve(query) }));
 
 beforeEach(() => {
   pageMock.mockReset();
@@ -205,6 +206,85 @@ describe("the event registration page", () => {
     expect(html).not.toContain("auth/google/start");
   });
 
+  describe("S8: the Google login is not configured on this server", () => {
+    it("says the UNL registration is not available right now to a visitor, instead of a sign-in that cannot work", async () => {
+      pageMock.mockResolvedValue(unl(null, {}, { loginAvailable: false }));
+
+      const html = await render();
+      const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+      expect(stub).toMatch(/<p role="status" class="stub-closed">La inscripción con cuenta UNL no está disponible en este momento\./);
+      expect(html).not.toContain("auth/google");
+      expect(html).not.toContain("Entrar con Google");
+      expect(html).not.toContain("Reservar mi cupo");
+      expect(html).toContain("Taller de Docker");
+      expect(html).toContain("Quedan 30 cupos");
+    });
+
+    it("still lets someone who is already signed in reserve, and still tells a registered member they are in", async () => {
+      pageMock.mockResolvedValue(unl(member, {}, { loginAvailable: false }));
+      expect(await render()).toContain("Reservar mi cupo");
+
+      pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true }, { loginAvailable: false }));
+      expect(await render()).toContain("Usted ya está inscrito en este evento.");
+    });
+
+    it("keeps saying a full or closed event is full or closed before anything about the login", async () => {
+      pageMock.mockResolvedValue(unl(null, { state: "closed" }, { loginAvailable: false }));
+
+      const html = await render();
+
+      expect(html).toContain("Las inscripciones de este evento ya cerraron.");
+      expect(html).not.toContain("no está disponible en este momento");
+    });
+
+    it("does not touch the open form, which has no Google login", async () => {
+      pageMock.mockResolvedValue(open());
+
+      expect(await render()).not.toContain("no está disponible en este momento");
+    });
+  });
+
+  describe("D5: a failed sign-in comes back to this page and is told in registration words", () => {
+    it.each(["unavailable", "failed", "denied", "verification"])("shows %s as an alert above the sign-in, with a button to try again, and never says foro", async (code) => {
+      pageMock.mockResolvedValue(unl(null));
+
+      const html = await render({ error: code });
+      const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+      const alert = stub.match(/<p role="alert"[\s\S]*?<\/p>/)?.[0] ?? "";
+
+      expect(alert).not.toBe("");
+      expect(alert).not.toMatch(/foro/i);
+      expect(stub.indexOf(alert)).toBeLessThan(stub.indexOf("auth/google/start"));
+      expect(stub).toContain("Intentar de nuevo");
+      expect(stub).not.toContain("Entrar con Google");
+      expect(stub).toContain('href="/foro/auth/google/start?next=%2Finscripciones%2Ftaller-docker"');
+    });
+
+    it("explains a refused account by pointing to the institutional one", async () => {
+      pageMock.mockResolvedValue(unl(null));
+
+      expect(await render({ error: "denied" })).toContain("Esa cuenta no puede entrar. Use su correo institucional @unl.edu.ec.");
+    });
+
+    it.each([{ error: "suspended" }, { error: "<script>" }, { error: ["denied", "failed"] }, {}])("ignores an unknown or forum-only code (%j): the plain sign-in", async (query) => {
+      pageMock.mockResolvedValue(unl(null));
+
+      const html = await render(query);
+
+      expect(html).not.toContain('role="alert"');
+      expect(html).toContain("Entrar con Google");
+    });
+
+    it("does not show the problem to someone signed in or on an event that offers no sign-in", async () => {
+      pageMock.mockResolvedValue(unl(member));
+      expect(await render({ error: "denied" })).not.toContain('role="alert"');
+
+      pageMock.mockResolvedValue(unl(null, {}, { loginAvailable: false }));
+      expect(await render({ error: "denied" })).not.toContain('role="alert"');
+    });
+  });
+
   it("is a 404 for an unknown or non-public event", async () => {
     pageMock.mockResolvedValue(null);
 
@@ -337,7 +417,9 @@ describe("the event 404", () => {
     expect(html).not.toContain("categoría");
     expect(html).not.toContain("hilo");
     expect(html).not.toContain("en el foro");
-    expect(html).not.toContain('href="/foro"');
+    expect(html).not.toContain('href="/foro');
+    expect(html).toContain('href="/inscripciones"');
+    expect(html).toContain("Ver las inscripciones abiertas");
   });
 });
 
@@ -351,6 +433,15 @@ describe("the registration layout", () => {
     expect(html.match(/<main/g)).toHaveLength(1);
     expect(html).toContain("contenido");
     expect(html).toContain("ASO Computación");
+  });
+
+  it("D8: its own top bar is named Inscripciones and its brand leads to the list, the same on every page of the route", () => {
+    const html = layout();
+    const bar = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
+
+    expect(bar).toMatch(/<a [^>]*href="\/inscripciones"[^>]*>[\s\S]*?Inscripciones<\/span><\/a>/);
+    expect(bar).toContain("Inscripciones de ASO Computación, inicio");
+    expect(bar).not.toMatch(/foro/i);
   });
 
   it("has no forum rail, no forum name and no link into the forum", () => {

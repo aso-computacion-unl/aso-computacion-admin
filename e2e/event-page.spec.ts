@@ -212,7 +212,7 @@ test("a full or closed open event hides the form and says why", async ({ page })
   }
 });
 
-test("a UNL event keeps its Google flow, with no form", async ({ page }) => {
+test("S8 / R2: a UNL event says its registration is not available while the Google login is not configured, with no sign-in and no form", async ({ page }) => {
   const title = `E2E pagina unl ${Date.now()}`;
 
   await logInAsAdmin(page);
@@ -222,12 +222,15 @@ test("a UNL event keeps its Google flow, with no form", async ({ page }) => {
   await page.goto(`/inscripciones/${slug}`);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveAttribute("href", `/foro/auth/google/start?next=${encodeURIComponent(`/inscripciones/${slug}`)}`);
-  await expect(page.getByText("@unl.edu.ec")).toBeVisible();
+  // This server has no Google client: a sign-in would end in an error, so the page does not offer one.
+  await expect(page.getByRole("region", { name: "Inscripción" }).getByRole("status")).toHaveText("La inscripción con cuenta UNL no está disponible en este momento. Inténtelo de nuevo más tarde.");
+  await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
   await expect(page.getByLabel("Correo")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
-  // Its own page, not the forum's: no forum link or top bar around it.
+  // The registrations' own bar, not the forum's: no forum link, top bar or word around it.
   await expect(page.getByRole("link", { name: "Foro", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("banner")).not.toContainText(/foro/i);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toHaveAttribute("href", "/inscripciones");
 });
 
 test("an event without registration says so and offers the calendar", async ({ page, request }) => {

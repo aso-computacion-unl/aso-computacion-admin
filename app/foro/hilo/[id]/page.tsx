@@ -10,6 +10,7 @@ import { getForumReactions } from "@/interface/forum/forum-reactions-read";
 import { getForumDraftOwner, getForumThread } from "@/interface/forum/forum-read";
 
 import { BestAnswerButton } from "../../_components/best-answer-button";
+import { EditPost } from "../../_components/edit-post";
 import { HiddenPostCard } from "../../_components/hidden-post-card";
 import { PostCard } from "../../_components/post-card";
 import { PostTime } from "../../_components/post-time";
@@ -85,7 +86,14 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
           editedAt={thread.editedAt}
           body={thread.body}
           now={now}
-          footer={thread.mine ? null : <ReportButton target={{ kind: "thread", id: thread.id }} />}
+          footer={
+            <>
+              <ReactionButton key={`${reactions.thread.count}:${reactions.thread.mine}`} target={{ kind: "thread", id: thread.id }} count={reactions.thread.count} mine={reactions.thread.mine} />
+              {/* The server refuses edits on a locked thread, so they are not offered there. */}
+              {thread.mine && !thread.locked ? <EditPost target={{ kind: "thread", id: thread.id, threadId: thread.id, title: thread.title, body: thread.body }} /> : null}
+              {thread.mine ? null : <ReportButton target={{ kind: "thread", id: thread.id }} />}
+            </>
+          }
         />
         {replies.map((reply) =>
           "hidden" in reply ? (
@@ -104,7 +112,8 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
               footer={
                 <>
                   {/* Keyed by what the server last said, so a refresh resets the control to it. */}
-                  <ReactionButton key={`${reactions.replies[reply.id]?.count ?? 0}:${reactions.replies[reply.id]?.mine ?? false}`} replyId={reply.id} count={reactions.replies[reply.id]?.count ?? 0} mine={reactions.replies[reply.id]?.mine ?? false} />
+                  <ReactionButton key={`${reactions.replies[reply.id]?.count ?? 0}:${reactions.replies[reply.id]?.mine ?? false}`} target={{ kind: "reply", id: reply.id }} count={reactions.replies[reply.id]?.count ?? 0} mine={reactions.replies[reply.id]?.mine ?? false} />
+                  {reply.mine && !thread.locked ? <EditPost target={{ kind: "reply", id: reply.id, threadId: thread.id, body: reply.body }} /> : null}
                   {thread.mine && !thread.locked ? <BestAnswerButton threadId={thread.id} replyId={reply.id} isBest={reply.isBest} /> : null}
                   {reply.mine ? null : <ReportButton target={{ kind: "reply", id: reply.id }} />}
                 </>

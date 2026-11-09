@@ -83,9 +83,10 @@ Conventions:
 - **Errors**: as F6 (the throttle message, and the session-gone message with "Iniciar sesión" back to `/foro/hilo/<id>`), plus a locked thread (also if it is locked while writing): "Este hilo está cerrado: no admite respuestas ni cambios."
 - **A draft** (D5): the reply is kept like F6's, one draft per thread, tied to the member who typed it (another member on the same machine finds the box empty); the box comes back with its text after signing in as the same member, and clears for good once the reply is published.
 
-### F8. A student reacts, picks the best answer, reports
+### F8. A student reacts, edits their own posts, picks the best answer, reports
 
-- **«Me sirvió»**: toggles at once and reverts if the server refuses. Works on locked threads. Not offered on the opening post (D2).
+- **«Me sirvió»**: on the opening post and on every reply (D2); toggles at once and reverts if the server refuses. Works on locked threads.
+- **Edit own posts (D2)**: «Editar» under the student's own thread (title and text) and own replies opens the text in place, with «Guardar cambios» and «Cancelar». Saving refreshes the thread, and the post then reads "editado <time>". Same limits as posting (title ≤ 120, thread ≤ 10000, reply ≤ 5000); saving the same text is not an edit (no "editado", a best answer keeps its mark); editing the best answer clears the mark. Not offered on a locked thread, on a hidden post or on someone else's post, and the server refuses all three without changing anything.
 - **Best answer**: only the thread author; marking it solves the thread; doing it again ("Quitar de mejor respuesta") reopens it. Others get "Solo quien abrió el hilo puede elegir la mejor respuesta."
 - **Report**: a reason (Spam o publicidad, Contenido ofensivo o acoso, Fuera de tema, Información falsa o engañosa, Otro motivo) and an optional note (≤ 400). Success: "Reporte enviado. La moderación lo revisará." A second report of the same post while the first is open: "Ya reportó esta publicación. La moderación la revisará."
 
@@ -235,7 +236,7 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | # | Journey | Decision | Expected behaviour |
 | --- | --- | --- | --- |
 | D1 | F10 | Tell a suspended student at once | **Built** (`e2e/forum-ux.spec.ts`). Opening the forum with a suspended account shows a suspension notice ("escriba a la directiva de ASO") instead of the sign-in gate; the sign-in refusal for a suspended account is its own message, apart from domain or verification refusals |
-| D2 | F8 | Build it now | A student edits their own thread and replies (shown as "editado"); «Me sirvió» is offered on the opening post too |
+| D2 | F8 | Build it now | **Built** (`e2e/forum-member.spec.ts`). A student edits their own thread and replies (shown as "editado"); «Me sirvió» is offered on the opening post too |
 | D3 | F6 | Name the limit, in minutes | **Built** (`e2e/forum-ux.spec.ts`). The throttle message says which limit was hit (per minute or per hour) and the time really left in minutes (until the oldest post of that window leaves it; with both limits exceeded, the longer wait) |
 | D4 | F5 | Visible placeholder | **Built** (`e2e/forum-ux.spec.ts`). A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
 | D5 | F6, F7, R2 | Keep text, return, own wording | **Built** (forum: F6, F7, `e2e/forum-ux.spec.ts`; registrations: R2, `e2e/audit-registration.spec.ts`, unit tests of the action, the event page and the sign-in return): an expired session keeps the typed text and the sign-in link returns to the same page, and the saved text is given back only to the member who typed it (a different member in the same tab finds the form empty); the registration screens use registration wording, never "participar en el foro", and a failed sign-in that began on an event's page comes back to it |

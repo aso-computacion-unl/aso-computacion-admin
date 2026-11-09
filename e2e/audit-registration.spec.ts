@@ -3,6 +3,8 @@ import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
+import { FORUM_SESSION_SECRET as FORUM_SECRET, plantForumMemberSession } from "./support/forum-session";
+
 /*
  * Audit of the event registration ("inscripción"): the public page in its three modes, the open form, the
  * public endpoints and the admin views, with the happy, error and edge cases of each. Every event is seeded
@@ -10,13 +12,14 @@ import { SignJWT } from "jose";
  * with the other specs. Each test comes from its own made-up client address (`x-real-ip`): the registration
  * limit is five attempts per address, and no test may eat another's.
  *
- * Two harnesses run this file. `npm run e2e` builds production without a Turnstile secret, where the open form
- * fails closed (503): the tests that need an accepted registration skip themselves there. The live local
- * instance (`playwright.live.config.ts`) accepts any token, so they run; the browser has no widget in either
- * (no site key), so those tests add a token the way the widget would.
+ * Two harnesses run this file. `npm run e2e` builds production without a Turnstile secret and without a mail
+ * account (there is no mail stub), where the open form fails closed (503): the tests that need an accepted
+ * registration skip themselves there. The confirm-link test seeds its pending row, so it only needs the link
+ * secret, which that harness sets. The live local instance (`playwright.live.config.ts`) accepts any token and
+ * has mail, so they all run; the browser has no widget in either (no site key), so those tests add a token the
+ * way the widget would.
  */
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
-const FORUM_SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const STAMP = Date.now().toString(36);
 const PREFIX = `ar-${STAMP}-`;
 const prisma = createPrismaClient(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL);
@@ -72,7 +75,7 @@ function confirm(request: APIRequestContext, slug: string, token: string, ip = n
 
 let accepts: boolean | undefined;
 
-/** Whether this server takes registrations at all: the production harness has no Turnstile secret, nor Gmail, and refuses them all (503). */
+/** Whether this server takes registrations at all: `npm run e2e` has no Turnstile secret, nor Gmail, and refuses them all (503). */
 async function takesRegistrations(request: APIRequestContext): Promise<boolean> {
   accepts ??= (await post(request, `${PREFIX}probe`, { ...ANA, turnstileToken: "audit-token" })).status() !== 503;
 
@@ -239,22 +242,9 @@ test.describe("the public event page", () => {
     test.skip(!FORUM_SECRET, "set FORUM_SESSION_SECRET to plant a forum member session");
 
     const event = await seedEvent("unlmiembro", { registrationMode: "unl", registrationCapacity: 5 });
-    const now = new Date();
-    const member = { id: `${PREFIX}m1`, session: `${PREFIX}s1`, email: `${PREFIX}m1@unl.edu.ec` };
+    const member = await plantForumMemberSession(prisma, { memberId: `${PREFIX}m1`, sessionId: `${PREFIX}s1`, displayName: "Lucía Ñ." });
 
-    await prisma.forumMember.create({ data: { id: member.id, email: member.email, googleSub: `sub-${member.id}`, displayName: "Lucía Ñ." } });
-    await prisma.forumSession.create({ data: { id: member.session, memberId: member.id, expiresAt: new Date(now.getTime() + 3_600_000), lastSeenAt: now } });
-
-    const issued = Math.floor(now.getTime() / 1000);
-    const token = await new SignJWT({ sid: member.session, mid: member.id, typ: "forum-session" })
-      .setSubject(member.id)
-      .setAudience("aso-computacion-forum")
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt(issued)
-      .setExpirationTime(issued + 3600)
-      .sign(new TextEncoder().encode(FORUM_SECRET));
-
-    await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+    await context.addCookies([member.cookie]);
 
     try {
       await page.goto(`/inscripciones/${event.slug}`);
@@ -273,8 +263,8 @@ test.describe("the public event page", () => {
       await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
       expect(await registrations(event)).toHaveLength(1);
     } finally {
-      await prisma.forumSession.deleteMany({ where: { memberId: member.id } });
-      await prisma.forumMember.deleteMany({ where: { id: member.id } });
+      await prisma.forumSession.deleteMany({ where: { memberId: member.memberId } });
+      await prisma.forumMember.deleteMany({ where: { id: member.memberId } });
     }
   });
 });
@@ -329,7 +319,7 @@ test.describe("the open form in the browser", () => {
   });
 
   test("a valid form with accents, ñ, CJK and emoji, extra spaces and an uppercase email is stored cleaned up, pending, and asks to check the email", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("exito", { registrationCapacity: 3 });
 
@@ -352,7 +342,7 @@ test.describe("the open form in the browser", () => {
   });
 
   test("an email that is already confirmed (any case, with spaces) is a duplicate on the email field and stores one row; asking again while pending refreshes the same row", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("duplicado");
 
@@ -380,7 +370,7 @@ test.describe("the open form in the browser", () => {
   });
 
   test("a double click sends one request and stores one registration", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("doble");
     let sent = 0;
@@ -405,7 +395,7 @@ test.describe("the open form in the browser", () => {
   });
 
   test("a visitor who loaded the form before the last seat was confirmed is told the event is full", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("ultimo", { registrationCapacity: 1 });
 
@@ -466,7 +456,7 @@ test.describe("the open form in the browser", () => {
 
 test.describe("the registration endpoint", () => {
   test("every invalid field is a 400 naming the field, and a lone surrogate is a refusal, not a server error", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("campos", { registrationCapacity: 50 });
     const valid = { ...ANA, turnstileToken: "audit-token" };
@@ -501,7 +491,7 @@ test.describe("the registration endpoint", () => {
   });
 
   test("career and semester are optional: leaving both out, or sending them null or blank, is accepted and stored empty", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("opcionales", { registrationCapacity: 50 });
     const { career, semester, ...required } = ANA;
@@ -515,7 +505,7 @@ test.describe("the registration endpoint", () => {
   });
 
   test("the limits are inclusive: 120 characters, semesters 1 and 12 and a string semester are accepted", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("limites", { registrationCapacity: 50 });
     const base = { ...ANA, turnstileToken: "audit-token" };
@@ -579,7 +569,7 @@ test.describe("the registration endpoint", () => {
   });
 
   test("five pending people confirming at once for a three-seat event: exactly three get a seat", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
     test.skip(!CONFIRM_SECRET, "needs REGISTRATION_CONFIRM_SECRET in the test environment to sign the links");
 
     const event = await seedEvent("carrera", { registrationCapacity: 3 });
@@ -601,7 +591,6 @@ test.describe("the registration endpoint", () => {
   });
 
   test("the confirm link: opening the page confirms nothing, the button does, and the seat shows with its calendar", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
     test.skip(!CONFIRM_SECRET, "needs REGISTRATION_CONFIRM_SECRET in the test environment to sign the links");
 
     const event = await seedEvent("confirmar", { registrationCapacity: 2 });
@@ -616,7 +605,7 @@ test.describe("the registration endpoint", () => {
     await page.getByRole("button", { name: "Confirmar mi cupo" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeFocused();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
-    await expect(page.getByText("Quedan 1 cupo")).toBeVisible();
+    await expect(page.getByText("Queda 1 cupo")).toBeVisible();
     expect((await registrations(event))[0]!.confirmedAt).not.toBeNull();
 
     // The same link again shows the seat that is already theirs; a made-up link sends them back to the form.
@@ -630,7 +619,7 @@ test.describe("the registration endpoint", () => {
   });
 
   test("ten identical submissions at once store one pending registration and refresh it", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
 
     const event = await seedEvent("simultaneo");
     const answers = await Promise.all(Array.from({ length: 4 }, () => post(request, event.slug, { ...ANA, turnstileToken: "audit-token" })));

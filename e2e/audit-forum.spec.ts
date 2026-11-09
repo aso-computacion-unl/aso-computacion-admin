@@ -1,6 +1,7 @@
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { SignJWT } from "jose";
+
+import { FORUM_SESSION_SECRET as SECRET, plantForumMemberSession, type PlantedForumMemberSession } from "./support/forum-session";
 
 /*
  * Code in forum posts, as students actually write it: inline backticks, indented fences, tilde fences and
@@ -9,35 +10,19 @@ import { SignJWT } from "jose";
  *
  *   FORUM_SESSION_SECRET=<at least 32 characters> npm run e2e
  */
-const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 const CATEGORY = { id: "af-cat", slug: "audit-codigo", name: "Código (auditoría)" };
 const MEMBER = { id: "af-m1", session: "af-s1" };
 
-let token = "";
+let member: PlantedForumMemberSession;
 
 test.skip(!SECRET, "set FORUM_SESSION_SECRET to run the signed-in forum suite");
 
 test.beforeAll(async () => {
   if (!SECRET) return;
 
-  const now = new Date();
-  await prisma.forumMember.upsert({ where: { id: MEMBER.id }, update: { status: "ACTIVE", suspendedAt: null }, create: { id: MEMBER.id, email: `${MEMBER.id}@unl.edu.ec`, googleSub: `sub-${MEMBER.id}`, displayName: "Lucía A." } });
-  await prisma.forumCategory.upsert({ where: { id: CATEGORY.id }, update: {}, create: { ...CATEGORY, description: "Bloques de código", sortOrder: 99, updatedAt: now } });
-  await prisma.forumSession.upsert({
-    where: { id: MEMBER.session },
-    update: { revokedAt: null, expiresAt: new Date(now.getTime() + 3_600_000) },
-    create: { id: MEMBER.session, memberId: MEMBER.id, expiresAt: new Date(now.getTime() + 3_600_000), lastSeenAt: now },
-  });
-
-  const issued = Math.floor(Date.now() / 1000);
-  token = await new SignJWT({ sid: MEMBER.session, mid: MEMBER.id, typ: "forum-session" })
-    .setSubject(MEMBER.id)
-    .setAudience("aso-computacion-forum")
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(issued)
-    .setExpirationTime(issued + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  member = await plantForumMemberSession(prisma, { memberId: MEMBER.id, sessionId: MEMBER.session, displayName: "Lucía A." });
+  await prisma.forumCategory.upsert({ where: { id: CATEGORY.id }, update: {}, create: { ...CATEGORY, description: "Bloques de código", sortOrder: 99, updatedAt: new Date() } });
 });
 
 test.afterAll(async () => {
@@ -46,7 +31,7 @@ test.afterAll(async () => {
 
 async function memberContext(browser: Browser, baseURL: string | undefined): Promise<BrowserContext> {
   const context = await browser.newContext({ baseURL });
-  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+  await context.addCookies([member.cookie]);
 
   return context;
 }

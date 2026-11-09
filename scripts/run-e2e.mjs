@@ -19,12 +19,15 @@ const COMPOSE_ARGUMENTS = ["--context", "default", "compose", "--project-name", 
 const E2E_ADMIN_PASSWORD = "e2e-only-admin-password-0123456789";
 const E2E_FORUM_DOMAIN = "unl.edu.ec";
 const E2E_ADMIN_SECRET = "e2e-only-session-secret-0123456789-abcdefghij";
+// Signs the confirmation links of the open registration form. Never equal to the admin's or the forum's secret (the app ignores it then).
+const E2E_REGISTRATION_CONFIRM_SECRET = "e2e-only-confirm-secret-0123456789-abcdefghij";
 
 // Every variable that switches a feature on, by name (the full list the app reads, besides the test-only values
 // below). Next loads `.env*` files for each variable the process does not already define, so the developer's own
 // config would otherwise reach the build: Google sign-in folds the password form under "Acceso de emergencia",
 // a forum domain turns the forum login on, an AUTH_URL adds registration links, and so on. The specs describe
 // a server with none of them, so each is set to "" (the app treats empty as unset, and Next never overrides it).
+// The one exception is the confirm secret, set to a test value in `buildAppEnvironment`.
 const FEATURE_VARIABLES = [
   // Admin sign-in: Google, the emergency password, who may enter.
   "GOOGLE_CLIENT_ID",
@@ -46,6 +49,11 @@ const FEATURE_VARIABLES = [
   "CRON_SECRET",
   "PREVIEW_TOKEN_SECRET",
   "PUBLIC_CORS_ORIGINS",
+  // Confirmation emails: no account, so a developer's Gmail never sends anything from a test (there is no mail stub).
+  "MAIL_GMAIL_USER",
+  "MAIL_GMAIL_APP_PASSWORD",
+  "MAIL_FROM_NAME",
+  "MAIL_DAILY_LIMIT",
   // The real landing deploy and error reporting.
   "CLOUDFLARE_DEPLOY_HOOK_URL",
   "SENTRY_DSN",
@@ -107,6 +115,26 @@ function run(command, arguments_, environment, label) {
   }
 }
 
+/** The environment of the build and of `next start`: the caller's, with every feature switched off or set to a test value. */
+export function buildAppEnvironment(environment, testDatabaseUrl) {
+  return {
+    ...environment,
+    ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
+    // Opt-in: the signed-in forum specs run only when the caller supplies a secret, never one from a `.env*` file.
+    // With it, the members' domain is set too (registering for an event with a UNL account needs it); the login
+    // itself stays off, because there is no Google client, so forum.spec.ts still sees "unavailable".
+    FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
+    FORUM_ALLOWED_EMAIL_DOMAIN: environment.FORUM_SESSION_SECRET ? E2E_FORUM_DOMAIN : "",
+    // Signs the confirmation links the specs seed (`confirmToken` in audit-registration.spec.ts reads the same value).
+    // Only the confirm endpoint and page need it, so the open form itself stays closed (no Turnstile secret, no mail).
+    REGISTRATION_CONFIRM_SECRET: environment.REGISTRATION_CONFIRM_SECRET || E2E_REGISTRATION_CONFIRM_SECRET,
+    DATABASE_URL: testDatabaseUrl,
+    TEST_DATABASE_URL: testDatabaseUrl,
+    ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,
+    ADMIN_SECRET: environment.ADMIN_SECRET ?? E2E_ADMIN_SECRET,
+  };
+}
+
 // `playwrightArguments` go straight to `playwright test` (a file, `-g <title>`), so one spec can run against the same build.
 export async function runE2e(environment = process.env, playwrightArguments = []) {
   const testDatabaseUrl = environment.TEST_DATABASE_URL ?? CANONICAL_TEST_DATABASE_URL;
@@ -116,19 +144,7 @@ export async function runE2e(environment = process.env, playwrightArguments = []
   // Docker and Prisma get the stripped environment of the integration runner. The app, the build and
   // the browser keep the real one (HOME holds the installed Chromium) plus the test-only values.
   const databaseEnvironment = createIntegrationEnvironment(testDatabaseUrl, environment, temporaryDirectory);
-  const appEnvironment = {
-    ...environment,
-    ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
-    // Opt-in: the signed-in forum specs run only when the caller supplies a secret, never one from a `.env*` file.
-    // With it, the members' domain is set too (registering for an event with a UNL account needs it); the login
-    // itself stays off, because there is no Google client, so forum.spec.ts still sees "unavailable".
-    FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
-    FORUM_ALLOWED_EMAIL_DOMAIN: environment.FORUM_SESSION_SECRET ? E2E_FORUM_DOMAIN : "",
-    DATABASE_URL: testDatabaseUrl,
-    TEST_DATABASE_URL: testDatabaseUrl,
-    ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,
-    ADMIN_SECRET: environment.ADMIN_SECRET ?? E2E_ADMIN_SECRET,
-  };
+  const appEnvironment = buildAppEnvironment(environment, testDatabaseUrl);
   let composeAttempted = false;
   let failure;
 

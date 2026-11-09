@@ -4,6 +4,8 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { SignJWT } from "jose";
 
 import { FORUM_SESSION_SECRET as FORUM_SECRET, plantForumMemberSession } from "./support/forum-session";
+import { confirmationLink, waitForMail } from "./support/mail-sink";
+import { openForm, stubTurnstile, widgetReady } from "./support/turnstile";
 
 /*
  * Audit of the event registration ("inscripción"): the public page in its three modes, the open form, the
@@ -12,12 +14,12 @@ import { FORUM_SESSION_SECRET as FORUM_SECRET, plantForumMemberSession } from ".
  * with the other specs. Each test comes from its own made-up client address (`x-real-ip`): the registration
  * limit is five attempts per address, and no test may eat another's.
  *
- * Two harnesses run this file. `npm run e2e` builds production without a Turnstile secret and without a mail
- * account (there is no mail stub), where the open form fails closed (503): the tests that need an accepted
- * registration skip themselves there. The confirm-link test seeds its pending row, so it only needs the link
- * secret, which that harness sets. The live local instance (`playwright.live.config.ts`) accepts any token and
- * has mail, so they all run; the browser has no widget in either (no site key), so those tests add a token the
- * way the widget would.
+ * `npm run e2e` runs the open form for real: Cloudflare's always-pass Turnstile test keys, and a fake Gmail
+ * account whose SMTP host is the sink of scripts/run-e2e.mjs (e2e/support/smtp-sink.ts), so every accepted
+ * registration really "sends" its confirmation email and the specs can read the link from it
+ * (e2e/support/mail-sink.ts). In the browser the form tests swap Cloudflare's script for a widget that passes at
+ * once (`stubTurnstile`: no network, a token on the spot); one test uses the real widget. An instance run through
+ * `playwright.live.config.ts` must have the same configuration (a Turnstile site key and mail).
  */
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const STAMP = Date.now().toString(36);
@@ -73,20 +75,6 @@ function confirm(request: APIRequestContext, slug: string, token: string, ip = n
   return request.post(`/api/public/events/${slug}/registrations/confirm`, { data: { token }, headers: { "x-real-ip": ip } });
 }
 
-let accepts: boolean | undefined;
-
-/** Whether this server takes registrations at all: `npm run e2e` has no Turnstile secret, nor Gmail, and refuses them all (503). */
-async function takesRegistrations(request: APIRequestContext): Promise<boolean> {
-  accepts ??= (await post(request, `${PREFIX}probe`, { ...ANA, turnstileToken: "audit-token" })).status() !== 503;
-
-  return accepts;
-}
-
-/** What the Turnstile widget does on a deployment that has a site key: adds the token the server asks for. */
-async function actAsWidget(page: Page) {
-  await page.route(OPEN_ENDPOINT, (route) => route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), turnstileToken: "audit-token" }) }));
-}
-
 async function fillForm(page: Page, values: Partial<Record<"name" | "email" | "institution" | "career" | "semester", string>> = {}) {
   const { name, email, institution, career, semester } = { name: ANA.name, email: ANA.email, institution: ANA.institution, career: ANA.career, semester: String(ANA.semester), ...values };
 
@@ -138,9 +126,12 @@ test.describe("the public event page", () => {
     const event = await seedEvent("pagina", { registrationCapacity: 30, description: "Primera línea\nSegunda línea" });
     const problems = watch(page);
 
-    const response = await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await stubTurnstile(page);
+
+    const response = await page.goto(`/inscripciones/${event.slug}`);
 
     expect(response?.status()).toBe(200);
+    await widgetReady(page);
     await expect(page.getByRole("heading", { level: 1, name: event.title })).toBeVisible();
     await expect(page.getByText("Quedan 30 cupos")).toBeVisible();
     await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
@@ -223,11 +214,11 @@ test.describe("the public event page", () => {
     const unl = await seedEvent("unl", { registrationMode: "unl" });
     const problems = watch(page);
 
-    await page.goto(`/inscripciones/${none.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${none.slug}`);
     await expect(page.getByText("No necesita inscribirse: solo llegue.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
 
-    await page.goto(`/inscripciones/${unl.slug}`, { waitUntil: "networkidle" });
+    await page.goto(`/inscripciones/${unl.slug}`);
     await expect(page.getByRole("link", { name: /Entrar con Google/ })).toBeVisible();
     expect(problems).toEqual([]);
 
@@ -279,7 +270,7 @@ test.describe("the open form in the browser", () => {
 
       return route.abort();
     });
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
 
     const submit = page.getByRole("button", { name: "Reservar mi cupo" });
 
@@ -318,13 +309,10 @@ test.describe("the open form in the browser", () => {
     expect(sent).toBe(0);
   });
 
-  test("a valid form with accents, ñ, CJK and emoji, extra spaces and an uppercase email is stored cleaned up, pending, and asks to check the email", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
+  test("a valid form with accents, ñ, CJK and emoji, extra spaces and an uppercase email is stored cleaned up, pending, and asks to check the email", async ({ page }) => {
     const event = await seedEvent("exito", { registrationCapacity: 3 });
 
-    await actAsWidget(page);
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: "  JOSÉ.Ñandú@Exámple.COM ", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
 
@@ -336,19 +324,61 @@ test.describe("the open form in the browser", () => {
     await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     // No seat is taken until the link is used: the seats behind do not move.
     await expect(page.getByText("Quedan 3 cupos")).toBeVisible();
+    // The confirmation really went out, to the address as the person wrote it once cleaned up, and carries the link.
+    const [mail] = await waitForMail("josé.ñandú@exámple.com");
+
+    expect(mail!.subject).toBe(`Confirme su cupo en «${event.title}»`);
+    expect(confirmationLink(mail!)).toContain(`/inscripciones/${event.slug}/confirmar?token=`);
     expect(await registrations(event)).toMatchObject([
       { mode: "open", name: "José Ñandú 李雷 😀", email: "josé.ñandú@exámple.com", institution: "Universidad Nacional de Loja", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12, confirmedAt: null },
     ]);
   });
 
-  test("an email that is already confirmed (any case, with spaces) is a duplicate on the email field and stores one row; asking again while pending refreshes the same row", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
+  test("R4 → R5: the open form, the link in the email, the confirmation and the seat that was taken, with the real widget", async ({ page }) => {
+    const event = await seedEvent("deextremo", { registrationCapacity: 2 });
+    const address = "extremo@example.com";
 
+    // No stub here: Cloudflare's own widget (its always-pass test key) renders in the page and gives the token.
+    await page.goto(`/inscripciones/${event.slug}`);
+    // (Its frame sits in a closed shadow root, so it is found by the frames of the page, not by a selector.)
+    await expect.poll(() => page.frames().some((frame) => frame.url().startsWith("https://challenges.cloudflare.com/cdn-cgi/")), { message: "Cloudflare's widget frame" }).toBe(true);
+    await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
+    await fillForm(page, { name: "Daniela Extremo", email: address });
+
+    // The widget passes on its own a moment after it appears. Until the token arrives the form says the check is
+    // missing (and sends nothing); the alert goes away with the token, so click again until the answer shows.
+    const done = page.getByRole("status").filter({ hasText: "Revise su correo" });
+
+    await expect(async () => {
+      await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+      await expect(done).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
+    expect(await registrations(event)).toMatchObject([{ email: address, confirmedAt: null }]);
+
+    // The person opens the link from their email; opening it confirms nothing, the button does.
+    const mails = await waitForMail(address);
+
+    expect(mails).toHaveLength(1);
+    expect(mails[0]!.subject).toBe(`Confirme su cupo en «${event.title}»`);
+    await page.goto(confirmationLink(mails[0]!), { waitUntil: "networkidle" });
+    await expect(page.getByRole("button", { name: "Confirmar mi cupo" })).toBeVisible();
+    expect((await registrations(event))[0]!.confirmedAt).toBeNull();
+    await page.getByRole("button", { name: "Confirmar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
+    expect((await registrations(event))[0]!.confirmedAt).not.toBeNull();
+
+    // The seat is taken now: the event page counts one fewer.
+    await page.goto(`/inscripciones/${event.slug}`);
+    await expect(page.getByText("Queda 1 cupo")).toBeVisible();
+  });
+
+  test("an email that is already confirmed (any case, with spaces) is a duplicate on the email field and stores one row; asking again while pending refreshes the same row", async ({ page }) => {
     const event = await seedEvent("duplicado");
 
     await prisma.eventRegistration.create({ data: { id: `${event.id}-c`, eventId: event.id, mode: "open", name: "Ana Pérez", email: ANA.email, institution: "UNL", confirmedAt: new Date() } });
-    await actAsWidget(page);
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await fillForm(page, { name: "Otra Persona", email: " ANA@Example.com " });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByLabel("Correo")).toHaveAttribute("aria-invalid", "true");
@@ -362,27 +392,24 @@ test.describe("the open form in the browser", () => {
     await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
     const [pending] = (await registrations(event)).filter((row) => row.email === "luis@example.com");
 
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await fillForm(page, { email: "luis@example.com", name: "Luis Mora" });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
     expect((await registrations(event)).filter((row) => row.email === "luis@example.com")).toMatchObject([{ id: pending!.id, name: "Luis Mora", confirmedAt: null }]);
   });
 
-  test("a double click sends one request and stores one registration", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
+  test("a double click sends one request and stores one registration", async ({ page }) => {
     const event = await seedEvent("doble");
     let sent = 0;
 
-    await actAsWidget(page);
     await page.route(OPEN_ENDPOINT, async (route) => {
       sent += 1;
       await new Promise((resolve) => setTimeout(resolve, 600));
 
       return route.fallback();
     });
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await fillForm(page);
 
     const submit = page.getByRole("button", { name: /Reservar mi cupo|Enviando/ });
@@ -394,13 +421,10 @@ test.describe("the open form in the browser", () => {
     expect(await registrations(event)).toHaveLength(1);
   });
 
-  test("a visitor who loaded the form before the last seat was confirmed is told the event is full", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
+  test("a visitor who loaded the form before the last seat was confirmed is told the event is full", async ({ page }) => {
     const event = await seedEvent("ultimo", { registrationCapacity: 1 });
 
-    await actAsWidget(page);
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await expect(page.getByText("Queda 1 cupo")).toBeVisible();
 
     // Somebody else confirms the last seat while this form is open.
@@ -416,7 +440,7 @@ test.describe("the open form in the browser", () => {
   test("when registration closes while the form is open, the form gives way to the state; a network failure keeps the data", async ({ page }) => {
     const event = await seedEvent("cierra");
 
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await openForm(page, event.slug);
     await fillForm(page);
     await page.route(OPEN_ENDPOINT, (route) => route.abort("connectionrefused"), { times: 1 });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
@@ -430,17 +454,9 @@ test.describe("the open form in the browser", () => {
     await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
   });
 
-  test("a deployment with a Turnstile secret but no site key offers no form that can never pass, and says the registration is unavailable", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness answers unavailable on its own");
-
-    const event = await seedEvent("sinwidget");
-
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
-    // Without a site key there is no widget to complete, so the page does not ask for data it cannot send.
-    await expect(page.getByText("La inscripción no está disponible en este momento.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: event.title })).toBeVisible();
-  });
+  // "A Turnstile secret without a site key closes the form with 'no disponible'" depends on the server's own
+  // configuration, which this harness sets complete: it is proved by the unit test of the event page
+  // (src/tests/unit/app/inscripciones-event-page.test.ts) and by the 503 `unavailable` answer shown in event-page.spec.ts.
 
   test("the form fits a 320 px phone and a 200% zoomed desktop without sideways scroll", async ({ page }) => {
     const event = await seedEvent("movil", { title: `Auditoría ${"palabralarga".repeat(12)} ${STAMP}`, description: "x".repeat(400) });
@@ -456,8 +472,6 @@ test.describe("the open form in the browser", () => {
 
 test.describe("the registration endpoint", () => {
   test("every invalid field is a 400 naming the field, and a lone surrogate is a refusal, not a server error", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
     const event = await seedEvent("campos", { registrationCapacity: 50 });
     const valid = { ...ANA, turnstileToken: "audit-token" };
     const cases: [string, Record<string, unknown>, string][] = [
@@ -491,8 +505,6 @@ test.describe("the registration endpoint", () => {
   });
 
   test("career and semester are optional: leaving both out, or sending them null or blank, is accepted and stored empty", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
     const event = await seedEvent("opcionales", { registrationCapacity: 50 });
     const { career, semester, ...required } = ANA;
 
@@ -505,8 +517,6 @@ test.describe("the registration endpoint", () => {
   });
 
   test("the limits are inclusive: 120 characters, semesters 1 and 12 and a string semester are accepted", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
     const event = await seedEvent("limites", { registrationCapacity: 50 });
     const base = { ...ANA, turnstileToken: "audit-token" };
 
@@ -525,7 +535,6 @@ test.describe("the registration endpoint", () => {
     const none = await seedEvent("pedidonone", { registrationMode: "none" });
     const past = await seedEvent("pedidopasado", { date: new Date("2020-01-15") });
     const draft = await seedEvent("pedidoborrador", { isPublished: false });
-    const works = await takesRegistrations(request);
     const body = { ...ANA, turnstileToken: "audit-token" };
 
     expect((await post(request, open.slug, "plain", nextIp(), { "content-type": "text/plain" })).status()).toBe(415);
@@ -534,10 +543,6 @@ test.describe("the registration endpoint", () => {
     expect((await post(request, open.slug, "null", nextIp(), { "content-type": "application/json" })).status()).toBe(400);
     expect((await post(request, open.slug, { ...body, name: "n".repeat(5000) })).status()).toBe(413);
     expect((await post(request, "UPPER", body)).status()).toBe(404);
-    expect((await post(request, "no-existe", body)).status()).toBe(works ? 404 : 503);
-
-    if (!works) return;
-
     expect(await (await post(request, "no-existe", body)).json()).toEqual({ error: "not_found" });
     expect(await (await post(request, unl.slug, body)).json()).toEqual({ error: "not_found" });
     expect(await (await post(request, none.slug, body)).json()).toEqual({ error: "not_found" });
@@ -569,7 +574,6 @@ test.describe("the registration endpoint", () => {
   });
 
   test("five pending people confirming at once for a three-seat event: exactly three get a seat", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
     test.skip(!CONFIRM_SECRET, "needs REGISTRATION_CONFIRM_SECRET in the test environment to sign the links");
 
     const event = await seedEvent("carrera", { registrationCapacity: 3 });
@@ -619,8 +623,6 @@ test.describe("the registration endpoint", () => {
   });
 
   test("ten identical submissions at once store one pending registration and refresh it", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "this server has no Turnstile secret or no mail account: it cannot send the confirmation email");
-
     const event = await seedEvent("simultaneo");
     const answers = await Promise.all(Array.from({ length: 4 }, () => post(request, event.slug, { ...ANA, turnstileToken: "audit-token" })));
 

@@ -26,6 +26,42 @@ function value(env: Env, name: string): string | undefined {
   }
 }
 
+/** Where mail goes unless `MAIL_SMTP_*` overrides it: Gmail's SMTPS endpoint. */
+export const GMAIL_SMTP_ENDPOINT = { host: "smtp.gmail.com", port: 465, secure: true } as const;
+
+export interface SmtpEndpoint {
+  host: string;
+  port: number;
+  secure: boolean;
+}
+
+// A DNS name or an IPv4 address, nothing else: no scheme, port, path or space.
+const SMTP_HOST_PATTERN = /^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/;
+
+/**
+ * The SMTP server mail goes to: Gmail's, unless `MAIL_SMTP_HOST` names another (with `MAIL_SMTP_PORT`, default 465,
+ * and `MAIL_SMTP_SECURE` `true`/`false`, default "the port is 465"). Only the e2e suite sets these, to point at a local
+ * sink so no real mail is sent; production leaves all three unset. A value that does not parse (no host, a bad port,
+ * a secure flag that is not true or false) drops the whole override: mail never goes to a half-set endpoint.
+ */
+export function smtpEndpoint(env: Env = process.env): SmtpEndpoint {
+  const host = value(env, "MAIL_SMTP_HOST");
+  const rawPort = value(env, "MAIL_SMTP_PORT");
+  const rawSecure = value(env, "MAIL_SMTP_SECURE")?.toLowerCase();
+
+  if (!host || !SMTP_HOST_PATTERN.test(host)) {
+    return { ...GMAIL_SMTP_ENDPOINT };
+  }
+
+  const port = rawPort === undefined ? GMAIL_SMTP_ENDPOINT.port : /^\d{1,5}$/.test(rawPort) ? Number(rawPort) : Number.NaN;
+
+  if (!Number.isInteger(port) || port < 1 || port > 65_535 || (rawSecure !== undefined && rawSecure !== "true" && rawSecure !== "false")) {
+    return { ...GMAIL_SMTP_ENDPOINT };
+  }
+
+  return { host, port, secure: rawSecure === undefined ? port === GMAIL_SMTP_ENDPOINT.port : rawSecure === "true" };
+}
+
 function gmailUser(env: Env): string | undefined {
   const user = value(env, "MAIL_GMAIL_USER");
 

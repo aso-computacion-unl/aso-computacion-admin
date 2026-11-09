@@ -254,11 +254,14 @@ test("the users page invites by link instead of adding people, and the public in
   await expect(page.getByRole("heading", { name: "Invitar a una persona" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Agregar usuario" })).toHaveCount(0);
 
-  // This server has no public address configured (AUTH_URL), so there is no link to build and nothing is stored.
+  // This server has its public address (AUTH_URL), so the invitation comes back as a link on that address and is
+  // listed as pending. (Without AUTH_URL nothing is stored and the page says it is missing: actions.test.ts.)
   await page.getByLabel("Correo").fill("invitee@example.org");
   await page.getByRole("button", { name: "Crear invitación" }).click();
-  await expect(page.getByText(/falta configurar AUTH_URL/)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Invitaciones pendientes" })).toHaveCount(0);
+  await expect(page.getByText(/falta configurar AUTH_URL/)).toHaveCount(0);
+  await expect(page.getByText("Invitación creada.")).toBeVisible();
+  await expect(page.getByLabel("Link de invitación")).toHaveValue(new RegExp(`^${BASE_URL}/invitacion/[A-Za-z0-9_-]{43}$`));
+  await expect(page.getByRole("heading", { name: "Invitaciones pendientes" })).toBeVisible();
 
   // Anyone may open an invitation link; an unknown one only says it is not valid, and is never indexed.
   const response = await request.get(`/invitacion/${"a".repeat(43)}`);

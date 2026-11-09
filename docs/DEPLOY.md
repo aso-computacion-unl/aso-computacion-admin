@@ -74,6 +74,7 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `MAIL_GMAIL_APP_PASSWORD` | for email | A Google **app password** for that account (16 letters; the spaces Google shows are ignored). Not the account password. Mark it Sensitive. |
 | `MAIL_FROM_NAME` | no | Display name of the sender. Default `ASO Computación`. |
 | `MAIL_DAILY_LIMIT` | no | Most emails sent in one day (Ecuador time), confirmations and reminders together. Default `400`, under Gmail's ~500. A whole number from 1 to 100000; anything else is ignored (the default applies) and reported by the configuration check. |
+| `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_SECURE` | **test-only: leave unset in production** | Send through another SMTP server instead of `smtp.gmail.com:465`. Only `npm run e2e` sets them, to its local mail sink (`MAIL_SMTP_SECURE` is `true` or `false`; with it unset the connection is secure only on port 465). All unset means Gmail exactly as before; a value that does not parse (no host, a port outside 1-65535) is ignored as a whole and Gmail stays. |
 | `REGISTRATION_CONFIRM_SECRET` | for email | Signs the email-confirmation links (valid 48 h). At least 32 characters and different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`. Missing or invalid: the open form answers 503. Rotating it invalidates the links already sent. Mark it Sensitive. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |

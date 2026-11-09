@@ -83,4 +83,23 @@ describe("GmailSmtpTransport", () => {
       expect(options[timeout] as number, timeout).toBeLessThanOrEqual(15_000);
     }
   });
+
+  it("keeps Gmail's host, port and TLS when MAIL_SMTP_* is not set (production)", () => {
+    const options = createGmailTransporter(CONFIG, { env: {} }).options as Record<string, unknown>;
+
+    expect(options).toMatchObject({ host: "smtp.gmail.com", port: 465, secure: true });
+  });
+
+  it("sends through the endpoint MAIL_SMTP_* names (the e2e sink), still pooled when asked, and keeps the credentials", () => {
+    const env = { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "2525", MAIL_SMTP_SECURE: "false" };
+    const options = createGmailTransporter(CONFIG, { pooled: true, env }).options as Record<string, unknown>;
+
+    expect(options).toMatchObject({ host: "127.0.0.1", port: 2525, secure: false, pool: true, auth: { user: "asociacion@gmail.com", pass: "abcdefghijklmnop" } });
+  });
+
+  it("falls back to Gmail when MAIL_SMTP_PORT is invalid, never to a half-set endpoint", () => {
+    const options = createGmailTransporter(CONFIG, { env: { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "99999" } }).options as Record<string, unknown>;
+
+    expect(options).toMatchObject({ host: "smtp.gmail.com", port: 465, secure: true });
+  });
 });

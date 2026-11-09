@@ -24,6 +24,16 @@ const minutesAgo = (minutes: number) => new Date(NOW.getTime() - minutes * 60_00
 
 const render = (id: string) => ThreadPage({ params: Promise.resolve({ id }) }).then((element) => renderToStaticMarkup(element));
 
+/** The `memberId` props found anywhere in the element tree the page returned (before it renders): what the page hands the browser. */
+function memberIdProps(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(memberIdProps);
+  if (typeof node !== "object" || node === null || !("props" in node)) return [];
+
+  const props = (node as { props: { memberId?: unknown; children?: unknown } }).props;
+
+  return [...(typeof props.memberId === "string" ? [props.memberId] : []), ...memberIdProps(props.children)];
+}
+
 let viewerId = "";
 
 function seedThread(overrides: Parameters<typeof makeForumThread>[0] = {}) {
@@ -45,6 +55,12 @@ beforeEach(async () => {
 });
 
 describe("a thread page", () => {
+  it("hands the reply box the id of the member reading, which owns the draft kept in the browser (D5)", async () => {
+    seedThread();
+
+    expect(memberIdProps(await ThreadPage({ params: Promise.resolve({ id: "t1" }) }))).toEqual([viewerId]);
+  });
+
   it("is for members: a visitor goes to the sign-in at /foro, which brings them back to this thread", async () => {
     seedThread();
     cookiesMock.mockResolvedValue(cookieJar({}));

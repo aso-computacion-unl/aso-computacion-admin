@@ -328,4 +328,16 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect(await posts.countPostsSince("beto", T0)).toBe(1);
     expect(await posts.countPostsSince("ana", later(60_000))).toBe(0);
   });
+
+  it("finds when a member's oldest thread or reply since a time was written", async () => {
+    await seed();
+    await posts.create(makeForumThread({ id: "old", categoryId: "c1", authorId: "ana", createdAt: later(-60_000) }));
+    await posts.create(makeForumThread({ id: "new", categoryId: "c1", authorId: "ana", createdAt: later(2000) }));
+    await posts.addReply(makeForumReply({ id: "r1", threadId: "new", authorId: "ana", createdAt: later(1000) }));
+    await posts.addReply(makeForumReply({ id: "r2", threadId: "new", authorId: "beto", createdAt: later(500) }));
+
+    expect(await posts.oldestPostSince("ana", T0)).toEqual(later(1000));
+    expect(await posts.oldestPostSince("ana", later(1500))).toEqual(later(2000));
+    expect(await posts.oldestPostSince("ana", later(60_000))).toBeNull();
+  });
 });

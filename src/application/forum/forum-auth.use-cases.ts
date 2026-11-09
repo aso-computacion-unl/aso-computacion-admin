@@ -18,7 +18,7 @@ export interface ForumLoginConfig {
   allowedDomain?: string;
 }
 
-/** Why a login was refused. For logs only: the student always sees the same generic message. */
+/** Why a login was refused. For logs, and for the screens only in one case: `suspended` becomes the suspension notice (D1); every other reason shows the same generic message. */
 export type ForumLoginDenial = "disabled" | "unverified" | "domain" | "no-subject" | "identity-conflict" | "suspended";
 
 export type ForumLoginOutcome = { ok: true; member: ForumMember } | { ok: false; reason: ForumLoginDenial };

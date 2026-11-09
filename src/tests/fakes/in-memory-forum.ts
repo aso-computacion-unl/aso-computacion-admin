@@ -336,6 +336,12 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
 
     return threads.length + replies.length;
   }
+
+  async oldestPostSince(memberId: string, since: Date) {
+    const times = [...this.store.threads.values(), ...this.store.replies.values()].filter((post) => post.authorId === memberId && post.createdAt >= since).map((post) => post.createdAt.getTime());
+
+    return times.length === 0 ? null : new Date(Math.min(...times));
+  }
 }
 
 /** Keeps the rule the partial unique indexes keep: one OPEN report per reporter per target. */

@@ -152,8 +152,9 @@ describe("posting", () => {
       testForum.store.replies.set(`old-${index}`, makeForumReply({ id: `old-${index}`, threadId: "t1", authorId: memberId, createdAt: new Date(Date.now() - 10 * 60_000) }));
     }
 
+    // The oldest of those posts is 10 minutes old: 50 minutes are left of the hour, not the whole hour (D3).
     expect(await posting.replyToForumThread("t1", null, replyForm())).toEqual({
-      error: "Está publicando muy rápido: el límite es de 30 publicaciones por hora. Puede volver a intentarlo en 60 minutos.",
+      error: "Está publicando muy rápido: el límite es de 30 publicaciones por hora. Puede volver a intentarlo en 50 minutos.",
     });
   });
 

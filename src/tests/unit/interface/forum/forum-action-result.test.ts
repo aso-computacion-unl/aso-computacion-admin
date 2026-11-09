@@ -16,6 +16,8 @@ describe("the posting throttle message (D3)", () => {
     [3600, 30, "hora", "Está publicando muy rápido: el límite es de 30 publicaciones por hora. Puede volver a intentarlo en 60 minutos."],
     // A wait is never promised shorter than it is: partial minutes round up.
     [90, 5, "minuto", "Está publicando muy rápido: el límite es de 5 publicaciones por minuto. Puede volver a intentarlo en 2 minutos."],
+    // The real time left (D3), not the window: 50 minutes and a bit left of the hour.
+    [3001, 30, "hora", "Está publicando muy rápido: el límite es de 30 publicaciones por hora. Puede volver a intentarlo en 51 minutos."],
     [1, 5, "minuto", "Está publicando muy rápido: el límite es de 5 publicaciones por minuto. Puede volver a intentarlo en 1 minuto."],
   ] as const)("names the limit that tripped (%is, %i per %s) and the wait in whole minutes", (seconds, max, per, message) => {
     expect(mapForumActionError(new ForumThrottledError(seconds, max, per))).toEqual({ error: message });

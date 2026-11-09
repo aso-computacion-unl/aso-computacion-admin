@@ -6,9 +6,10 @@ import { FORUM_SESSION_SECRET as SECRET, plantForumMemberSession } from "./suppo
 /*
  * The forum's UX decisions, through the browser (docs/JOURNEYS.md):
  *   D1 / F1, F10  a suspended member is told so instead of seeing the sign-in, and still gets no forum;
- *   D3 / F6, F7   the throttle names the limit that tripped and the wait in minutes;
+ *   D3 / F6, F7   the throttle names the limit that tripped and the wait left until the oldest post of its window leaves it, in minutes;
  *   D4 / F5       a reply the moderation hid leaves a placeholder, and its text never reaches the browser;
- *   D5 / F6, F7   a session that ends while writing keeps the text and the sign-in comes back to the same page.
+ *   D5 / F6, F7   a session that ends while writing keeps the text and the sign-in comes back to the same page,
+ *                 and the text is given back only to the member who typed it.
  *
  * Opt-in like forum-member.spec.ts: the members and their sessions are planted in the database (a student cannot
  * sign in with Google here), so the app has to know the signing secret:
@@ -32,7 +33,7 @@ const HIDDEN_TEXT = "Texto oculto UX que no debe salir";
 const HIDDEN_AUTHOR = "Cristóbal Oculto UX";
 const PLACEHOLDER = "Respuesta oculta por la moderación";
 
-const MEMBER_IDS = ["ux-author", "ux-hider", "ux-reader", "ux-sus", "ux-fast", "ux-slow", "ux-draft", "ux-late"];
+const MEMBER_IDS = ["ux-author", "ux-hider", "ux-reader", "ux-sus", "ux-fast", "ux-slow", "ux-draft", "ux-late", "ux-ana", "ux-beto"];
 
 test.skip(!SECRET, "set FORUM_SESSION_SECRET to run the forum UX suite");
 
@@ -144,7 +145,7 @@ test("D1 / F1: a visitor and an active member never see the suspension notice", 
   await active.close();
 });
 
-test("D3 / F7: the throttle says which limit tripped and the wait in minutes", async ({ browser }) => {
+test("D3 / F7: the throttle says which limit tripped and the time really left, in minutes", async ({ browser }) => {
   // Three posts in the last minute: the per-minute limit.
   const fast = await contextFor(browser, "ux-fast");
   const fastPage = await fast.newPage();
@@ -163,7 +164,7 @@ test("D3 / F7: the throttle says which limit tripped and the wait in minutes", a
   await expect(fastAlert).not.toContainText(/\d+ s\b/);
   await expect(fastPage.getByLabel("Su respuesta")).toHaveValue("Una más de la cuenta");
 
-  // Thirty posts in the last hour, none in the last minute: the per-hour limit.
+  // Thirty posts in the last hour, none in the last minute, the oldest ten minutes ago: the per-hour limit, with the fifty minutes left.
   const slow = await contextFor(browser, "ux-slow");
   const slowPage = await slow.newPage();
 
@@ -177,7 +178,7 @@ test("D3 / F7: the throttle says which limit tripped and the wait in minutes", a
   const slowAlert = slowPage.getByRole("alert").filter({ hasText: "Está publicando muy rápido" });
 
   await expect(slowAlert).toContainText("el límite es de 30 publicaciones por hora");
-  await expect(slowAlert).toContainText("Puede volver a intentarlo en 60 minutos.");
+  await expect(slowAlert).toContainText("Puede volver a intentarlo en 50 minutos.");
 
   await fast.close();
   await slow.close();
@@ -284,6 +285,36 @@ test("D5 / F6: a session that ends while writing a new thread keeps the title an
   // Published: the next time the form opens it is empty.
   await page.goto(path);
   await expect(page.getByLabel("Título")).toHaveValue("");
+
+  await context.close();
+});
+
+test("D5 / F7: a draft is given back only to the member who typed it, even when another signs in in the same tab", async ({ browser }) => {
+  const context = await contextFor(browser, "ux-ana");
+  const page = await context.newPage();
+  const path = `/foro/hilo/${DRAFT_THREAD}`;
+
+  await page.goto(path);
+  await page.getByLabel("Su respuesta").fill("Lo que escribió Ana y no envió");
+  // Ana leaves the machine without sending it (or her session ends) and Beto signs in, in the same tab.
+  await page.reload();
+  await expect(page.getByLabel("Su respuesta")).toHaveValue("Lo que escribió Ana y no envió");
+
+  const beto = await plantForumMemberSession(prisma, { memberId: "ux-beto", sessionId: "ux-beto-session", displayName: "ux-beto" });
+
+  await context.clearCookies();
+  await context.addCookies([beto.cookie]);
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1, name: "Hilo del borrador UX" })).toBeVisible();
+  await expect(page.getByLabel("Su respuesta")).toHaveValue("");
+
+  // The draft was dropped, not hidden: Ana does not get it back either.
+  const ana = await plantForumMemberSession(prisma, { memberId: "ux-ana", sessionId: "ux-ana-session", displayName: "ux-ana" });
+
+  await context.clearCookies();
+  await context.addCookies([ana.cookie]);
+  await page.goto(path);
+  await expect(page.getByLabel("Su respuesta")).toHaveValue("");
 
   await context.close();
 });

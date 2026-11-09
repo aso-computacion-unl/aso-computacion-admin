@@ -29,7 +29,7 @@ afterEach(async () => {
 describe("the reply form", () => {
   it("sends the reply through the existing action for this thread", async () => {
     replyMock.mockResolvedValue({ success: true, id: "reply-3" });
-    const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+    const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
     expect(host.querySelector("label")?.textContent).toBe("Su respuesta");
     await typeInto(field(host, 'textarea[name="body"]'), "Guarde el siguiente antes de liberar.");
@@ -42,7 +42,7 @@ describe("the reply form", () => {
 
   it("clears the box, confirms and refreshes the thread once published", async () => {
     replyMock.mockResolvedValue({ success: true, id: "reply-3" });
-    const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+    const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
     await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta");
     await click(submitButton(host));
@@ -55,7 +55,7 @@ describe("the reply form", () => {
 
   it("keeps the text and says why when the reply is refused", async () => {
     replyMock.mockResolvedValue({ error: "Este hilo está cerrado y no admite más respuestas." });
-    const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+    const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
     await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta");
     await click(submitButton(host));
@@ -68,7 +68,7 @@ describe("the reply form", () => {
 
   it("shows the body error under the field", async () => {
     replyMock.mockResolvedValue({ fieldErrors: { body: "El texto es obligatorio." } });
-    const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+    const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
     await click(submitButton(host));
     await settle();
@@ -80,7 +80,7 @@ describe("the reply form", () => {
   describe("when the session ended while writing (D5)", () => {
     it("keeps the reply, offers a sign-in that comes back to this thread, and gives the text back afterwards", async () => {
       replyMock.mockResolvedValue({ error: "Inicie sesión para participar en el foro.", sessionExpired: true });
-      const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+      const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
       await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta larga");
       await click(submitButton(host));
@@ -92,28 +92,44 @@ describe("the reply form", () => {
       expect(field<HTMLTextAreaElement>(host, 'textarea[name="body"]').value).toBe("Una respuesta larga");
 
       await unmountAll();
-      const again = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+      const again = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
       expect(field<HTMLTextAreaElement>(again, 'textarea[name="body"]').value).toBe("Una respuesta larga");
     });
 
+    it("gives the text back only to the member who typed it: another member on the same machine finds the box empty", async () => {
+      const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
+
+      await typeInto(field(host, 'textarea[name="body"]'), "El texto de Ana");
+      await unmountAll();
+
+      const other = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m2" }));
+
+      expect(field<HTMLTextAreaElement>(other, 'textarea[name="body"]').value).toBe("");
+      expect(window.sessionStorage.length).toBe(0);
+      await unmountAll();
+
+      // It was dropped, not hidden: the first member does not get it back either.
+      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" })), 'textarea[name="body"]').value).toBe("");
+    });
+
     it("keeps one draft per thread and forgets it once the reply is published", async () => {
       replyMock.mockResolvedValue({ success: true, id: "reply-3" });
-      const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+      const host = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
       await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta");
       await unmountAll();
 
-      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-2" })), 'textarea[name="body"]').value).toBe("");
+      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-2", memberId: "m1" })), 'textarea[name="body"]').value).toBe("");
       await unmountAll();
 
-      const again = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+      const again = await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" }));
 
       await click(submitButton(again));
       await settle();
       await unmountAll();
 
-      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-1" })), 'textarea[name="body"]').value).toBe("");
+      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-1", memberId: "m1" })), 'textarea[name="body"]').value).toBe("");
       expect(window.sessionStorage.length).toBe(0);
     });
   });

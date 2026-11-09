@@ -283,7 +283,8 @@ paths:
         confirmación que recibe por correo (vale 48 horas) y pulsa «Confirmar mi cupo»
         (`POST …/registrations/confirm`). Antes de guardar se comprueba que pueda salir un correo (cuenta de Gmail,
         `REGISTRATION_CONFIRM_SECRET`, `AUTH_URL` y presupuesto diario); si no, se responde `503` y no se guarda
-        nada. Repetir el mismo correo mientras está pendiente renueva esa misma inscripción y reenvía el enlace.
+        nada. Repetir el mismo correo mientras está pendiente renueva esa misma inscripción y reenvía el enlace, y
+        **solo vale el enlace del último correo**: el anterior deja de funcionar.
 
         - **Turnstile:** `turnstileToken` se verifica en el servidor con `TURNSTILE_SECRET_KEY`. Falla cerrado: en
           producción sin secreto, o si Cloudflare no responde, la respuesta es `503`. Un token ausente, vacío o de
@@ -381,6 +382,8 @@ paths:
             solo la clase y el código del error). `email_unavailable`: no puede salir el correo de confirmación
             (cuenta de Gmail, secreto de los enlaces o `AUTH_URL` sin configurar, o el proveedor lo rechazó).
             `email_budget`: se agotó el presupuesto diario de correos (`MAIL_DAILY_LIMIT`, día de Ecuador); nada se guarda.
+            Las confirmaciones pueden usar todo el presupuesto: los recordatorios del cron se detienen en el 70 % y dejan
+            el resto para ellas, así que esto solo ocurre cuando se gastó el límite entero.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }
@@ -419,9 +422,11 @@ paths:
       description: |
         Toma el cupo de una inscripción pendiente con el token del enlace del correo. Solo existe `POST`: la página
         a la que lleva el enlace muestra un botón y nunca confirma por `GET`, porque los escáneres de correo abren
-        todos los enlaces. El token (JWT HS256, 48 h) prueba que el enlace es nuestro; si el cupo sigue libre lo
-        decide el servidor, de forma atómica y con el mismo bloqueo que la inscripción. Un rechazo deja la
-        inscripción como estaba.
+        todos los enlaces. El token (JWT HS256, 48 h) prueba que el enlace es nuestro y nombra el intento de
+        inscripción para el que se emitió: si el mismo correo se inscribe de nuevo mientras está pendiente, solo
+        vale el enlace del último correo y el anterior responde `invalid`. Si el cupo sigue libre lo decide el
+        servidor, de forma atómica y con el mismo bloqueo que la inscripción. Un rechazo deja la inscripción como
+        estaba.
 
         - **Mismo origen:** sin CORS. **Sin Turnstile:** el token es la credencial.
         - **Tasa:** 5 solicitudes por 10 min por cliente (presupuesto propio).
@@ -450,7 +455,7 @@ paths:
                   status: { type: string, enum: [confirmed, already_confirmed] }
               example: { ok: true, status: confirmed }
         "400":
-          description: Token ausente, falsificado, de otro evento o de una inscripción inexistente (`invalid`); JSON mal formado (`bad_request`).
+          description: Token ausente, falsificado, de otro evento, de una inscripción inexistente o de un intento anterior del mismo correo, es decir, un enlace que ya no es el último (`invalid`); JSON mal formado (`bad_request`).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }
@@ -609,8 +614,8 @@ paths:
            confirmaron su correo en 48 horas, y lo audita con el conteo, sin datos personales.
         3. **Recordatorios:** envía un correo, una sola vez, a cada persona con inscripción confirmada en un evento
            público cuyo día cae entre 1 y 3 días después (hora de Ecuador), empezando por los eventos más cercanos y
-           hasta donde alcance el presupuesto diario de correos (`MAIL_DAILY_LIMIT`); lo que no cabe sale al día
-           siguiente. Solo registra el envío si tuvo éxito, así que uno fallido sigue pendiente.
+           hasta el 70 % del presupuesto diario de correos (`MAIL_DAILY_LIMIT`, redondeado hacia abajo, contando lo ya
+           enviado ese día); el resto queda para los correos de confirmación. Lo que no cabe sale al día siguiente. Solo registra el envío si tuvo éxito, así que uno fallido sigue pendiente.
 
         Autenticación: `Authorization: Bearer <CRON_SECRET>` (Vercel lo añade solo). Falla cerrado: sin secreto
         utilizable (ausente, marcador de posición o menor de 32 caracteres) nadie queda autorizado. Comparación en

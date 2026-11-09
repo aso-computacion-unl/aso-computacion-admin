@@ -50,7 +50,7 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
         ]}
       />
       <Panel id="datos" aria-label="Datos del evento" className={anchor}>
-        <EventForm action={updateEvent.bind(null, id)} autosave submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} />
+        <EventForm action={updateEvent.bind(null, id)} autosave submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} registeredCount={event.registeredCount} />
       </Panel>
       <div id={PHOTOS_SECTION_ID} className={anchor}>
         <PhotoGallery

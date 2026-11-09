@@ -26,3 +26,23 @@ export function isInReminderWindow(date: string | null, now: Date): boolean {
 
   return date >= from && date <= to;
 }
+
+/**
+ * The most of a day's mail cap that reminders may use (D12): the rest stays for confirmation emails, so the daily
+ * cron can never spend the budget a person registering today needs to get their link. Confirmations may use whatever
+ * is left of the whole cap.
+ */
+export const REMINDER_SHARE_OF_DAILY_MAIL = 0.7;
+
+/**
+ * How many more reminders today's mail may carry: what is left of the cap beyond the reserve kept for confirmations
+ * (the cap minus its reminder share, rounded down). Mail already sent today, whatever it was, counts against the
+ * share, so reminders only ever use what is left of their 70 %. Never negative.
+ */
+export function reminderMailAllowance(dailyLimit: number, remainingToday: number): number {
+  if (!Number.isFinite(dailyLimit)) return remainingToday;
+
+  const reserved = dailyLimit - Math.floor(dailyLimit * REMINDER_SHARE_OF_DAILY_MAIL);
+
+  return Math.max(0, remainingToday - reserved);
+}

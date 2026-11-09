@@ -150,7 +150,8 @@ describe("SendRegistrationRemindersUseCase", () => {
 
     addPeople(far.id, 4);
 
-    const result = await reminders(4).execute({ now: NOW });
+    // Reminders only get 70 % of the cap (D12, reminder-budget-share.test.ts): a cap of 6 lets 4 go out.
+    const result = await reminders(6).execute({ now: NOW });
 
     expect(result).toMatchObject({ sent: 4, stoppedBy: "budget" });
     expect(delivered().slice(0, 2).sort()).toEqual([...nearEmails].sort());
@@ -166,7 +167,8 @@ describe("SendRegistrationRemindersUseCase", () => {
     addPeople(near.id, 2);
     addPeople(middle.id, 3);
 
-    const today = reminders(3);
+    // A cap of 5 is 3 reminders a day (70 %, rounded down: D12).
+    const today = reminders(5);
 
     await today.execute({ now: NOW });
 
@@ -189,7 +191,8 @@ describe("SendRegistrationRemindersUseCase", () => {
     await budget.reserve("2026-11-20", 400);
     await budget.reserve("2026-11-20", 400);
 
-    const result = await reminders(5).execute({ now: NOW });
+    // A cap of 8 gives reminders 5 (70 %, rounded down: D12); the 3 already spent today count against them, so 2 go out.
+    const result = await reminders(8).execute({ now: NOW });
 
     expect(result).toMatchObject({ sent: 2, stoppedBy: "budget" });
     expect(await budget.used("2026-11-20")).toBe(5);

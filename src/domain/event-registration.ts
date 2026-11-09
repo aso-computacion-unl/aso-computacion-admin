@@ -53,6 +53,44 @@ export function assertRegistrationSettings(
   return { mode: value as EventRegistrationMode, capacity: capacity ?? null, deadline: deadline ?? null };
 }
 
+/** What an admin's save changes for the people who already registered: the mode they signed up through, or the seats left for them. */
+export type RegistrationChangeImpact = "mode" | "seats";
+
+export interface RegistrationChangeInput {
+  /** People registered and confirmed: a pending one holds no seat and is nobody's to warn about. */
+  registered: number;
+  current: { mode: EventRegistrationMode; capacity: number | null };
+  /** What the form sent; `undefined` for a setting it did not send, which the save leaves as it is. */
+  next: { mode?: EventRegistrationMode; capacity?: number | null };
+}
+
+/**
+ * The changes of a save that need the admin's confirmation (D14), in the order the warning tells them. None while no
+ * one is registered. A mode change always counts (the registered people signed up through the old one). Seats count
+ * when the save sets a limit below the registered people that is lower than the one in force: keeping or raising a
+ * limit that is already below them, or lifting it, warns about nothing. Switching registration off clears the limit,
+ * so it is only a mode change.
+ */
+export function registrationChangeImpacts({ registered, current, next }: RegistrationChangeInput): RegistrationChangeImpact[] {
+  if (registered <= 0) {
+    return [];
+  }
+
+  const mode = next.mode ?? current.mode;
+  const capacity = mode === "none" ? null : next.capacity === undefined ? current.capacity : next.capacity;
+  const impacts: RegistrationChangeImpact[] = [];
+
+  if (mode !== current.mode) {
+    impacts.push("mode");
+  }
+
+  if (capacity !== null && capacity < registered && (current.capacity === null || capacity < current.capacity)) {
+    impacts.push("seats");
+  }
+
+  return impacts;
+}
+
 /** The slice of an event the rules read. */
 export interface RegistrableEvent {
   readonly isPublished: boolean;

@@ -23,7 +23,7 @@ export type OpenRegistrationRequestResult =
 /**
  * One open-form request, after the public checks (rate limit, Turnstile): validates the fields (a `ValidationError`
  * for a bad one), makes sure an email can go out BEFORE storing anything, stores or refreshes the pending
- * registration, and sends the link that confirms it. The mail setup and today's budget are checked first so that a
+ * registration, and sends the link that confirms it (only the latest link of an email works). The mail setup and today's budget are checked first so that a
  * refusal for those reasons leaves the stored rows exactly as they were.
  */
 export async function requestOpenRegistration({ slug, form, now = new Date(), env = process.env }: { slug: string; form: Record<string, unknown>; now?: Date; env?: Env }): Promise<OpenRegistrationRequestResult> {
@@ -40,7 +40,9 @@ export async function requestOpenRegistration({ slug, form, now = new Date(), en
   }
 
   const services = getEventRegistrationServices();
-  const outcome = await services.registerOpen.execute({ slug, form, now });
+  // The attempt this email's link is issued for: it replaces the previous one on a pending row, which retires that link (D9).
+  const nonce = crypto.randomUUID();
+  const outcome = await services.registerOpen.execute({ slug, form, now, confirmNonce: nonce });
 
   if (outcome.status !== "registered") {
     return { status: "refused", reason: outcome.status === "mode_mismatch" ? "not_found" : outcome.status };
@@ -52,7 +54,7 @@ export async function requestOpenRegistration({ slug, form, now = new Date(), en
     return { status: "refused", reason: "not_found" };
   }
 
-  const token = await sealRegistrationConfirmToken({ registrationId: outcome.registration.id, eventId: outcome.registration.eventId }, now);
+  const token = await sealRegistrationConfirmToken({ registrationId: outcome.registration.id, eventId: outcome.registration.eventId, nonce }, now);
   const message = confirmationEmail({ event, confirmUrl: `${origin}/inscripciones/${event.slug}/confirmar?token=${token}` });
   const sent = await mailer.send({ to: email, ...message }, now);
 

@@ -24,6 +24,8 @@ export interface MailSender {
   send(message: MailMessage, now?: Date): Promise<MailSendResult>;
   /** How many more messages today's budget allows; 0 when nothing can be sent at all. */
   remainingToday(now?: Date): Promise<number>;
+  /** The most messages one day's budget allows. With `remainingToday` it tells how much of the cap is already spent. */
+  dailyLimit(): number;
   /** Releases what a burst of sends kept open (a pooled connection). Safe to call when there is nothing to release. */
   close(): Promise<void>;
 }

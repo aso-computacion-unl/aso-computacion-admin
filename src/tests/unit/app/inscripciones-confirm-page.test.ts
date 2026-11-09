@@ -80,14 +80,63 @@ describe("the confirm page (server)", () => {
     expect(html).not.toContain("Confirmar mi cupo");
   });
 
-  it("is a 404 for an event that is gone or takes no open-form registration", async () => {
-    const token = await sealRegistrationConfirmToken({ registrationId: "r1", eventId: "e1" });
+  describe("an event that no longer takes open-form registrations (D11)", () => {
+    const gone: [string, () => void][] = [
+      ["unpublished, trashed or gone", () => pageMock.mockResolvedValue(null)],
+      ["switched to no registration", () => pageMock.mockResolvedValue({ kind: "none", event, calendarHref: null })],
+      ["switched to UNL accounts", () => pageMock.mockResolvedValue({ kind: "unl", member: null, loginAvailable: true, status: open().status, calendarHref: null, remindersOn: false })],
+    ];
 
-    pageMock.mockResolvedValue(null);
-    await expect(render(token)).rejects.toThrow("NEXT_NOT_FOUND");
+    it.each(gone)("says the event no longer takes registrations, instead of a 404, when it was %s", async (_label, arrange) => {
+      const token = await sealRegistrationConfirmToken({ registrationId: "r1", eventId: "e1" });
 
-    pageMock.mockResolvedValue({ kind: "none", event, calendarHref: null });
-    await expect(render(token)).rejects.toThrow("NEXT_NOT_FOUND");
+      arrange();
+
+      const html = await render(token);
+
+      expect(html).toContain("Este evento ya no recibe inscripciones");
+      expect(html).toContain('href="/inscripciones"');
+      expect(html).not.toContain("Confirmar mi cupo");
+      expect(html).not.toContain("Este enlace no sirve");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each(gone)("says so for a link older than 48 hours too (it is ours), when the event was %s", async (_label, arrange) => {
+      const token = await sealRegistrationConfirmToken({ registrationId: "r1", eventId: "e1" }, new Date(Date.now() - 49 * 3_600_000));
+
+      arrange();
+
+      expect(await render(token)).toContain("Este evento ya no recibe inscripciones");
+    });
+
+    it("still says the link is no use for a bad token when the event is public but no longer open, without offering the form", async () => {
+      pageMock.mockResolvedValue({ kind: "none", event, calendarHref: null });
+
+      for (const token of [undefined, "not-a-token"]) {
+        const html = await render(token);
+
+        expect(html).toContain("Este enlace no sirve");
+        expect(html).not.toContain("Este evento ya no recibe inscripciones");
+        expect(html).not.toContain("Volver al formulario");
+      }
+    });
+
+    it("stays a 404 for an unknown event with a bad token: nothing there says the event ever existed", async () => {
+      pageMock.mockResolvedValue(null);
+
+      await expect(render("not-a-token")).rejects.toThrow("NEXT_NOT_FOUND");
+      await expect(render(undefined)).rejects.toThrow("NEXT_NOT_FOUND");
+    });
+
+    it("keeps the confirm button for an event that is still open, even when it is full or closed (the click answers)", async () => {
+      const token = await sealRegistrationConfirmToken({ registrationId: "r1", eventId: "e1" });
+
+      pageMock.mockResolvedValue(open({ state: "full" }));
+
+      const html = await render(token);
+
+      expect(html).toContain("Confirmar mi cupo");
+      expect(html).not.toContain("Este evento ya no recibe inscripciones");
+    });
   });
 });
-

@@ -208,6 +208,72 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
     });
   });
 
+  describe("the link of the latest attempt (D9)", () => {
+    const LATER = new Date(NOW.getTime() + HOUR);
+    const CONFIRM_AT = new Date(NOW.getTime() + 2 * HOUR);
+
+    it("stores the nonce beside the row, never in the record, and replaces it when the pending email registers again", async () => {
+      const event = await addEvent({ registrationCapacity: 2 });
+      const first = pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-1" });
+
+      const stored = await registrations.register(first, NOW);
+
+      expect(await prisma.eventRegistration.findUnique({ where: { id: first.id } })).toMatchObject({ confirmNonce: "attempt-1" });
+      expect(JSON.stringify(stored)).not.toContain("attempt-1");
+
+      await registrations.register(pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-2" }), LATER);
+
+      expect(await prisma.eventRegistration.findMany({ where: { eventId: event.id } })).toEqual([expect.objectContaining({ id: first.id, confirmNonce: "attempt-2" })]);
+    });
+
+    it("refuses the link of an earlier attempt as invalid, leaves the row pending and untouched, and then confirms with the newest", async () => {
+      const event = await addEvent({ registrationCapacity: 2 });
+      const first = pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-1" });
+
+      await registrations.register(first, NOW);
+      await registrations.register(pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-2" }), LATER);
+
+      const before = await prisma.eventRegistration.findUnique({ where: { id: first.id } });
+
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT, "attempt-1")).toEqual({ status: "invalid" });
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT, null)).toEqual({ status: "invalid" });
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT)).toEqual({ status: "invalid" });
+      expect(await prisma.eventRegistration.findUnique({ where: { id: first.id } })).toEqual(before);
+      expect(await registrations.count(event.id)).toBe(0);
+
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT, "attempt-2")).toMatchObject({ status: "confirmed", registration: { id: first.id, confirmedAt: CONFIRM_AT } });
+      expect(await registrations.count(event.id)).toBe(1);
+    });
+
+    it("answers an earlier attempt's link invalid even after the row is confirmed, and the current one already_confirmed", async () => {
+      const event = await addEvent();
+      const first = pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-1" });
+
+      await registrations.register(first, NOW);
+      await registrations.register(pendingPerson(event.id, { email: "ana@example.com", confirmNonce: "attempt-2" }), LATER);
+      await registrations.confirm(event.id, first.id, CONFIRM_AT, "attempt-2");
+
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT, "attempt-1")).toEqual({ status: "invalid" });
+      expect(await registrations.confirm(event.id, first.id, CONFIRM_AT, "attempt-2")).toMatchObject({ status: "already_confirmed" });
+    });
+
+    it("keeps a pending row from before the column (null nonce) confirmable by a link that names none, until it registers again", async () => {
+      const event = await addEvent({ registrationCapacity: 2 });
+      const legacy = pendingPerson(event.id, { email: "ana@example.com" });
+      const other = pendingPerson(event.id, { email: "luis@example.com" });
+
+      await registrations.register(legacy, NOW);
+      await registrations.register(other, NOW);
+
+      expect(await registrations.confirm(event.id, legacy.id, CONFIRM_AT, null)).toMatchObject({ status: "confirmed" });
+
+      await registrations.register(pendingPerson(event.id, { email: "luis@example.com", confirmNonce: "attempt-1" }), LATER);
+
+      expect(await registrations.confirm(event.id, other.id, CONFIRM_AT, null)).toEqual({ status: "invalid" });
+      expect(await registrations.confirm(event.id, other.id, CONFIRM_AT, "attempt-1")).toMatchObject({ status: "confirmed" });
+    });
+  });
+
   describe("confirm", () => {
     const CONFIRMED_AT = new Date(NOW.getTime() + 2 * HOUR);
 

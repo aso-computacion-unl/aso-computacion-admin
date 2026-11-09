@@ -11,7 +11,7 @@ export class BudgetedMailSender implements MailSender {
   constructor(
     private readonly transport: MailTransport | null,
     private readonly budget: MailBudget,
-    private readonly dailyLimit: number,
+    private readonly limit: number,
   ) {}
 
   isConfigured(): boolean {
@@ -25,7 +25,7 @@ export class BudgetedMailSender implements MailSender {
 
     const day = todayInEcuador(now);
 
-    if (!(await this.budget.reserve(day, this.dailyLimit))) {
+    if (!(await this.budget.reserve(day, this.limit))) {
       return { status: "budget_exhausted" };
     }
 
@@ -45,11 +45,15 @@ export class BudgetedMailSender implements MailSender {
     await this.transport?.close?.();
   }
 
+  dailyLimit(): number {
+    return this.limit;
+  }
+
   async remainingToday(now: Date = new Date()): Promise<number> {
     if (!this.transport) {
       return 0;
     }
 
-    return Math.max(0, this.dailyLimit - (await this.budget.used(todayInEcuador(now))));
+    return Math.max(0, this.limit - (await this.budget.used(todayInEcuador(now))));
   }
 }

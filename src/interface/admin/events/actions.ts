@@ -14,6 +14,7 @@ import { TRASH_PATH } from "../trash/paths";
 import { createdEventPath } from "./created-flag";
 import { parseEventFormData } from "./event-form-data";
 import { getEventUseCases } from "./events-container";
+import { isRegistrationChangeConfirmed, unconfirmedRegistrationChange } from "./registration-change-guard";
 
 // Every action starts with the session guard, before it reads any input or touches a use case (a
 // server action can be POSTed to any page). Events are editor-level content: any signed-in user.
@@ -51,7 +52,15 @@ export async function updateEvent(
 ): Promise<ActionResult> {
   try {
     const actor = await requireSession();
-    const saved = await getEventUseCases().update.execute({ id, ...parseEventFormData(formData) });
+    const changes = parseEventFormData(formData);
+    // D14: a change that affects the people already registered is stored only with the admin's confirmation.
+    const unconfirmed = await unconfirmedRegistrationChange(id, changes, isRegistrationChangeConfirmed(formData));
+
+    if (unconfirmed) {
+      return { error: unconfirmed };
+    }
+
+    const saved = await getEventUseCases().update.execute({ id, ...changes });
     await recordAudit(actor, { action: "event.update", entityType: "event", entityId: id, summary: "Evento editado" });
     // A draft that stays a draft is not on the site: no rebuild, Historial still records the edit.
     if (shouldRebuildSite(saved.wasPublished, saved.isPublished)) {

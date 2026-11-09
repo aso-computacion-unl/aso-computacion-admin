@@ -81,6 +81,10 @@ export class RecordingMailSender implements MailSender {
 
   async close(): Promise<void> {}
 
+  dailyLimit(): number {
+    return this.allowance;
+  }
+
   async remainingToday(): Promise<number> {
     return this.refuse === "not_configured" ? 0 : Math.max(0, this.allowance - this.sent.length);
   }

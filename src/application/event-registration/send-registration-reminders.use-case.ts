@@ -1,5 +1,5 @@
 import { isPubliclyVisible } from "@/domain/publication-window";
-import { isInReminderWindow } from "@/domain/registration-reminder";
+import { isInReminderWindow, reminderMailAllowance } from "@/domain/registration-reminder";
 
 import type { EventResult } from "../dto/event-result.dto";
 import type { EventRegistrationRepository } from "../ports/event-registration-repository.port";
@@ -31,7 +31,8 @@ export interface ReminderRunResult {
 
 /**
  * Reminds the confirmed people of every public event one to three days ahead (Ecuador), once each. Spread over days:
- * each run sends up to what is left of the day's mail budget, nearest events first, so what does not fit goes out the
+ * each run sends up to what is left of the reminders' share of the day's mail budget (about 70 %, the rest is kept
+ * for confirmation emails), nearest events first, so what does not fit goes out the
  * next day and the people of the nearest event are never starved by a farther one. A reminder is recorded only after
  * its send succeeded, so a failed send stays due and a repeated run sends nothing twice. Run from the daily cron.
  */
@@ -51,7 +52,8 @@ export class SendRegistrationRemindersUseCase {
     const published = (await this.events.list({ status: "published" })).map((event) => event.props);
     const due = published.filter((event) => event.registrationMode !== "none" && event.datePrecision === "day" && isInReminderWindow(event.date, now) && isPubliclyVisible(event, now)).sort(soonestFirst);
     const result: ReminderRunResult = { sent: 0, failed: 0, events: due.length, stoppedBy: "done" };
-    let remaining = await this.mailer.remainingToday(now);
+    // Only what is left of the reminders' share of the cap (D12): the rest of the day's mail is for confirmations.
+    let remaining = reminderMailAllowance(this.mailer.dailyLimit(), await this.mailer.remainingToday(now));
     let failuresInARow = 0;
 
     for (const event of due) {

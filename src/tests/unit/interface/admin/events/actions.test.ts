@@ -12,6 +12,8 @@ const { requireSessionMock, revalidatePathMock, redirectMock, useCases } = vi.ho
     useCases: {
       create: { execute: execute() },
       update: { execute: execute() },
+      get: { execute: execute() },
+      registeredCount: vi.fn(),
       setPublished: { execute: execute() },
       trash: { execute: execute() },
       attachPhoto: { execute: execute() },
@@ -54,6 +56,9 @@ describe("events server actions", () => {
     vi.clearAllMocks();
     requireSessionMock.mockResolvedValue({ kind: "user", sessionId: "s1", userId: "u1", name: "Ana", role: "ADMIN" });
     useCases.trash.execute.mockResolvedValue({ wasPublished: true });
+    // An event without registration and nobody registered: no change to ask about unless a test arranges it.
+    useCases.get.execute.mockResolvedValue({ id: "e1", registrationMode: "none", registrationCapacity: null });
+    useCases.registeredCount.mockResolvedValue(0);
   });
 
   describe("createEvent", () => {
@@ -171,6 +176,119 @@ describe("events server actions", () => {
 
       expect(refused.fieldErrors).toHaveProperty("registrationCapacity");
       expect(useCases.update.execute).not.toHaveBeenCalled();
+    });
+
+    describe("a change that affects the people already registered (D14)", () => {
+      const registered = (count: number, current: { registrationMode: string; registrationCapacity: number | null } = { registrationMode: "open", registrationCapacity: 30 }) => {
+        useCases.get.execute.mockResolvedValue({ id: "e1", ...current });
+        useCases.registeredCount.mockResolvedValue(count);
+        useCases.update.execute.mockResolvedValue({ id: "e1" });
+      };
+      const unchanged = () => {
+        expect(useCases.update.execute).not.toHaveBeenCalled();
+        expect(revalidatePathMock).not.toHaveBeenCalled();
+      };
+
+      it("refuses to change the mode without the confirmation, says how many are registered, and stores nothing", async () => {
+        registered(12);
+
+        const result = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "unl" }));
+
+        expect(result.success).toBeUndefined();
+        expect(result.fieldErrors).toBeUndefined();
+        expect(result.error).toMatch(/^Este evento ya tiene 12 inscritos\./);
+        expect(result.error).toMatch(/Cuenta UNL/);
+        expect(result.error).toMatch(/Confirme el cambio para guardarlo\.$/);
+        unchanged();
+      });
+
+      it("refuses to lower the seats below the registered people without the confirmation", async () => {
+        registered(12);
+
+        const result = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "open", registrationCapacity: "11" }));
+
+        expect(result.error).toMatch(/^Este evento ya tiene 12 inscritos\./);
+        expect(result.error).toMatch(/11 cupos/);
+        expect(result.error).toMatch(/agotado/);
+        unchanged();
+      });
+
+      it("refuses switching registration off without the confirmation", async () => {
+        registered(2);
+
+        const result = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "none" }));
+
+        expect(result.error).toMatch(/^Este evento ya tiene 2 inscritos\./);
+        expect(result.error).toMatch(/Si quita la inscripción/);
+        unchanged();
+      });
+
+      it("saves the same change when the form carries the confirmation, with every field as sent", async () => {
+        registered(12);
+
+        const result = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "unl", registrationCapacity: "5", confirmRegistrationChange: "on" }));
+
+        expect(result).toEqual({ success: true });
+        expect(useCases.update.execute).toHaveBeenCalledWith(expect.objectContaining({ id: "e1", registrationMode: "unl", registrationCapacity: 5 }));
+      });
+
+      it("does not take any other value of the flag as a confirmation", async () => {
+        registered(12);
+
+        for (const value of ["", "off", "yes", "1", "ON"]) {
+          const result = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "unl", confirmRegistrationChange: value }));
+
+          expect(result.error, value).toMatch(/^Este evento ya tiene 12 inscritos\./);
+        }
+
+        unchanged();
+      });
+
+      it.each([
+        ["keeps the same mode and seats", { registrationMode: "open", registrationCapacity: "30" }],
+        ["raises the seats", { registrationMode: "open", registrationCapacity: "50" }],
+        ["lowers the seats but not below the registered people", { registrationMode: "open", registrationCapacity: "12" }],
+        ["lifts the limit", { registrationMode: "open", registrationCapacity: "" }],
+        ["sends no registration setting at all", {}],
+      ])("saves without asking when it %s", async (_label, fields) => {
+        registered(12);
+
+        expect(await actions.updateEvent("e1", null, form({ title: "Nuevo", ...fields }))).toEqual({ success: true });
+        expect(useCases.update.execute).toHaveBeenCalledTimes(1);
+      });
+
+      it("saves a change of mode or seats without asking while nobody is registered (pending people do not count)", async () => {
+        registered(0);
+
+        expect(await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationMode: "unl", registrationCapacity: "1" }))).toEqual({ success: true });
+        expect(useCases.update.execute).toHaveBeenCalledTimes(1);
+      });
+
+      it("asks the repository for the confirmed registrations of this event only, and only when a registration setting was sent", async () => {
+        registered(3);
+
+        await actions.updateEvent("e1", null, form({ title: "Solo título" }));
+
+        expect(useCases.registeredCount).not.toHaveBeenCalled();
+
+        await actions.updateEvent("e1", null, form({ title: "Con modo", registrationMode: "open" }));
+
+        expect(useCases.registeredCount).toHaveBeenCalledWith("e1");
+      });
+
+      it("answers a field error, not the confirmation question, for an invalid capacity, and a missing event as not found", async () => {
+        registered(12);
+
+        const invalid = await actions.updateEvent("e1", null, form({ title: "Nuevo", registrationCapacity: "-1" }));
+
+        expect(invalid.fieldErrors).toHaveProperty("registrationCapacity");
+        expect(invalid.error).toBeUndefined();
+
+        useCases.get.execute.mockRejectedValue(new NotFoundError("Event not found"));
+
+        expect(await actions.updateEvent("gone", null, form({ title: "x", registrationMode: "open" }))).toEqual({ error: "No se encontró el evento o la foto." });
+        unchanged();
+      });
     });
 
     it("maps NotFoundError to a Spanish message", async () => {

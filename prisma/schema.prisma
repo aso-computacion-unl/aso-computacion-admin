@@ -85,6 +85,8 @@ model EventRegistration {
   createdAt      DateTime              @default(now())
   confirmedAt    DateTime?
   reminderSentAt DateTime?
+  /// The attempt a pending row waits on: signed into its confirmation link, replaced when the same email registers again, so only the latest link confirms. Null on rows from before it existed (their links carry none) and on UNL rows.
+  confirmNonce   String?
 
   @@unique([eventId, email])
   @@index([eventId, createdAt])

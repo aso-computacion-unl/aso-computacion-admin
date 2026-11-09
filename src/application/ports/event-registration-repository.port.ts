@@ -20,13 +20,19 @@ export interface EventRegistrationRecord {
   reminderSentAt: Date | null;
 }
 
-export type NewEventRegistration = Omit<EventRegistrationRecord, "createdAt" | "reminderSentAt">;
+export type NewEventRegistration = Omit<EventRegistrationRecord, "createdAt" | "reminderSentAt"> & {
+  /**
+   * The attempt the confirmation link of a pending row is issued for (D9). Stored beside the row, never part of the
+   * record: it is a credential, not data about the person. Absent or `null` for a row that is never confirmed by a link.
+   */
+  confirmNonce?: string | null;
+};
 
 export type RegisterOutcome = { status: "registered"; registration: EventRegistrationRecord } | { status: RegistrationRefusal };
 
 /**
- * Confirming the email of a pending registration. `invalid`: no such registration in that event. `expired`: the
- * confirmation window ran out. A refusal (`full`, `closed`, ...) leaves the row pending, as it was.
+ * Confirming the email of a pending registration. `invalid`: no such registration in that event, or the link is not
+ * the one of its latest attempt. `expired`: the confirmation window ran out. A refusal (`full`, `closed`, ...) leaves the row pending, as it was.
  */
 export type ConfirmOutcome =
   | { status: "confirmed" | "already_confirmed"; registration: EventRegistrationRecord }
@@ -39,11 +45,16 @@ export interface EventRegistrationRepository {
    * Stores the registration unless `registrationRefusal` says no. The check and the insert are one atomic
    * step, serialized per event: two people racing for the last seat cannot both get it, and the same
    * email cannot be stored twice. A refusal changes nothing. Only confirmed rows count: the same email still
-   * pending is not a duplicate, its row is refreshed (same id, new data, `createdAt` = now) and returned.
+   * pending is not a duplicate, its row is refreshed (same id, new data, `createdAt` = now, new `confirmNonce`, which
+   * retires the link of the previous attempt) and returned.
    */
   register(input: NewEventRegistration, now: Date): Promise<RegisterOutcome>;
-  /** Confirms a pending row with the same atomic check as `register`: the seat is taken now, or refused. */
-  confirm(eventId: string, id: string, now: Date): Promise<ConfirmOutcome>;
+  /**
+   * Confirms a pending row with the same atomic check as `register`: the seat is taken now, or refused. `nonce` is the
+   * attempt the link names (`null`: a link that names none): a row only answers to the nonce it holds now, so the link of
+   * an earlier attempt is `invalid` and changes nothing.
+   */
+  confirm(eventId: string, id: string, now: Date, nonce?: string | null): Promise<ConfirmOutcome>;
   /** Confirmed registrations only, oldest first. */
   list(eventId: string): Promise<EventRegistrationRecord[]>;
   /** Confirmed registrations only. */

@@ -12,19 +12,22 @@ import {
   UploadImageUseCase,
   TrashContentUseCase,
 } from "@/application";
-import { EventPhotoPrismaRepository, EventPrismaRepository } from "@/infrastructure";
+import { EventPhotoPrismaRepository, EventPrismaRepository, EventRegistrationPrismaRepository } from "@/infrastructure";
 import { CloudinaryMediaStorage } from "@/infrastructure/storage/cloudinary-media-storage";
 import { LazyMediaStorage } from "@/infrastructure/storage/lazy-media-storage";
 
 function createEventUseCases() {
   const events = new EventPrismaRepository();
   const photos = new EventPhotoPrismaRepository();
+  const registrations = new EventRegistrationPrismaRepository();
   const storage = new LazyMediaStorage(() => new CloudinaryMediaStorage());
 
   return {
     list: new ListEventsUseCase(events, photos),
     count: new CountByStatusUseCase(events),
     get: new GetEventUseCase(events, photos),
+    /** People registered and confirmed in an event: a pending registration holds no seat and is not counted. */
+    registeredCount: (eventId: string) => registrations.count(eventId),
     create: new CreateEventUseCase(events),
     update: new UpdateEventUseCase(events),
     setPublished: new SetEventPublishedUseCase(events),

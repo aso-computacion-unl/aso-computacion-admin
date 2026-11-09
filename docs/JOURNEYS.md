@@ -14,13 +14,15 @@ Conventions:
 
 - **Actor**: visitor. **Entry**: `/foro`.
 - **Sees**: the sign-in gate "Su carrera se resuelve aquí", three tiles (Preguntar / Proponer / Armar equipo), the button "Entrar con Google" and "Solo con su correo @unl.edu.ec. La primera vez se crea su cuenta." No forum content, no categories, no counts. The top bar has only the theme toggle.
+- **A suspended member** (the browser still holds the cookie of that member's session, which the suspension closed): instead of the gate, the notice "Su cuenta del foro está suspendida" with "La moderación suspendió su cuenta, por eso no puede ver ni publicar en el foro." and "escriba a la directiva de ASO", and the button "Entrar con otra cuenta de Google" (D1). No forum content, no name, no way to act: the notice only changes the words. Only the holder of that member's own signed cookie sees it; a visitor, an expired or foreign cookie, an admin session and an active member see the gate or the forum as before, so nothing can be learned about an account from outside. Any page of the forum ends here for that member (`/foro/hilo/<id>` → `/foro?next=…` → the notice).
 - **After a failed sign-in** (`/foro?error=<code>`): an alert above the button, which becomes "Entrar de nuevo con Google".
 
 | Code | Message |
 | --- | --- |
 | `unavailable` | "El acceso al foro no está disponible ahora. Intente más tarde." |
 | `failed` | "No se pudo completar el acceso con Google. Inténtelo de nuevo." |
-| `denied` | "Solo pueden entrar estudiantes con su cuenta institucional verificada." plus the hint about a suspended account ("…es posible que la moderación haya suspendido su cuenta: escriba a la directiva de ASO.") |
+| `denied` | "Solo pueden entrar estudiantes con su cuenta institucional verificada." |
+| `suspended` | "Su cuenta del foro está suspendida. Para resolverlo, escriba a la directiva de ASO." (D1; only after Google proved the account is theirs) |
 | `verification` | "No pudimos verificar su cuenta con Google en este momento. Inténtelo de nuevo en unos minutos." |
 
 - An unknown `error` or a foreign `next` is ignored.
@@ -36,7 +38,7 @@ Conventions:
 - **Entry**: "Entrar con Google" → `/foro/auth/google/start` → Google → `/foro/auth/google/callback`.
 - **First time**: the account is created (active, display name from Google) with a 7-day session.
 - **Expected**: `forum_sid` cookie set, redirect to `next` or `/foro`. A previous session in the same browser is revoked.
-- **Refused** (→ F1 with `denied`): login switched off, email not verified, domain not `@unl.edu.ec` or `hd` claim missing, no Google `sub`, email tied to another Google identity, suspended member.
+- **Refused** (→ F1 with `denied`): login switched off, email not verified, domain not `@unl.edu.ec` or `hd` claim missing, no Google `sub`, email tied to another Google identity. A suspended member is refused with `suspended` (→ F1, D1), apart from these; no session is opened.
 - **Failures** (→ F1): config missing or unexpected error → `unavailable`; Google error, missing/mismatched state cookie → `failed`; Google down → `verification`.
 
 ### F4. A student browses threads
@@ -51,21 +53,23 @@ Conventions:
 - **Entry**: `/foro/hilo/<id>`.
 - **Sees**: status chip (Abierto / Resuelto / Cerrado), the opening post, replies oldest first, the best answer anchored at `#mejor`. On each reply: «Me sirvió»; «Reportar» on other people's posts; «Marcar como mejor respuesta» for the thread author while the thread is not locked.
 - **Locked thread**: no reply form; "Hilo cerrado por la moderación" / "Se puede leer, pero ya no admite respuestas nuevas."
-- **Edges**: hidden or unknown thread → 404. Hidden replies disappear with no placeholder (D4).
+- **Hidden reply** (D4): it keeps its place in the order as a card that says "Respuesta oculta por la moderación", with no text, author, time, reactions, «Me sirvió», «Reportar» or best-answer button. The server builds it from the id alone, so the hidden text, its author and its reactions never reach the browser (neither the markup nor the component props). The count "N respuestas" is of the replies that can be read. Hiding a reply also clears it as the thread's best answer; should the thread still point at a hidden reply, the best-answer slot (`#mejor`) shows the same placeholder.
+- **Edges**: hidden or unknown thread → 404.
 
 ### F6. A student opens a thread
 
 - **Entry**: `/foro/c/<slug>/nuevo` (also from the "new thread" menu and row).
 - **Steps**: title (≤ 120), Markdown body (≤ 10 000) with live preview, publish.
 - **Expected**: lands on `/foro/hilo/<id>` with the new thread.
+- **A draft** (D5): title and text are also kept in this tab's `sessionStorage` while typing (one draft per category), given back when the form opens again (after signing in, the sign-in returns to `/foro/c/<slug>/nuevo`), and forgotten once the thread is published, on «Cerrar sesión» and when the tab closes.
 - **Errors** (each with a "Volver al foro" link):
 
 | Case | Message |
 | --- | --- |
 | Title empty or too long | "El título es obligatorio y admite hasta 120 caracteres." |
 | Body empty or too long | "El texto es obligatorio y admite hasta 10000 caracteres en un hilo y 5000 en una respuesta." |
-| Posting too fast (3 per minute, 30 per hour, threads and replies together) | "Está publicando muy rápido. Espere un momento y vuelva a intentarlo." + "Puede volver a intentarlo en N s." (D3) |
-| Session gone | "Inicie sesión para participar en el foro." (D5) |
+| Posting too fast (3 per minute, 30 per hour, threads and replies together) | "Está publicando muy rápido: el límite es de 3 publicaciones por minuto. Puede volver a intentarlo en 1 minuto." or "…de 30 publicaciones por hora. Puede volver a intentarlo en 60 minutos." (D3: names the limit that tripped; the wait is in whole minutes, rounded up: "1 minuto" / "N minutos") |
+| Session gone | "Inicie sesión para participar en el foro." with the link "Iniciar sesión" (to `/foro?next=<this page>`) instead of "Volver al foro"; what was typed stays (D5) |
 | Suspended | "Su cuenta no puede participar en el foro." |
 | Unknown category | "No se encontró la publicación." |
 | Unexpected | "Ocurrió un error inesperado. Intente nuevamente." |
@@ -75,7 +79,8 @@ Conventions:
 - **Entry**: the reply form at the bottom of a thread.
 - **Steps**: body (≤ 5 000), publish.
 - **Expected**: the box clears, "Respuesta publicada." and the reply appears.
-- **Errors**: as F6, plus a locked thread (also if it is locked while writing): "Este hilo está cerrado: no admite respuestas ni cambios."
+- **Errors**: as F6 (the throttle message, and the session-gone message with "Iniciar sesión" back to `/foro/hilo/<id>`), plus a locked thread (also if it is locked while writing): "Este hilo está cerrado: no admite respuestas ni cambios."
+- **A draft** (D5): the reply is kept like F6's, one draft per thread; the box comes back with its text after signing in, and clears for good once the reply is published.
 
 ### F8. A student reacts, picks the best answer, reports
 
@@ -90,7 +95,7 @@ Conventions:
 
 ### F10. A student is suspended while signed in
 
-- **Expected today**: the next page shows the F1 gate as if signed out; actions in flight answer "Su cuenta no puede participar en el foro." or "Inicie sesión para participar en el foro." The reason only shows after trying to sign in again (`denied` hint) (D1).
+- **Expected** (D1): the next page shows the suspension notice of F1 ("Su cuenta del foro está suspendida… escriba a la directiva de ASO") instead of the sign-in gate, and the member still gets no forum content: the guard keeps refusing the session, so no read or action succeeds. Actions in flight answer "Inicie sesión para participar en el foro." (with the same way back to the page, F6/F7). Signing in again with the same Google account ends at `/foro?error=suspended`; the member can enter with another account from the notice. A moderator's «Reactivar la cuenta» brings the member back at their next sign-in.
 
 ### F11. A moderator works the report queue
 
@@ -221,11 +226,11 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 
 | # | Journey | Decision | Expected behaviour |
 | --- | --- | --- | --- |
-| D1 | F10 | Tell a suspended student at once | Opening the forum with a suspended account shows a suspension notice ("escriba a la directiva de ASO") instead of the sign-in gate; the sign-in refusal for a suspended account is its own message, apart from domain or verification refusals |
+| D1 | F10 | Tell a suspended student at once | **Built** (`e2e/forum-ux.spec.ts`). Opening the forum with a suspended account shows a suspension notice ("escriba a la directiva de ASO") instead of the sign-in gate; the sign-in refusal for a suspended account is its own message, apart from domain or verification refusals |
 | D2 | F8 | Build it now | A student edits their own thread and replies (shown as "editado"); «Me sirvió» is offered on the opening post too |
-| D3 | F6 | Name the limit, in minutes | The throttle message says which limit was hit (per minute or per hour) and the wait in minutes |
-| D4 | F5 | Visible placeholder | A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
-| D5 | F6, F7, R2 | Keep text, return, own wording | An expired session keeps the typed text, the sign-in link returns to the same page, and registration screens use registration wording, never "participar en el foro" |
+| D3 | F6 | Name the limit, in minutes | **Built** (`e2e/forum-ux.spec.ts`). The throttle message says which limit was hit (per minute or per hour) and the wait in minutes |
+| D4 | F5 | Visible placeholder | **Built** (`e2e/forum-ux.spec.ts`). A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
+| D5 | F6, F7, R2 | Keep text, return, own wording | **Built for the forum** (F6, F7; `e2e/forum-ux.spec.ts`): an expired session keeps the typed text and the sign-in link returns to the same page. **Pending (R2)**: registration screens use registration wording, never "participar en el foro" |
 | D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
 | D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
 | D8 | F4, R3 | Forum and registrations are separate sections | The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |

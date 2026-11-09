@@ -307,7 +307,7 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
 
   async listReplies(threadId: string): Promise<ForumReplyRow[]> {
     const replies = [...this.store.replies.values()]
-      .filter((reply) => reply.threadId === threadId && !reply.hiddenAt)
+      .filter((reply) => reply.threadId === threadId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     return Promise.all(replies.map(async (reply) => ({ reply, authorName: await this.nameOf(reply.authorId) })));

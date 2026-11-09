@@ -1,17 +1,13 @@
 import type { ReactNode } from "react";
 
-import { FORUM_LOGIN_ERROR_MESSAGES, type ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
+import { FORUM_LANDING_ERROR_MESSAGES, type ForumLandingErrorCode } from "@/interface/forum/forum-login-errors";
 
 import { AuthAlert } from "../../_components/auth-alert";
 import { GoogleButton } from "../../_components/google-button";
 
-// The guard answers the same for a visitor, an expired session and a suspended member, so the one place a
-// suspended student learns why they are out is the "denied" sign-in error.
-const SUSPENSION_HINT = "Si ya participaba en el foro y no puede entrar, es posible que la moderación haya suspendido su cuenta: escriba a la directiva de ASO.";
-
 interface SignInGateProps {
   /** Why the last sign-in attempt failed (the `?error=` of the landing), if it did. */
-  problem?: ForumLoginErrorCode;
+  problem?: ForumLandingErrorCode;
   /** A validated forum path to come back to after signing in (`parseForumReturnPath`), if the visitor arrived for a page. */
   next?: string;
 }
@@ -67,8 +63,7 @@ export function SignInGate({ problem, next }: SignInGateProps) {
           <div className="flex flex-col gap-4 min-[900px]:items-end min-[900px]:pb-2">
             {problem ? (
               <AuthAlert className="max-w-[36rem]">
-                <p>{FORUM_LOGIN_ERROR_MESSAGES[problem]}</p>
-                {problem === "denied" ? <p className="text-mist">{SUSPENSION_HINT}</p> : null}
+                <p>{FORUM_LANDING_ERROR_MESSAGES[problem]}</p>
               </AuthAlert>
             ) : null}
             <GoogleButton

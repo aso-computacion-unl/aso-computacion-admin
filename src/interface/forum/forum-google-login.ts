@@ -8,11 +8,11 @@ import { statesMatch } from "@/infrastructure/auth/oauth-state";
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { getForumServices } from "./forum-container";
-import type { ForumLoginErrorCode } from "./forum-login-errors";
+import type { ForumLandingErrorCode } from "./forum-login-errors";
 import { FORUM_HOME_PATH, parseForumReturnPath } from "./forum-return-path";
 import { openForumSession } from "./forum-session-lifecycle";
 
-function redirectTo(base: URL | string, error?: ForumLoginErrorCode, path: string = FORUM_HOME_PATH): NextResponse {
+function redirectTo(base: URL | string, error?: ForumLandingErrorCode, path: string = FORUM_HOME_PATH): NextResponse {
   const url = new URL(path, base);
 
   if (error) {
@@ -55,7 +55,7 @@ export async function startForumLogin(request: Request): Promise<NextResponse> {
 
 /**
  * Step 2: Google sends the browser back with `code` and `state`. The flow cookie is consumed whatever
- * happens (a callback URL cannot be replayed), and every refusal of an account looks the same to the
+ * happens (a callback URL cannot be replayed), and every refusal of an account but a suspension looks the same to the
  * person. Nothing here logs or reports a code, a token or an email.
  */
 export async function finishForumLogin(request: Request): Promise<NextResponse> {
@@ -83,7 +83,8 @@ export async function finishForumLogin(request: Request): Promise<NextResponse> 
     if (!outcome.ok) {
       console.error(`The forum sign-in was refused (${outcome.reason}).`);
 
-      return redirectTo(config.redirectUri, "denied");
+      // A suspended member has just proved the account is theirs, so they may be told why; every other refusal stays the same generic one.
+      return redirectTo(config.redirectUri, outcome.reason === "suspended" ? "suspended" : "denied");
     }
 
     await openForumSession(outcome.member.id);

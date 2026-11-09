@@ -103,7 +103,7 @@ export interface ForumPostRepository {
    * lands after the caller read the reply wins: the foreign key alone cannot tell which thread a reply is in.
    */
   setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome>;
-  /** Not hidden, oldest first. */
+  /** Oldest first, hidden replies included (`hiddenAt` set): the thread shows a placeholder for them. */
   listReplies(threadId: string): Promise<ForumReplyRow[]>;
   findReply(id: string): Promise<ForumReply | null>;
   /**

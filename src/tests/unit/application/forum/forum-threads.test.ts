@@ -306,17 +306,55 @@ describe("reading", () => {
     store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", bestReplyId: "r2" }));
     store.replies.set("r2", makeForumReply({ id: "r2", threadId: "t1", authorId: "m2", createdAt: new Date("2026-10-04T00:00:00Z") }));
     store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m1", createdAt: new Date("2026-10-03T00:00:00Z") }));
-    store.replies.set("r3", makeForumReply({ id: "r3", threadId: "t1", authorId: "m2", hiddenAt: NOW }));
 
     const view = await new GetForumThreadUseCase(categories, posts).execute({ threadId: "t1", viewerId: "m1" });
 
     expect(view.category.slug).toBe("programacion");
     expect(view.thread).toMatchObject({ id: "t1", mine: true, authorName: "Ana", bestReplyId: "r2" });
-    expect(view.replies.map((item) => [item.id, item.mine, item.isBest])).toEqual([
+    expect(view.replies.map((item) => [item.id, "mine" in item && item.mine, item.isBest])).toEqual([
       ["r1", true, false],
       ["r2", false, true],
     ]);
     expect(JSON.stringify(view)).not.toMatch(/unl\.edu\.ec|"authorId"|googleSub|"email"/);
+  });
+
+  describe("a reply the moderation hid (D4)", () => {
+    const view = () => new GetForumThreadUseCase(categories, posts).execute({ threadId: "t1", viewerId: "m1" });
+
+    beforeEach(() => {
+      store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1" }));
+      store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2", body: "Primera", createdAt: new Date("2026-10-03T00:00:00Z") }));
+      store.replies.set("r2", makeForumReply({ id: "r2", threadId: "t1", authorId: "m2", body: "Texto que la moderación ocultó", createdAt: new Date("2026-10-04T00:00:00Z"), hiddenAt: NOW }));
+      store.replies.set("r3", makeForumReply({ id: "r3", threadId: "t1", authorId: "m1", body: "Tercera", createdAt: new Date("2026-10-05T00:00:00Z") }));
+    });
+
+    it("keeps its place in the thread as a placeholder, in order, with the viewer's replies around it untouched", async () => {
+      const { replies } = await view();
+
+      expect(replies.map((item) => [item.id, "hidden" in item])).toEqual([
+        ["r1", false],
+        ["r2", true],
+        ["r3", false],
+      ]);
+      expect(replies[0]).toMatchObject({ body: "Primera", authorName: "Beto", mine: false, isBest: false });
+      expect(replies[2]).toMatchObject({ body: "Tercera", authorName: "Ana", mine: true });
+    });
+
+    it("carries nothing of the hidden reply: no text, no author, no dates, no ownership", async () => {
+      const hidden = (await view()).replies[1];
+
+      expect(hidden).toEqual({ id: "r2", hidden: true, isBest: false });
+      expect(JSON.stringify(await view())).not.toContain("Texto que la moderación ocultó");
+    });
+
+    it("is the best-answer slot when the thread still points at it", async () => {
+      store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", bestReplyId: "r2" }));
+
+      const { replies, thread } = await view();
+
+      expect(replies[1]).toEqual({ id: "r2", hidden: true, isBest: true });
+      expect(thread.bestReplyId).toBe("r2");
+    });
   });
 
   it("answers not found for a thread whose category no longer exists", async () => {

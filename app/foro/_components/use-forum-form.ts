@@ -1,9 +1,11 @@
 "use client";
 
-import { startTransition, useActionState, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { toFormData } from "@/interface/admin/form-fields";
 import type { ForumActionResult } from "@/interface/forum/forum-action-result";
+
+import { clearDraft, readDraft, writeDraft } from "./forum-drafts";
 
 type ForumAction = (prevState: ForumActionResult | null, formData: FormData) => Promise<ForumActionResult>;
 
@@ -14,9 +16,13 @@ const UNEXPECTED: ForumActionResult = { error: "Ocurrió un error inesperado. In
  * `<form action>`: React 19 empties uncontrolled fields after a form action settles, which would wipe a
  * long post when the server refuses it. A rejected call (network) becomes an error result instead of
  * unmounting the form.
+ *
+ * With a `draftKey` what is typed is also kept in this tab (see `forum-drafts`) and given back when the form is
+ * opened again, so a session that ended while writing costs no text; a published post forgets it.
  */
-export function useForumForm<V extends Record<string, string>>(action: ForumAction, initialValues: V) {
+export function useForumForm<V extends Record<string, string>>(action: ForumAction, initialValues: V, draftKey?: string) {
   const [values, setValues] = useState<V>(initialValues);
+  const current = useRef(initialValues);
   const [state, formAction, pending] = useActionState<ForumActionResult | null, FormData>(async (previous, formData) => {
     try {
       return await action(previous, formData);
@@ -25,8 +31,32 @@ export function useForumForm<V extends Record<string, string>>(action: ForumActi
     }
   }, null);
 
+  // After the first render, not in the initial state: the server render has no storage, and both must match.
+  useEffect(() => {
+    const draft = draftKey ? readDraft<V>(draftKey, Object.keys(initialValues)) : null;
+
+    if (draft) {
+      current.current = draft;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser storage can only be read once the page is hydrated
+      setValues(draft);
+    }
+    // Only when the form opens: `initialValues` is the constant the caller passes each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (state?.success && draftKey) clearDraft(draftKey);
+  }, [state, draftKey]);
+
   function setValue(key: keyof V & string, value: string) {
-    setValues((previous) => ({ ...previous, [key]: value }));
+    current.current = { ...current.current, [key]: value };
+    setValues(current.current);
+    if (draftKey) writeDraft(draftKey, current.current);
+  }
+
+  function reset() {
+    current.current = initialValues;
+    setValues(initialValues);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -36,5 +66,5 @@ export function useForumForm<V extends Record<string, string>>(action: ForumActi
     startTransition(() => formAction(toFormData(values)));
   }
 
-  return { values, setValue, reset: () => setValues(initialValues), handleSubmit, state, pending, errors: state?.fieldErrors ?? {} };
+  return { values, setValue, reset, handleSubmit, state, pending, errors: state?.fieldErrors ?? {} };
 }

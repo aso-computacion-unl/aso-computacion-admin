@@ -11,8 +11,8 @@ import { ForumUnauthorizedError } from "./require-forum-member";
 /**
  * Result of every student-facing forum server action. `fieldErrors` carries per-field messages, `error`
  * a single message for everything else (never both); `id` is the new thread or reply on success (or the
- * reply marked as the best answer); `retryAfterSeconds` is set when the member is posting too fast;
- * `reacted` and `count` answer a «me sirvió» toggle; `alreadyReported` marks the refusal of a second open
+ * reply marked as the best answer); `sessionExpired` marks the refusal for a session that is gone, so a form
+ * can keep what was typed and offer the sign-in; `reacted` and `count` answer a «me sirvió» toggle; `alreadyReported` marks the refusal of a second open
  * report on the same post, which the UI shows as a state, not as a failure.
  */
 export interface ForumActionResult {
@@ -20,13 +20,14 @@ export interface ForumActionResult {
   id?: string;
   error?: string;
   fieldErrors?: Record<string, string>;
-  retryAfterSeconds?: number;
+  sessionExpired?: true;
   reacted?: boolean;
   count?: number;
   alreadyReported?: true;
 }
 
 export const FORUM_SESSION_EXPIRED_MESSAGE = "Inicie sesión para participar en el foro.";
+export const FORUM_SESSION_EXPIRED_RESULT: ForumActionResult = { error: FORUM_SESSION_EXPIRED_MESSAGE, sessionExpired: true };
 const FORUM_ACCOUNT_MESSAGE = "Su cuenta no puede participar en el foro.";
 const GENERIC_ERROR_MESSAGE = "Ocurrió un error inesperado. Intente nuevamente.";
 
@@ -43,7 +44,7 @@ function fieldError(field: string, message?: string): ForumActionResult {
 /** Maps whatever a forum action caught to a Spanish result. Unknown errors are reported and reduced to a generic message. */
 export function mapForumActionError(error: unknown): ForumActionResult {
   if (error instanceof ForumUnauthorizedError) {
-    return { error: FORUM_SESSION_EXPIRED_MESSAGE };
+    return FORUM_SESSION_EXPIRED_RESULT;
   }
 
   if (error instanceof ForumMemberSuspendedError || error instanceof ForbiddenError) {
@@ -67,7 +68,9 @@ export function mapForumActionError(error: unknown): ForumActionResult {
   }
 
   if (error instanceof ForumThrottledError) {
-    return { error: "Está publicando muy rápido. Espere un momento y vuelva a intentarlo.", retryAfterSeconds: error.retryAfterSeconds };
+    const minutes = Math.ceil(error.retryAfterSeconds / 60);
+
+    return { error: `Está publicando muy rápido: el límite es de ${error.max} publicaciones por ${error.per}. Puede volver a intentarlo en ${minutes} ${minutes === 1 ? "minuto" : "minutos"}.` };
   }
 
   if (error instanceof NotFoundError) {

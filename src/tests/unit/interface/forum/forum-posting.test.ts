@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
+import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
 import * as posting from "@/interface/forum/forum-posting";
 import { getForumCategories, getForumThread, getForumThreads } from "@/interface/forum/forum-read";
 import { makeForumCategory, makeForumReply, makeForumThread } from "@/tests/fakes/in-memory-forum";
@@ -77,7 +77,7 @@ describe("the forum actions require a forum member", () => {
       jar(resolved);
       const before = [testForum.store.threads.size, testForum.store.replies.size];
 
-      expect(await ACTION_CALLS[name]!()).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+      expect(await ACTION_CALLS[name]!()).toEqual(FORUM_SESSION_EXPIRED_RESULT);
       expect([testForum.store.threads.size, testForum.store.replies.size]).toEqual(before);
     });
   });
@@ -137,14 +137,23 @@ describe("posting", () => {
     expect(testForum.store.replies.size).toBe(1);
   });
 
-  it("throttles a member posting too fast, with the wait", async () => {
+  it("throttles a member posting too fast, naming the per-minute limit and the wait in minutes", async () => {
     for (let index = 0; index < 3; index++) {
       expect((await posting.replyToForumThread("t1", null, replyForm())).success).toBe(true);
     }
 
     expect(await posting.replyToForumThread("t1", null, replyForm())).toEqual({
-      error: "Está publicando muy rápido. Espere un momento y vuelva a intentarlo.",
-      retryAfterSeconds: 60,
+      error: "Está publicando muy rápido: el límite es de 3 publicaciones por minuto. Puede volver a intentarlo en 1 minuto.",
+    });
+  });
+
+  it("names the per-hour limit when that one tripped, with the wait in minutes", async () => {
+    for (let index = 0; index < 30; index++) {
+      testForum.store.replies.set(`old-${index}`, makeForumReply({ id: `old-${index}`, threadId: "t1", authorId: memberId, createdAt: new Date(Date.now() - 10 * 60_000) }));
+    }
+
+    expect(await posting.replyToForumThread("t1", null, replyForm())).toEqual({
+      error: "Está publicando muy rápido: el límite es de 30 publicaciones por hora. Puede volver a intentarlo en 60 minutos.",
     });
   });
 
@@ -152,7 +161,7 @@ describe("posting", () => {
     testForum.members.members.set(memberId, { ...testForum.members.members.get(memberId)!, status: "SUSPENDED", suspendedAt: new Date() });
 
     for (const call of Object.values(ACTION_CALLS)) {
-      expect(await call()).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+      expect(await call()).toEqual(FORUM_SESSION_EXPIRED_RESULT);
     }
     expect(testForum.store.replies.size).toBe(1);
   });
@@ -201,7 +210,7 @@ describe("forum reads", () => {
 
     expect(categories.map((category) => [category.slug, category.threadCount])).toEqual([["programacion", 1]]);
     expect(page.items.map((item) => [item.id, item.mine, item.authorName])).toEqual([["t1", true, "Ana"]]);
-    expect(view.replies.map((reply) => [reply.id, reply.mine])).toEqual([["r1", true]]);
+    expect(view.replies.map((reply) => [reply.id, "mine" in reply && reply.mine])).toEqual([["r1", true]]);
     await expect(getForumThread("hidden")).rejects.toThrow("not found");
     expect(JSON.stringify({ categories, page, view })).not.toMatch(/unl\.edu\.ec|"authorId"|googleSub|"email"/);
   });

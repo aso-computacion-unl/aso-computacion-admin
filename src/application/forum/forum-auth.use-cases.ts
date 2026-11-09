@@ -181,6 +181,22 @@ export class ValidateForumSessionUseCase {
   }
 }
 
+/**
+ * Whether a session names a member the moderation suspended: all the landing asks, to say so instead of the
+ * sign-in. It is not the guard: it opens nothing and returns nothing about the member, and it is false for any
+ * session that does not exist or does not belong to the member the cookie claims. A revoked session counts
+ * too, because suspending a member closes their sessions.
+ */
+export class CheckForumSuspensionUseCase {
+  constructor(private readonly sessions: ForumSessionRepository) {}
+
+  async execute(input: { sessionId: string; memberId: string }): Promise<boolean> {
+    const found = await this.sessions.findWithMember(input.sessionId);
+
+    return found !== null && found.session.memberId === input.memberId && found.member.status === "SUSPENDED";
+  }
+}
+
 export class CloseForumSessionUseCase {
   constructor(
     private readonly sessions: ForumSessionRepository,

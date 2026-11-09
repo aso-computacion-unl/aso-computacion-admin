@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
 import { getOpenRegistrationEvents } from "@/interface/forum/event-registration-read";
-import { parseForumLoginError } from "@/interface/forum/forum-login-errors";
+import { parseForumLandingError } from "@/interface/forum/forum-login-errors";
 import { parsePageParam, parseThreadFilter, type ThreadFilter } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { parseForumReturnPath } from "@/interface/forum/forum-return-path";
 import { getForumCategories, getForumFeed } from "@/interface/forum/forum-read";
+import { hasSuspendedForumSession } from "@/interface/forum/forum-suspension";
 import { getForumMember } from "@/interface/forum/require-forum-member";
 
 import { CategoryFilter } from "./_components/category-filter";
@@ -18,6 +19,7 @@ import { Pagination } from "./_components/pagination";
 import { RegistrationsLink } from "./_components/registrations-link";
 import { SignInGate } from "./_components/sign-in-gate";
 import { StartThreadRow } from "./_components/start-thread-row";
+import { SuspensionNotice } from "./_components/suspension-notice";
 import { ThreadFilterTabs } from "./_components/thread-filter-tabs";
 import { ThreadListEmpty } from "./_components/thread-list-empty";
 import { ThreadRow } from "./_components/thread-row";
@@ -38,7 +40,14 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   // Not `getForumFeed` first: it sends a visitor to /foro, which is this page.
   if (!member) {
-    return <SignInGate problem={parseForumLoginError(error)} next={parseForumReturnPath(typeof next === "string" ? next : null) ?? undefined} />;
+    const returnTo = parseForumReturnPath(typeof next === "string" ? next : null) ?? undefined;
+
+    // Only words: the guard above has already refused this request, and a suspended member gets no forum from here either.
+    if (await hasSuspendedForumSession()) {
+      return <SuspensionNotice next={returnTo} />;
+    }
+
+    return <SignInGate problem={parseForumLandingError(error)} next={returnTo} />;
   }
 
   const filter = parseThreadFilter(estado);

@@ -11,7 +11,7 @@
  *   signOutOfForum()
  *
  * Bodies are the Markdown subset with fenced code (see `markdown-subset`), stored as written and rendered
- * without HTML. A member posting too fast gets `retryAfterSeconds`. Reads for pages: ./forum-read.
+ * without HTML. A member posting too fast is told which limit and how many minutes to wait. Reads for pages: ./forum-read.
  *
  * These are NOT admin actions: `requireForumMember` accepts only a `forum_session`, never an admin one.
  */

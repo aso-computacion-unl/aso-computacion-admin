@@ -270,12 +270,12 @@ describe("finishForumLogin", () => {
       expect(cookiesSet()).not.toContain(FORUM_COOKIE_NAME);
     });
 
-    it("refuses a suspended member", async () => {
+    it("refuses a suspended member with a code of its own, and still opens no session", async () => {
       testForum.members.members.set("m1", makeForumMember({ id: "m1", email: "ana@unl.edu.ec", googleSub: "sub-ana", status: "SUSPENDED", suspendedAt: new Date() }));
 
       const response = await finishForumLogin(request("?code=c&state=the-state"));
 
-      expect(location(response)).toBe("https://admin.example.org/foro?error=denied");
+      expect(location(response)).toBe("https://admin.example.org/foro?error=suspended");
       expect(testForum.sessions.sessions.size).toBe(0);
       expect(cookiesSet()).not.toContain(FORUM_COOKIE_NAME);
     });

@@ -817,7 +817,8 @@ paths:
         "302":
           description: |
             Redirección a la ruta `next` o a `/foro` (éxito), o a `/foro?error=<código>` con
-            `denied` (solo estudiantes con cuenta institucional verificada), `failed`, `verification` o `unavailable`.
+            `denied` (solo estudiantes con cuenta institucional verificada), `suspended` (cuenta suspendida por la
+            moderación), `failed`, `verification` o `unavailable`.
           headers:
             Location:
               schema: { type: string }

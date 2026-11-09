@@ -7,6 +7,8 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { signOutOfForum } from "@/interface/forum/forum-posting";
 
+import { clearForumDrafts } from "./forum-drafts";
+
 /** The identity menu's sign-out row: ends the forum session on the server, then shows the landing as a visitor. */
 export function SignOutButton() {
   const router = useRouter();
@@ -15,6 +17,8 @@ export function SignOutButton() {
   function signOut() {
     startTransition(async () => {
       await signOutOfForum();
+      // What was being written stays in this tab: it must not be there for the next person to sign in.
+      clearForumDrafts();
       router.replace("/foro");
       router.refresh();
     });

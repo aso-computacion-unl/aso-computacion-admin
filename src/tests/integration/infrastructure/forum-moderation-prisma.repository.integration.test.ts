@@ -140,10 +140,17 @@ describe("ForumModerationPrismaRepository hide and lock (integration)", () => {
 
     expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, true, stamp(0, "u1"))).toBe("changed");
     expect((await prisma.forumThread.findUniqueOrThrow({ where: { id: "t1" } })).bestReplyId).toBeNull();
-    expect((await posts.listReplies("t1")).map((row) => row.reply.id)).toEqual([]);
+    // Hidden replies are listed (the thread shows a placeholder for them), marked by `hiddenAt`.
+    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.reply.hiddenAt !== null])).toEqual([
+      ["r1", true],
+      ["r2", true],
+    ]);
 
     expect(await moderation.setPostHidden({ kind: "reply", id: "r1" }, false, stamp())).toBe("changed");
-    expect((await posts.listReplies("t1")).map((row) => row.reply.id)).toEqual(["r1"]);
+    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.reply.hiddenAt !== null])).toEqual([
+      ["r1", false],
+      ["r2", true],
+    ]);
     expect(await moderation.setPostHidden({ kind: "reply", id: "ghost" }, true, stamp())).toBe("not-found");
   });
 

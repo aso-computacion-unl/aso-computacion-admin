@@ -41,6 +41,10 @@ export class BudgetedMailSender implements MailSender {
     }
   }
 
+  async close(): Promise<void> {
+    await this.transport?.close?.();
+  }
+
   async remainingToday(now: Date = new Date()): Promise<number> {
     if (!this.transport) {
       return 0;

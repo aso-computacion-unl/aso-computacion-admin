@@ -13,6 +13,7 @@ export const testMail = {
   dailyLimit: 400,
 };
 
+/** Same call shape as `getMailSender(env, { pooled })`; the double has no environment and no connection to pool. */
 export function getTestMailSender() {
   return new BudgetedMailSender(testMail.configured ? testMail.transport : null, testMail.budget, testMail.dailyLimit);
 }

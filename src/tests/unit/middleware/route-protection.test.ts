@@ -26,7 +26,9 @@ const PUBLIC_ROUTES: string[] = ["/login", "/inscripciones/x", "/invitacion/x", 
 // The open-form event registration is public by design: Turnstile, a strict rate limit and the atomic use case are its guards.
 // The `.ics` download is public read-only data of a published event, with no personal data.
 // `/api/public/events/seats` is public read-only counts (slug, capacity, registered, seats left): no personal data.
-PUBLIC_ROUTES.push("/api/public/events/x/registrations", "/api/public/events/x/calendar.ics", "/api/public/events/seats");
+// `/api/public/events/<slug>/registrations/confirm` and its page `/inscripciones/<slug>/confirmar` confirm an email: the signed
+// token in the link is the only credential, the page only shows a button (never confirms on GET) and the POST has its own rate limit.
+PUBLIC_ROUTES.push("/api/public/events/x/registrations", "/api/public/events/x/registrations/confirm", "/inscripciones/x/confirmar", "/api/public/events/x/calendar.ics", "/api/public/events/seats");
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

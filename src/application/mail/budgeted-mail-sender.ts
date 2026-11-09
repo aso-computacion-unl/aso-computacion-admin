@@ -14,6 +14,10 @@ export class BudgetedMailSender implements MailSender {
     private readonly dailyLimit: number,
   ) {}
 
+  isConfigured(): boolean {
+    return this.transport !== null;
+  }
+
   async send(message: MailMessage, now: Date = new Date()): Promise<MailSendResult> {
     if (!this.transport) {
       return { status: "not_configured" };
@@ -35,6 +39,10 @@ export class BudgetedMailSender implements MailSender {
 
       return { status: "failed" };
     }
+  }
+
+  async close(): Promise<void> {
+    await this.transport?.close?.();
   }
 
   async remainingToday(now: Date = new Date()): Promise<number> {

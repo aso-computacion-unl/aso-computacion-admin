@@ -18,15 +18,21 @@ export type MailSendResult = { status: "sent" | "not_configured" | "budget_exhau
  * transactional service with an own domain later, by swapping the `MailTransport` it is built on.
  */
 export interface MailSender {
+  /** Whether a provider is set up at all. `false`: every send answers `not_configured`. */
+  isConfigured(): boolean;
   /** Sends one message, spending one unit of today's budget (Ecuador day). Throws only when the budget itself cannot be reached. */
   send(message: MailMessage, now?: Date): Promise<MailSendResult>;
   /** How many more messages today's budget allows; 0 when nothing can be sent at all. */
   remainingToday(now?: Date): Promise<number>;
+  /** Releases what a burst of sends kept open (a pooled connection). Safe to call when there is nothing to release. */
+  close(): Promise<void>;
 }
 
 /** The provider adapter: delivers one message or throws. No budget, no policy. */
 export interface MailTransport {
   deliver(message: MailMessage): Promise<void>;
+  /** Optional: releases a connection kept open between sends. */
+  close?(): Promise<void> | void;
 }
 
 /** The daily send counter, one per Ecuador calendar day (`YYYY-MM-DD`), shared by every instance. */

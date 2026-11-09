@@ -55,6 +55,10 @@ export class RecordingMailSender implements MailSender {
 
   constructor(public allowance = Number.POSITIVE_INFINITY) {}
 
+  isConfigured(): boolean {
+    return this.refuse !== "not_configured";
+  }
+
   async send(message: MailMessage): Promise<MailSendResult> {
     this.attempts.push(message);
 
@@ -74,6 +78,8 @@ export class RecordingMailSender implements MailSender {
 
     return { status: "sent" };
   }
+
+  async close(): Promise<void> {}
 
   async remainingToday(): Promise<number> {
     return this.refuse === "not_configured" ? 0 : Math.max(0, this.allowance - this.sent.length);

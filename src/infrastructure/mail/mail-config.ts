@@ -1,3 +1,4 @@
+import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { requireRuntimeValue } from "@/infrastructure/config/runtime-env";
 
 type Env = Record<string, string | undefined>;
@@ -78,13 +79,14 @@ export function registrationConfirmSecret(env: Env = process.env): string | unde
   return secret && secret.length >= SECRET_MIN_LENGTH && secret !== value(env, "ADMIN_SECRET") && secret !== value(env, "FORUM_SESSION_SECRET") ? secret : undefined;
 }
 
-/** The variables to fix while confirmation emails cannot go out (names only, never values). */
+/** The variables to fix while confirmation emails cannot go out: the account, the link secret and the public origin the links point at (names only, never values). */
 export function mailConfigProblems(env: Env = process.env): string[] {
   const problems: string[] = [];
 
   if (!gmailUser(env)) problems.push("MAIL_GMAIL_USER");
   if (!gmailAppPassword(env)) problems.push("MAIL_GMAIL_APP_PASSWORD");
   if (!registrationConfirmSecret(env)) problems.push("REGISTRATION_CONFIRM_SECRET");
+  if (!publicOrigin(value(env, "AUTH_URL"))) problems.push("AUTH_URL");
   if (value(env, "MAIL_DAILY_LIMIT") !== undefined && configuredDailyLimit(env) === undefined) problems.push("MAIL_DAILY_LIMIT");
 
   return problems;

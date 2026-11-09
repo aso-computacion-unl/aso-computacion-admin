@@ -8,18 +8,17 @@ import { checkRegistrationRateLimit } from "@/infrastructure/http/registration-r
 import { verifyTurnstile } from "@/infrastructure/http/turnstile";
 import { reportError } from "@/infrastructure/observability/report-error";
 import { describeError, toSafeError } from "@/infrastructure/observability/safe-error";
-import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
+import { requestOpenRegistration } from "@/interface/event-registration/open-registration-request";
 import { readJsonObject } from "@/interface/public/read-json-body";
 
 // A write: never prerendered, never cached.
 export const dynamic = "force-dynamic";
 
-/** Four small text fields and a token fit in far less; anything bigger is not this form. */
+/** Five small text fields and a token fit in far less; anything bigger is not this form. */
 const MAX_BODY_BYTES = 4096;
 
 const REFUSALS = {
   not_found: 404,
-  mode_mismatch: 404,
   closed: 409,
   full: 409,
   duplicate: 409,
@@ -43,8 +42,9 @@ function isSlug(value: string): boolean {
 
 /**
  * Open-form registration for an event. Order matters and is cheapest first: rate limit, shape of the request,
- * Turnstile, then the use case (which validates the fields strictly and decides capacity, deadline and
- * duplicates atomically). Nothing is stored unless every step passes, and the answer never echoes what was sent.
+ * Turnstile, then the request (which validates the fields strictly, makes sure an email can go out, stores the
+ * registration PENDING and sends the confirmation link; the seat is only taken when the link is used). A refusal
+ * leaves what is stored as it was, and the answer never echoes what was sent.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }): Promise<NextResponse> {
   const rate = checkRegistrationRateLimit(getPublicClientKey(request));
@@ -76,9 +76,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    const outcome = await getEventRegistrationServices().registerOpen.execute({ slug, form: body.value });
+    const outcome = await requestOpenRegistration({ slug, form: body.value });
 
-    return outcome.status === "registered" ? answer(request, { ok: true }, 201) : answer(request, { error: outcome.status === "mode_mismatch" ? "not_found" : outcome.status }, REFUSALS[outcome.status]);
+    if (outcome.status === "check_email") {
+      return answer(request, { ok: true, confirm: "email" }, 201);
+    }
+
+    return outcome.status === "refused" ? answer(request, { error: outcome.reason }, REFUSALS[outcome.reason]) : answer(request, { error: outcome.status }, 503);
   } catch (error) {
     if (error instanceof ValidationError) {
       return answer(request, { error: "validation", field: error.field }, 400);

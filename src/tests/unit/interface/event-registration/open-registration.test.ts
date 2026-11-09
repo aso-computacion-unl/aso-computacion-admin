@@ -22,9 +22,9 @@ describe("validateOpenForm", () => {
     const errors = validateOpenForm({ name: "", email: "  ", institution: " ", career: "", semester: "" });
 
     expect(Object.keys(errors)).toEqual(["name", "email", "institution"]);
-    expect(errors.name).toBe("Escribe tu nombre.");
-    expect(errors.email).toBe("Escribe tu correo.");
-    expect(errors.institution).toBe("Escribe tu institución.");
+    expect(errors.name).toBe("Escriba su nombre.");
+    expect(errors.email).toBe("Escriba su correo.");
+    expect(errors.institution).toBe("Escriba su institución.");
   });
 
   it("accepts a form without career and semester: both are optional", () => {
@@ -41,13 +41,13 @@ describe("validateOpenForm", () => {
   });
 
   it("explains a filled but invalid field differently from an empty one", () => {
-    expect(validateOpenForm({ ...VALID, email: "ana@" }).email).toBe("Revisa tu correo: no parece una dirección válida.");
-    expect(validateOpenForm({ ...VALID, name: "a".repeat(121) }).name).toBe("Tu nombre es muy largo: usa hasta 120 caracteres.");
-    expect(validateOpenForm({ ...VALID, name: "Ana\u0000" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
-    expect(validateOpenForm({ ...VALID, institution: "UN\u0000L" }).institution).toBe("Tu institución tiene caracteres que no podemos guardar.");
-    expect(validateOpenForm({ ...VALID, institution: "c".repeat(121) }).institution).toBe("El nombre de tu institución es muy largo: usa hasta 120 caracteres.");
-    expect(validateOpenForm({ ...VALID, career: "Compu\u0007tación" }).career).toBe("Tu carrera tiene caracteres que no podemos guardar.");
-    expect(validateOpenForm({ ...VALID, name: "Ana \ud800" }).name).toBe("Tu nombre tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, email: "ana@" }).email).toBe("Revise su correo: no parece una dirección válida.");
+    expect(validateOpenForm({ ...VALID, name: "a".repeat(121) }).name).toBe("Su nombre es muy largo: use hasta 120 caracteres.");
+    expect(validateOpenForm({ ...VALID, name: "Ana\u0000" }).name).toBe("Su nombre tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, institution: "UN\u0000L" }).institution).toBe("Su institución tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, institution: "c".repeat(121) }).institution).toBe("El nombre de su institución es muy largo: use hasta 120 caracteres.");
+    expect(validateOpenForm({ ...VALID, career: "Compu\u0007tación" }).career).toBe("Su carrera tiene caracteres que no podemos guardar.");
+    expect(validateOpenForm({ ...VALID, name: "Ana \ud800" }).name).toBe("Su nombre tiene caracteres que no podemos guardar.");
   });
 });
 
@@ -87,6 +87,8 @@ describe("outcomeFromResponse", () => {
     [409, { error: "closed" }, { kind: "closed" }],
     [413, { error: "too_large" }, { kind: "failed" }],
     [503, { error: "unavailable" }, { kind: "unavailable" }],
+    [503, { error: "email_unavailable" }, { kind: "email_unavailable" }],
+    [503, { error: "email_budget" }, { kind: "email_budget" }],
     [500, null, { kind: "failed" }],
     [502, "<html>", { kind: "failed" }],
   ])("reads %i %j as %j", (status, body, expected) => {
@@ -101,24 +103,26 @@ describe("outcomeFromResponse", () => {
 });
 
 describe("outcomeMessage", () => {
-  it("says every refusal in Spanish, to a student, without usted", () => {
-    const kinds = ["duplicate", "full", "closed", "not_found", "captcha", "unavailable", "failed"] as const;
+  it("says every refusal in Spanish, addressed as usted and never as tú", () => {
+    const kinds = ["duplicate", "full", "closed", "not_found", "captcha", "unavailable", "email_unavailable", "email_budget", "failed"] as const;
 
     for (const kind of kinds) {
       const message = outcomeMessage({ kind });
 
       expect(message.length).toBeGreaterThan(10);
-      expect(message).not.toMatch(/\busted\b|\bsu\b|\bsus\b/i);
+      expect(message).not.toMatch(/\b(tu|tus|tú|eres|puedes|completa|revisa|vuelve|intenta|recarga|escribe|usa|necesitas)\b/i);
     }
 
     expect(outcomeMessage({ kind: "full" })).toBe("Ya no quedan cupos para este evento.");
     expect(outcomeMessage({ kind: "closed" })).toBe("Las inscripciones de este evento ya cerraron.");
     expect(outcomeMessage({ kind: "duplicate" })).toContain("Ya hay una inscripción con ese correo");
+    expect(outcomeMessage({ kind: "email_unavailable" })).toContain("No pudimos enviarle el correo de confirmación");
+    expect(outcomeMessage({ kind: "email_budget" })).toBe("Hoy ya enviamos todos los correos de confirmación que podemos. Inténtelo de nuevo mañana.");
   });
 
   it("does not ask for a verification the page never showed: without the widget a captcha refusal is a plain retry", () => {
-    expect(outcomeMessage({ kind: "captcha" })).toContain("Completa la verificación");
-    expect(outcomeMessage({ kind: "captcha" }, { widget: false })).toBe("No pudimos comprobar que eres una persona. Inténtalo de nuevo en unos minutos.");
+    expect(outcomeMessage({ kind: "captcha" })).toContain("Complete la verificación");
+    expect(outcomeMessage({ kind: "captcha" }, { widget: false })).toBe("No pudimos comprobar que usted es una persona. Inténtelo de nuevo en unos minutos.");
     expect(outcomeMessage({ kind: "duplicate" }, { widget: false })).toContain("Ya hay una inscripción");
   });
 

@@ -21,7 +21,7 @@ const STAMP = Date.now().toString(36);
 const PREFIX = `ar-${STAMP}-`;
 const prisma = createPrismaClient(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL);
 
-const ANA = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 };
+const ANA = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5 };
 const OPEN_ENDPOINT = "**/api/public/events/*/registrations";
 
 const octet = () => 20 + Math.floor(Math.random() * 200);
@@ -53,11 +53,28 @@ function post(request: APIRequestContext, slug: string, data: unknown, ip = next
   return request.post(`/api/public/events/${slug}/registrations`, { data, headers: { "x-real-ip": ip, ...headers } });
 }
 
+const CONFIRM_SECRET = process.env.REGISTRATION_CONFIRM_SECRET ?? "";
+
+/** The token the confirmation email would carry, signed the way the app does (needs the same secret). */
+function confirmToken(registrationId: string, eventId: string) {
+  const issued = Math.floor(Date.now() / 1000);
+
+  return new SignJWT({ purpose: "registration-confirm", rid: registrationId, eid: eventId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(issued)
+    .setExpirationTime(issued + 48 * 3600)
+    .sign(new TextEncoder().encode(CONFIRM_SECRET));
+}
+
+function confirm(request: APIRequestContext, slug: string, token: string, ip = nextIp()) {
+  return request.post(`/api/public/events/${slug}/registrations/confirm`, { data: { token }, headers: { "x-real-ip": ip } });
+}
+
 let accepts: boolean | undefined;
 
-/** Whether this server takes registrations at all: the production harness has no Turnstile secret and refuses them all. */
+/** Whether this server takes registrations at all: the production harness has no Turnstile secret, nor Gmail, and refuses them all (503). */
 async function takesRegistrations(request: APIRequestContext): Promise<boolean> {
-  accepts ??= (await post(request, `${PREFIX}probe`, { turnstileToken: "audit-token" })).status() !== 503;
+  accepts ??= (await post(request, `${PREFIX}probe`, { ...ANA, turnstileToken: "audit-token" })).status() !== 503;
 
   return accepts;
 }
@@ -67,11 +84,12 @@ async function actAsWidget(page: Page) {
   await page.route(OPEN_ENDPOINT, (route) => route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), turnstileToken: "audit-token" }) }));
 }
 
-async function fillForm(page: Page, values: Partial<Record<"name" | "email" | "career" | "semester", string>> = {}) {
-  const { name, email, career, semester } = { name: ANA.name, email: ANA.email, career: ANA.career, semester: String(ANA.semester), ...values };
+async function fillForm(page: Page, values: Partial<Record<"name" | "email" | "institution" | "career" | "semester", string>> = {}) {
+  const { name, email, institution, career, semester } = { name: ANA.name, email: ANA.email, institution: ANA.institution, career: ANA.career, semester: String(ANA.semester), ...values };
 
   await page.getByLabel("Nombre completo").fill(name);
   await page.getByLabel("Correo").fill(email);
+  await page.getByLabel("Institución").fill(institution);
   await page.getByLabel("Carrera").fill(career);
   await page.getByLabel("Ciclo").selectOption(semester);
 }
@@ -172,7 +190,7 @@ test.describe("the public event page", () => {
     const full = await seedEvent("lleno", { registrationCapacity: 1 });
     const open = await seedEvent("ilimitado");
 
-    await prisma.eventRegistration.create({ data: { id: `${full.id}-r`, eventId: full.id, mode: "open", name: "Eva Mora", email: "eva@example.com", career: "Computación", semester: 3 } });
+    await prisma.eventRegistration.create({ data: { id: `${full.id}-r`, eventId: full.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Eva Mora", email: "eva@example.com", career: "Computación", semester: 3 } });
 
     for (const event of [past, deadline]) {
       await page.goto(`/inscripciones/${event.slug}`);
@@ -277,37 +295,41 @@ test.describe("the open form in the browser", () => {
 
     // All empty: every field is flagged and the first one takes the focus.
     await submit.click();
-    for (const label of ["Nombre completo", "Correo", "Carrera", "Ciclo"]) {
+    for (const label of ["Nombre completo", "Correo", "Institución"]) {
       await expect(page.getByLabel(label)).toHaveAttribute("aria-invalid", "true");
     }
+    // Career and semester are optional: left empty they are not flagged.
+    for (const label of ["Carrera", "Ciclo"]) {
+      await expect(page.getByLabel(label)).not.toHaveAttribute("aria-invalid", "true");
+    }
     await expect(page.getByLabel("Nombre completo")).toBeFocused();
-    await expect(page.getByText("Escribe tu correo.")).toBeVisible();
-    await expect(page.getByText("Escribe tu carrera.")).toBeVisible();
+    await expect(page.getByText("Escriba su correo.")).toBeVisible();
+    await expect(page.getByText("Escriba su institución.")).toBeVisible();
 
     // Spaces only are empty, too.
     await page.getByLabel("Nombre completo").fill("     ");
     await submit.click();
-    await expect(page.getByText("Escribe tu nombre.")).toBeVisible();
+    await expect(page.getByText("Escriba su nombre.")).toBeVisible();
 
     // Every shape of a bad email.
     for (const email of ["ana", "ana@", "@example.com", "ana@example", "ana @example.com", "ana@@example.com", "ana@.com", `${"a".repeat(250)}@x.co`]) {
       await fillForm(page, { email });
       await submit.click();
       await expect(page.getByLabel("Correo"), email.slice(0, 20)).toHaveAttribute("aria-invalid", "true");
-      await expect(page.getByText("Revisa tu correo: no parece una dirección válida."), email.slice(0, 20)).toBeVisible();
+      await expect(page.getByText("Revise su correo: no parece una dirección válida."), email.slice(0, 20)).toBeVisible();
     }
 
     // Length limits: 121 characters are too many, in the name and in the career.
     await fillForm(page, { name: "n".repeat(121), career: "c".repeat(121) });
     await submit.click();
-    await expect(page.getByText("Tu nombre es muy largo: usa hasta 120 caracteres.")).toBeVisible();
-    await expect(page.getByText("Tu carrera es muy larga: usa hasta 120 caracteres.")).toBeVisible();
+    await expect(page.getByText("Su nombre es muy largo: use hasta 120 caracteres.")).toBeVisible();
+    await expect(page.getByText("Su carrera es muy larga: use hasta 120 caracteres.")).toBeVisible();
 
     expect(sent).toBe(0);
   });
 
-  test("a valid form with accents, ñ, CJK and emoji, extra spaces and an uppercase email is stored cleaned up", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+  test("a valid form with accents, ñ, CJK and emoji, extra spaces and an uppercase email is stored cleaned up, pending, and asks to check the email", async ({ page, request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("exito", { registrationCapacity: 3 });
 
@@ -316,28 +338,26 @@ test.describe("the open form in the browser", () => {
     await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: "  JOSÉ.Ñandú@Exámple.COM ", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
 
-    const done = page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" });
+    const done = page.getByRole("status").filter({ hasText: "Revise su correo" });
 
     await expect(done).toBeFocused();
-    await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
+    await expect(done).toContainText("JOSÉ.Ñandú@Exámple.COM");
+    await expect(page.getByRole("link", { name: "Añadir al calendario" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
-    // The page behind refreshes by itself: the seats follow, the confirmation stays.
-    await expect(page.getByText("Quedan 2 cupos")).toBeVisible();
-    await expect(done).toBeVisible();
-    expect(await registrations(event)).toMatchObject([{ mode: "open", name: "José Ñandú 李雷 😀", email: "josé.ñandú@exámple.com", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12 }]);
+    // No seat is taken until the link is used: the seats behind do not move.
+    await expect(page.getByText("Quedan 3 cupos")).toBeVisible();
+    expect(await registrations(event)).toMatchObject([
+      { mode: "open", name: "José Ñandú 李雷 😀", email: "josé.ñandú@exámple.com", institution: "Universidad Nacional de Loja", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12, confirmedAt: null },
+    ]);
   });
 
-  test("the same email twice (any case, with spaces) is a duplicate on the email field and stores one row", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+  test("an email that is already confirmed (any case, with spaces) is a duplicate on the email field and stores one row; asking again while pending refreshes the same row", async ({ page, request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("duplicado");
 
+    await prisma.eventRegistration.create({ data: { id: `${event.id}-c`, eventId: event.id, mode: "open", name: "Ana Pérez", email: ANA.email, institution: "UNL", confirmedAt: new Date() } });
     await actAsWidget(page);
-    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
-    await fillForm(page);
-    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
-
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await fillForm(page, { name: "Otra Persona", email: " ANA@Example.com " });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
@@ -345,10 +365,22 @@ test.describe("the open form in the browser", () => {
     await expect(page.getByLabel("Correo")).toBeFocused();
     await expect(page.getByText("Ya hay una inscripción con ese correo para este evento.")).toBeVisible();
     expect(await registrations(event)).toHaveLength(1);
+
+    // A different address that asks twice while pending keeps one row, with the same id.
+    await fillForm(page, { email: "luis@example.com" });
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
+    const [pending] = (await registrations(event)).filter((row) => row.email === "luis@example.com");
+
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+    await fillForm(page, { email: "luis@example.com", name: "Luis Mora" });
+    await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
+    expect((await registrations(event)).filter((row) => row.email === "luis@example.com")).toMatchObject([{ id: pending!.id, name: "Luis Mora", confirmedAt: null }]);
   });
 
   test("a double click sends one request and stores one registration", async ({ page, request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("doble");
     let sent = 0;
@@ -367,13 +399,13 @@ test.describe("the open form in the browser", () => {
 
     await submit.dblclick();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
     expect(sent).toBe(1);
     expect(await registrations(event)).toHaveLength(1);
   });
 
-  test("whoever takes the last seat keeps the confirmation; the next visitor sees the event full", async ({ page, request, browser }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+  test("a visitor who loaded the form before the last seat was confirmed is told the event is full", async ({ page, request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("ultimo", { registrationCapacity: 1 });
 
@@ -381,24 +413,14 @@ test.describe("the open form in the browser", () => {
     await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
     await expect(page.getByText("Queda 1 cupo")).toBeVisible();
 
-    // Another visitor loaded the form before the seat was taken.
-    const late = await browser.newContext({ baseURL: new URL(page.url()).origin, extraHTTPHeaders: { "x-real-ip": nextIp() } });
-    const latePage = await late.newPage();
+    // Somebody else confirms the last seat while this form is open.
+    await prisma.eventRegistration.create({ data: { id: `${event.id}-c`, eventId: event.id, mode: "open", name: "Ana Pérez", email: ANA.email, institution: "UNL", confirmedAt: new Date() } });
 
-    await actAsWidget(latePage);
-    await latePage.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
-    await fillForm(page);
+    await fillForm(page, { name: "Luis Tarde", email: "luis@example.com" });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
-    await expect(page.getByText("Cupos agotados")).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeVisible();
-
-    await fillForm(latePage, { name: "Luis Tarde", email: "luis@example.com" });
-    await latePage.getByRole("button", { name: "Reservar mi cupo" }).click();
-    await expect(latePage.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
-    await expect(latePage.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
+    await expect(page.getByText("Ya no quedan cupos para este evento.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     expect(await registrations(event)).toMatchObject([{ email: ANA.email }]);
-    await late.close();
   });
 
   test("when registration closes while the form is open, the form gives way to the state; a network failure keeps the data", async ({ page }) => {
@@ -408,13 +430,13 @@ test.describe("the open form in the browser", () => {
     await fillForm(page);
     await page.route(OPEN_ENDPOINT, (route) => route.abort("connectionrefused"), { times: 1 });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar tu inscripción." })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar su inscripción." })).toBeVisible();
     await expect(page.getByLabel("Nombre completo")).toHaveValue(ANA.name);
 
     // An answer that is not JSON at all (a proxy's HTML page) is the same plain failure.
     await page.route(OPEN_ENDPOINT, (route) => route.fulfill({ status: 502, contentType: "text/html", body: "<h1>Bad gateway</h1>" }), { times: 1 });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar tu inscripción." })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "No pudimos enviar su inscripción." })).toBeVisible();
     await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeEnabled();
   });
 
@@ -444,7 +466,7 @@ test.describe("the open form in the browser", () => {
 
 test.describe("the registration endpoint", () => {
   test("every invalid field is a 400 naming the field, and a lone surrogate is a refusal, not a server error", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("campos", { registrationCapacity: 50 });
     const valid = { ...ANA, turnstileToken: "audit-token" };
@@ -459,11 +481,13 @@ test.describe("the registration endpoint", () => {
       ["email without a domain", { email: "ana@b" }, "email"],
       ["email that is an object", { email: { x: 1 } }, "email"],
       ["email missing", { email: undefined }, "email"],
+      ["institution missing", { institution: undefined }, "institution"],
+      ["institution empty", { institution: "  " }, "institution"],
+      ["institution over 120", { institution: "i".repeat(121) }, "institution"],
       ["career over 120", { career: "c".repeat(121) }, "career"],
       ["semester 0", { semester: 0 }, "semester"],
       ["semester 13", { semester: 13 }, "semester"],
       ["semester 5.5", { semester: 5.5 }, "semester"],
-      ["semester null", { semester: null }, "semester"],
       ["semester text", { semester: "cinco" }, "semester"],
     ];
 
@@ -476,8 +500,22 @@ test.describe("the registration endpoint", () => {
     expect(await registrations(event)).toHaveLength(0);
   });
 
+  test("career and semester are optional: leaving both out, or sending them null or blank, is accepted and stored empty", async ({ request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+
+    const event = await seedEvent("opcionales", { registrationCapacity: 50 });
+    const { career, semester, ...required } = ANA;
+
+    expect(career && semester).toBeTruthy();
+    for (const [index, extra] of [{}, { career: null, semester: null }, { career: "  ", semester: "" }].entries()) {
+      expect((await post(request, event.slug, { ...required, ...extra, email: `op${index}@example.com`, turnstileToken: "audit-token" })).status()).toBe(201);
+    }
+
+    expect(await registrations(event)).toMatchObject([{ career: null, semester: null }, { career: null, semester: null }, { career: null, semester: null }]);
+  });
+
   test("the limits are inclusive: 120 characters, semesters 1 and 12 and a string semester are accepted", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("limites", { registrationCapacity: 50 });
     const base = { ...ANA, turnstileToken: "audit-token" };
@@ -540,30 +578,65 @@ test.describe("the registration endpoint", () => {
     expect((await post(request, event.slug, "{not json", nextIp(), { "content-type": "application/json" })).status()).toBe(400);
   });
 
-  test("five people racing for the last seats of a three-seat event: exactly three get in", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+  test("five pending people confirming at once for a three-seat event: exactly three get a seat", async ({ request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!CONFIRM_SECRET, "needs REGISTRATION_CONFIRM_SECRET in the test environment to sign the links");
 
     const event = await seedEvent("carrera", { registrationCapacity: 3 });
-    const answers = await Promise.all(
+    const asked = await Promise.all(
       Array.from({ length: 5 }, (_, index) => post(request, event.slug, { ...ANA, email: `carrera${index}@example.com`, turnstileToken: "audit-token" })),
     );
-    const statuses = answers.map((answer) => answer.status()).sort();
 
-    expect(statuses).toEqual([201, 201, 201, 409, 409]);
-    expect(await registrations(event)).toHaveLength(3);
+    // Pending people take no seat: all five are accepted, none is counted yet.
+    expect(asked.map((answer) => answer.status())).toEqual([201, 201, 201, 201, 201]);
+    expect((await registrations(event)).every((row) => row.confirmedAt === null)).toBe(true);
 
-    const full = await Promise.all(answers.filter((answer) => answer.status() === 409).map((answer) => answer.json()));
+    const answers = await Promise.all(
+      (await registrations(event)).map(async (row) => confirm(request, event.slug, await confirmToken(row.id, event.id))),
+    );
 
-    expect(full).toEqual([{ error: "full" }, { error: "full" }]);
+    expect(answers.map((answer) => answer.status()).sort()).toEqual([200, 200, 200, 409, 409]);
+    expect(await Promise.all(answers.filter((answer) => answer.status() === 409).map((answer) => answer.json()))).toEqual([{ error: "full" }, { error: "full" }]);
+    expect((await registrations(event)).filter((row) => row.confirmedAt !== null)).toHaveLength(3);
   });
 
-  test("ten identical submissions at once store one registration and answer the rest as duplicates", async ({ request }) => {
-    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret: the open form is closed");
+  test("the confirm link: opening the page confirms nothing, the button does, and the seat shows with its calendar", async ({ page, request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
+    test.skip(!CONFIRM_SECRET, "needs REGISTRATION_CONFIRM_SECRET in the test environment to sign the links");
+
+    const event = await seedEvent("confirmar", { registrationCapacity: 2 });
+    const row = await prisma.eventRegistration.create({ data: { id: `${event.id}-p`, eventId: event.id, mode: "open", name: "Ana Pérez", email: ANA.email, institution: "UNL" } });
+    const token = await confirmToken(row.id, event.id);
+
+    await page.goto(`/inscripciones/${event.slug}/confirmar?token=${token}`, { waitUntil: "networkidle" });
+    await expect(page.getByRole("button", { name: "Confirmar mi cupo" })).toBeVisible();
+    expect((await registrations(event))[0]!.confirmedAt).toBeNull();
+    expect((await request.get(`/api/public/events/${event.slug}/registrations/confirm`, { headers: { "x-real-ip": nextIp() } })).status()).toBe(405);
+
+    await page.getByRole("button", { name: "Confirmar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Listo, su cupo está reservado" })).toBeFocused();
+    await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
+    await expect(page.getByText("Quedan 1 cupo")).toBeVisible();
+    expect((await registrations(event))[0]!.confirmedAt).not.toBeNull();
+
+    // The same link again shows the seat that is already theirs; a made-up link sends them back to the form.
+    await page.goto(`/inscripciones/${event.slug}/confirmar?token=${token}`, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Confirmar mi cupo" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Su cupo ya estaba reservado" })).toBeVisible();
+
+    await page.goto(`/inscripciones/${event.slug}/confirmar?token=basura`);
+    await expect(page.getByText("Este enlace no sirve")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Volver al formulario" })).toHaveAttribute("href", `/inscripciones/${event.slug}`);
+  });
+
+  test("ten identical submissions at once store one pending registration and refresh it", async ({ request }) => {
+    test.skip(!(await takesRegistrations(request)), "the production harness has no Turnstile secret or mail: the open form is closed");
 
     const event = await seedEvent("simultaneo");
     const answers = await Promise.all(Array.from({ length: 4 }, () => post(request, event.slug, { ...ANA, turnstileToken: "audit-token" })));
 
-    expect(answers.map((answer) => answer.status()).sort()).toEqual([201, 409, 409, 409]);
+    // Still pending, so each one refreshes the same row and sends the link again.
+    expect(answers.map((answer) => answer.status())).toEqual([201, 201, 201, 201]);
     expect(await registrations(event)).toHaveLength(1);
   });
 });
@@ -585,11 +658,11 @@ test.describe("the public seats endpoint", () => {
 
     await prisma.eventRegistration.createMany({
       data: [
-        { id: `${open.id}-1`, eventId: open.id, mode: "open", name: "Ana Secreta", email: "secreta@example.com", career: "C", semester: 1 },
-        { id: `${open.id}-2`, eventId: open.id, mode: "open", name: "Beto", email: "beto@example.com", career: "C", semester: 2 },
-        { id: `${unlimited.id}-1`, eventId: unlimited.id, mode: "open", name: "Eva", email: "eva@example.com", career: "C", semester: 3 },
-        { id: `${full.id}-1`, eventId: full.id, mode: "open", name: "Ivo", email: "ivo@example.com", career: "C", semester: 3 },
-        { id: `${closed.id}-1`, eventId: closed.id, mode: "open", name: "Ula", email: "ula@example.com", career: "C", semester: 3 },
+        { id: `${open.id}-1`, eventId: open.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Ana Secreta", email: "secreta@example.com", career: "C", semester: 1 },
+        { id: `${open.id}-2`, eventId: open.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Beto", email: "beto@example.com", career: "C", semester: 2 },
+        { id: `${unlimited.id}-1`, eventId: unlimited.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Eva", email: "eva@example.com", career: "C", semester: 3 },
+        { id: `${full.id}-1`, eventId: full.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Ivo", email: "ivo@example.com", career: "C", semester: 3 },
+        { id: `${closed.id}-1`, eventId: closed.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Ula", email: "ula@example.com", career: "C", semester: 3 },
       ],
     });
 
@@ -660,9 +733,9 @@ test.describe("the admin registrations", () => {
 
     await prisma.eventRegistration.createMany({
       data: [
-        ...[1, 2, 3].map((n) => ({ id: `${live.id}-${n}`, eventId: live.id, mode: "open" as const, name: `Persona ${n}`, email: `p${n}@example.com`, career: "C", semester: n })),
-        { id: `${draft.id}-1`, eventId: draft.id, mode: "open" as const, name: "Borra", email: "b@example.com", career: "C", semester: 1 },
-        { id: `${past.id}-1`, eventId: past.id, mode: "open" as const, name: "Pasada", email: "pa@example.com", career: "C", semester: 1 },
+        ...[1, 2, 3].map((n) => ({ id: `${live.id}-${n}`, eventId: live.id, mode: "open" as const, institution: "UNL", confirmedAt: new Date(), name: `Persona ${n}`, email: `p${n}@example.com`, career: "C", semester: n })),
+        { id: `${draft.id}-1`, eventId: draft.id, mode: "open" as const, institution: "UNL", confirmedAt: new Date(), name: "Borra", email: "b@example.com", career: "C", semester: 1 },
+        { id: `${past.id}-1`, eventId: past.id, mode: "open" as const, institution: "UNL", confirmedAt: new Date(), name: "Pasada", email: "pa@example.com", career: "C", semester: 1 },
       ],
     });
 
@@ -726,8 +799,8 @@ test.describe("the admin registrations", () => {
 
     await prisma.eventRegistration.createMany({
       data: [
-        { id: `${event.id}-1`, eventId: event.id, mode: "open", name: "=HYPERLINK(\"http://evil.example\")", email: "formula@example.com", career: "+SUM(1;2)", semester: 4 },
-        { id: `${event.id}-2`, eventId: event.id, mode: "open", name: "María \"la Ñ\", Pérez 李雷", email: "maria@example.com", career: "Ingeniería, Sistemas", semester: 12 },
+        { id: `${event.id}-1`, eventId: event.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "=HYPERLINK(\"http://evil.example\")", email: "formula@example.com", career: "+SUM(1;2)", semester: 4 },
+        { id: `${event.id}-2`, eventId: event.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "María \"la Ñ\", Pérez 李雷", email: "maria@example.com", career: "Ingeniería, Sistemas", semester: 12 },
       ],
     });
 

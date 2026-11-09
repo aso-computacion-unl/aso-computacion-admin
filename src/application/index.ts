@@ -207,6 +207,8 @@ export type { EventRegistrationStatus, RegistrationState } from "./event-registr
 export { PURGE_BATCH_SIZE, PURGE_MAX_BATCHES, PurgeExpiredRegistrationsUseCase, PurgeInterruptedError } from "./event-registration/purge-expired-registrations.use-case";
 export type { PurgeResult } from "./event-registration/purge-expired-registrations.use-case";
 export type { EventRegistrationRetentionStore, RetentionCandidate } from "./ports/event-registration-retention.port";
+export type { MailBudget, MailMessage, MailSendResult, MailSender, MailTransport } from "./ports/mail.ports";
+export { BudgetedMailSender } from "./mail/budgeted-mail-sender";
 export { ListEventSeatsUseCase } from "./event-registration/list-event-seats.use-case";
 export type { EventSeats } from "./event-registration/list-event-seats.use-case";
 export { ListRegistrationOverviewUseCase } from "./event-registration/list-registration-overview.use-case";

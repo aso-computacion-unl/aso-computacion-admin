@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The setup file replaces the container with the test double; this suite is about the real one.
+vi.unmock("@/interface/mail/mail-container");
 
 import { getMailSender } from "@/interface/mail/mail-container";
 
@@ -10,6 +12,12 @@ describe("getMailSender", () => {
 
     expect(await mailer.send({ to: "ana@example.com", subject: "s", text: "t" })).toEqual({ status: "not_configured" });
     expect(await mailer.remainingToday()).toBe(0);
+  });
+
+  it("can be asked for a pooled sender, which closes cleanly even when nothing was sent", async () => {
+    const mailer = getMailSender({}, { pooled: true });
+
+    await expect(mailer.close()).resolves.toBeUndefined();
   });
 
   it("with a placeholder account is still not configured", async () => {

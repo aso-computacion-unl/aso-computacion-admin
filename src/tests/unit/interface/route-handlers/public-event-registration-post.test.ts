@@ -10,7 +10,9 @@ vi.mock("next/headers", () => ({ cookies: cookiesMock, headers: vi.fn() }));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 
 import { REGISTRATION_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/registration-rate-limiter";
+import { openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
+import { testMail } from "@/tests/support/test-mail";
 
 import { OPTIONS, POST } from "../../../../../app/api/public/events/[slug]/registrations/route";
 
@@ -46,6 +48,11 @@ beforeEach(async () => {
   vi.stubEnv("PUBLIC_CORS_ORIGINS", LANDING);
   vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
   vi.stubEnv("NODE_ENV", "production");
+  // Mail fully configured (the sender itself is the recording double of test-mail.ts).
+  vi.stubEnv("AUTH_URL", "https://admin.example.org");
+  vi.stubEnv("MAIL_GMAIL_USER", "asociacion@gmail.com");
+  vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "abcdefghijklmnop");
+  vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "r".repeat(40));
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   turnstile(true);
@@ -63,12 +70,134 @@ describe("POST /api/public/events/[slug]/registrations", () => {
     const response = await post(FORM);
 
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({ ok: true, confirm: "email" });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(cookiesMock).not.toHaveBeenCalled();
     expect(response.headers.get("Set-Cookie")).toBeNull();
     expect(stored()).toEqual([expect.objectContaining({ mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, confirmedAt: null })]);
     expect(JSON.stringify(stored())).not.toContain("good-token");
+  });
+
+  describe("confirmation email", () => {
+    const TODAY = () => new Date().toISOString().slice(0, 10);
+
+    it("stores the registration pending, takes no seat and sends one email with a signed 48 h link to the confirm page", async () => {
+      const response = await post(FORM);
+      const [row] = stored();
+      const [mail] = testMail.transport.delivered;
+
+      expect(response.status).toBe(201);
+      expect(row).toMatchObject({ email: "ana@example.com", confirmedAt: null });
+      expect(await testEventRegistration.registrations.count(row!.eventId)).toBe(0);
+      expect(testMail.transport.delivered).toHaveLength(1);
+      expect(mail).toMatchObject({ to: "ana@example.com", subject: "Confirme su cupo en «Taller de Git»" });
+
+      const link = /https:\/\/admin\.example\.org\/inscripciones\/taller-de-git\/confirmar\?token=([\w.-]+)/.exec(mail!.text);
+
+      expect(link).not.toBeNull();
+      expect(await openRegistrationConfirmToken(link![1])).toEqual({ status: "valid", claims: { registrationId: row!.id, eventId: row!.eventId } });
+      expect(await testMail.budget.used(TODAY())).toBe(1);
+    });
+
+    it("never echoes the address or the link in the answer", async () => {
+      const text = await (await post(FORM)).text();
+
+      expect(text).not.toMatch(/ana@|token|confirmar/);
+    });
+
+    it("sends again, with the same registration id, when the same pending email asks once more", async () => {
+      await post(FORM);
+      const [first] = stored();
+
+      expect((await post({ ...FORM, name: "Ana María" })).status).toBe(201);
+
+      expect(stored()).toEqual([expect.objectContaining({ id: first!.id, name: "Ana María", confirmedAt: null })]);
+      expect(testMail.transport.delivered).toHaveLength(2);
+    });
+
+    it("sends nothing to an address that is already confirmed: 409 duplicate", async () => {
+      await post(FORM);
+      await confirmStored();
+      testMail.transport.delivered.length = 0;
+
+      expect((await post(FORM)).status).toBe(409);
+      expect(testMail.transport.delivered).toEqual([]);
+    });
+
+    it("sends nothing and stores nothing for a full, closed or unknown event", async () => {
+      await addTestEvent({ title: "Cerrado", registrationDeadline: new Date("2020-01-01T00:00:00.000Z") });
+
+      expect((await post(FORM, { slug: "cerrado" })).status).toBe(409);
+      expect((await post(FORM, { slug: "nada" })).status).toBe(404);
+      expect(stored()).toEqual([]);
+      expect(testMail.transport.delivered).toEqual([]);
+    });
+
+    it.each([
+      ["the Gmail account is not configured", () => vi.stubEnv("MAIL_GMAIL_USER", "")],
+      ["the app password is a placeholder", () => vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "__REPLACE_MAIL_GMAIL_APP_PASSWORD__")],
+      ["the confirmation secret is missing", () => vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "")],
+      ["the confirmation secret is too short", () => vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "short")],
+      ["the public origin is not set", () => vi.stubEnv("AUTH_URL", "")],
+      ["the sender has no provider", () => void (testMail.configured = false)],
+    ])("refuses with 503 email_unavailable, leaving nothing behind, when %s", async (_label, misconfigure) => {
+      misconfigure();
+
+      const response = await post(FORM);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "email_unavailable" });
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(stored()).toEqual([]);
+      expect(testMail.transport.delivered).toEqual([]);
+      expect(await testMail.budget.used(TODAY())).toBe(0);
+    });
+
+    it("refuses with 503 email_budget, leaving nothing behind, once today's budget is spent", async () => {
+      testMail.dailyLimit = 1;
+      expect((await post(FORM)).status).toBe(201);
+
+      const response = await post({ ...FORM, email: "luis@example.com" });
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "email_budget" });
+      expect(stored().map((row) => row.email)).toEqual(["ana@example.com"]);
+      expect(testMail.transport.delivered).toHaveLength(1);
+      expect(await testMail.budget.used(TODAY())).toBe(1);
+    });
+
+    it("checks the fields before the mail: a bad field is 400 even while mail is down, and the same form works once mail is back", async () => {
+      testMail.configured = false;
+
+      expect(await (await post({ ...FORM, email: "no-es-un-correo" })).json()).toEqual({ error: "validation", field: "email" });
+      expect((await post(FORM)).status).toBe(503);
+
+      testMail.configured = true;
+
+      expect((await post(FORM)).status).toBe(201);
+      expect(stored()).toHaveLength(1);
+      expect(testMail.transport.delivered).toHaveLength(1);
+    });
+
+    it("answers 503 email_unavailable when the provider fails, gives the budget back and lets a retry through on the same row", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      testMail.transport.failing.add("ana@example.com");
+
+      const response = await post(FORM);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "email_unavailable" });
+      expect(await testMail.budget.used(TODAY())).toBe(0);
+      expect(await testEventRegistration.registrations.count(stored()[0]!.eventId)).toBe(0);
+
+      const [pending] = stored();
+
+      testMail.transport.failing.clear();
+
+      expect((await post(FORM)).status).toBe(201);
+      expect(stored()).toEqual([expect.objectContaining({ id: pending!.id, confirmedAt: null })]);
+      expect(testMail.transport.delivered).toHaveLength(1);
+    });
   });
 
   describe("Turnstile", () => {
@@ -254,12 +383,23 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       ["name", { name: "" }],
       ["name", { name: "x".repeat(121) }],
       ["career", { career: "c".repeat(121) }],
+      ["institution", { institution: "" }],
+      ["institution", { institution: undefined }],
+      ["institution", { institution: "u".repeat(121) }],
     ])("answers 400 naming the invalid %s, and stores nothing", async (field, override) => {
       const response = await post({ ...FORM, ...override });
 
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({ error: "validation", field });
       expect(stored()).toHaveLength(0);
+    });
+
+    it("takes a registration without career and semester: both are optional", async () => {
+      const { career, semester, ...required } = FORM;
+
+      expect(career && semester).toBeTruthy();
+      expect((await post(required)).status).toBe(201);
+      expect(stored()).toEqual([expect.objectContaining({ institution: "Universidad Nacional de Loja", career: null, semester: null })]);
     });
 
     it("answers 413 to a body that is too big, 415 to anything but JSON, and 400 to malformed JSON or a non-object", async () => {

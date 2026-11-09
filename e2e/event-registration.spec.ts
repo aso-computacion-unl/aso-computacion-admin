@@ -10,7 +10,7 @@ const BASE_URL = "http://127.0.0.1:3100";
 
 // The open form's rate limit is five attempts per client every ten minutes and every request here comes from the
 // same address: the whole file posts to it at most twice.
-const FORM = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5, turnstileToken: "token" };
+const FORM = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, turnstileToken: "token" };
 
 async function logInAsAdmin(page: Page) {
   await page.goto("/login");

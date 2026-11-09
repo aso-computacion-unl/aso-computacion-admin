@@ -1,6 +1,6 @@
 import type { EventResult } from "../dto/event-result.dto";
 import { toEventResult } from "../mappers/event-result.mapper";
-import type { EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
+import type { ConfirmOutcome, EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { ForumMemberRepository } from "../ports/forum.ports";
 import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
@@ -102,6 +102,28 @@ export class RegisterWithOpenFormUseCase extends RegisterUseCase {
 
     // Pending until the person opens the link sent to that address: an unverified email takes no seat.
     return this.store(slug, now, "open", { name, email, institution, career, semester, confirmedAt: null });
+  }
+}
+
+/**
+ * The person opened the link of their confirmation email and pressed the button. The link names an event and a
+ * registration; it only counts on the event page it was issued for. The seat itself is decided by the repository,
+ * atomically, so a full or closed event refuses here even though the email was perfectly valid.
+ */
+export class ConfirmOpenRegistrationUseCase {
+  constructor(
+    private readonly events: EventRepository,
+    private readonly registrations: EventRegistrationRepository,
+  ) {}
+
+  async execute({ slug, eventId, registrationId, now = new Date() }: { slug: string; eventId: string; registrationId: string; now?: Date }): Promise<ConfirmOutcome> {
+    const event = await this.events.findLiveBySlug(slug);
+
+    if (!event) {
+      return { status: "not_found" };
+    }
+
+    return event.props.id === eventId ? this.registrations.confirm(eventId, registrationId, now) : { status: "invalid" };
   }
 }
 

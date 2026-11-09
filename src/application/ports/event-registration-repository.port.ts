@@ -52,6 +52,10 @@ export interface EventRegistrationRepository {
   countByEvents(eventIds: readonly string[]): Promise<ReadonlyMap<string, number>>;
   /** A confirmed registration with that email. */
   exists(eventId: string, email: string): Promise<boolean>;
+  /** Confirmed registrations of the event whose reminder has not gone out yet, oldest first, at most `limit`. */
+  listDueForReminder(eventId: string, limit: number): Promise<EventRegistrationRecord[]>;
+  /** Records when a reminder went out, once: true for the call that recorded it, false when it was already recorded or the row is not a confirmed registration of that event. */
+  markReminderSent(eventId: string, id: string, at: Date): Promise<boolean>;
   /** True when a registration of that event was removed; false when there was none. */
   delete(eventId: string, id: string): Promise<boolean>;
 }

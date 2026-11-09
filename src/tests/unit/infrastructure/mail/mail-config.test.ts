@@ -6,6 +6,7 @@ const ENV = {
   MAIL_GMAIL_USER: "asociacion@gmail.com",
   MAIL_GMAIL_APP_PASSWORD: "abcd efgh ijkl mnop",
   REGISTRATION_CONFIRM_SECRET: "r".repeat(40),
+  AUTH_URL: "https://admin.example.org",
   ADMIN_SECRET: "a".repeat(40),
   FORUM_SESSION_SECRET: "f".repeat(40),
 };
@@ -45,10 +46,14 @@ describe("mail configuration", () => {
     expect(mailConfigProblems(env)).toEqual(["REGISTRATION_CONFIRM_SECRET"]);
   });
 
+  it.each([undefined, "", "http://admin.example.org", "not a url"])("names AUTH_URL when the public origin that the links need is %j", (authUrl) => {
+    expect(mailConfigProblems({ ...ENV, AUTH_URL: authUrl })).toEqual(["AUTH_URL"]);
+  });
+
   it("lists every problem in a stable order, names only and never a value", () => {
     const problems = mailConfigProblems({ MAIL_GMAIL_APP_PASSWORD: "hunter2-hunter2", REGISTRATION_CONFIRM_SECRET: "short", MAIL_DAILY_LIMIT: "lots" });
 
-    expect(problems).toEqual(["MAIL_GMAIL_USER", "REGISTRATION_CONFIRM_SECRET", "MAIL_DAILY_LIMIT"]);
+    expect(problems).toEqual(["MAIL_GMAIL_USER", "REGISTRATION_CONFIRM_SECRET", "AUTH_URL", "MAIL_DAILY_LIMIT"]);
     expect(JSON.stringify(problems)).not.toMatch(/hunter2|short|lots/);
   });
 

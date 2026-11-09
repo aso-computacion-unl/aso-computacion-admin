@@ -66,7 +66,7 @@ describe("cancelling with the link of an email", () => {
 
     const outcome = await byLink().execute({ slug: "taller-de-git", eventId: event.id, registrationId: ana.id, now: NOW });
 
-    expect(outcome).toEqual({ status: "cancelled" });
+    expect(outcome).toEqual({ status: "cancelled", eventId: event.id });
     expect(registrations.all()).toEqual([expect.objectContaining({ id: luis.id, email: "luis@example.com", confirmedAt: NOW })]);
     expect(await registrations.count(event.id)).toBe(1);
     expect(await registrations.exists(event.id, "ana@example.com")).toBe(false);
@@ -89,7 +89,7 @@ describe("cancelling with the link of an email", () => {
     const ana = await openPerson(FORM, { confirmed: false });
     const luis = await openPerson({ ...FORM, name: "Luis", email: "luis@example.com" });
 
-    expect(await byLink().execute({ slug: "taller-de-git", eventId: event.id, registrationId: ana.id, now: NOW })).toEqual({ status: "cancelled" });
+    expect(await byLink().execute({ slug: "taller-de-git", eventId: event.id, registrationId: ana.id, now: NOW })).toEqual({ status: "cancelled", eventId: event.id });
     expect(registrations.all().map((row) => row.id)).toEqual([luis.id]);
     expect(await registrations.count(event.id)).toBe(1);
   });
@@ -178,7 +178,7 @@ describe("cancelling with the link of an email", () => {
 
     await events.update(live.update({ registrationMode: "unl" }));
 
-    expect(await byLink().execute({ slug: "taller-de-git", eventId: event.id, registrationId: ana.id, now: NOW })).toEqual({ status: "cancelled" });
+    expect(await byLink().execute({ slug: "taller-de-git", eventId: event.id, registrationId: ana.id, now: NOW })).toEqual({ status: "cancelled", eventId: event.id });
     expect(registrations.all()).toEqual([]);
   });
 });
@@ -191,7 +191,7 @@ describe("cancelling from the event page as a UNL student", () => {
     await unlPerson("m2", "luis@unl.edu.ec");
 
     expect(await registrations.count(event.id)).toBe(2);
-    expect(await unl().execute({ slug: "taller-de-git", memberId: "m1", now: NOW })).toEqual({ status: "cancelled" });
+    expect(await unl().execute({ slug: "taller-de-git", memberId: "m1", now: NOW })).toEqual({ status: "cancelled", eventId: event.id });
     expect(registrations.all().map((row) => row.email)).toEqual(["luis@unl.edu.ec"]);
     expect(await registrations.count(event.id)).toBe(1);
   });

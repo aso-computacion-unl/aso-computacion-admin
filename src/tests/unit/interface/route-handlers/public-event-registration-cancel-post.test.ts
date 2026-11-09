@@ -11,6 +11,7 @@ import { REGISTRATION_CANCEL_TTL_MS } from "@/domain/event-registration";
 import { REGISTRATION_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/registration-rate-limiter";
 import { sealRegistrationCancelToken } from "@/infrastructure/registration/registration-cancel-token";
 import { sealRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
+import { testAuth } from "@/tests/support/test-auth";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 
 import * as routeModule from "../../../../../app/api/public/events/[slug]/registrations/cancel/route";
@@ -307,5 +308,120 @@ describe("POST /api/public/events/[slug]/registrations/cancel", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "invalid" });
     expect(rows()).toHaveLength(1);
+  });
+});
+
+/*
+ * D7 (T10b): a self-cancellation leaves one audit entry with no personal data, like the admin delete. The person is not
+ * an admin, so the actor is the system; the summary says the person cancelled it and through which channel.
+ */
+describe("POST /api/public/events/[slug]/registrations/cancel: audit", () => {
+  const entries = () => testAuth.audit.entries;
+
+  it("writes one entry for the cancelled event, by the system, saying the person cancelled it by the email link", async () => {
+    const ana = await registered();
+
+    expect((await post({ token: ana.token })).status).toBe(200);
+    expect(entries()).toHaveLength(1);
+    expect(entries()[0]).toEqual({
+      id: expect.any(String),
+      at: NOW,
+      actorUserId: null,
+      actorKind: "system",
+      action: "event.registration_cancel",
+      entityType: "event",
+      entityId: event.id,
+      summary: "Inscripción cancelada por la persona (enlace del correo)",
+    });
+  });
+
+  it("holds nothing that maps back to the person: no name, email, registration id or token, pending or confirmed", async () => {
+    const confirmed = await registered();
+    const pending = await registered({ email: "luis@example.com", pending: true });
+
+    await post({ token: confirmed.token });
+    await post({ token: pending.token });
+
+    expect(entries()).toHaveLength(2);
+
+    const written = JSON.stringify(entries());
+
+    for (const secret of ["Ana", "Pérez", "ana@example.com", "luis@example.com", "example.com", confirmed.id, pending.id, confirmed.token, pending.token]) {
+      expect(written, secret).not.toContain(secret);
+    }
+  });
+
+  it("writes nothing the second time (already cancelled), and nothing for any refusal; rows and seats stay", async () => {
+    const ana = await registered();
+    const closing = await addTestEvent({ title: "Cierra", registrationDeadline: new Date(NOW.getTime() - HOUR) });
+    const draft = await addTestEvent({ title: "Borrador", isPublished: false });
+    const closed = await seeded(closing.id);
+    const hidden = await seeded(draft.id);
+
+    await post({ token: ana.token });
+    testAuth.audit.entries.length = 0;
+
+    const before = rows();
+    const seatsBefore = await seats();
+    const confirmToken = await sealRegistrationConfirmToken({ registrationId: ana.id, eventId: event.id }, NOW);
+
+    const attempts: [string, Response][] = [
+      ["already cancelled", await post({ token: ana.token })],
+      ["closed", await post({ token: closed.token }, { slug: "cierra" })],
+      ["draft", await post({ token: hidden.token }, { slug: "borrador" })],
+      ["another purpose", await post({ token: confirmToken })],
+      ["tampered", await post({ token: `${ana.token.slice(0, -2)}xx` })],
+      ["no token", await post({})],
+      ["other event's page", await post({ token: ana.token }, { slug: "cierra" })],
+    ];
+
+    for (const [label, response] of attempts) {
+      expect(response.status, label).not.toBe(500);
+    }
+
+    expect(entries()).toEqual([]);
+    expect(rows().filter((row) => row.eventId === event.id)).toEqual(before.filter((row) => row.eventId === event.id));
+    expect(await seats()).toBe(seatsBefore);
+    expect(rows().map((row) => row.id).sort()).toEqual(before.map((row) => row.id).sort());
+  });
+
+  it("writes nothing for an expired link or a rate-limited client", async () => {
+    const ana = await registered();
+    const ip = "198.51.100.88";
+
+    for (let attempt = 0; attempt < REGISTRATION_RATE_LIMIT_MAX_REQUESTS; attempt += 1) {
+      await post({ token: "garbage" }, { ip });
+    }
+
+    expect((await post({ token: ana.token }, { ip })).status).toBe(429);
+
+    vi.setSystemTime(new Date(NOW.getTime() + REGISTRATION_CANCEL_TTL_MS + HOUR));
+    expect((await post({ token: ana.token })).status).toBe(410);
+    expect(entries()).toEqual([]);
+    expect(rows()).toHaveLength(1);
+  });
+
+  it("writes nothing when the delete itself fails", async () => {
+    const ana = await registered();
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(testEventRegistration.registrations, "cancel").mockRejectedValue(new Error("down"));
+
+    expect((await post({ token: ana.token })).status).toBe(503);
+    expect(entries()).toEqual([]);
+  });
+
+  it("does not undo or fail the cancellation when the audit write fails: it is reported, and the person is told it worked", async () => {
+    const ana = await registered();
+
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    testAuth.audit.failWith = new Error("audit down");
+
+    const response = await post({ token: ana.token });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, status: "cancelled" });
+    expect(rows()).toEqual([]);
+    expect(reportErrorMock).toHaveBeenCalledWith(expect.any(Error), { action: "audit-log", audit: "event.registration_cancel" });
   });
 });

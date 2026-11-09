@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import { SignJWT } from "jose";
 
 import { FORUM_SESSION_SECRET as FORUM_SECRET, plantForumMemberSession } from "./support/forum-session";
@@ -13,6 +13,8 @@ import { cancellationLink, confirmationLink, waitForMail } from "./support/mail-
  *   - UNL student (R2): the event page offers "Cancelar mi inscripción" to a registered member, with a question first.
  *   - Refusals (expired, tampered, foreign purpose, already cancelled, closed, draft, trashed) each leave the stored
  *     rows and the seat count exactly as they were.
+ *   - Audit (T10b): every successful self-cancellation, by either channel, leaves one entry in the admin audit view with
+ *     the event and the channel but nothing that names the person; a refusal leaves none.
  * The reminder's per-person link (R6) is a unit test: the cron needs CRON_SECRET, which `npm run e2e` blanks.
  *
  * Every event is seeded under a unique prefix and removed at the end; every address carries the run's stamp, because
@@ -23,6 +25,7 @@ const STAMP = Date.now().toString(36);
 const PREFIX = `rc-${STAMP}-`;
 const prisma = createPrismaClient(process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL);
 const CONFIRM_SECRET = process.env.REGISTRATION_CONFIRM_SECRET ?? "";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
 const ANA = { name: "Ana Pérez", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5 };
 const octet = () => 20 + Math.floor(Math.random() * 200);
@@ -74,8 +77,8 @@ function signed(claims: { purpose: string; rid: string; eid: string; nce?: strin
 }
 
 /** Registers through the endpoint and confirms by the email link, as a person would: a seat is taken. Returns the cancel link and the confirm link. */
-async function confirmedPerson(request: APIRequestContext, event: Seeded, who: string) {
-  expect((await register(request, event.slug, who)).status()).toBe(201);
+async function confirmedPerson(request: APIRequestContext, event: Seeded, who: string, name = ANA.name) {
+  expect((await register(request, event.slug, who, name)).status()).toBe(201);
 
   const [mail] = await waitForMail(who);
   const confirm = confirmationLink(mail!);
@@ -95,7 +98,25 @@ test.beforeEach(async ({ context }) => {
   await context.setExtraHTTPHeaders({ "x-real-ip": nextIp() });
 });
 
+/** The entries the app wrote about these events, oldest first. */
+const auditEntries = (event: Seeded) => prisma.auditLog.findMany({ where: { entityId: event.id }, orderBy: [{ at: "asc" }, { id: "asc" }] });
+
+/** The admin's audit view in a context of its own, so the person's cookies and the admin's never mix. */
+async function openAuditView(browser: Browser) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await page.goto("/login");
+  await page.getByLabel("Contraseña").fill(ADMIN_PASSWORD);
+  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto("/admin/registro?tipo=event");
+
+  return { page, context };
+}
+
 test.afterAll(async () => {
+  await prisma.auditLog.deleteMany({ where: { entityId: { startsWith: PREFIX } } });
   await prisma.event.deleteMany({ where: { id: { startsWith: PREFIX } } });
   await prisma.forumSession.deleteMany({ where: { memberId: { startsWith: PREFIX } } });
   await prisma.forumMember.deleteMany({ where: { id: { startsWith: PREFIX } } });
@@ -201,6 +222,98 @@ test.describe("D7 (R4): cancelling with the link of the email", () => {
     expect(mail!.html).toContain("/cancelar?token=");
     expect(cancellationLink(mail!)).toMatch(new RegExp(`^/inscripciones/${event.slug}/cancelar\\?token=`));
     expect(confirmationLink(mail!)).toMatch(new RegExp(`^/inscripciones/${event.slug}/confirmar\\?token=`));
+  });
+});
+
+test.describe("D7 (T10b): a self-cancellation is audited without personal data", () => {
+  test("the email link leaves one entry (event, time, cancelled by the person, channel) and the admin view shows it without the name or the address; refusals leave none", async ({ page, request, browser }) => {
+    const event = await seedEvent("auditoria", { registrationCapacity: 5 });
+    const name = "Zulema Quispe Auditada";
+    const who = email("auditoria");
+    const links = await confirmedPerson(request, event, who, name);
+    const [row] = await registrations(event);
+
+    expect(await auditEntries(event)).toEqual([]);
+
+    // Refused attempts first: a tampered link and the confirmation link write nothing.
+    expect((await cancelEndpoint(request, event.slug, `${tokenOf(links.cancel).slice(0, -3)}abc`)).status()).toBe(400);
+    expect((await cancelEndpoint(request, event.slug, tokenOf(links.confirm))).status()).toBe(400);
+    expect(await auditEntries(event)).toEqual([]);
+
+    const started = Date.now();
+
+    await page.goto(links.cancel, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Cancelar mi inscripción" }).click();
+    await expect(result(page, "Su inscripción quedó cancelada")).toBeVisible();
+
+    const entries = await auditEntries(event);
+
+    expect(entries).toEqual([
+      {
+        id: expect.any(String),
+        at: expect.any(Date),
+        actorUserId: null,
+        actorKind: "system",
+        action: "event.registration_cancel",
+        entityType: "event",
+        entityId: event.id,
+        summary: "Inscripción cancelada por la persona (enlace del correo)",
+      },
+    ]);
+    expect(entries[0]!.at.getTime()).toBeGreaterThanOrEqual(started - 60_000);
+    expect(JSON.stringify(entries)).not.toMatch(new RegExp(`${name}|${who}|${row!.id}|Quispe|@example\\.com`));
+
+    // The same link again is "already cancelled" and adds nothing.
+    await page.goto(links.cancel, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Cancelar mi inscripción" }).click();
+    await expect(result(page, "Su inscripción ya estaba cancelada")).toBeVisible();
+    expect(await auditEntries(event)).toEqual(entries);
+
+    const admin = await openAuditView(browser);
+
+    try {
+      const item = admin.page.getByRole("listitem").filter({ hasText: "Inscripción cancelada por la persona (enlace del correo)" }).first();
+
+      await expect(item).toBeVisible();
+      await expect(item).toContainText("Sistema");
+      await expect(item).toContainText("Evento · event.registration_cancel");
+
+      const text = await admin.page.locator("body").innerText();
+
+      for (const personal of [name, "Quispe", who, row!.id]) {
+        expect(text, personal).not.toContain(personal);
+      }
+    } finally {
+      await admin.context.close();
+    }
+  });
+
+  test("a pending registration cancelled from its confirmation email is audited the same way", async ({ page, request }) => {
+    const event = await seedEvent("auditpend", { registrationCapacity: 5 });
+    const who = email("auditpend");
+
+    expect((await register(request, event.slug, who)).status()).toBe(201);
+
+    const [mail] = await waitForMail(who);
+
+    await page.goto(cancellationLink(mail!), { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Cancelar mi inscripción" }).click();
+    await expect(result(page, "Su inscripción quedó cancelada")).toBeVisible();
+    expect(await registrations(event)).toEqual([]);
+    expect((await auditEntries(event)).map((entry) => [entry.action, entry.summary])).toEqual([["event.registration_cancel", "Inscripción cancelada por la persona (enlace del correo)"]]);
+  });
+
+  test("a refusal because registration closed writes no entry and keeps the row and the seat", async ({ request }) => {
+    const event = await seedEvent("auditcerrado", { registrationCapacity: 5 });
+    const links = await confirmedPerson(request, event, email("auditcerrado"));
+    const before = await registrations(event);
+
+    await prisma.event.update({ where: { id: event.id }, data: { registrationDeadline: new Date(Date.now() - 60_000) } });
+
+    expect((await cancelEndpoint(request, event.slug, tokenOf(links.cancel))).status()).toBe(409);
+    expect(await auditEntries(event)).toEqual([]);
+    expect(await registrations(event)).toEqual(before);
+    expect(await seatsTaken(event)).toBe(1);
   });
 });
 
@@ -372,6 +485,57 @@ test.describe("D7 (R2): a UNL student cancels from the event page", () => {
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
     await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
     expect((await registrations(event)).map((row) => row.email).sort()).toEqual([ana.email, luis.email].sort());
+  });
+
+  test("T10b: cancelling from the event page leaves one entry saying so, and the admin view shows it without the member's name or address", async ({ page, context, browser }) => {
+    const event = await seedEvent("unlauditoria", { registrationMode: "unl", registrationCapacity: 3 });
+    const ana = await plantForumMemberSession(prisma, { memberId: `${PREFIX}ana5`, sessionId: `${PREFIX}ana5-s`, displayName: "Yolanda Auditada" });
+
+    await prisma.eventRegistration.create({ data: { id: `${PREFIX}ra5`, eventId: event.id, mode: "unl", name: "Yolanda Auditada", email: ana.email, confirmedAt: new Date() } });
+    await context.addCookies([ana.cookie]);
+    await page.goto(`/inscripciones/${event.slug}`, { waitUntil: "networkidle" });
+
+    // Asking and then keeping it writes nothing.
+    await page.getByRole("button", { name: "Cancelar mi inscripción" }).click();
+    await page.getByRole("button", { name: "No, conservarla" }).click();
+    expect(await auditEntries(event)).toEqual([]);
+
+    await page.getByRole("button", { name: "Cancelar mi inscripción" }).click();
+    await page.getByRole("button", { name: "Sí, cancelar mi inscripción" }).click();
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toBeVisible();
+
+    const entries = await auditEntries(event);
+
+    expect(entries).toEqual([
+      {
+        id: expect.any(String),
+        at: expect.any(Date),
+        actorUserId: null,
+        actorKind: "system",
+        action: "event.registration_cancel",
+        entityType: "event",
+        entityId: event.id,
+        summary: "Inscripción cancelada por la persona (página del evento)",
+      },
+    ]);
+    expect(JSON.stringify(entries)).not.toMatch(new RegExp(`Yolanda|${ana.email}|${PREFIX}ra5|${PREFIX}ana5|unl\\.edu\\.ec`));
+
+    const admin = await openAuditView(browser);
+
+    try {
+      const item = admin.page.getByRole("listitem").filter({ hasText: "Inscripción cancelada por la persona (página del evento)" }).first();
+
+      await expect(item).toBeVisible();
+      await expect(item).toContainText("Sistema");
+
+      const text = await admin.page.locator("body").innerText();
+
+      for (const personal of ["Yolanda", ana.email, `${PREFIX}ra5`]) {
+        expect(text, personal).not.toContain(personal);
+      }
+    } finally {
+      await admin.context.close();
+    }
   });
 
   test("a member who is not registered is not offered the cancel button, and cannot reach another member's registration", async ({ page, context }) => {

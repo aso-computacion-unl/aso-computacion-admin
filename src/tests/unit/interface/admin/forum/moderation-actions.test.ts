@@ -112,6 +112,15 @@ describe("forum moderation server actions", () => {
       ]);
     });
 
+    it("refreshes the members list as well as the report queue after a suspension or a reactivation", async () => {
+      await actions.setForumMemberSuspended("m1", true);
+      await actions.setForumMemberSuspended("m1", false);
+
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/foro/reportes");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/foro/miembros");
+      expect(revalidatePathMock).toHaveBeenCalledTimes(4);
+    });
+
     it("answers 'unchanged' and writes no audit entry when the target is already in the wanted state", async () => {
       const unchanged = { success: true, unchanged: true };
 
@@ -133,7 +142,7 @@ describe("forum moderation server actions", () => {
         ["forum.member.suspend", "forum_member", "m1"],
       ]);
       // The page still refreshes, so a moderator who lost the race sees the real state.
-      expect(revalidatePathMock).toHaveBeenCalledTimes(10);
+      expect(revalidatePathMock).toHaveBeenCalledTimes(13);
     });
 
     it("closes a report as resolved or dismissed with the moderator's id, and a second close is refused", async () => {

@@ -53,6 +53,42 @@ describe("ForumMemberPrismaRepository (integration)", () => {
   });
 });
 
+describe("ForumMemberPrismaRepository.list (integration)", () => {
+  const suspended = makeForumMember({ id: "cris", email: "cris@unl.edu.ec", googleSub: "sub-cris", displayName: "Cristina 100%", status: "SUSPENDED", suspendedAt: T0 });
+
+  async function seedMembers() {
+    await members.create({ ...ana, createdAt: later(1000) });
+    await members.create({ ...beto, createdAt: later(3000) });
+    await members.create({ ...suspended, createdAt: later(2000) });
+  }
+
+  it("lists the newest account first and counts every match, whatever the page", async () => {
+    await seedMembers();
+
+    const first = await members.list({ filter: "all", search: "" }, { offset: 0, limit: 2 });
+
+    expect(first.total).toBe(3);
+    expect(first.items.map((member) => member.id)).toEqual(["beto", "cris"]);
+    expect((await members.list({ filter: "all", search: "" }, { offset: 2, limit: 2 })).items.map((member) => member.id)).toEqual(["ana"]);
+  });
+
+  it("filters the suspended ones and searches the name or the email, ignoring case", async () => {
+    await seedMembers();
+
+    expect((await members.list({ filter: "suspended", search: "" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["cris"]);
+    expect((await members.list({ filter: "all", search: "BETO@unl" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["beto"]);
+    expect((await members.list({ filter: "all", search: "cristina" }, { offset: 0, limit: 10 })).total).toBe(1);
+    expect((await members.list({ filter: "suspended", search: "ana" }, { offset: 0, limit: 10 })).total).toBe(0);
+  });
+
+  it("treats % and _ in a search as plain text", async () => {
+    await seedMembers();
+
+    expect((await members.list({ filter: "all", search: "%" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["cris"]);
+    expect((await members.list({ filter: "all", search: "_" }, { offset: 0, limit: 10 })).total).toBe(0);
+  });
+});
+
 describe("ForumSessionPrismaRepository (integration)", () => {
   const record = (id: string, overrides = {}) => ({ id, memberId: "ana", createdAt: T0, expiresAt: later(3_600_000), revokedAt: null, lastSeenAt: T0, userAgent: "UA", ipHash: "h", ...overrides });
 

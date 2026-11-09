@@ -100,7 +100,8 @@ Conventions:
 - **Expected**: each change is applied and audited; suspending ends the member's sessions.
 - **Concurrency**: "Sin cambios: otra persona ya lo había hecho." (nothing audited); "Otra persona ya cerró este reporte."; "No se encontró la publicación, el reporte o la cuenta. Puede que ya no exista."
 - **Empty**: "No hay reportes abiertos" / "Todavía no se cerró ningún reporte."
-- Suspended members can only be reactivated from a report card (D6).
+- **Members list** (`/admin/foro/miembros`, same roles, reached from the report queue): every member newest first, 20 per page, with display name, email, status (Activo / Suspendido, and the day it was suspended), the day they joined and their last sign-in ("Sin ingresos registrados" when none). A search by name or email (`?q=`, ignores case; shareable URL) and the "Todos / Suspendidos" filter (`?estado=suspendidos`) combine; «Quitar búsqueda» clears it. A suspended member has «Reactivar la cuenta», the same action as on a report card (same rules, same audit entry `forum.member.reactivate`, "Cuenta reactivada." / "Sin cambios: otra persona ya lo había hecho."). Nothing else: suspending stays on the report card, and there is no delete or ban.
+- **Members empty states**: "Todavía no hay miembros. Aparecen aquí cuando un estudiante entra al foro con su cuenta de la UNL."; "No hay cuentas suspendidas."; "No hay miembros que coincidan con «texto»." with «Quitar la búsqueda».
 
 ### F12. An admin manages categories
 
@@ -225,7 +226,7 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | D3 | F6 | Name the limit, in minutes | The throttle message says which limit was hit (per minute or per hour) and the wait in minutes |
 | D4 | F5 | Visible placeholder | A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
 | D5 | F6, F7, R2 | Keep text, return, own wording | An expired session keeps the typed text, the sign-in link returns to the same page, and registration screens use registration wording, never "participar en el foro" |
-| D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar |
+| D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
 | D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
 | D8 | F4, R3 | Forum and registrations are separate sections | The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |
 | D9 | R4 | Only the latest link works | Registering again while pending makes the previous link answer "Este enlace no sirve" |

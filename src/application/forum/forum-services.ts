@@ -4,6 +4,7 @@ import type { ForumCategoryRepository, ForumMemberRepository, ForumPostRepositor
 import { CloseForumSessionUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase, type ForumLoginConfig } from "./forum-auth.use-cases";
 import { CreateForumCategoryUseCase, DeleteForumCategoryUseCase, ListForumCategoriesUseCase, UpdateForumCategoryUseCase } from "./forum-categories.use-cases";
 import { ListForumFeedUseCase } from "./forum-feed.use-case";
+import { ListForumMembersUseCase, type ForumMemberDirectory } from "./forum-members.use-cases";
 import {
   CreateForumThreadUseCase,
   EditForumReplyUseCase,
@@ -25,7 +26,7 @@ import { GetForumReactionsUseCase, ToggleForumReactionUseCase } from "./forum-re
 import { PostingThrottle } from "./posting-throttle";
 
 export interface ForumRepositories {
-  members: ForumMemberRepository;
+  members: ForumMemberRepository & ForumMemberDirectory;
   sessions: ForumSessionRepository;
   categories: ForumCategoryRepository;
   posts: ForumPostRepository;
@@ -54,6 +55,7 @@ export function buildForumServices({ members, sessions, categories, posts, moder
     editThread: new EditForumThreadUseCase(members, posts, now),
     editReply: new EditForumReplyUseCase(members, posts, now),
     reportPost: new ReportForumPostUseCase(members, posts, moderation, now),
+    listMembers: new ListForumMembersUseCase(members),
     listReports: new ListForumReportsUseCase(moderation),
     closeReport: new CloseForumReportUseCase(moderation, now),
     setPostHidden: new SetForumPostHiddenUseCase(moderation, now),

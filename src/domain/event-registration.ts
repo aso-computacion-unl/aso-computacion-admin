@@ -17,6 +17,8 @@ export const REGISTRATION_INSTITUTION_MAX_LENGTH = 120;
 /** An open-form registration waits this long for its email to be confirmed; until then it takes no seat. */
 export const REGISTRATION_CONFIRMATION_TTL_MS = 48 * 60 * 60 * 1000;
 export const REGISTRATION_SEMESTER_MAX = 12;
+/** The cancellation link of an email works this long after it was issued: a registration is purged 90 days after its event, so a year outlasts any link that still has something to cancel. */
+export const REGISTRATION_CANCEL_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 export interface RegistrationSettings {
   readonly mode: EventRegistrationMode;
@@ -136,6 +138,22 @@ export function registrationState(event: RegistrableEvent, registered: number, n
   }
 
   return event.registrationCapacity !== null && registered >= event.registrationCapacity ? "full" : "open";
+}
+
+export type CancellationRefusal = "not_found" | "closed";
+
+/**
+ * Whether a registration of this event can still be cancelled (D7): the event is public, and registration has not
+ * closed (deadline or day passed; after that the organizers are told by the person, not by the page). Neither the
+ * mode nor the seats matter: someone who registered the old way, or on a full event, can still let the seat go.
+ * Who is cancelling, and that the registration exists, are decided elsewhere.
+ */
+export function cancellationRefusal({ event, now }: { event: RegistrableEvent; now: Date }): CancellationRefusal | null {
+  if (!isPubliclyVisible(event, now)) {
+    return "not_found";
+  }
+
+  return isClosed(event, now) ? "closed" : null;
 }
 
 export interface RegistrationContext {

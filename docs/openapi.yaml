@@ -508,6 +508,101 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: unavailable }
 
+  /api/public/events/{slug}/registrations/cancel:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      tags: [Público]
+      operationId: cancelEventRegistration
+      summary: Cancelar una inscripción con el enlace del correo
+      description: |
+        Borra la inscripción (pendiente o confirmada) que nombra el token del enlace de cancelación del correo de
+        confirmación o del recordatorio, y libera su cupo. Solo existe `POST`: la página a la que lleva el enlace
+        muestra un botón y nunca cancela por `GET`, porque los escáneres de correo abren todos los enlaces. El token
+        (JWT HS256, un año) usa el mismo secreto que el de confirmación pero otro propósito: un token de
+        confirmación no cancela y uno de cancelación no confirma. Que el evento aún permita cancelar (público y con
+        la inscripción sin cerrar; da igual el modo o si está lleno) lo decide el servidor, de forma atómica y con
+        el mismo bloqueo que la inscripción. Un rechazo deja las inscripciones y los cupos como estaban. No recibe
+        ni devuelve correos: no se puede preguntar si una dirección está inscrita.
+
+        - **Mismo origen:** sin CORS. **Sin Turnstile:** el token es la credencial.
+        - **Tasa:** 5 solicitudes por 10 min por cliente (presupuesto propio).
+        - **Caché:** `no-store`.
+      security: []
+      requestBody:
+        required: true
+        description: "JSON con `Content-Type: application/json`, objeto en la raíz, máximo 2048 bytes."
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, description: Token del enlace de cancelación del correo. }
+      responses:
+        "200":
+          description: Inscripción cancelada (`cancelled`) o ya no existía (`already_cancelled`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, status]
+                properties:
+                  ok: { type: boolean, const: true }
+                  status: { type: string, enum: [cancelled, already_cancelled] }
+              example: { ok: true, status: cancelled }
+        "400":
+          description: Token ausente, falsificado, de otro propósito (por ejemplo, uno de confirmación) o de otro evento (`invalid`); JSON mal formado (`bad_request`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: invalid }
+        "404":
+          description: Slug inválido, evento inexistente o no visible (`not_found`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: not_found }
+        "409":
+          description: Las inscripciones cerraron (plazo vencido o día del evento pasado): la inscripción sigue como estaba (`closed`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: closed }
+        "410":
+          description: El enlace venció (un año) (`expired`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: expired }
+        "413":
+          description: El cuerpo supera 2048 bytes (`too_large`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: too_large }
+        "415":
+          description: El `Content-Type` no empieza por `application/json` (`unsupported_media_type`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unsupported_media_type }
+        "429":
+          description: Límite superado (`rate_limited`).
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: rate_limited }
+        "503":
+          description: Fallo interno (`unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationError" }
+              example: { error: unavailable }
+
   /api/public/events/{slug}/calendar.ics:
     parameters:
       - $ref: "#/components/parameters/Slug"

@@ -3,13 +3,15 @@ import type { EventRegistration as PrismaEventRegistration } from "@/generated/p
 
 import type { Prisma } from "@/generated/prisma/client";
 import type {
+  CancelOutcome,
+  CancelTarget,
   ConfirmOutcome,
   EventRegistrationRecord,
   EventRegistrationRepository,
   NewEventRegistration,
   RegisterOutcome,
 } from "@/application/ports/event-registration-repository.port";
-import { isConfirmationExpired, registrationRefusal, type RegistrationMode } from "@/domain/event-registration";
+import { cancellationRefusal, isConfirmationExpired, registrationRefusal, type RegistrationMode } from "@/domain/event-registration";
 
 import { prisma } from "../prisma/client";
 import { toDomain } from "./event.mapper";
@@ -122,6 +124,27 @@ export class EventRegistrationPrismaRepository implements EventRegistrationRepos
       }
 
       return { status: "confirmed", registration: toRecord(await tx.eventRegistration.update({ where: { id }, data: { confirmedAt: now } })) } as const;
+    });
+  }
+
+  /** Same lock as `register` and `confirm`: the delete and the seat count of whoever registers next are one order, never interleaved. */
+  async cancel(eventId: string, who: CancelTarget, now: Date): Promise<CancelOutcome> {
+    return prisma.$transaction(async (tx) => {
+      const event = await lockEvent(tx, eventId);
+
+      if (!event) {
+        return { status: "not_found" } as const;
+      }
+
+      const refusal = cancellationRefusal({ event, now });
+
+      if (refusal) {
+        return { status: refusal } as const;
+      }
+
+      const { count } = await tx.eventRegistration.deleteMany({ where: { eventId, ...("id" in who ? { id: who.id } : { email: who.email }) } });
+
+      return { status: count > 0 ? "cancelled" : "not_registered" } as const;
     });
   }
 

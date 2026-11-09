@@ -2,6 +2,7 @@ import type { RegistrationRefusal } from "@/domain/event-registration";
 import { parseOpenRegistration } from "@/domain/event-registration";
 import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { mailConfigProblems } from "@/infrastructure/mail/mail-config";
+import { sealRegistrationCancelToken } from "@/infrastructure/registration/registration-cancel-token";
 import { sealRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
 import { getMailSender } from "@/interface/mail/mail-container";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
@@ -55,7 +56,13 @@ export async function requestOpenRegistration({ slug, form, now = new Date(), en
   }
 
   const token = await sealRegistrationConfirmToken({ registrationId: outcome.registration.id, eventId: outcome.registration.eventId, nonce }, now);
-  const message = confirmationEmail({ event, confirmUrl: `${origin}/inscripciones/${event.slug}/confirmar?token=${token}` });
+  // A second link, for the person to let the registration go later (D7): its own purpose, so it never confirms.
+  const cancelToken = await sealRegistrationCancelToken({ registrationId: outcome.registration.id, eventId: outcome.registration.eventId }, now);
+  const message = confirmationEmail({
+    event,
+    confirmUrl: `${origin}/inscripciones/${event.slug}/confirmar?token=${token}`,
+    cancelUrl: `${origin}/inscripciones/${event.slug}/cancelar?token=${cancelToken}`,
+  });
   const sent = await mailer.send({ to: email, ...message }, now);
 
   return sent.status === "sent" ? { status: "check_email" } : { status: sent.status === "budget_exhausted" ? "email_budget" : "email_unavailable" };

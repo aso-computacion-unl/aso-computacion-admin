@@ -130,7 +130,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 - **Signed out**: "Entre con su correo @unl.edu.ec para reservar su cupo." and "Entrar con Google" (→ F3 with `next=/inscripciones/<slug>`, back to the page). After a failed sign-in the page shows the reason above the button, in registration words ("El acceso no está disponible ahora…", "No se pudo completar el acceso con Google…", "Esa cuenta no puede entrar. Use su correo institucional @unl.edu.ec.", "No pudimos verificar su cuenta con Google…"), and the button reads "Intentar de nuevo".
 - **Google login not configured** (S8): instead of the sign-in, "La inscripción con cuenta UNL no está disponible en este momento. Inténtelo de nuevo más tarde." (a full or closed event still says so first; someone already signed in can still reserve).
 - **Signed in**: "Se reservará a nombre de <nombre>" and "Reservar mi cupo". No form: name and email come from the forum account. The seat is taken at once.
-- **Expected**: "Usted ya está inscrito en este evento." and the `.ics`, plus a line on whether a reminder will be emailed.
+- **Expected**: "Usted ya está inscrito en este evento." and the `.ics`, plus a line on whether a reminder will be emailed and, while registration is open, «Cancelar mi inscripción» (R11, D7).
 - **Errors**:
 
 | Case | Message |
@@ -160,7 +160,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 
 - **Mode**: `open`. **Entry**: `/inscripciones/<slug>`, no session.
 - **Steps**: name, email, institution, career (optional), semester 1-12 (optional), Turnstile when configured, send.
-- **Expected**: "Revise su correo": the registration is **pending** and takes no seat; the email link is valid 48 h and is the only one that works (D9); mentions the spam folder.
+- **Expected**: "Revise su correo": the registration is **pending** and takes no seat; the email link is valid 48 h and is the only one that works (D9); mentions the spam folder. The email carries a second link, for cancelling the registration later (R11, D7).
 - **Checked in the browser before sending**: "Escriba su nombre.", "Escriba su correo.", "Escriba su institución.", "Revise su correo: no parece una dirección válida.", plus length and invalid-character messages.
 - **Server answers**:
 
@@ -203,7 +203,8 @@ A published event has one registration mode: `none`, `unl` (students, with their
 - **Actor**: the daily cron. **When**: events with an exact day 1 to 3 days ahead (Ecuador time), mode `unl` or `open`.
 - **Expected**: one email per confirmed person, nearest events first, never twice. A failed send is retried the next day. Stops early on budget, time, 3 provider failures in a row, or missing configuration.
 - **Budget (D12)**: reminders use at most 70 % of the day's mail cap (`REMINDER_SHARE_OF_DAILY_MAIL`, rounded down: 280 of 400). Mail already sent that day, confirmations included, counts against that share, so the cron can never spend the last 30 %, which stays for confirmation emails; confirmations may still use whatever is left of the whole cap. What does not fit goes out the next day (`stoppedBy: "budget"`).
-- People who register less than a day before get no reminder (D13). There is no way to cancel from the email (D7).
+- Each reminder carries the link that cancels that person's registration (R11, D7), signed for them alone. Without a usable `REGISTRATION_CONFIRM_SECRET` the reminder still goes out, saying there is nothing to do.
+- People who register less than a day before get no reminder (D13).
 
 ### R7. Old registration data is deleted
 
@@ -229,6 +230,26 @@ A published event has one registration mode: `none`, `unl` (students, with their
 
 - `GET /api/public/events/seats`: public, no personal data; `closed` wins over `full`.
 
+### R11. A registered person cancels (D7)
+
+- **Actor**: anyone registered, pending or confirmed. **Two ways in**, one rule: the registration is **deleted** (its data goes) and the seat is free at once.
+- **By the email link** (open form; also the reminders, UNL registrants included): the confirmation email and every reminder carry `/inscripciones/<slug>/cancelar?token=…`, valid one year, signed for that registration alone. Opening it never cancels (mail scanners open links): the page shows the event and «Cancelar mi inscripción». After the click: "Su inscripción quedó cancelada" ("Liberamos su cupo y borramos sus datos de este evento…") with a link back to the event.
+- **From the event page, as a signed-in UNL student** (R2): «Cancelar mi inscripción» asks first ("Se liberará su cupo y se borrarán sus datos de este evento…", «Sí, cancelar mi inscripción» / «No, conservarla»). Confirming shows the page again with «Reservar mi cupo» and the seat free. The registration deleted is the one of the signed-in member's own institutional address, never one named by the caller; a member who is not registered hears "Usted no tiene una inscripción en este evento.".
+- **When it is refused** (every refusal leaves the rows and the seats as they were):
+
+| Case | Message |
+| --- | --- |
+| Already cancelled (link used twice, or the row is gone) | "Su inscripción ya estaba cancelada" · "No necesita hacer nada más." |
+| Registration closed (deadline or event day passed) | "Las inscripciones de este evento ya cerraron" · "…escriba a la directiva de ASO." The page shows this instead of the button; the event page shows the same note instead of «Cancelar mi inscripción» |
+| Link older than a year | "Este enlace venció" · "…escriba a la directiva de ASO." |
+| Tampered, forged, a confirmation link, or another event's | "Este enlace no sirve" |
+| Event unpublished or trashed | "Este evento ya no está disponible" (a bad token on an unknown event stays a 404) |
+| Too many attempts / service unavailable / network failure | the same retry messages as the confirm page |
+| UNL session expired | "Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para cancelar su inscripción." |
+| UNL account not allowed or suspended | "Su cuenta no puede cancelar cupos. Use su cuenta institucional @unl.edu.ec." |
+
+- **Not asked of anyone**: no form takes an email, so nobody can find out whether an address is registered. The cancel link never confirms, and the confirm link never cancels. Neither the event's mode nor a full house stops a cancellation; a deleted registration can register again while seats remain.
+
 ## Decisions
 
 Taken with the product owner on 2026-11-09. The journeys above describe today's behaviour; where a row below applies, **the row is the specification** and wins over the journey text. Each journey is rewritten to the decided behaviour when its change lands, and the e2e tests check the decided behaviour.
@@ -241,7 +262,7 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | D4 | F5 | Visible placeholder | **Built** (`e2e/forum-ux.spec.ts`). A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
 | D5 | F6, F7, R2 | Keep text, return, own wording | **Built** (forum: F6, F7, `e2e/forum-ux.spec.ts`; registrations: R2, `e2e/audit-registration.spec.ts`, unit tests of the action, the event page and the sign-in return): an expired session keeps the typed text and the sign-in link returns to the same page, and the saved text is given back only to the member who typed it (a different member in the same tab finds the form empty); the registration screens use registration wording, never "participar en el foro", and a failed sign-in that began on an event's page comes back to it |
 | D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
-| D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
+| D7 | R2, R4, R6, R11 | Build cancellation now | **Built** (`e2e/registration-cancel.spec.ts`; unit tests `cancel-registration.test.ts`, `public-event-registration-cancel-post.test.ts`, `registration-cancel-token.test.ts`). A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students. Cancelling deletes the registration (no migration), atomically with the seat count; the link is a signed token with its own purpose (`registration-cancel`) that never confirms; closed registrations refuse and say to write to the board |
 | D8 | F4, R3 | Forum and registrations are separate sections | **Built** (`e2e/audit-registration.spec.ts`, `e2e/forum-member.spec.ts`, `e2e/event-page.spec.ts`). The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |
 | D9 | R4 | Only the latest link works | **Built** (`e2e/registration-rules.spec.ts`). Registering again while pending makes the previous link answer "Este enlace no sirve". The link names the attempt (a `nce` nonce signed into the token and stored in `EventRegistration.confirmNonce`); the same email registering again replaces it. Migration `20261109120000_registration_confirm_nonce` (one nullable column) |
 | D10 | R4 | Accept | "Ya hay una inscripción con ese correo…" stays |

@@ -4,6 +4,7 @@ import { confirmationEmail, eventWhen, reminderEmail, type EmailEvent } from "@/
 
 const EVENT: EmailEvent = { slug: "taller-de-git", title: "Taller de Git", date: "2026-11-28", datePrecision: "day", hora: "09:00 - 11:00", lugar: "Laboratorio 2" };
 const LINK = "https://admin.example.org/inscripciones/taller-de-git/confirmar?token=abc.def.ghi";
+const CANCEL_LINK = "https://admin.example.org/inscripciones/taller-de-git/cancelar?token=jkl.mno.pqr";
 
 describe("eventWhen", () => {
   it("writes the day in full Spanish with the time as the event says it", () => {
@@ -19,7 +20,7 @@ describe("eventWhen", () => {
 });
 
 describe("confirmationEmail", () => {
-  const mail = confirmationEmail({ event: EVENT, confirmUrl: LINK });
+  const mail = confirmationEmail({ event: EVENT, confirmUrl: LINK, cancelUrl: CANCEL_LINK });
 
   it("names the event in the subject and carries the link once, in text and in HTML", () => {
     expect(mail.subject).toBe("Confirme su cupo en «Taller de Git»");
@@ -36,13 +37,21 @@ describe("confirmationEmail", () => {
     expect(mail.text).toMatch(/si usted no (pidió|solicitó)/i);
   });
 
+  it("carries the cancellation link once, in text and in HTML, apart from the confirmation one (D7)", () => {
+    expect(mail.text.split(CANCEL_LINK)).toHaveLength(2);
+    expect(mail.html?.split(`href="${CANCEL_LINK}"`)).toHaveLength(2);
+    expect(mail.text).toMatch(/no puede asistir|cancel/i);
+    expect(mail.text.indexOf(CANCEL_LINK)).toBeGreaterThan(mail.text.indexOf(LINK));
+    expect(mail.text.split(LINK)).toHaveLength(2);
+  });
+
   it("speaks to the reader as usted, never tú", () => {
-    expect(mail.text).not.toMatch(/\b(tu|tus|tú|revisa|guarda|ignora|haz|pulsa)\b/i);
+    expect(mail.text).not.toMatch(/\b(tu|tus|tú|revisa|guarda|ignora|haz|pulsa|cancela)\b/i);
     expect(mail.text).toMatch(/\busted\b/i);
   });
 
   it("escapes the event's text in the HTML and leaves out the place when there is none", () => {
-    const tricky = confirmationEmail({ event: { ...EVENT, title: "<b>Git</b> & \"co\"", lugar: null }, confirmUrl: LINK });
+    const tricky = confirmationEmail({ event: { ...EVENT, title: "<b>Git</b> & \"co\"", lugar: null }, confirmUrl: LINK, cancelUrl: CANCEL_LINK });
 
     expect(tricky.html).toContain("&lt;b&gt;Git&lt;/b&gt; &amp; &quot;co&quot;");
     expect(tricky.html).not.toContain("<b>Git</b>");
@@ -73,7 +82,22 @@ describe("reminderEmail", () => {
   it("speaks as usted, says why it was sent, and asks nothing of the reader", () => {
     expect(mail.text).toMatch(/\busted\b/i);
     expect(mail.text).toMatch(/inscrit[oa]/);
-    expect(mail.text).not.toMatch(/\b(tu|tus|tú|revisa|guarda|ignora|haz|pulsa)\b/i);
+    expect(mail.text).not.toMatch(/\b(tu|tus|tú|revisa|guarda|ignora|haz|pulsa|cancela)\b/i);
+  });
+
+  it("offers the way to let the seat go when it has a cancellation link (D7), once, in text and in HTML, and no longer says there is nothing to do", () => {
+    const withCancel = reminderEmail({ event: EVENT, eventUrl: EVENT_URL, calendarUrl: CALENDAR_URL, cancelUrl: CANCEL_LINK });
+
+    expect(withCancel.text.split(CANCEL_LINK)).toHaveLength(2);
+    expect(withCancel.html?.split(`href="${CANCEL_LINK}"`)).toHaveLength(2);
+    expect(withCancel.text).toMatch(/no puede asistir/i);
+    expect(withCancel.text).not.toContain("no necesita hacer nada más");
+    expect(withCancel.text).not.toMatch(/\b(tu|tus|tú|revisa|guarda|ignora|haz|pulsa|cancela)\b/i);
+  });
+
+  it("without a cancellation link it keeps saying there is nothing to do", () => {
+    expect(mail.text).not.toContain("cancelar");
+    expect(mail.text).toContain("no necesita hacer nada más");
   });
 
   it("leaves the calendar line out when there is no calendar file, and the place when there is none", () => {

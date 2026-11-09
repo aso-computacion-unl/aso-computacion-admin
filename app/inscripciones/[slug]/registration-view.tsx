@@ -6,6 +6,7 @@ import type { ForumLoginErrorCode } from "@/interface/forum/forum-login-errors";
 import { LOGIN_PROBLEM_MESSAGES, registrationSignInHref } from "../_components/login-problems";
 import { PassGoogleButton } from "../_components/pass-google-button";
 import { CalendarLink, StubDone } from "../_components/ticket-parts";
+import { CancelOwnRegistration } from "./cancel-own-registration";
 import { EventTicket } from "./event-ticket";
 import { OpenRegistrationForm } from "./open-registration-form";
 import { RegisterButton } from "./register-button";
@@ -73,15 +74,23 @@ export function RegistrationView({ page, slug, problem }: RegistrationViewProps)
   return (
     <EventTicket event={status.event} mode="unl" registration={status}>
       {status.alreadyRegistered ? (
-        <StubDone title="Usted ya está inscrito en este evento." calendarHref={page.calendarHref}>
-          {page.remindersOn ? (
-            <>No necesita hacer nada más. Guarde la fecha y el lugar: unos días antes del evento le enviaremos un recordatorio a su correo.</>
-          ) : (
-            <>
-              No necesita hacer nada más. Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
-            </>
-          )}
-        </StubDone>
+        <>
+          <StubDone title="Usted ya está inscrito en este evento." calendarHref={page.calendarHref}>
+            {page.remindersOn ? (
+              <>No necesita hacer nada más. Guarde la fecha y el lugar: unos días antes del evento le enviaremos un recordatorio a su correo.</>
+            ) : (
+              <>
+                No necesita hacer nada más. Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
+              </>
+            )}
+            {status.state === "closed" ? (
+              <> Las inscripciones ya cerraron: si no podrá asistir, escriba a la directiva de ASO.</>
+            ) : (
+              <> Si no podrá asistir, cancele su inscripción para liberar su cupo.</>
+            )}
+          </StubDone>
+          {status.state === "closed" ? null : <CancelOwnRegistration slug={slug} signInHref={loginAvailable ? signIn : null} />}
+        </>
       ) : status.state !== "open" ? (
         <p role="status" className="stub-closed">
           {CLOSED_MESSAGES[status.state]}

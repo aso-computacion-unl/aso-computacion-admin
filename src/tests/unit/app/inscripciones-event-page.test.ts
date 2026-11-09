@@ -7,6 +7,7 @@ const { pageMock } = vi.hoisted(() => ({ pageMock: vi.fn() }));
 
 vi.mock("@/interface/forum/event-registration-read", () => ({ getEventRegistrationPage: pageMock }));
 vi.mock("@/interface/forum/event-registration", () => ({ registerForEvent: vi.fn() }));
+vi.mock("@/interface/event-registration/cancel-registration-action", () => ({ cancelEventRegistration: vi.fn() }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -183,6 +184,27 @@ describe("the event registration page", () => {
 
     expect(off).toContain("no enviamos correo de confirmación");
     expect(off).not.toContain("le enviaremos un recordatorio");
+  });
+
+  it("D7: offers a registered member the way to cancel (a full event included: that is what frees the seat), and nobody else", async () => {
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true }));
+    expect(await render()).toContain("Cancelar mi inscripción");
+
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true, state: "full" }));
+    expect(await render()).toContain("Cancelar mi inscripción");
+
+    // Once registration closed the server would refuse: the page does not offer it, and says who to write to.
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true, state: "closed" }));
+
+    const closed = await render();
+
+    expect(closed).not.toContain("Cancelar mi inscripción");
+    expect(closed).toContain("directiva de ASO");
+
+    for (const other of [unl(member), unl(null), unl(member, { state: "full" }), unl(null, { state: "closed" }), open(), none()]) {
+      pageMock.mockResolvedValue(other);
+      expect(await render()).not.toContain("Cancelar mi inscripción");
+    }
   });
 
   it("says so when the member is already registered, with the calendar, or when the seats are gone", async () => {

@@ -1,4 +1,4 @@
-import type { RegistrationMode, RegistrationRefusal } from "@/domain/event-registration";
+import type { CancellationRefusal, RegistrationMode, RegistrationRefusal } from "@/domain/event-registration";
 
 /** One stored registration: personal data, so only what the way of registering needs. */
 export interface EventRegistrationRecord {
@@ -39,6 +39,16 @@ export type ConfirmOutcome =
   | { status: "invalid" | "expired" }
   | { status: Exclude<RegistrationRefusal, "duplicate"> };
 
+/**
+ * Cancelling a registration (D7). `cancelled`: the row is gone and its seat is free. `not_registered`: there was none (it was
+ * already cancelled, deleted by staff or purged). A refusal (`not_found`: the event is not public or is in the trash;
+ * `closed`) changes nothing.
+ */
+export type CancelOutcome = { status: "cancelled" | "not_registered" } | { status: CancellationRefusal };
+
+/** Whose registration to cancel: the one a signed link names, or the one of a verified email (a signed-in UNL member). */
+export type CancelTarget = { id: string } | { email: string };
+
 /** Persistence port for event registrations. Implemented by the Prisma adapter and by an in-memory fake. */
 export interface EventRegistrationRepository {
   /**
@@ -55,6 +65,12 @@ export interface EventRegistrationRepository {
    * an earlier attempt is `invalid` and changes nothing.
    */
   confirm(eventId: string, id: string, now: Date, nonce?: string | null): Promise<ConfirmOutcome>;
+  /**
+   * Deletes the registration `who` names, if `cancellationRefusal` allows it, under the same per-event lock as `register`
+   * and `confirm`: the freed seat is seen by whoever registers next, never half-freed. Pending rows go too (they hold no
+   * seat, only personal data). A refusal or a missing row changes nothing.
+   */
+  cancel(eventId: string, who: CancelTarget, now: Date): Promise<CancelOutcome>;
   /** Confirmed registrations only, oldest first. */
   list(eventId: string): Promise<EventRegistrationRecord[]>;
   /** Confirmed registrations only. */

@@ -58,8 +58,11 @@ export function emailHtml(paragraphs: string[]): string {
 
 export { escapeHtml };
 
-/** The email that carries the link which reserves the seat. */
-export function confirmationEmail({ event, confirmUrl }: { event: EmailEvent; confirmUrl: string }): EmailBody {
+/** The line that offers the cancellation link (D7): what it does, so a person who cannot come lets the seat go. */
+const CANCEL_LINE = "Si más adelante no puede asistir, cancele su inscripción y libere su cupo en este enlace:";
+
+/** The email that carries the link which reserves the seat, and the one that cancels the registration (D7). */
+export function confirmationEmail({ event, confirmUrl, cancelUrl }: { event: EmailEvent; confirmUrl: string; cancelUrl: string }): EmailBody {
   const text = [
     "Hola:",
     "",
@@ -73,9 +76,13 @@ export function confirmationEmail({ event, confirmUrl }: { event: EmailEvent; co
     "El cupo solo cuenta cuando usted confirma. Si el evento se llena o cierra antes, el enlace se lo dirá.",
     "Si usted no pidió esta inscripción, ignore este mensaje: no se reservará nada.",
     "",
+    CANCEL_LINE,
+    cancelUrl,
+    "",
     SIGNATURE,
   ].join("\n");
   const href = escapeHtml(confirmUrl);
+  const cancelHref = escapeHtml(cancelUrl);
 
   return {
     subject: `Confirme su cupo en «${event.title}»`,
@@ -87,12 +94,17 @@ export function confirmationEmail({ event, confirmUrl }: { event: EmailEvent; co
       `<p>Para reservar su cupo, confirme su correo en este enlace (vale 48 horas):<br><a href="${href}">${href}</a></p>`,
       "<p>El cupo solo cuenta cuando usted confirma. Si el evento se llena o cierra antes, el enlace se lo dirá.</p>",
       "<p>Si usted no pidió esta inscripción, ignore este mensaje: no se reservará nada.</p>",
+      `<p>${CANCEL_LINE}<br><a href="${cancelHref}">${cancelHref}</a></p>`,
     ]),
   };
 }
 
-/** The reminder a few days before the event: what, when and where, the event page and, when there is one, the calendar file. */
-export function reminderEmail({ event, eventUrl, calendarUrl }: { event: EmailEvent; eventUrl: string; calendarUrl: string | null }): EmailBody {
+/**
+ * The reminder a few days before the event: what, when and where, the event page and, when there is one, the calendar
+ * file and the link that cancels this person's registration (D7). Without that link (the signing secret is missing) it
+ * says what it always did: nothing to do.
+ */
+export function reminderEmail({ event, eventUrl, calendarUrl, cancelUrl = null }: { event: EmailEvent; eventUrl: string; calendarUrl: string | null; cancelUrl?: string | null }): EmailBody {
   const text = [
     "Hola:",
     "",
@@ -103,7 +115,7 @@ export function reminderEmail({ event, eventUrl, calendarUrl }: { event: EmailEv
     `Detalles del evento: ${eventUrl}`,
     ...(calendarUrl ? [`Añadir al calendario: ${calendarUrl}`] : []),
     "",
-    "Si ya no puede asistir, no necesita hacer nada más.",
+    ...(cancelUrl ? ["Si ya no puede asistir, cancele su inscripción y libere su cupo en este enlace:", cancelUrl] : ["Si ya no puede asistir, no necesita hacer nada más."]),
     "",
     SIGNATURE,
   ].join("\n");
@@ -117,7 +129,9 @@ export function reminderEmail({ event, eventUrl, calendarUrl }: { event: EmailEv
       "<p>Le recordamos que usted está inscrito en el siguiente evento.</p>",
       eventFactsHtml(event),
       `<p>Detalles del evento: ${link(eventUrl)}${calendarUrl ? `<br>Añadir al calendario: ${link(calendarUrl)}` : ""}</p>`,
-      "<p>Si ya no puede asistir, no necesita hacer nada más.</p>",
+      cancelUrl
+        ? `<p>Si ya no puede asistir, cancele su inscripción y libere su cupo en este enlace:<br>${link(cancelUrl)}</p>`
+        : "<p>Si ya no puede asistir, no necesita hacer nada más.</p>",
     ]),
   };
 }

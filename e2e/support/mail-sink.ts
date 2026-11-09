@@ -138,3 +138,14 @@ export function confirmationLink(mail: ReceivedMail): string {
 
   return `${url.pathname}${url.search}`;
 }
+
+/** The cancellation link an email carries (`/inscripciones/<slug>/cancelar?token=…`), as the path a browser opens on the app. */
+export function cancellationLink(mail: ReceivedMail): string {
+  const match = /https?:\/\/[^\s"'<>]+\/inscripciones\/[^\s"'<>/]+\/cancelar\?token=[^\s"'<>]+/.exec(mail.text);
+
+  if (!match) throw new Error(`No cancellation link in the mail "${mail.subject}".`);
+
+  const url = new URL(match[0]);
+
+  return `${url.pathname}${url.search}`;
+}

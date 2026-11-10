@@ -1,0 +1,69 @@
+name: Migrate production database
+
+# Applies the committed Prisma migrations to the production database, so nobody has to copy the
+# Neon connection string by hand for every migration. See docs/DEPLOY.md, section 1.
+#
+# - On a push to main that touches prisma/migrations/, it runs on its own.
+# - Run it by hand (Actions > Migrate production database > Run workflow, "Use workflow from: main")
+#   with the branch of a pull request in `ref` to apply that branch's migrations BEFORE merging it:
+#   Vercel deploys main as soon as the merge lands, and the new code must find its tables there.
+#
+# The connection string lives only in the `production-db` environment, as MIGRATE_DATABASE_URL
+# (the DIRECT Neon string, no `-pooler`). Pull requests never reach it: there is no pull_request
+# trigger here, and the environment only accepts runs started from main, so this file cannot be
+# swapped by a branch.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "prisma/migrations/**"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit whose migrations to apply (empty: main)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+# One migration run at a time, and never cancel one halfway.
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production-db
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check the connection string
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::MIGRATE_DATABASE_URL is not set in the production-db environment (docs/DEPLOY.md, section 1)."
+            exit 1
+          fi
+          case "$DATABASE_URL" in
+            *-pooler.*)
+              echo "::error::MIGRATE_DATABASE_URL is the pooled string. Migrations need the direct one (host without -pooler)."
+              exit 1
+              ;;
+          esac
+      # Applies pending migrations and nothing else; with none pending it is a no-op.
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+        run: npx --no-install prisma migrate deploy

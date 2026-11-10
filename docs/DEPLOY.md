@@ -16,7 +16,15 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
    DATABASE_URL='<direct connection string>' npx prisma migrate deploy
    ```
 
-   `migrate deploy` applies the committed migrations in `prisma/migrations/` and nothing else; it never resets or generates anything. Run it again after every deploy that adds a migration. It is deliberately **not** part of the Vercel build command: a build would run it through the pooler, where Prisma's migration lock can fail.
+   `migrate deploy` applies the committed migrations in `prisma/migrations/` and nothing else; it never resets or generates anything. It is deliberately **not** part of the Vercel build command: a build would run it through the pooler, where Prisma's migration lock can fail.
+
+4. Later migrations do not need the string copied again. The `Migrate production database` workflow (`.github/workflows/migrate.yml`) runs the same command with the direct string stored once in GitHub:
+
+   - One-time setup: in the repository's **Settings → Environments → `production-db`** (deployment branches limited to `main`), add the secret `MIGRATE_DATABASE_URL` with the **direct** string. From a terminal: `gh secret set MIGRATE_DATABASE_URL --env production-db` and paste it when asked. Update it there if the Neon password is ever rotated.
+   - **Before merging** a pull request that adds a migration: **Actions → Migrate production database → Run workflow**, leave "Use workflow from" on `main`, and type the pull request's branch in `ref`. Vercel deploys `main` the moment the merge lands, so the tables have to be there first; this is why migrations stay additive.
+   - A push to `main` that touches `prisma/migrations/` runs it again on its own. After the manual run that is a no-op; it is the safety net for a merge that skipped it.
+
+   The workflow refuses an empty or pooled string, and never runs for pull requests.
 
 The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login throttle) uses plain transactions and holds no session state, so it fits PgBouncer's transaction mode on paper. It has only been run against a local Postgres, never against Neon (and never through `@prisma/adapter-pg` there, the driver adapter introduced with Prisma 7): check the first login and the first photo upload after deploying. The runtime pool is the `pg` default of 10 connections per instance with a 5 second connection timeout; both are set in `src/infrastructure/prisma/client.ts`.
 

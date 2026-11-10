@@ -4,26 +4,22 @@ name: Migrate production database
 # Neon connection string by hand for every migration. See docs/DEPLOY.md, section 1.
 #
 # - On a push to main that touches prisma/migrations/, it runs on its own.
-# - Run it by hand (Actions > Migrate production database > Run workflow, "Use workflow from: main")
-#   with the branch of a pull request in `ref` to apply that branch's migrations BEFORE merging it:
-#   Vercel deploys main as soon as the merge lands, and the new code must find its tables there.
+# - Run it by hand (Actions > Migrate production database > Run workflow) to apply again what is
+#   on main, for instance after fixing the secret.
+#
+# It only ever checks out main: whatever runs with the connection string (the lockfile, the Prisma
+# config, the SQL) has been merged, never a pull request branch. So a migration is merged in its
+# own pull request first; once this has applied it, the code that needs it is merged.
 #
 # The connection string lives only in the `production-db` environment, as MIGRATE_DATABASE_URL
-# (the DIRECT Neon string, no `-pooler`). Pull requests never reach it: there is no pull_request
-# trigger here, and the environment only accepts runs started from main, so this file cannot be
-# swapped by a branch.
+# (the DIRECT Neon string, no `-pooler`). That environment accepts runs from main only, so a
+# branch cannot swap this file to reach it.
 on:
   push:
     branches: [main]
     paths:
       - "prisma/migrations/**"
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Branch, tag or commit whose migrations to apply (empty: main)"
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
@@ -41,7 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

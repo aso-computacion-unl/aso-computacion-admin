@@ -21,8 +21,8 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
 4. Later migrations do not need the string copied again. The `Migrate production database` workflow (`.github/workflows/migrate.yml`) runs the same command with the direct string stored once in GitHub:
 
    - One-time setup: in the repository's **Settings → Environments → `production-db`** (deployment branches limited to `main`), add the secret `MIGRATE_DATABASE_URL` with the **direct** string. From a terminal: `gh secret set MIGRATE_DATABASE_URL --env production-db` and paste it when asked. Update it there if the Neon password is ever rotated.
-   - **Before merging** a pull request that adds a migration: **Actions → Migrate production database → Run workflow**, leave "Use workflow from" on `main`, and type the pull request's branch in `ref`. Vercel deploys `main` the moment the merge lands, so the tables have to be there first; this is why migrations stay additive.
-   - A push to `main` that touches `prisma/migrations/` runs it again on its own. After the manual run that is a no-op; it is the safety net for a merge that skipped it.
+   - It runs on its own on every push to `main` that touches `prisma/migrations/`, and only ever with what is on `main`: a pull request branch never runs with the production string.
+   - Vercel deploys `main` the moment a merge lands, so the tables have to be there first. Merge the migration **in its own pull request** (only `prisma/migrations/`; migrations stay additive, so the running code ignores it), wait for the workflow to finish, then merge the code that needs it.
 
    The workflow refuses an empty or pooled string, and never runs for pull requests.
 

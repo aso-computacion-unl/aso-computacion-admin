@@ -298,15 +298,15 @@ describe("POST /api/public/events/[slug]/registrations/cancel", () => {
     expect(rows()).toHaveLength(1);
   });
 
-  it("answers invalid, deleting nothing, while the link secret is not usable (nothing can be verified)", async () => {
+  it("S3: answers 503 unavailable, deleting nothing, while the link secret is not usable (the link is not the problem)", async () => {
     const ana = await registered();
 
     vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "");
 
     const response = await post({ token: ana.token });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
     expect(rows()).toHaveLength(1);
   });
 });

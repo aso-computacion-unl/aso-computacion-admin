@@ -502,7 +502,7 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: rate_limited }
         "503":
-          description: Fallo interno (`unavailable`).
+          description: Fallo interno, o `REGISTRATION_CONFIRM_SECRET` no utilizable y ningún enlace se puede comprobar (`unavailable`).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }
@@ -597,7 +597,7 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: rate_limited }
         "503":
-          description: Fallo interno (`unavailable`).
+          description: Fallo interno, o `REGISTRATION_CONFIRM_SECRET` no utilizable y ningún enlace se puede comprobar (`unavailable`).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }

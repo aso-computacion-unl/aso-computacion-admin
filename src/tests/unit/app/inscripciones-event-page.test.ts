@@ -25,7 +25,7 @@ const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", st
 const unl = (member: unknown, over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "unl", member, loginAvailable: true, remindersOn: false, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over), ...extra });
 const open = (over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "open", siteKey: undefined, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status({ mode: "open", ...over }), ...extra });
 const none = (extra: Record<string, unknown> = {}) => ({ kind: "none", event, calendarHref: "/api/public/events/taller-docker/calendar.ics", ...extra });
-const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
+const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez", email: "ana.perez@unl.edu.ec" };
 
 const render = async (query: { error?: string | string[] } = {}) =>
   renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }), searchParams: Promise.resolve(query) }));
@@ -158,17 +158,31 @@ describe("the event registration page", () => {
     expect(html).not.toContain("ticket-meter");
   });
 
-  it("offers the one-click reservation to a signed-in member, who sees their name and no sign-in", async () => {
+  it("offers the one-click reservation to a signed-in member, who sees their email and no sign-in", async () => {
     pageMock.mockResolvedValue(unl(member));
 
     const html = await render();
     const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
 
-    expect(stub).toContain("Ana Pérez");
+    expect(stub).toContain("ana.perez@unl.edu.ec");
     expect(stub).toMatch(/<button[^>]*class="ticket-cta"[^>]*>Reservar mi cupo/);
     expect(html).not.toContain("Inscribirme");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("<form");
+  });
+
+  it("S1: names the signed-in account in the stub by its email, and by the public name only when the email could not be read", async () => {
+    pageMock.mockResolvedValue(unl(member));
+
+    let stub = (await render()).match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+    expect(stub).toMatch(/Se reservará para <strong>ana\.perez@unl\.edu\.ec<\/strong>/);
+    expect(stub).not.toContain("Ana Pérez");
+
+    pageMock.mockResolvedValue(unl({ ...member, email: null }));
+    stub = (await render()).match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+    expect(stub).toMatch(/Se reservará a nombre de <strong>Ana Pérez<\/strong>/);
   });
 
   it("promises a reminder by email to a registered member only when reminders are on, and says there is no confirmation email otherwise", async () => {

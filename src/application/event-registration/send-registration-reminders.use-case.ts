@@ -70,7 +70,16 @@ export class SendRegistrationRemindersUseCase {
         if (remaining <= 0) return { ...result, stoppedBy: "budget" };
         if (shouldStop()) return { ...result, stoppedBy: "time" };
 
-        const message = await this.buildMessage(event, person);
+        let message: ReminderMessage;
+
+        try {
+          message = await this.buildMessage(event, person);
+        } catch {
+          // Not the provider's fault (a link that cannot be signed): this one stays due, the others still go out.
+          result.failed += 1;
+          continue;
+        }
+
         const sent = await this.mailer.send({ to: person.email, ...message }, now);
 
         if (sent.status === "sent") {

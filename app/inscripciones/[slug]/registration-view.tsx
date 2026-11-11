@@ -100,7 +100,15 @@ export function RegistrationView({ page, slug, problem }: RegistrationViewProps)
           <div>
             <p className="stub-legend">Entrada</p>
             <p className="stub-line">
-              Se reservará a nombre de <strong>{member.displayName}</strong>
+              {member.email ? (
+                <>
+                  Se reservará para <strong>{member.email}</strong>
+                </>
+              ) : (
+                <>
+                  Se reservará a nombre de <strong>{member.displayName}</strong>
+                </>
+              )}
             </p>
             <p className="stub-text">Con su cuenta institucional. Solo se guardan su nombre y su correo.</p>
           </div>

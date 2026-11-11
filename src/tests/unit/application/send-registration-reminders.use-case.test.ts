@@ -251,6 +251,21 @@ describe("SendRegistrationRemindersUseCase", () => {
     expect(result).toMatchObject({ sent: REMINDER_MAX_CONSECUTIVE_FAILURES, failed: REMINDER_MAX_CONSECUTIVE_FAILURES, stoppedBy: "done" });
   });
 
+  it("S5: a message that cannot be built (its link fails to sign) counts as failed and stays due; the run goes on with the others", async () => {
+    const event = await addEvent(day(1));
+    const emails = addPeople(event.id, 3);
+    const broken = registrations.all().find((row) => row.email === emails[0])!.id;
+    const throwing = new SendRegistrationRemindersUseCase(events, registrations, new BudgetedMailSender(transport, budget, 400), (built, person) => {
+      if (person.id === broken) throw new Error("REGISTRATION_CONFIRM_SECRET must be defined");
+
+      return build(built);
+    });
+
+    expect(await throwing.execute({ now: NOW })).toEqual({ sent: 2, failed: 1, events: 1, stoppedBy: "done" });
+    expect(remindedEmails()).toEqual([emails[1]!, emails[2]!].sort());
+    expect(delivered()).not.toContain(emails[0]);
+  });
+
   it("sends nothing and marks nothing while mail is not configured", async () => {
     const event = await addEvent(day(1));
 

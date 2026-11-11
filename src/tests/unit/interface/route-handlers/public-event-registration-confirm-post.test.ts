@@ -270,15 +270,15 @@ describe("POST /api/public/events/[slug]/registrations/confirm", () => {
     expect(JSON.stringify(reportErrorMock.mock.calls)).not.toContain("secret");
   });
 
-  it("answers invalid, taking no seat, while the confirmation secret is not usable (nothing can be verified)", async () => {
+  it("S3: answers 503 unavailable, taking no seat, while the confirmation secret is not usable (the link is not the problem)", async () => {
     const { token } = await pending();
 
     vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "");
 
     const response = await post({ token });
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
     expect(rows()[0]!.confirmedAt).toBeNull();
   });
 });

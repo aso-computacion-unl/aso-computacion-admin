@@ -159,7 +159,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 
 - **Mode**: `open`. **Entry**: `/inscripciones/<slug>`, no session.
 - **Steps**: name, email, institution, career (optional), semester 1-12 (optional), Turnstile when configured, send.
-- **Expected**: "Revise su correo": the registration is **pending** and takes no seat; the email link is valid 48 h; mentions the spam folder.
+- **Expected**: "Revise su correo": the registration is **pending** and takes no seat; the email link is valid 48 h and is the only one that works (D9); mentions the spam folder.
 - **Checked in the browser before sending**: "Escriba su nombre.", "Escriba su correo.", "Escriba su institución.", "Revise su correo: no parece una dirección válida.", plus length and invalid-character messages.
 - **Server answers**:
 
@@ -170,11 +170,11 @@ A published event has one registration mode: `none`, `unl` (students, with their
 | Turnstile unavailable or misconfigured | 503 `unavailable` | "La inscripción no está disponible en este momento. Inténtelo de nuevo en unos minutos." |
 | Invalid field | 400 `validation` | under the field |
 | Mail not configured or provider down | 503 `email_unavailable` | "No pudimos enviarle el correo de confirmación en este momento. Inténtelo de nuevo en unos minutos." |
-| Daily mail budget used up | 503 `email_budget` | "Hoy ya enviamos todos los correos de confirmación que podemos. Inténtelo de nuevo mañana." (D12) |
+| Daily mail budget used up | 503 `email_budget` | "Hoy ya enviamos todos los correos de confirmación que podemos. Inténtelo de nuevo mañana." Confirmations may use the whole day's cap; the recordatorios stop at 70 % of it, so this only happens once the whole cap is spent (D12) |
 | Event gone or no longer open | 404 | "Este evento ya no recibe inscripciones desde aquí." |
 | Closed / full | 409 | the form is replaced by the reason |
 | Email already confirmed | 409 `duplicate` | "Ya hay una inscripción con ese correo para este evento. No necesita hacer nada más." (D10) |
-| Email still pending | 201 | same pending row, new 48 h window and new link (D9) |
+| Email still pending | 201 | same pending row, new 48 h window and a new link; **the link of the earlier email stops working** and answers "Este enlace no sirve" (D9) |
 | Network failure | — | "No pudimos enviar su inscripción. Revise su conexión e inténtelo de nuevo." |
 
 ### R5. The external person confirms the email
@@ -189,8 +189,8 @@ A published event has one registration mode: `none`, `unl` (students, with their
 | Full at confirmation time (stays pending) | "Cupos agotados" |
 | Closed at confirmation time (stays pending) | "Las inscripciones cerraron" |
 | Link or row older than 48 h | "Este enlace venció" |
-| Bad, foreign or unknown token | "Este enlace no sirve" |
-| Event no longer open | 404 page (D11) |
+| Bad, foreign or unknown token, or the link of an earlier attempt (the same email registered again, D9) | "Este enlace no sirve" (a confirmed registration's old link answers it too; only the newest link says "Su cupo ya estaba reservado") |
+| Event no longer open (mode changed, unpublished or trashed) | "Este evento ya no recibe inscripciones", with a link to the open registrations and no button (D11); a bad token on a public event still says "Este enlace no sirve", and an unknown event with a bad token stays a 404 |
 | Too many attempts | "Demasiados intentos. Espere N minutos..." |
 | Service unavailable | "No pudimos confirmar su cupo. El servicio no está disponible…" with retry |
 | Network failure | "Revise su conexión e inténtelo de nuevo." |
@@ -201,6 +201,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 
 - **Actor**: the daily cron. **When**: events with an exact day 1 to 3 days ahead (Ecuador time), mode `unl` or `open`.
 - **Expected**: one email per confirmed person, nearest events first, never twice. A failed send is retried the next day. Stops early on budget, time, 3 provider failures in a row, or missing configuration.
+- **Budget (D12)**: reminders use at most 70 % of the day's mail cap (`REMINDER_SHARE_OF_DAILY_MAIL`, rounded down: 280 of 400). Mail already sent that day, confirmations included, counts against that share, so the cron can never spend the last 30 %, which stays for confirmation emails; confirmations may still use whatever is left of the whole cap. What does not fit goes out the next day (`stoppedBy: "budget"`).
 - People who register less than a day before get no reminder (D13). There is no way to cancel from the email (D7).
 
 ### R7. Old registration data is deleted
@@ -213,7 +214,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 - **Entry**: the event form, "Tiene inscripción" switch, "Cuenta UNL" / "Formulario abierto", "Cupos" (1-5000, empty = no limit), "Cierre" (Ecuador time, empty = when the day passes).
 - **Where people register**: both modes on `/inscripciones/<slug>`, which is also listed at `/inscripciones` (R3) while it is open; the admin copies that link from R9.
 - **Errors**: "Elija una forma de inscripción de la lista.", "Indique un número entero de 1 a 5000.", "Indique una fecha y hora válidas."
-- Changing mode or lowering seats when people are already registered is not checked (D14).
+- **People already registered (D14)**: changing the mode, or setting seats below the number of confirmed registrations (a lowering: lifting the limit or keeping seats that were already below it asks nothing), asks before saving: "Este evento ya tiene N inscritos." plus what happens (the mode: the registered keep their seat and sign up the other way from now on, or, switching registration off, they are kept but the event leaves the registrations list and they get no reminder; the seats: nobody loses a seat, the event is just full). "Guardar el cambio" saves it, "Seguir editando" stores nothing. Only confirmed registrations are counted; a pending one holds no seat. The server refuses a save of such a change that does not carry the confirmation (`confirmRegistrationChange`), with the same words and nothing stored, so a draft's autosave, which never confirms, shows that message instead of saving.
 
 ### R9. Staff see, delete and export registrations
 
@@ -241,12 +242,12 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
 | D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
 | D8 | F4, R3 | Forum and registrations are separate sections | **Built** (`e2e/audit-registration.spec.ts`, `e2e/forum-member.spec.ts`, `e2e/event-page.spec.ts`). The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |
-| D9 | R4 | Only the latest link works | Registering again while pending makes the previous link answer "Este enlace no sirve" |
+| D9 | R4 | Only the latest link works | **Built** (`e2e/registration-rules.spec.ts`). Registering again while pending makes the previous link answer "Este enlace no sirve". The link names the attempt (a `nce` nonce signed into the token and stored in `EventRegistration.confirmNonce`); the same email registering again replaces it. Migration `20261109120000_registration_confirm_nonce` (one nullable column) |
 | D10 | R4 | Accept | "Ya hay una inscripción con ese correo…" stays |
-| D11 | R5 | Clear message | The confirm page of an event no longer open says "Este evento ya no recibe inscripciones" instead of a 404 |
-| D12 | R4, R6 | Reserve budget for confirmations | Reminders use at most ~70 % of the daily email cap; the rest stays for confirmation emails |
+| D11 | R5 | Clear message | **Built** (`e2e/registration-rules.spec.ts`). The confirm page of an event no longer open says "Este evento ya no recibe inscripciones" instead of a 404 |
+| D12 | R4, R6 | Reserve budget for confirmations | **Built** (`src/tests/unit/application/event-registration/reminder-budget-share.test.ts`, `e2e/registration-rules.spec.ts` for the confirmation side). Reminders use at most 70 % of the daily email cap (rounded down, mail already sent that day counts); the rest stays for confirmation emails, which may use the whole remaining cap |
 | D13 | R6 | No reminder | People who register less than a day before get no reminder (unchanged) |
-| D14 | R8 | Warn and confirm | Changing the mode or lowering seats below the registered count asks "Este evento ya tiene N inscritos…" before saving |
+| D14 | R8 | Warn and confirm | **Built** (`e2e/registration-rules.spec.ts`). Changing the mode or lowering seats below the registered (confirmed) count asks "Este evento ya tiene N inscritos…" before saving and states the consequence; the server refuses the save without the confirmation |
 | D15 | R9 | Copyable link | **Built** (`e2e/audit-registration.spec.ts`). Open events show the copyable `/inscripciones/<slug>` link in the admin, like UNL |
 
 Found while mapping coverage:

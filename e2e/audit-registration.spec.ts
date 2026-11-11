@@ -63,11 +63,11 @@ const SCREENSHOT_DIR = process.env.FORUM_E2E_SHOTS;
 
 const CONFIRM_SECRET = process.env.REGISTRATION_CONFIRM_SECRET ?? "";
 
-/** The token the confirmation email would carry, signed the way the app does (needs the same secret). */
-function confirmToken(registrationId: string, eventId: string) {
+/** The token the confirmation email would carry, signed the way the app does (needs the same secret). `nonce`: the attempt stored on the row (a row stored straight in the database has none). */
+function confirmToken(registrationId: string, eventId: string, nonce?: string | null) {
   const issued = Math.floor(Date.now() / 1000);
 
-  return new SignJWT({ purpose: "registration-confirm", rid: registrationId, eid: eventId })
+  return new SignJWT({ purpose: "registration-confirm", rid: registrationId, eid: eventId, ...(nonce ? { nce: nonce } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(issued)
     .setExpirationTime(issued + 48 * 3600)
@@ -728,7 +728,7 @@ test.describe("the registration endpoint", () => {
     expect((await registrations(event)).every((row) => row.confirmedAt === null)).toBe(true);
 
     const answers = await Promise.all(
-      (await registrations(event)).map(async (row) => confirm(request, event.slug, await confirmToken(row.id, event.id))),
+      (await registrations(event)).map(async (row) => confirm(request, event.slug, await confirmToken(row.id, event.id, row.confirmNonce))),
     );
 
     expect(answers.map((answer) => answer.status()).sort()).toEqual([200, 200, 200, 409, 409]);

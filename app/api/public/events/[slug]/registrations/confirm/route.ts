@@ -41,8 +41,9 @@ function isSlug(value: string): boolean {
 /**
  * Confirms the email of a pending open registration and takes its seat. Only a POST does: the link in the email opens
  * a page whose button sends this request, because mail scanners and link previews fetch every link with GET and must
- * not be able to confirm anything. The token proves the link is ours; whether the seat is still free (capacity,
- * deadline, the 48 h window) is decided atomically by the repository. A refusal leaves the registration as it was.
+ * not be able to confirm anything. The token proves the link is ours and names the attempt it was issued for (only the
+ * latest link of an email works, D9); whether the seat is still free (capacity, deadline, the 48 h window) is decided
+ * atomically by the repository. A refusal leaves the registration as it was.
  * Same-origin only: no CORS, no Turnstile (the token is the secret), its own rate-limit budget per client.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }): Promise<NextResponse> {
@@ -71,7 +72,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return answer({ error: token.status }, REFUSALS[token.status]);
     }
 
-    const outcome = await getEventRegistrationServices().confirmOpen.execute({ slug, eventId: token.claims.eventId, registrationId: token.claims.registrationId });
+    const outcome = await getEventRegistrationServices().confirmOpen.execute({
+      slug,
+      eventId: token.claims.eventId,
+      registrationId: token.claims.registrationId,
+      nonce: token.claims.nonce ?? null,
+    });
 
     if (outcome.status === "confirmed" || outcome.status === "already_confirmed") {
       return answer({ ok: true, status: outcome.status }, 200);

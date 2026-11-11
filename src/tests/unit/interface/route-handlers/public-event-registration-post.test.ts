@@ -41,7 +41,7 @@ const stored = () => testEventRegistration.registrations.all();
 const confirmStored = async (index = 0) => {
   const row = stored()[index]!;
 
-  await testEventRegistration.registrations.confirm(row.eventId, row.id, new Date());
+  await testEventRegistration.registrations.confirm(row.eventId, row.id, new Date(), testEventRegistration.registrations.confirmNonceOf(row.id));
 };
 const turnstile = (success: boolean, extra: object = {}) => fetchMock.mockImplementation(async () => new Response(JSON.stringify({ success, ...extra }), { status: 200 }));
 
@@ -97,7 +97,12 @@ describe("POST /api/public/events/[slug]/registrations", () => {
       const link = /https:\/\/admin\.example\.org\/inscripciones\/taller-de-git\/confirmar\?token=([\w.-]+)/.exec(mail!.text);
 
       expect(link).not.toBeNull();
-      expect(await openRegistrationConfirmToken(link![1])).toEqual({ status: "valid", claims: { registrationId: row!.id, eventId: row!.eventId } });
+      // The link names the attempt stored on the pending row (D9): that is what retires the links of earlier attempts.
+      expect(testEventRegistration.registrations.confirmNonceOf(row!.id)).toEqual(expect.any(String));
+      expect(await openRegistrationConfirmToken(link![1])).toEqual({
+        status: "valid",
+        claims: { registrationId: row!.id, eventId: row!.eventId, nonce: testEventRegistration.registrations.confirmNonceOf(row!.id) },
+      });
       expect(await testMail.budget.used(TODAY())).toBe(1);
     });
 

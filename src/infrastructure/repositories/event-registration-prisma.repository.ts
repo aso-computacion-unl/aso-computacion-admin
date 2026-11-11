@@ -82,6 +82,8 @@ export class EventRegistrationPrismaRepository implements EventRegistrationRepos
         semester: input.semester,
         createdAt: now,
         confirmedAt: input.confirmedAt,
+        // A new attempt retires the link of the previous one.
+        confirmNonce: input.confirmNonce ?? null,
       };
       // Still pending: the same person asked again, so the row is refreshed (same id) rather than refused.
       const row = existing
@@ -93,14 +95,15 @@ export class EventRegistrationPrismaRepository implements EventRegistrationRepos
   }
 
   /** Same lock and rule as `register`: two pending people racing for the last seat cannot both confirm it. */
-  async confirm(eventId: string, id: string, now: Date): Promise<ConfirmOutcome> {
+  async confirm(eventId: string, id: string, now: Date, nonce: string | null = null): Promise<ConfirmOutcome> {
     return prisma.$transaction(async (tx) => {
       const event = await lockEvent(tx, eventId);
 
       // A trashed or missing event has no link that confirms anything.
       const row = event ? await tx.eventRegistration.findFirst({ where: { id, eventId } }) : null;
 
-      if (!event || !row) {
+      // The link must be the one of the row's latest attempt: an older email's link finds nothing, confirmed row or not.
+      if (!event || !row || row.confirmNonce !== nonce) {
         return { status: "invalid" } as const;
       }
 

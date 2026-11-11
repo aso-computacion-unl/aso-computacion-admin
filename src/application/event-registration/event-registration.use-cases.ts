@@ -84,7 +84,7 @@ abstract class RegisterUseCase {
     slug: string,
     now: Date,
     mode: RegistrationMode,
-    data: Pick<EventRegistrationRecord, "name" | "email" | "institution" | "career" | "semester" | "confirmedAt">,
+    data: Pick<EventRegistrationRecord, "name" | "email" | "institution" | "career" | "semester" | "confirmedAt"> & { confirmNonce?: string | null },
   ): Promise<RegisterOutcome> {
     const event = await this.events.findLiveBySlug(slug);
 
@@ -97,18 +97,22 @@ abstract class RegisterUseCase {
 }
 
 export class RegisterWithOpenFormUseCase extends RegisterUseCase {
-  async execute({ slug, form, now = new Date() }: { slug: string; form: Record<string, unknown>; now?: Date }): Promise<RegisterOutcome> {
+  /**
+   * `confirmNonce` is the attempt the caller is about to put in the confirmation link: it replaces the one a pending row
+   * of the same email held, so the link of the earlier attempt stops working (D9).
+   */
+  async execute({ slug, form, now = new Date(), confirmNonce }: { slug: string; form: Record<string, unknown>; now?: Date; confirmNonce?: string }): Promise<RegisterOutcome> {
     const { name, email, institution, career, semester } = parseOpenRegistration(form);
 
     // Pending until the person opens the link sent to that address: an unverified email takes no seat.
-    return this.store(slug, now, "open", { name, email, institution, career, semester, confirmedAt: null });
+    return this.store(slug, now, "open", { name, email, institution, career, semester, confirmedAt: null, confirmNonce });
   }
 }
 
 /**
  * The person opened the link of their confirmation email and pressed the button. The link names an event and a
- * registration; it only counts on the event page it was issued for. The seat itself is decided by the repository,
- * atomically, so a full or closed event refuses here even though the email was perfectly valid.
+ * registration (and the attempt it was issued for); it only counts on the event page it was issued for. The seat itself
+ * is decided by the repository, atomically, so a full or closed event refuses here even though the email was perfectly valid.
  */
 export class ConfirmOpenRegistrationUseCase {
   constructor(
@@ -116,14 +120,15 @@ export class ConfirmOpenRegistrationUseCase {
     private readonly registrations: EventRegistrationRepository,
   ) {}
 
-  async execute({ slug, eventId, registrationId, now = new Date() }: { slug: string; eventId: string; registrationId: string; now?: Date }): Promise<ConfirmOutcome> {
+  /** `nonce`: the attempt the link names, `null` for a link that names none. Required so no caller can skip the check. */
+  async execute({ slug, eventId, registrationId, nonce, now = new Date() }: { slug: string; eventId: string; registrationId: string; nonce: string | null; now?: Date }): Promise<ConfirmOutcome> {
     const event = await this.events.findLiveBySlug(slug);
 
     if (!event) {
       return { status: "not_found" };
     }
 
-    return event.props.id === eventId ? this.registrations.confirm(eventId, registrationId, now) : { status: "invalid" };
+    return event.props.id === eventId ? this.registrations.confirm(eventId, registrationId, now, nonce) : { status: "invalid" };
   }
 }
 

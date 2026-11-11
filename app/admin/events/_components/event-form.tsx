@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useRef, useState, type ComponentProps, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { fieldClasses } from "@/components/ui/field-styles";
@@ -15,12 +15,14 @@ import {
   formValuesToFormData,
   type EventFormValues,
 } from "@/interface/admin/events/event-form-values";
+import { registrationChangeKey, registrationChangeOfForm } from "@/interface/admin/events/registration-change";
 
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { EVENT_PUBLISH_FIELDS, EventPreview } from "./event-preview";
+import { RegistrationChangeDialog } from "./registration-change-dialog";
 import { RegistrationFields } from "./registration-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -31,7 +33,12 @@ interface EventFormProps {
   initialValues?: EventFormValues;
   /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
   autosave?: boolean;
+  /** People registered and confirmed in this event: changing its mode, or its seats below this number, asks first (D14). */
+  registeredCount?: number;
 }
+
+/** The field the server requires for a change that affects the registered people. Same name as the server's. */
+const REGISTRATION_CHANGE_CONFIRMED_FIELD = "confirmRegistrationChange";
 
 const TYPE_OPTIONS = [
   { value: "taller", label: "Taller" },
@@ -80,15 +87,45 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * everything the owner typed (React 19 resets uncontrolled fields after a
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
-export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false }: EventFormProps) {
+export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registeredCount = 0 }: EventFormProps) {
+  // The change the admin accepted in the question, by its `key`: only that exact change travels with the confirmation.
+  const confirmedChange = useRef<string | null>(null);
+  // The key of the change the question is open for; a different change (or none) shows no question.
+  const [asking, setAsking] = useState<string | null>(null);
   const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, {
-    serialize: formValuesToFormData,
+    serialize: (current) => {
+      const formData = formValuesToFormData(current);
+
+      if (confirmedChange.current !== null && confirmedChange.current === registrationChangeKey(current)) {
+        formData.set(REGISTRATION_CHANGE_CONFIRMED_FIELD, "on");
+      }
+
+      return formData;
+    },
     autosave,
   });
+  const change = registrationChangeOfForm(registeredCount, stored, values);
   // A published event asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
   const isEditing = initialValues.slug !== "";
+
+  /** D14: a save that changes what the registered people signed up for asks first; once accepted it goes on as any save. */
+  function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    if (change.warning && confirmedChange.current !== change.key) {
+      if (review(event)) setAsking(change.key);
+
+      return;
+    }
+
+    return publishing ? publish.ask(event) : handleSubmit(event);
+  }
+
+  function confirmChange() {
+    confirmedChange.current = change.key;
+    setAsking(null);
+    formRef.current?.requestSubmit();
+  }
 
   function setDatePrecision(datePrecision: string) {
     setValues((previous) => {
@@ -102,7 +139,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
-    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate>
+    <form ref={formRef} onSubmit={handleFormSubmit} noValidate>
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
         <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className="@xl:col-span-2">
           {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
@@ -206,6 +243,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         </div>
       </div>
 
+      {asking === change.key && change.warning ? <RegistrationChangeDialog warning={change.warning} onConfirm={confirmChange} onKeepEditing={() => setAsking(null)} /> : null}
       <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}

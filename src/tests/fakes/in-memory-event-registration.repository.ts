@@ -12,11 +12,14 @@ import type { InMemoryEventRepository } from "./in-memory-event.repository";
 /** Deterministic in-memory `EventRegistrationRepository` that applies the same decision as the Prisma adapter. */
 export class InMemoryEventRegistrationRepository implements EventRegistrationRepository {
   private readonly rows: EventRegistrationRecord[] = [];
+  /** The attempt of each row's confirmation link, by registration id: kept apart from the record like the Prisma column. */
+  private readonly nonces = new Map<string, string>();
 
   constructor(private readonly events: InMemoryEventRepository) {}
 
   clear(): void {
     this.rows.length = 0;
+    this.nonces.clear();
   }
 
   all(): EventRegistrationRecord[] {
@@ -50,11 +53,13 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
       return { status: refusal };
     }
 
+    const { confirmNonce, ...data } = input;
     const pending = this.rows.findIndex((row) => row.eventId === input.eventId && row.email === input.email);
-    const registration: EventRegistrationRecord = { ...input, createdAt: now, reminderSentAt: null };
+    const registration: EventRegistrationRecord = { ...data, createdAt: now, reminderSentAt: null };
 
     if (pending === -1) {
       this.rows.push(registration);
+      this.remember(registration.id, confirmNonce);
 
       return { status: "registered", registration };
     }
@@ -62,16 +67,30 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     const refreshed = { ...registration, id: this.rows[pending]!.id };
 
     this.rows[pending] = refreshed;
+    this.remember(refreshed.id, confirmNonce);
 
     return { status: "registered", registration: refreshed };
   }
 
-  async confirm(eventId: string, id: string, now: Date): Promise<ConfirmOutcome> {
+  /** The attempt the registration's confirmation link was issued for, or `null` when it has none (a seeded row, a UNL row). */
+  confirmNonceOf(id: string): string | null {
+    return this.nonces.get(id) ?? null;
+  }
+
+  private remember(id: string, nonce: string | null | undefined): void {
+    if (nonce) {
+      this.nonces.set(id, nonce);
+    } else {
+      this.nonces.delete(id);
+    }
+  }
+
+  async confirm(eventId: string, id: string, now: Date, nonce: string | null = null): Promise<ConfirmOutcome> {
     const event = await this.events.getById(eventId);
     const index = this.rows.findIndex((row) => row.eventId === eventId && row.id === id);
     const row = this.rows[index];
 
-    if (!event || !row) {
+    if (!event || !row || (this.nonces.get(row.id) ?? null) !== nonce) {
       return { status: "invalid" };
     }
 
@@ -148,6 +167,7 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     }
 
     this.rows.splice(index, 1);
+    this.nonces.delete(id);
 
     return true;
   }

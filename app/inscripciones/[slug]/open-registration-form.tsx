@@ -49,7 +49,9 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
   const id = useId();
   const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", institution: "", career: "", semester: "" });
   const [errors, setErrors] = useState<OpenFieldErrors>({});
-  const [notice, setNotice] = useState<{ message: string; shown: number } | null>(null);
+  // `about` says what the alert concerns: the browser's own check (no token yet, or the widget did not load), which a
+  // fresh token settles, or the server's answer, which stays until the person sends again.
+  const [notice, setNotice] = useState<{ message: string; shown: number; about: "check" | "answer" } | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: "form" });
   const [pending, setPending] = useState(false);
   const [resetCount, setResetCount] = useState(0);
@@ -73,8 +75,8 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
     if (phase.name !== "form") doneBox.current?.focus();
   }, [phase]);
 
-  function say(message: string) {
-    setNotice((previous) => ({ message, shown: (previous?.shown ?? 0) + 1 }));
+  function say(message: string, about: "check" | "answer" = "answer") {
+    setNotice((previous) => ({ message, about, shown: (previous?.shown ?? 0) + 1 }));
   }
 
   function change(field: OpenField, value: string) {
@@ -96,7 +98,7 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
 
     if (firstInvalid) return focusField(firstInvalid);
 
-    if (siteKey && !token.current) return say(MISSING_CHECK);
+    if (siteKey && !token.current) return say(MISSING_CHECK, "check");
 
     sending.current = true;
     setPending(true);
@@ -258,9 +260,11 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
               onToken={(value) => {
                 token.current = value;
 
-                if (value) setNotice(null);
+                // The widget is reset after every answer and usually passes again by itself: that new token must not
+                // erase what the server just said.
+                if (value) setNotice((previous) => (previous?.about === "check" ? null : previous));
               }}
-              onError={() => say(CAPTCHA_LOAD_MESSAGE)}
+              onError={() => say(CAPTCHA_LOAD_MESSAGE, "check")}
             />
           </div>
         ) : null}

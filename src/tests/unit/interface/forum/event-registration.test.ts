@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
+import { REGISTRATION_SESSION_EXPIRED_RESULT } from "@/interface/event-registration/registration-action-errors";
 import * as registration from "@/interface/forum/event-registration";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 import { signInAs } from "@/tests/support/test-auth";
@@ -56,7 +56,7 @@ describe("registerForEvent requires a forum member", () => {
   ])("is refused with %s: nothing stored", async (_label, cookies) => {
     jar(Object.fromEntries(await Promise.all(Object.entries(cookies).map(async ([key, who]) => [key, await signInAs(who as "ADMIN")]))));
 
-    expect(await registration.registerForEvent("taller-de-git")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(REGISTRATION_SESSION_EXPIRED_RESULT);
     expect(stored()).toHaveLength(0);
   });
 });
@@ -81,12 +81,26 @@ describe("registerForEvent", () => {
 
   it("refuses a suspended member (the guard no longer accepts their session) and an email outside the institutional domain", async () => {
     await signIn({ id: "m1", status: "SUSPENDED" });
-    expect(await registration.registerForEvent("taller-de-git")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(REGISTRATION_SESSION_EXPIRED_RESULT);
 
     testEventRegistration.registrations.clear();
     await signIn({ id: "m2", email: "ana@gmail.com", googleSub: "sub-2" });
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: "Su cuenta no puede participar en el foro." });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: "Su cuenta no puede reservar cupos. Use su cuenta institucional @unl.edu.ec." });
     expect(stored()).toHaveLength(0);
+  });
+
+  it("D5: an expired session and a refused account are told in registration words, never as the forum, and the expired one can offer the sign-in", async () => {
+    jar({});
+    const expired = await registration.registerForEvent("taller-de-git");
+
+    await signIn({ id: "m2", email: "ana@gmail.com", googleSub: "sub-2" });
+    const refused = await registration.registerForEvent("taller-de-git");
+
+    expect(expired).toEqual({ error: "Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para reservar su cupo.", sessionExpired: true });
+
+    for (const result of [expired, refused]) {
+      expect(result.error).not.toMatch(/foro/i);
+    }
   });
 
   it("says why when the event is full, closed, open-form only or unknown", async () => {
@@ -118,6 +132,25 @@ describe("getEventRegistrationPage", () => {
     await registration.registerForEvent("taller-de-git");
 
     expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1" }, status: { alreadyRegistered: true } });
+  });
+
+  describe("S8: whether the Google sign-in of the UNL page can work", () => {
+    const configured = { FORUM_ALLOWED_EMAIL_DOMAIN: "unl.edu.ec", GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org" };
+
+    beforeEach(() => {
+      jar({});
+      for (const [name, value] of Object.entries(configured)) vi.stubEnv(name, value);
+    });
+
+    it("is available when the forum's Google login is fully configured", async () => {
+      expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", loginAvailable: true });
+    });
+
+    it.each(["FORUM_ALLOWED_EMAIL_DOMAIN", "FORUM_SESSION_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "AUTH_URL"])("is not available without %s: the page must not offer a sign-in that cannot work", async (name) => {
+      vi.stubEnv(name, "");
+
+      expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: null, loginAvailable: false });
+    });
   });
 
   it("tells the UNL page whether reminders will be sent, which depends on the mail being set up", async () => {

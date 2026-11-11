@@ -389,42 +389,18 @@ describe("/foro as a member", () => {
     expect(html.match(/<aside/g)).toHaveLength(1);
   });
 
-  it("puts Inscripciones in its own group of the rail, with the number of events open, apart from the categories", async () => {
+  it("D8: the forum is only the forum: no Inscripciones link, no Eventos group, in the rail or on phones, whatever is open", async () => {
     seedForum();
     await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
-    await addTestEvent({ title: "Hackathon UNL", registrationMode: "unl", date: "2099-12-05" });
-    await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
-    await addTestEvent({ title: "Taller que ya pasó", registrationMode: "unl", date: "2020-01-10" });
-
-    const html = await renderQuery({});
-    const group = html.match(/<h2[^>]*>Eventos<\/h2><nav aria-label="Eventos">[\s\S]*?<\/nav>/)?.[0] ?? "";
-
-    expect(group).toMatch(/<a [^>]*href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>2<span class="sr-only"> abiertas<\/span><\/span>/);
-    expect(group).not.toContain("aria-current");
-    expect(html.indexOf("Categorías</h2>")).toBeLessThan(html.indexOf("Eventos</h2>"));
-    expect(html.indexOf('href="/foro?categoria=propuestas"')).toBeLessThan(html.indexOf("Eventos</h2>"));
-  });
-
-  it("says Inscripciones with a count of zero while no event is open, and keeps the guide to the forum", async () => {
-    seedForum();
     await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
 
     const html = await renderQuery({});
 
-    expect(html).toMatch(/href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>0<span class="sr-only"> abiertas<\/span>/);
+    expect(html).not.toContain("Inscripciones");
+    expect(html).not.toContain("Eventos");
+    expect(html).not.toContain('href="/foro/eventos"');
+    expect(html).not.toContain('href="/inscripciones');
     expect(html).toContain("Cómo funciona el foro");
-  });
-
-  it("keeps a way to Inscripciones on phones, under the filters that lg up move to the rail", async () => {
-    seedForum();
-    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
-
-    const html = await renderQuery({});
-    const phones = html.match(/<div class="[^"]*\blg:hidden\b[^"]*">[\s\S]*?<\/nav><\/div><\/div>/)?.[0] ?? "";
-
-    expect(html.match(/aria-label="Eventos"/g)).toHaveLength(2);
-    expect(phones).toContain('href="/foro/eventos"');
-    expect(phones).toContain("Inscripciones");
   });
 
   it("is a rail with the filters and the categories beside the list, with the guide after it", async () => {

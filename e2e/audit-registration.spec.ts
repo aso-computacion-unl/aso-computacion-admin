@@ -58,6 +58,9 @@ function post(request: APIRequestContext, slug: string, data: unknown, ip = next
   return request.post(`/api/public/events/${slug}/registrations`, { data, headers: { "x-real-ip": ip, ...headers } });
 }
 
+/** Set `FORUM_E2E_SHOTS=<dir>` (as forum-member.spec.ts does) to keep screenshots of the public list for a visual review. */
+const SCREENSHOT_DIR = process.env.FORUM_E2E_SHOTS;
+
 const CONFIRM_SECRET = process.env.REGISTRATION_CONFIRM_SECRET ?? "";
 
 /** The token the confirmation email would carry, signed the way the app does (needs the same secret). */
@@ -209,24 +212,33 @@ test.describe("the public event page", () => {
     await expect(page.getByText(/cupos$/)).toHaveCount(0);
   });
 
-  test("an event without registration and a UNL one render cleanly; the visitor lists need a sign-in", async ({ page, request }) => {
+  test("S8 / R2: an event without registration renders cleanly, and a UNL one says its registration is not available while the Google login is not configured", async ({ page }) => {
     const none = await seedEvent("libre", { registrationMode: "none" });
-    const unl = await seedEvent("unl", { registrationMode: "unl" });
+    const unl = await seedEvent("unl", { registrationMode: "unl", registrationCapacity: 30 });
     const problems = watch(page);
 
     await page.goto(`/inscripciones/${none.slug}`);
     await expect(page.getByText("No necesita inscribirse: solo llegue.")).toBeVisible();
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toBeVisible();
 
+    // This server has no Google client: a sign-in would end in an error, so the page does not offer one.
     await page.goto(`/inscripciones/${unl.slug}`);
-    await expect(page.getByRole("link", { name: /Entrar con Google/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: unl.title })).toBeVisible();
+    await expect(page.getByText("Quedan 30 cupos")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Inscripción" }).getByRole("status")).toHaveText("La inscripción con cuenta UNL no está disponible en este momento. Inténtelo de nuevo más tarde.");
+    await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     expect(problems).toEqual([]);
+  });
 
-    // The forum's registrations list is the member's: a visitor meets the sign-in, not an error.
-    const list = await request.get("/foro/eventos");
+  test("D5 / D8: a sign-in that cannot start from an event's page comes back to that page, never to the forum", async ({ request }) => {
+    const next = encodeURIComponent("/inscripciones/algun-evento");
+    const fromEvent = await request.get(`/foro/auth/google/start?next=${next}`, { maxRedirects: 0 });
+    const fromForum = await request.get(`/foro/auth/google/start?next=${encodeURIComponent("/foro/hilo/x")}`, { maxRedirects: 0 });
 
-    expect(list.status()).toBe(200);
-    expect(await list.text()).toContain("Entrar con Google");
+    expect(fromEvent.status()).toBe(307);
+    expect(new URL(fromEvent.headers().location ?? "", "http://127.0.0.1").pathname + new URL(fromEvent.headers().location ?? "", "http://127.0.0.1").search).toBe("/inscripciones/algun-evento?error=unavailable");
+    expect(new URL(fromForum.headers().location ?? "", "http://127.0.0.1").pathname).toBe("/foro");
   });
 
   test("a signed-in member registers with the UNL account once and never twice", async ({ page, context }) => {
@@ -245,9 +257,9 @@ test.describe("the public event page", () => {
       await expect(page.getByText("Quedan 4 cupos")).toBeVisible();
       expect(await registrations(event)).toMatchObject([{ mode: "unl", name: "Lucía Ñ.", email: member.email, career: null, semester: null }]);
 
-      // The member's list shows the event too.
-      await page.goto("/foro/eventos");
-      await expect(page.getByText(event.title)).toBeVisible();
+      // The public list shows the event too, with the seat just taken.
+      await page.goto("/inscripciones");
+      await expect(page.getByRole("link", { name: event.title })).toBeVisible();
 
       // Coming back never registers twice.
       await page.goto(`/inscripciones/${event.slug}`);
@@ -256,6 +268,136 @@ test.describe("the public event page", () => {
     } finally {
       await prisma.forumSession.deleteMany({ where: { memberId: member.memberId } });
       await prisma.forumMember.deleteMany({ where: { id: member.memberId } });
+    }
+  });
+});
+
+test.describe("the public registrations list", () => {
+  test("D8 / R3: a visitor with no session sees every event taking registrations, UNL and open, soonest first, with live seats, under a bar that never says Foro", async ({ page }) => {
+    const unl = await seedEvent("lista-unl", { registrationMode: "unl", date: new Date("2099-12-20"), registrationCapacity: 40, title: `Auditoría lista UNL ${STAMP}` });
+    const open = await seedEvent("lista-abierta", { registrationMode: "open", date: new Date("2099-12-10"), registrationCapacity: 2, title: `Auditoría lista abierta ${STAMP}` });
+    const undated = await seedEvent("lista-sinfecha", { registrationMode: "unl", date: null, title: `Auditoría lista sin fecha ${STAMP}` });
+    const notListed = [
+      await seedEvent("lista-libre", { registrationMode: "none", title: `Auditoría lista libre ${STAMP}` }),
+      await seedEvent("lista-borrador", { registrationMode: "unl", isPublished: false, title: `Auditoría lista borrador ${STAMP}` }),
+      await seedEvent("lista-pasado", { registrationMode: "open", date: new Date("2020-01-15"), title: `Auditoría lista pasado ${STAMP}` }),
+      await seedEvent("lista-plazo", { registrationMode: "unl", registrationDeadline: new Date(Date.now() - 60_000), title: `Auditoría lista plazo ${STAMP}` }),
+    ];
+    const problems = watch(page);
+
+    const response = await page.goto("/inscripciones");
+
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: "Inscripciones" })).toBeVisible();
+    await expect(page).toHaveTitle("Inscripciones — ASO Computación");
+
+    // Its own bar, named for the registrations, whose brand leads to this list; nothing of the forum around it.
+    const bar = page.getByRole("banner");
+
+    await expect(bar.getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toHaveAttribute("href", "/inscripciones");
+    expect((await bar.textContent()) ?? "").not.toMatch(/foro/i);
+    expect(await page.locator("a[href^='/foro']").count()).toBe(0);
+    await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
+    await expect(page.locator("main")).not.toContainText(/foro/i);
+
+    const card = (event: Seeded) => page.getByRole("listitem").filter({ has: page.getByRole("link", { name: event.title }) });
+
+    if (SCREENSHOT_DIR) await page.screenshot({ path: `${SCREENSHOT_DIR}/inscripciones-lista-escritorio.png`, fullPage: true });
+
+    await expect(card(unl)).toContainText("Con cuenta UNL");
+    await expect(card(unl)).toContainText("Quedan 40 cupos");
+    await expect(card(open)).toContainText("Abierta al público");
+    await expect(card(open)).toContainText("Quedan 2 cupos");
+    await expect(card(undated)).toContainText("Sin límite de cupos");
+    await expect(card(unl).getByRole("link", { name: unl.title })).toHaveAttribute("href", `/inscripciones/${unl.slug}`);
+    for (const event of notListed) await expect(page.getByRole("link", { name: event.title }), event.slug).toHaveCount(0);
+
+    // Soonest first, undated last.
+    const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
+    const at = (event: Seeded) => titles.indexOf(event.title);
+
+    expect(at(open)).toBeGreaterThanOrEqual(0);
+    expect(at(open)).toBeLessThan(at(unl));
+    expect(at(unl)).toBeLessThan(at(undated));
+
+    // The seats are live: a confirmed person takes one, and a full event leaves the list.
+    await prisma.eventRegistration.create({ data: { id: `${open.id}-1`, eventId: open.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Eva Mora", email: "eva@example.com", career: "C", semester: 3 } });
+    await page.reload();
+    await expect(card(open)).toContainText("Queda 1 cupo");
+    await prisma.eventRegistration.create({ data: { id: `${open.id}-2`, eventId: open.id, mode: "open", institution: "UNL", confirmedAt: new Date(), name: "Luis Mora", email: "luis@example.com", career: "C", semester: 3 } });
+    await page.reload();
+    await expect(page.getByRole("link", { name: open.title })).toHaveCount(0);
+
+    // A card leads to the event's page, under the same bar.
+    await page.getByRole("link", { name: unl.title }).click();
+    await expect(page).toHaveURL(new RegExp(`/inscripciones/${unl.slug}$`));
+    await expect(page.getByRole("heading", { level: 1, name: unl.title })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toBeVisible();
+    await page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" }).click();
+    await expect(page).toHaveURL(/\/inscripciones$/);
+    expect(problems).toEqual([]);
+  });
+
+  test("D8 / R3: on a phone the cards stack and nothing scrolls sideways, even with a very long title", async ({ page }) => {
+    const long = await seedEvent("lista-movil", { registrationMode: "unl", title: `Auditoría ${"largo".repeat(30)} ${STAMP}`, description: "Descripción ".repeat(60) });
+
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/inscripciones");
+    await expect(page.getByRole("link", { name: new RegExp(long.title.slice(0, 30)) })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    if (SCREENSHOT_DIR) await page.screenshot({ path: `${SCREENSHOT_DIR}/inscripciones-lista-movil.png`, fullPage: true });
+  });
+
+  test("D8 / R3: /foro/eventos is a permanent redirect to /inscripciones that keeps the query string, in the browser too", async ({ page, request }) => {
+    const target = (response: Awaited<ReturnType<typeof request.get>>) => {
+      const location = new URL(response.headers().location ?? "", "http://127.0.0.1");
+
+      return location.pathname + location.search;
+    };
+    const withQuery = await request.get("/foro/eventos?utm_source=landing&y=1", { maxRedirects: 0 });
+    const plain = await request.get("/foro/eventos", { maxRedirects: 0 });
+
+    expect(withQuery.status()).toBe(308);
+    expect(target(withQuery)).toBe("/inscripciones?utm_source=landing&y=1");
+    expect(plain.status()).toBe(308);
+    expect(target(plain)).toBe("/inscripciones");
+
+    await page.goto("/foro/eventos");
+    await expect(page).toHaveURL(/\/inscripciones$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Inscripciones" })).toBeVisible();
+  });
+
+  test("D5 / R2: an expired session and a refused account are told in registration words, never as the forum, and nothing is stored", async ({ page, context }) => {
+    test.skip(!FORUM_SECRET, "set FORUM_SESSION_SECRET to plant a forum member session");
+
+    const event = await seedEvent("unlpalabras", { registrationMode: "unl", registrationCapacity: 5 });
+    const member = await plantForumMemberSession(prisma, { memberId: `${PREFIX}m-exp`, sessionId: `${PREFIX}s-exp`, displayName: "Lucía Ñ." });
+    const outsider = await plantForumMemberSession(prisma, { memberId: `${PREFIX}m-out`, sessionId: `${PREFIX}s-out`, email: `${PREFIX}outsider@gmail.com`, displayName: "Persona Externa" });
+    const reserve = page.getByRole("button", { name: "Reservar mi cupo" });
+
+    try {
+      // The session ends while the page is open.
+      await context.addCookies([member.cookie]);
+      await page.goto(`/inscripciones/${event.slug}`);
+      await expect(reserve).toBeVisible();
+      await prisma.forumSession.update({ where: { id: member.sessionId }, data: { revokedAt: new Date() } });
+      await reserve.click();
+      await expect(page.locator("main").getByRole("alert")).toHaveText("Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para reservar su cupo.");
+      await expect(page.locator("main")).not.toContainText(/foro/i);
+      // This server has no Google client, so there is no sign-in to offer; where there is one it returns to this page (unit tests).
+      await expect(page.getByRole("link", { name: /Entrar con Google/ })).toHaveCount(0);
+
+      // An account outside the institution.
+      await context.clearCookies();
+      await context.addCookies([outsider.cookie]);
+      await page.goto(`/inscripciones/${event.slug}`);
+      await reserve.click();
+      await expect(page.locator("main").getByRole("alert")).toHaveText("Su cuenta no puede reservar cupos. Use su cuenta institucional @unl.edu.ec.");
+      await expect(page.locator("main")).not.toContainText(/foro/i);
+      expect(await registrations(event)).toHaveLength(0);
+    } finally {
+      await prisma.forumSession.deleteMany({ where: { memberId: { in: [member.memberId, outsider.memberId] } } });
+      await prisma.forumMember.deleteMany({ where: { id: { in: [member.memberId, outsider.memberId] } } });
     }
   });
 });
@@ -829,5 +971,20 @@ test.describe("the admin registrations", () => {
     const seats = await (await request.get("/api/public/events/seats", { headers: { "x-real-ip": nextIp() } })).json();
 
     expect(seats.events).toContainEqual({ slug: event.slug, capacity: 2, registered: 1, seatsLeft: 1, status: "open" });
+  });
+
+  test("D15 / R9: an open-form event with nobody registered shows the copyable /inscripciones/<slug> link, like a UNL one", async ({ page }) => {
+    const open = await seedEvent("adminlink-abierto", { registrationMode: "open" });
+    const unl = await seedEvent("adminlink-unl", { registrationMode: "unl" });
+
+    await logInAsAdmin(page);
+
+    for (const event of [open, unl]) {
+      await page.goto(`/admin/registrations?evento=${event.id}`);
+      await expect(page.getByText("Todavía no hay inscripciones.")).toBeVisible();
+      await expect(page.getByLabel("Link de la página de inscripción"), event.slug).toHaveValue(`http://127.0.0.1:3100/inscripciones/${event.slug}`);
+      await expect(page.getByRole("button", { name: "Copiar link" }), event.slug).toBeVisible();
+      await expect(page.getByText(/tarjeta|ancla/), event.slug).toHaveCount(0);
+    }
   });
 });

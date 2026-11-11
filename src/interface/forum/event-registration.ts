@@ -13,9 +13,10 @@
 import { revalidatePath } from "next/cache";
 
 import type { RegistrationRefusal } from "@/domain/event-registration";
+import { mapRegistrationActionError } from "@/interface/event-registration/registration-action-errors";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
-import { mapForumActionError, type ForumActionResult } from "./forum-action-result";
+import type { ForumActionResult } from "./forum-action-result";
 import { requireForumMember } from "./require-forum-member";
 
 const REFUSAL_MESSAGES: Record<RegistrationRefusal, string> = {
@@ -39,6 +40,6 @@ export async function registerForEvent(slug: string): Promise<ForumActionResult>
 
     return { success: true };
   } catch (error) {
-    return mapForumActionError(error);
+    return mapRegistrationActionError(error);
   }
 }

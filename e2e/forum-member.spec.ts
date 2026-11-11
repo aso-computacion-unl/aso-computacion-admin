@@ -99,6 +99,40 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
   await context.close();
 });
 
+test("D8 / F4: the forum is only the forum: no Inscripciones link in its rail, on a phone or on any of its pages, and /foro/eventos leads out to the registrations", async ({ browser }) => {
+  const context = await memberContext(browser);
+  const page = await context.newPage();
+  const noRegistrations = async (path: string) => {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Inscripciones/ }), path).toHaveCount(0);
+    await expect(page.locator('a[href^="/inscripciones"], a[href^="/foro/eventos"]'), path).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Eventos", exact: true }), path).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Eventos" }), path).toHaveCount(0);
+  };
+
+  // Wide: the rail holds the thread filters and the categories, nothing about events.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await noRegistrations("/foro");
+  await expect(page.getByRole("navigation", { name: "Estado de los hilos" }).first()).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Categoría" }).first()).toBeVisible();
+  await noRegistrations("/foro/hilo/t-open");
+  await noRegistrations("/foro/c/programacion/nuevo");
+
+  // Phone: the filters on top of the list carry no registrations row either.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await noRegistrations("/foro");
+
+  // The old list address leaves the forum for the registrations, which are not a forum screen: no forum bar, no member chip.
+  await page.goto("/foro/eventos");
+  await expect(page).toHaveURL(/\/inscripciones$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Inscripciones" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toBeVisible();
+  await expect(page.getByRole("banner")).not.toContainText(/foro|Daniela/i);
+
+  await context.close();
+});
+
 test("a member reacts to a reply, marks the best answer of their thread and reports someone else's post", async ({ browser }) => {
   const context = await memberContext(browser);
   const page = await context.newPage();

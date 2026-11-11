@@ -59,14 +59,27 @@ describe("the people of the selected event, with nobody registered yet", () => {
     expect(html).not.toContain("Copiar link");
   });
 
-  it("open form: points to the event card on the landing by its anchor, with no forum link", async () => {
+  it("D15, open form: offers the copyable /inscripciones/<slug> link, like a UNL event, with no mention of the landing card", async () => {
     const html = await render(await addTestEvent({ slug: "hackathon-unl-2026", registrationMode: "open" }));
 
     expect(html).toContain("Todavía no hay inscripciones.");
     expect(html).toContain("formulario abierto");
-    expect(html).toContain("#evento-hackathon-unl-2026");
-    expect(html).not.toContain("/inscripciones/");
+    expect(html).toContain('value="http://localhost:3000/inscripciones/hackathon-unl-2026"');
+    expect(html).toContain("Copiar link");
+    expect(html).not.toContain("tarjeta");
+    expect(html).not.toContain("#evento-");
+    expect(html).not.toContain("ancla");
+  });
+
+  it("D15, open form without a public origin: shows the path and names the missing setting instead of a broken link", async () => {
+    vi.stubEnv("AUTH_URL", "");
+
+    const html = await render(await addTestEvent({ slug: "hackathon-unl-2026", registrationMode: "open" }));
+
+    expect(html).toContain("/inscripciones/hackathon-unl-2026");
+    expect(html).toContain("AUTH_URL");
     expect(html).not.toContain("Copiar link");
+    expect(html).not.toContain("tarjeta");
   });
 
   it("a draft: the reason is that it is not public yet, and the next step is to edit it", async () => {

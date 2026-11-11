@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { BrandIsotype } from "../_components/brand-mark";
+import { AppTopBar } from "../_components/app-top-bar";
 import { ThemeToggle } from "../_components/theme-toggle";
 
 import "./inscripciones.css";
@@ -13,8 +13,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * The event registration page's own shell, apart from the forum's: a public page that anyone can open from the
- * landing, with the brand, the theme toggle and a reading column. Nothing here knows about the forum's rail or top bar.
+ * The registrations' own shell, apart from the forum's (D8): a public section anyone can open from the landing, with
+ * its own top bar ("Inscripciones", whose brand leads to the list of events), the theme toggle and a reading column.
+ * The list and the event's page share it. Nothing here knows about the forum's rail or top bar, and none of it says "Foro".
  */
 export default function RegistrationLayout({ children }: { children: ReactNode }) {
   return (
@@ -23,15 +24,9 @@ export default function RegistrationLayout({ children }: { children: ReactNode }
         Saltar al contenido
       </a>
 
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-muted px-4 shadow-[0_1px_0_var(--color-border)] sm:px-6">
-        <span className="flex items-center gap-3">
-          <BrandIsotype width={26} height={29} />
-          <span className="font-brand text-lg tracking-[0.01em]">ASO Computación</span>
-        </span>
-        <div className="ml-auto flex items-center gap-1">
-          <ThemeToggle />
-        </div>
-      </header>
+      <AppTopBar productName="Inscripciones" homeHref="/inscripciones" homeLabel="Inscripciones de ASO Computación, inicio">
+        <ThemeToggle />
+      </AppTopBar>
 
       <main id="registration-main" className="mx-auto w-full max-w-[70rem] px-4 pt-8 pb-16 sm:px-6">
         {children}

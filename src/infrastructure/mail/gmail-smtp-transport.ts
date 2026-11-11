@@ -3,7 +3,7 @@ import nodemailer, { type SendMailOptions } from "nodemailer";
 
 import type { MailMessage, MailTransport } from "@/application/ports/mail.ports";
 
-import type { GmailConfig } from "./mail-config";
+import { smtpEndpoint, type GmailConfig } from "./mail-config";
 
 /** The part of a nodemailer transporter this adapter uses, so a test can hand in one that builds the message in memory. */
 export interface Mailer {
@@ -19,13 +19,13 @@ const SOCKET_TIMEOUT_MS = 15_000;
 /**
  * SMTPS to Gmail with an app password (no domain needed). `pooled` keeps one connection open for a burst of sends
  * (the reminders): a new TLS handshake per message would let only a few dozen go out in the time a function has.
+ * `MAIL_SMTP_*` (only the e2e suite sets it, see `smtpEndpoint`) swaps the server for the e2e sink; unset, it is Gmail as always.
  */
-export function createGmailTransporter(config: GmailConfig, { pooled = false }: { pooled?: boolean } = {}) {
-  return nodemailer.createTransport({
+export function createGmailTransporter(config: GmailConfig, { pooled = false, env = process.env }: { pooled?: boolean; env?: Record<string, string | undefined> } = {}) {
+  // `smtpEndpoint` allows a connection without TLS only to this machine (the e2e sink); every other host is SMTPS.
+  return nodemailer.createTransport({ // NOSONAR typescript:S5332
     ...(pooled ? { pool: true, maxConnections: 1 } : {}),
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    ...smtpEndpoint(env),
     auth: { user: config.user, pass: config.appPassword },
     connectionTimeout: CONNECTION_TIMEOUT_MS,
     greetingTimeout: GREETING_TIMEOUT_MS,

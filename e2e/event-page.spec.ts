@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
+import { openForm } from "./support/turnstile";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
@@ -67,7 +68,7 @@ test("an open event: a visitor without a session sees the event, its seats and t
   const { slug } = await createEvent(page, title, { mode: "open", capacity: 2 });
   await leave(page);
 
-  await page.goto(`/inscripciones/${slug}`);
+  await openForm(page, slug);
 
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByText("Inscripciones abiertas")).toBeVisible();
@@ -99,7 +100,9 @@ test("an open event: a visitor without a session sees the event, its seats and t
   await page.getByLabel("Correo").fill("ana@example.com");
   await expect(page.getByLabel("Correo")).not.toHaveAttribute("aria-invalid", "true");
 
-  // The e2e app runs in production without a Turnstile secret: the server refuses (fail closed) and the form says so, keeping the data.
+  // When the server cannot decide about the captcha it refuses (fail closed, 503 `unavailable`; the rule itself is
+  // proved by src/tests/unit/infrastructure/http/turnstile.test.ts). The form says so and keeps the data.
+  await page.route(`**/api/public/events/${slug}/registrations`, (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "unavailable" }) }), { times: 1 });
   await page.getByRole("button", { name: "Reservar mi cupo" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "La inscripción no está disponible en este momento." })).toBeVisible();
   await expect(page.getByLabel("Nombre completo")).toHaveValue("Ana Pérez");
@@ -117,7 +120,7 @@ test("every answer of the public endpoint is shown where the person is looking",
   const answer = (status: number, body: object, headers: Record<string, string> = {}) =>
     page.route(endpoint, (route) => route.fulfill({ status, contentType: "application/json", headers, body: JSON.stringify(body) }), { times: 1 });
 
-  await page.goto(`/inscripciones/${slug}`, { waitUntil: "networkidle" });
+  await openForm(page, slug);
 
   // A duplicate belongs to the email field.
   await fillForm(page);
@@ -144,7 +147,7 @@ test("every answer of the public endpoint is shown where the person is looking",
   await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
 
   // No mail: the server says so and the form keeps what was typed.
-  await page.goto(`/inscripciones/${slug}`, { waitUntil: "networkidle" });
+  await openForm(page, slug);
   await fillForm(page);
   await answer(503, { error: "email_budget" });
   await page.getByRole("button", { name: "Reservar mi cupo" }).click();

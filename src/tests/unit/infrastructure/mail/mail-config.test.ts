@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_MAIL_DAILY_LIMIT, gmailConfig, mailConfigProblems, mailDailyLimit, registrationConfirmSecret } from "@/infrastructure/mail/mail-config";
+import { DEFAULT_MAIL_DAILY_LIMIT, GMAIL_SMTP_ENDPOINT, gmailConfig, mailConfigProblems, mailDailyLimit, registrationConfirmSecret, smtpEndpoint } from "@/infrastructure/mail/mail-config";
 
 const ENV = {
   MAIL_GMAIL_USER: "asociacion@gmail.com",
@@ -84,3 +84,50 @@ describe("mail configuration", () => {
     });
   });
 });
+
+describe("SMTP endpoint (MAIL_SMTP_*, test-only)", () => {
+  it("is Gmail's SMTPS endpoint when nothing is set, whatever else the environment has", () => {
+    expect(GMAIL_SMTP_ENDPOINT).toEqual({ host: "smtp.gmail.com", port: 465, secure: true });
+    expect(smtpEndpoint({})).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint(ENV)).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "", MAIL_SMTP_PORT: "", MAIL_SMTP_SECURE: "" })).toEqual(GMAIL_SMTP_ENDPOINT);
+  });
+
+  it("points at the host given, with a plain connection unless the port or MAIL_SMTP_SECURE say otherwise", () => {
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "2525" })).toEqual({ host: "127.0.0.1", port: 2525, secure: false });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: " localhost ", MAIL_SMTP_PORT: " 2525 ", MAIL_SMTP_SECURE: "TRUE" })).toEqual({ host: "localhost", port: 2525, secure: true });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org" })).toEqual({ host: "mail.example.org", port: 465, secure: true });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org", MAIL_SMTP_PORT: "2465", MAIL_SMTP_SECURE: "true" })).toEqual({ host: "mail.example.org", port: 2465, secure: true });
+  });
+
+  it("allows a plain connection only to this machine: any other host without TLS keeps Gmail's endpoint", () => {
+    // `localhost` is sent as the address itself, so no name lookup can point a plain connection elsewhere.
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "LOCALHOST", MAIL_SMTP_PORT: "2525", MAIL_SMTP_SECURE: "false" })).toEqual({ host: "127.0.0.1", port: 2525, secure: false });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.53", MAIL_SMTP_PORT: "2525" })).toEqual({ host: "127.0.0.53", port: 2525, secure: false });
+    // Not addresses: a resolver would look these up by name.
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.999.1.1", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.01", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_SECURE: "false" })).toEqual({ host: "127.0.0.1", port: 465, secure: false });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org", MAIL_SMTP_SECURE: "false" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org", MAIL_SMTP_PORT: "587" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.1.example.org", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "10.0.0.5", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
+  });
+
+  it.each([
+    ["a port without a host", { MAIL_SMTP_PORT: "2525" }],
+    ["a secure flag without a host", { MAIL_SMTP_SECURE: "false" }],
+    ["a placeholder host", { MAIL_SMTP_HOST: "__REPLACE_MAIL_SMTP_HOST__" }],
+    ["a host with a scheme", { MAIL_SMTP_HOST: "smtp://127.0.0.1" }],
+    ["a host with a path or a space", { MAIL_SMTP_HOST: "127.0.0.1/x y" }],
+    ["a host with a port inside", { MAIL_SMTP_HOST: "127.0.0.1:2525" }],
+    ["a port of zero", { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "0" }],
+    ["a port over 65535", { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "65536" }],
+    ["a port that is not a number", { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "smtp" }],
+    ["a fractional port", { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "25.5" }],
+    ["a secure flag that is not true or false", { MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "2525", MAIL_SMTP_SECURE: "maybe" }],
+  ])("ignores the whole override and keeps Gmail's endpoint for %s", (_label, env) => {
+    expect(smtpEndpoint(env)).toEqual(GMAIL_SMTP_ENDPOINT);
+  });
+});
+

@@ -26,6 +26,57 @@ function value(env: Env, name: string): string | undefined {
   }
 }
 
+/** Where mail goes unless `MAIL_SMTP_*` overrides it: Gmail's SMTPS endpoint. */
+export const GMAIL_SMTP_ENDPOINT = { host: "smtp.gmail.com", port: 465, secure: true } as const;
+
+export interface SmtpEndpoint {
+  host: string;
+  port: number;
+  secure: boolean;
+}
+
+// A DNS name or an IPv4 address, nothing else: no scheme, port, path or space.
+const SMTP_HOST_PATTERN = /^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/;
+// This machine only: the one place a connection without TLS cannot be read on the way. A strict dotted address in
+// 127.0.0.0/8 (each part 0-255, no leading zero): anything looser is a name, and a name is looked up through DNS.
+const OCTET = "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
+const LOOPBACK_ADDRESS_PATTERN = new RegExp(`^127\\.${OCTET}\\.${OCTET}\\.${OCTET}$`);
+const LOOPBACK_ADDRESS = "127.0.0.1";
+
+/**
+ * The SMTP server mail goes to: Gmail's, unless `MAIL_SMTP_HOST` names another (with `MAIL_SMTP_PORT`, default 465,
+ * and `MAIL_SMTP_SECURE` `true`/`false`, default "the port is 465"). Only the e2e suite sets these, to point at a local
+ * sink so no real mail is sent; production leaves all three unset. A value that does not parse (no host, a bad port,
+ * a secure flag that is not true or false) drops the whole override: mail never goes to a half-set endpoint.
+ * So does a connection without TLS to any host but this machine: the app password never travels in plain text.
+ */
+export function smtpEndpoint(env: Env = process.env): SmtpEndpoint {
+  const host = value(env, "MAIL_SMTP_HOST");
+  const rawPort = value(env, "MAIL_SMTP_PORT");
+  const rawSecure = value(env, "MAIL_SMTP_SECURE")?.toLowerCase();
+
+  if (!host || !SMTP_HOST_PATTERN.test(host)) {
+    return { ...GMAIL_SMTP_ENDPOINT };
+  }
+
+  const port = rawPort === undefined ? GMAIL_SMTP_ENDPOINT.port : /^\d{1,5}$/.test(rawPort) ? Number(rawPort) : Number.NaN;
+
+  if (!Number.isInteger(port) || port < 1 || port > 65_535 || (rawSecure !== undefined && rawSecure !== "true" && rawSecure !== "false")) {
+    return { ...GMAIL_SMTP_ENDPOINT };
+  }
+
+  const secure = rawSecure === undefined ? port === GMAIL_SMTP_ENDPOINT.port : rawSecure === "true";
+
+  if (secure) {
+    return { host, port, secure };
+  }
+
+  // `localhost` goes out as the address, so the plain connection never depends on how the name resolves.
+  const address = host.toLowerCase() === "localhost" ? LOOPBACK_ADDRESS : host;
+
+  return LOOPBACK_ADDRESS_PATTERN.test(address) ? { host: address, port, secure } : { ...GMAIL_SMTP_ENDPOINT };
+}
+
 function gmailUser(env: Env): string | undefined {
   const user = value(env, "MAIL_GMAIL_USER");
 

@@ -13,6 +13,7 @@ import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { REGISTRATION_SESSION_EXPIRED_RESULT } from "@/interface/event-registration/registration-action-errors";
 import * as registration from "@/interface/forum/event-registration";
 import { getEventRegistrationPage, getRegistrationAccess } from "@/interface/forum/event-registration-read";
+import { getForumServices } from "@/interface/forum/forum-container";
 import { signInAs } from "@/tests/support/test-auth";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { signInToForumAs } from "@/tests/support/test-forum";
@@ -299,5 +300,14 @@ describe("S1/S2: getRegistrationAccess, what the header of the list offers this 
     await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
 
     expect(await getRegistrationAccess()).toEqual({ member: { name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }, loginAvailable: true });
+  });
+
+  it("treats the browser as a visitor, and says so in the log without personal data, when the account cannot be read", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+    vi.spyOn(getForumServices().ownAccount, "execute").mockRejectedValueOnce(new Error("database is down for maria.cuenca@unl.edu.ec"));
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: true });
+    expect(console.error).toHaveBeenCalledOnce();
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("maria.cuenca");
   });
 });

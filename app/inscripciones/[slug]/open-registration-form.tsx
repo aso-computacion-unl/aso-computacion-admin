@@ -264,7 +264,11 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
                 // erase what the server just said.
                 if (value) setNotice((previous) => (previous?.about === "check" ? null : previous));
               }}
-              onError={() => say(CAPTCHA_LOAD_MESSAGE, "check")}
+              // The same goes for a widget that fails after an answer: what the server said stays, and the next submit
+              // asks for the verification anyway.
+              onError={() => {
+                if (notice?.about !== "answer") say(CAPTCHA_LOAD_MESSAGE, "check");
+              }}
             />
           </div>
         ) : null}

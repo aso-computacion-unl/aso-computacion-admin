@@ -234,3 +234,13 @@ describe("GetOwnForumAccountUseCase", () => {
     expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "nadie" })).toBeNull();
   });
 });
+
+describe("S9: the member session lasts thirty days", () => {
+  it("stores a session that expires thirty days after it opens, and no later", async () => {
+    const sessions = new InMemoryForumSessionRepository(members);
+    const { sessionId, expiresAt } = await new OpenForumSessionUseCase(sessions, () => NOW).execute({ memberId: "m1" });
+
+    expect(expiresAt.getTime() - NOW.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(sessions.sessions.get(sessionId)?.expiresAt).toEqual(expiresAt);
+  });
+});

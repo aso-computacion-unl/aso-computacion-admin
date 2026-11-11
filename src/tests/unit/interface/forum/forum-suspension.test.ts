@@ -89,7 +89,7 @@ describe("hasSuspendedForumSession (D1): only the holder of the member's own sig
     const { cookie, memberId } = await signInToForumAs();
     suspend(memberId);
 
-    vi.useFakeTimers({ now: Date.now() + 8 * 24 * 60 * 60 * 1000 });
+    vi.useFakeTimers({ now: Date.now() + 31 * 24 * 60 * 60 * 1000 });
     jar({ [FORUM_COOKIE_NAME]: cookie });
     expect(await hasSuspendedForumSession()).toBe(false);
     vi.useRealTimers();

@@ -180,7 +180,7 @@ Students sign in to the forum with their institutional Google account; there is 
 
 **Fails closed.** Without `FORUM_ALLOWED_EMAIL_DOMAIN` or a valid `FORUM_SESSION_SECRET` (missing, a placeholder, shorter than 32 characters, or equal to `ADMIN_SECRET`) nobody can sign in and `/foro` says the access is unavailable; the admin is not affected. A login is accepted only when the email is verified by Google, its domain is exactly the configured one (sub-domains are not accepted) and Google's `hd` claim names that same domain, so a personal Google account carrying an institutional address is refused. A suspended member is refused and their open sessions stop working at their next request.
 
-**What is stored and shown.** `ForumMember` keeps the lower-cased email and Google's account id (never shown to other students; no public type carries them) and the display name taken from the Google profile (a neutral "Estudiante xxxx" when there is none or it looks like an address). Forum sessions last 7 days and are revocable; only a keyed hash of the client address is kept.
+**What is stored and shown.** `ForumMember` keeps the lower-cased email and Google's account id (never shown to other students; no public type carries them) and the display name taken from the Google profile (a neutral "Estudiante xxxx" when there is none or it looks like an address). Forum sessions last 30 days from the login (no renewal on use) and are revocable: signing out or a suspension ends them at once; only a keyed hash of the client address is kept.
 
 **Posting limits.** A member may post (threads and replies together) 3 times per minute and 30 per hour, counted in the database; the posts are Markdown with fenced code, rendered without HTML.
 

@@ -21,7 +21,8 @@ export const FORUM_COOKIE_NAME = "forum_sid";
 export const FORUM_COOKIE_PATH = "/";
 export const LEGACY_FORUM_COOKIE_NAME = "forum_session";
 export const LEGACY_FORUM_COOKIE_PATH = "/foro";
-export const FORUM_SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
+/** 30 days, the same as the `ForumSession` row (`FORUM_SESSION_TTL_MS`); the admin session stays at 24 hours. */
+export const FORUM_SESSION_DURATION_SECONDS = 30 * 24 * 60 * 60;
 export const FORUM_AUDIENCE = "aso-computacion-forum";
 export const FORUM_SESSION_TYPE = "forum-session";
 

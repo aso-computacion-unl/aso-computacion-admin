@@ -190,7 +190,9 @@ describe("finishForumLogin", () => {
     expect(testForum.sessions.sessions.size).toBe(1);
 
     const [name, token, options] = cookieSetMock.mock.calls.find(([cookie]) => cookie === FORUM_COOKIE_NAME) as [string, string, Record<string, unknown>];
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
+    // S9: the member session's cookie lasts thirty days.
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 30 * 24 * 60 * 60 });
+    expect([...testForum.sessions.sessions.values()][0]!.expiresAt.getTime() - [...testForum.sessions.sessions.values()][0]!.createdAt.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
     expect(await verifyForumSession(token)).toMatchObject({ valid: true });
     expect(name).toBe("forum_sid");
   });

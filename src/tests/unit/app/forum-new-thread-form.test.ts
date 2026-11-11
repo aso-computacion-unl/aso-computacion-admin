@@ -28,7 +28,7 @@ afterEach(async () => {
 
 describe("the new-thread form", () => {
   async function filledForm() {
-    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m1" }));
 
     await typeInto(field(host, 'input[name="title"]'), "¿Cómo depuro un use-after-free?");
     await typeInto(field(host, 'textarea[name="body"]'), "Tengo un **use-after-free**.");
@@ -37,7 +37,7 @@ describe("the new-thread form", () => {
   }
 
   it("labels its fields and offers the formatting toolbar, a preview and a way back", async () => {
-    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m1" }));
 
     expect(host.querySelector("label[for]")?.textContent).toBe("Título");
     expect(host.textContent).toContain("Texto (Markdown)");
@@ -131,17 +131,28 @@ describe("the new-thread form", () => {
       await settle();
       await unmountAll();
 
-      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m1" }));
 
       expect(field<HTMLInputElement>(again, 'input[name="title"]').value).toBe("¿Cómo depuro un use-after-free?");
       expect(field<HTMLTextAreaElement>(again, 'textarea[name="body"]').value).toBe("Tengo un **use-after-free**.");
+    });
+
+    it("gives the draft back only to the member who typed it", async () => {
+      await filledForm();
+      await unmountAll();
+
+      const other = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m2" }));
+
+      expect(field<HTMLInputElement>(other, 'input[name="title"]').value).toBe("");
+      expect(field<HTMLTextAreaElement>(other, 'textarea[name="body"]').value).toBe("");
+      expect(window.sessionStorage.length).toBe(0);
     });
 
     it("keeps one draft per category, and only for this tab", async () => {
       await filledForm();
       await unmountAll();
 
-      const other = await mount(createElement(NewThreadForm, { categorySlug: "materias" }));
+      const other = await mount(createElement(NewThreadForm, { categorySlug: "materias", memberId: "m1" }));
 
       expect(field<HTMLInputElement>(other, 'input[name="title"]').value).toBe("");
     });
@@ -152,7 +163,7 @@ describe("the new-thread form", () => {
       await settle();
       await unmountAll();
 
-      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m1" }));
 
       expect(field<HTMLInputElement>(again, 'input[name="title"]').value).toBe("");
       expect(window.sessionStorage.length).toBe(0);
@@ -183,7 +194,7 @@ describe("the new-thread form", () => {
   });
 
   it("formats the selection with the toolbar", async () => {
-    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+    const host = await mount(createElement(NewThreadForm, { categorySlug: "programacion", memberId: "m1" }));
     const body = field<HTMLTextAreaElement>(host, 'textarea[name="body"]');
 
     await typeInto(body, "Hola mundo");

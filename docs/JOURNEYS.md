@@ -62,14 +62,14 @@ Conventions:
 - **Entry**: `/foro/c/<slug>/nuevo` (also from the "new thread" menu and row).
 - **Steps**: title (≤ 120), Markdown body (≤ 10 000) with live preview, publish.
 - **Expected**: lands on `/foro/hilo/<id>` with the new thread.
-- **A draft** (D5): title and text are also kept in this tab's `sessionStorage` while typing (one draft per category), given back when the form opens again (after signing in, the sign-in returns to `/foro/c/<slug>/nuevo`), and forgotten once the thread is published, on «Cerrar sesión» and when the tab closes.
+- **A draft** (D5): title and text are also kept in this tab's `sessionStorage` while typing (one draft per category), given back when the form opens again (after signing in, the sign-in returns to `/foro/c/<slug>/nuevo`), and forgotten once the thread is published, on «Cerrar sesión» (even if the sign-out call fails) and when the tab closes. It is tied to the member who typed it: on a shared machine another student who signs in in the same tab finds the form empty, and the draft is dropped, not kept for the first member.
 - **Errors** (each with a "Volver al foro" link):
 
 | Case | Message |
 | --- | --- |
 | Title empty or too long | "El título es obligatorio y admite hasta 120 caracteres." |
 | Body empty or too long | "El texto es obligatorio y admite hasta 10000 caracteres en un hilo y 5000 en una respuesta." |
-| Posting too fast (3 per minute, 30 per hour, threads and replies together) | "Está publicando muy rápido: el límite es de 3 publicaciones por minuto. Puede volver a intentarlo en 1 minuto." or "…de 30 publicaciones por hora. Puede volver a intentarlo en 60 minutos." (D3: names the limit that tripped; the wait is in whole minutes, rounded up: "1 minuto" / "N minutos") |
+| Posting too fast (3 per minute, 30 per hour, threads and replies together) | "Está publicando muy rápido: el límite es de 3 publicaciones por minuto. Puede volver a intentarlo en 1 minuto." or "…de 30 publicaciones por hora. Puede volver a intentarlo en 50 minutos." (D3: names the limit that tripped; the wait is the time really left until the oldest post inside that window leaves it, not the whole window; if both limits are exceeded, the one with the longer wait is named; in whole minutes, rounded up: "1 minuto" / "N minutos") |
 | Session gone | "Inicie sesión para participar en el foro." with the link "Iniciar sesión" (to `/foro?next=<this page>`) instead of "Volver al foro"; what was typed stays (D5) |
 | Suspended | "Su cuenta no puede participar en el foro." |
 | Unknown category | "No se encontró la publicación." |
@@ -81,7 +81,7 @@ Conventions:
 - **Steps**: body (≤ 5 000), publish.
 - **Expected**: the box clears, "Respuesta publicada." and the reply appears.
 - **Errors**: as F6 (the throttle message, and the session-gone message with "Iniciar sesión" back to `/foro/hilo/<id>`), plus a locked thread (also if it is locked while writing): "Este hilo está cerrado: no admite respuestas ni cambios."
-- **A draft** (D5): the reply is kept like F6's, one draft per thread; the box comes back with its text after signing in, and clears for good once the reply is published.
+- **A draft** (D5): the reply is kept like F6's, one draft per thread, tied to the member who typed it (another member on the same machine finds the box empty); the box comes back with its text after signing in as the same member, and clears for good once the reply is published.
 
 ### F8. A student reacts, picks the best answer, reports
 
@@ -235,9 +235,9 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | --- | --- | --- | --- |
 | D1 | F10 | Tell a suspended student at once | **Built** (`e2e/forum-ux.spec.ts`). Opening the forum with a suspended account shows a suspension notice ("escriba a la directiva de ASO") instead of the sign-in gate; the sign-in refusal for a suspended account is its own message, apart from domain or verification refusals |
 | D2 | F8 | Build it now | A student edits their own thread and replies (shown as "editado"); «Me sirvió» is offered on the opening post too |
-| D3 | F6 | Name the limit, in minutes | **Built** (`e2e/forum-ux.spec.ts`). The throttle message says which limit was hit (per minute or per hour) and the wait in minutes |
+| D3 | F6 | Name the limit, in minutes | **Built** (`e2e/forum-ux.spec.ts`). The throttle message says which limit was hit (per minute or per hour) and the time really left in minutes (until the oldest post of that window leaves it; with both limits exceeded, the longer wait) |
 | D4 | F5 | Visible placeholder | **Built** (`e2e/forum-ux.spec.ts`). A hidden reply leaves "Respuesta oculta por la moderación" in its place, without its content; a hidden best answer shows the same placeholder |
-| D5 | F6, F7, R2 | Keep text, return, own wording | **Built** (forum: F6, F7, `e2e/forum-ux.spec.ts`; registrations: R2, `e2e/audit-registration.spec.ts`, unit tests of the action, the event page and the sign-in return): an expired session keeps the typed text and the sign-in link returns to the same page; the registration screens use registration wording, never "participar en el foro", and a failed sign-in that began on an event's page comes back to it |
+| D5 | F6, F7, R2 | Keep text, return, own wording | **Built** (forum: F6, F7, `e2e/forum-ux.spec.ts`; registrations: R2, `e2e/audit-registration.spec.ts`, unit tests of the action, the event page and the sign-in return): an expired session keeps the typed text and the sign-in link returns to the same page, and the saved text is given back only to the member who typed it (a different member in the same tab finds the form empty); the registration screens use registration wording, never "participar en el foro", and a failed sign-in that began on an event's page comes back to it |
 | D6 | F11 | Simple members list | `/admin/foro/miembros`: search, "suspendidos" filter, Reactivar (built; `e2e/forum-members-admin.spec.ts`) |
 | D7 | R2, R4, R6 | Build cancellation now | A registered person can say they cannot attend and free the seat: a link in the confirmation and reminder emails, and on the event page for UNL students |
 | D8 | F4, R3 | Forum and registrations are separate sections | **Built** (`e2e/audit-registration.spec.ts`, `e2e/forum-member.spec.ts`, `e2e/event-page.spec.ts`). The forum is only the forum (no registrations page or link). `/inscripciones` is a public list, no sign-in, of every event taking registrations (UNL and open), with its own top bar (no "Foro"). `/foro/eventos` redirects there. UNL students still prove their UNL Google account to reserve, but the screens say "Inscripciones", never "foro" |

@@ -10,7 +10,7 @@ export const POSTING_LIMITS = [
   { windowSeconds: 3600, max: 30, per: "hora" },
 ] as const;
 
-/** The member posted too much recently. `retryAfterSeconds` is the window that tripped, an upper bound; `max` and `per` name that limit ("3 por minuto"). */
+/** The member posted too much recently. `retryAfterSeconds` is the time really left before the post that tripped the limit leaves its window; `max` and `per` name that limit ("3 por minuto"). */
 export class ForumThrottledError extends Error {
   constructor(
     public readonly retryAfterSeconds: number,
@@ -28,14 +28,29 @@ export class PostingThrottle {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  /** Throws `ForumThrottledError` when one more post would exceed a limit. */
+  /**
+   * Throws `ForumThrottledError` when one more post would exceed a limit. Every limit is checked and the error
+   * is the one with the longest wait (the member can post again only when all are free): that wait runs until
+   * the oldest post inside the window leaves it, not for the whole window.
+   */
   async assertAllowed(memberId: string): Promise<void> {
     const at = this.now().getTime();
+    let longest: ForumThrottledError | undefined;
 
     for (const { windowSeconds, max, per } of POSTING_LIMITS) {
-      if ((await this.posts.countPostsSince(memberId, new Date(at - windowSeconds * 1000))) >= max) {
-        throw new ForumThrottledError(windowSeconds, max, per);
-      }
+      const since = new Date(at - windowSeconds * 1000);
+
+      if ((await this.posts.countPostsSince(memberId, since)) < max) continue;
+
+      const oldest = await this.posts.oldestPostSince(memberId, since);
+      // No post left in the window: it emptied between the two reads, so this limit no longer holds.
+      if (oldest === null) continue;
+
+      const retryAfterSeconds = Math.max(1, Math.ceil((oldest.getTime() + windowSeconds * 1000 - at) / 1000));
+
+      if (!longest || retryAfterSeconds > longest.retryAfterSeconds) longest = new ForumThrottledError(retryAfterSeconds, max, per);
     }
+
+    if (longest) throw longest;
   }
 }

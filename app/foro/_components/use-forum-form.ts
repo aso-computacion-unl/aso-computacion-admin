@@ -17,10 +17,13 @@ const UNEXPECTED: ForumActionResult = { error: "Ocurrió un error inesperado. In
  * long post when the server refuses it. A rejected call (network) becomes an error result instead of
  * unmounting the form.
  *
- * With a `draftKey` what is typed is also kept in this tab (see `forum-drafts`) and given back when the form is
- * opened again, so a session that ended while writing costs no text; a published post forgets it.
+ * With a `draft` (its key and the member who is writing) what is typed is also kept in this tab (see `forum-drafts`)
+ * and given back to that member when the form is opened again, so a session that ended while writing costs no
+ * text; a published post forgets it.
  */
-export function useForumForm<V extends Record<string, string>>(action: ForumAction, initialValues: V, draftKey?: string) {
+export function useForumForm<V extends Record<string, string>>(action: ForumAction, initialValues: V, draft?: { key: string; memberId: string }) {
+  const draftKey = draft?.key;
+  const memberId = draft?.memberId ?? null;
   const [values, setValues] = useState<V>(initialValues);
   const current = useRef(initialValues);
   const [state, formAction, pending] = useActionState<ForumActionResult | null, FormData>(async (previous, formData) => {
@@ -33,16 +36,16 @@ export function useForumForm<V extends Record<string, string>>(action: ForumActi
 
   // After the first render, not in the initial state: the server render has no storage, and both must match.
   useEffect(() => {
-    const draft = draftKey ? readDraft<V>(draftKey, Object.keys(initialValues)) : null;
+    const saved = draftKey ? readDraft<V>(draftKey, Object.keys(initialValues), memberId) : null;
 
-    if (draft) {
-      current.current = draft;
+    if (saved) {
+      current.current = saved;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- browser storage can only be read once the page is hydrated
-      setValues(draft);
+      setValues(saved);
     }
     // Only when the form opens: `initialValues` is the constant the caller passes each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey]);
+  }, [draftKey, memberId]);
 
   useEffect(() => {
     if (state?.success && draftKey) clearDraft(draftKey);
@@ -51,7 +54,7 @@ export function useForumForm<V extends Record<string, string>>(action: ForumActi
   function setValue(key: keyof V & string, value: string) {
     current.current = { ...current.current, [key]: value };
     setValues(current.current);
-    if (draftKey) writeDraft(draftKey, current.current);
+    if (draftKey) writeDraft(draftKey, memberId, current.current);
   }
 
   function reset() {

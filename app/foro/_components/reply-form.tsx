@@ -14,11 +14,11 @@ import { useForumForm } from "./use-forum-form";
 
 const BODY_MAX = 5000;
 
-/** The reply box at the end of a thread. A published reply clears it and refreshes the thread in place. */
-export function ReplyForm({ threadId }: { threadId: string }) {
+/** The reply box at the end of a thread. A published reply clears it and refreshes the thread in place. `memberId` owns the draft kept while writing. */
+export function ReplyForm({ threadId, memberId }: { threadId: string; memberId: string }) {
   const router = useRouter();
   const id = useId();
-  const { values, setValue, reset, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => replyToForumThread(threadId, previous, formData), { body: "" }, replyDraftKey(threadId));
+  const { values, setValue, reset, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => replyToForumThread(threadId, previous, formData), { body: "" }, { key: replyDraftKey(threadId), memberId });
 
   useEffect(() => {
     if (state?.success) {

@@ -18,11 +18,11 @@ import { useForumForm } from "./use-forum-form";
 const TITLE_MAX = 120;
 const BODY_MAX = 10000;
 
-/** The composer of a new thread: title, Markdown text with its preview, and the way back to the category. */
-export function NewThreadForm({ categorySlug }: { categorySlug: string }) {
+/** The composer of a new thread: title, Markdown text with its preview, and the way back to the category. `memberId` owns the draft kept while writing. */
+export function NewThreadForm({ categorySlug, memberId }: { categorySlug: string; memberId: string }) {
   const router = useRouter();
   const id = useId();
-  const { values, setValue, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => createForumThread(categorySlug, previous, formData), { title: "", body: "" }, threadDraftKey(categorySlug));
+  const { values, setValue, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => createForumThread(categorySlug, previous, formData), { title: "", body: "" }, { key: threadDraftKey(categorySlug), memberId });
   const published = state?.success === true;
 
   useEffect(() => {

@@ -85,7 +85,7 @@ describe("posting throttle", () => {
     const refused = createThread().execute({ memberId: "m1", categorySlug: "programacion", title: "Uno más", body: "Texto" });
 
     await expect(refused).rejects.toThrow(ForumThrottledError);
-    await expect(refused).rejects.toMatchObject({ retryAfterSeconds: perMinute.windowSeconds });
+    await expect(refused).rejects.toMatchObject({ retryAfterSeconds: perMinute.windowSeconds, per: "minuto" });
     expect(store.threads.size).toBe(perMinute.max);
 
     clock = new Date(NOW.getTime() + perMinute.windowSeconds * 1000 + 1);
@@ -108,7 +108,41 @@ describe("posting throttle", () => {
       store.replies.set(`old-${index}`, makeForumReply({ id: `old-${index}`, threadId: "t0", authorId: "m1", createdAt: new Date(NOW.getTime() - 10 * 60 * 1000) }));
     }
 
-    await expect(reply().execute({ memberId: "m1", threadId: "t0", body: "otra" })).rejects.toMatchObject({ retryAfterSeconds: perHour.windowSeconds });
+    // The oldest of them was 10 minutes ago: the member can post again when it leaves the hour, in 50 minutes.
+    await expect(reply().execute({ memberId: "m1", threadId: "t0", body: "otra" })).rejects.toMatchObject({ retryAfterSeconds: perHour.windowSeconds - 10 * 60, max: perHour.max, per: "hora" });
+  });
+
+  it("says the time really left, from the oldest post of the window, not the whole window (D3)", async () => {
+    for (let index = 0; index < perMinute.max; index++) {
+      await createThread().execute({ memberId: "m1", categorySlug: "programacion", title: `Hilo ${index}`, body: "Texto" });
+    }
+
+    clock = new Date(NOW.getTime() + 20_000);
+
+    await expect(createThread().execute({ memberId: "m1", categorySlug: "programacion", title: "Uno más", body: "Texto" })).rejects.toMatchObject({ retryAfterSeconds: 40, max: perMinute.max, per: "minuto" });
+  });
+
+  describe("when both limits are exceeded", () => {
+    const seed = (oldAgoSeconds: number, recentAgoSeconds: number) => {
+      store.threads.set("t0", makeForumThread({ id: "t0", categoryId: "c1" }));
+      for (let index = 0; index < perHour.max; index++) {
+        const agoSeconds = index < perMinute.max ? recentAgoSeconds : oldAgoSeconds;
+
+        store.replies.set(`old-${index}`, makeForumReply({ id: `old-${index}`, threadId: "t0", authorId: "m1", createdAt: new Date(NOW.getTime() - agoSeconds * 1000) }));
+      }
+    };
+
+    it("reports the hourly one when its wait is longer", async () => {
+      seed(50 * 60, 1);
+
+      await expect(reply().execute({ memberId: "m1", threadId: "t0", body: "otra" })).rejects.toMatchObject({ retryAfterSeconds: 10 * 60, max: perHour.max, per: "hora" });
+    });
+
+    it("reports the per-minute one when its wait is longer", async () => {
+      seed(3570, 5);
+
+      await expect(reply().execute({ memberId: "m1", threadId: "t0", body: "otra" })).rejects.toMatchObject({ retryAfterSeconds: 55, max: perMinute.max, per: "minuto" });
+    });
   });
 });
 

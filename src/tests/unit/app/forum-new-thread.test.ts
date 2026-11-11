@@ -24,15 +24,33 @@ import { testForum } from "@/tests/support/test-forum";
 
 const render = (slug: string) => NewThreadPage({ params: Promise.resolve({ slug }) }).then((element) => renderToStaticMarkup(element));
 
+/** The `memberId` props found anywhere in the element tree the page returned (before it renders): what the page hands the browser. */
+function memberIdProps(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(memberIdProps);
+  if (typeof node !== "object" || node === null || !("props" in node)) return [];
+
+  const props = (node as { props: { memberId?: unknown; children?: unknown } }).props;
+
+  return [...(typeof props.memberId === "string" ? [props.memberId] : []), ...memberIdProps(props.children)];
+}
+
+let viewerId = "";
+
 beforeEach(async () => {
   vi.clearAllMocks();
   stubForumSecrets();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   testForum.store.categories.set("c1", makeForumCategory({ id: "c1", slug: "programacion", name: "Programación" }));
-  cookiesMock.mockResolvedValue((await forumMemberJar()).jar);
+  const viewer = await forumMemberJar();
+  viewerId = viewer.memberId;
+  cookiesMock.mockResolvedValue(viewer.jar);
 });
 
 describe("the new-thread page", () => {
+  it("hands the composer the id of the member writing, which owns the draft kept in the browser (D5)", async () => {
+    expect(memberIdProps(await NewThreadPage({ params: Promise.resolve({ slug: "programacion" }) }))).toEqual([viewerId]);
+  });
+
   it("is for members: a visitor goes to the sign-in at /foro", async () => {
     cookiesMock.mockResolvedValue(cookieJar({}));
 

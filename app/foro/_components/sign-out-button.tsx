@@ -16,9 +16,12 @@ export function SignOutButton() {
 
   function signOut() {
     startTransition(async () => {
-      await signOutOfForum();
-      // What was being written stays in this tab: it must not be there for the next person to sign in.
-      clearForumDrafts();
+      try {
+        await signOutOfForum();
+      } finally {
+        // What was being written stays in this tab: it must not be there for the next person to sign in, even if the call failed.
+        clearForumDrafts();
+      }
       router.replace("/foro");
       router.refresh();
     });

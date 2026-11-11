@@ -7,7 +7,7 @@ import { threadStatus } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { getForumReactions } from "@/interface/forum/forum-reactions-read";
-import { getForumThread } from "@/interface/forum/forum-read";
+import { getForumDraftOwner, getForumThread } from "@/interface/forum/forum-read";
 
 import { BestAnswerButton } from "../../_components/best-answer-button";
 import { HiddenPostCard } from "../../_components/hidden-post-card";
@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ThreadPage({ params }: ThreadPageProps) {
   const { id } = await params;
-  const [{ category, thread, replies }, reactions] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id, threadPath(id)))]);
+  const [{ category, thread, replies }, reactions, memberId] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id, threadPath(id))), getForumDraftOwner(threadPath(id))]);
   const now = new Date();
   const status = threadStatus({ hasBestAnswer: thread.bestReplyId !== null, locked: thread.locked });
   // A hidden reply keeps its place as a placeholder but is not counted: it is not something the student can read.
@@ -125,7 +125,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
               Se puede leer, pero ya no admite respuestas nuevas.
             </div>
           ) : (
-            <ReplyForm threadId={thread.id} />
+            <ReplyForm threadId={thread.id} memberId={memberId} />
           )}
         </li>
       </ol>

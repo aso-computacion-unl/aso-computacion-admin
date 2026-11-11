@@ -80,6 +80,16 @@ describe("the confirm page (server)", () => {
     expect(html).not.toContain("Confirmar mi cupo");
   });
 
+  it("S3: says the service is unavailable, without a button or the way back to the form, while the link secret is not usable", async () => {
+    vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "");
+
+    const html = await render("any-token");
+
+    expect(html).toContain("El servicio no está disponible en este momento");
+    expect(html).not.toContain("Este enlace no sirve");
+    expect(html).not.toContain("Confirmar mi cupo");
+  });
+
   describe("an event that no longer takes open-form registrations (D11)", () => {
     const gone: [string, () => void][] = [
       ["unpublished, trashed or gone", () => pageMock.mockResolvedValue(null)],

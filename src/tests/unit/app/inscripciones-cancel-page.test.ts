@@ -23,7 +23,7 @@ import CancelRegistrationPage, { metadata } from "../../../../app/inscripciones/
  */
 const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2099-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const registration = (over: Record<string, unknown> = {}) => ({ event, mode: "open", state: "open", alreadyRegistered: false, capacity: 30, registered: 3, deadline: null, ...over });
-const page = (over: Record<string, unknown> = {}) => ({ event, mode: "open", registration: registration(over) });
+const page = (over: Record<string, unknown> = {}) => ({ eventId: "e1", closed: over.state === "closed", event, mode: "open", registration: registration(over) });
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -60,7 +60,7 @@ describe("the cancel page (server)", () => {
   });
 
   it("works for an event that no longer takes registrations through its mode: the person can still let the seat go", async () => {
-    pageMock.mockResolvedValue({ event, mode: "none", registration: null });
+    pageMock.mockResolvedValue({ eventId: "e1", closed: false, event, mode: "none", registration: null });
 
     const html = await render(await sealRegistrationCancelToken({ registrationId: "r1", eventId: "e1" }));
 
@@ -99,6 +99,32 @@ describe("the cancel page (server)", () => {
 
     expect(html).toContain("Las inscripciones de este evento ya cerraron");
     expect(html).toContain("directiva de ASO");
+    expect(html).not.toContain("Cancelar mi inscripción");
+  });
+
+  it("S4: says the link is no use, without a button, for a link of another event (the POST would refuse it)", async () => {
+    const html = await render(await sealRegistrationCancelToken({ registrationId: "r1", eventId: "another-event" }));
+
+    expect(html).toContain("Este enlace no sirve");
+    expect(html).not.toContain("Cancelar mi inscripción");
+  });
+
+  it("S4: says registration closed, without a button, for a closed event that no longer takes registrations through its mode", async () => {
+    pageMock.mockResolvedValue({ eventId: "e1", closed: true, event, mode: "none", registration: null });
+
+    const html = await render(await sealRegistrationCancelToken({ registrationId: "r1", eventId: "e1" }));
+
+    expect(html).toContain("Las inscripciones de este evento ya cerraron");
+    expect(html).not.toContain("Cancelar mi inscripción");
+  });
+
+  it("S3: says the service is unavailable, without a button, while the link secret is not usable (the link is not the problem)", async () => {
+    vi.stubEnv("REGISTRATION_CONFIRM_SECRET", "");
+
+    const html = await render("any-token");
+
+    expect(html).toContain("El servicio no está disponible en este momento");
+    expect(html).not.toContain("Este enlace no sirve");
     expect(html).not.toContain("Cancelar mi inscripción");
   });
 

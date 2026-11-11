@@ -69,14 +69,14 @@ describe("registration confirmation token", () => {
     expect(await openRegistrationConfirmToken(await signedWith("f".repeat(40), { purpose: "registration-confirm", rid: "r", eid: "e" }), NOW)).toEqual({ status: "invalid" });
   });
 
-  it("fails closed without a usable secret: it signs nothing and opens nothing", async () => {
+  it("S3: fails closed without a usable secret: it signs nothing and opens nothing, and says why instead of calling the link invalid", async () => {
     const token = await sealRegistrationConfirmToken(CLAIMS, NOW);
 
     for (const bad of [undefined, "", "short", "__REPLACE_REGISTRATION_CONFIRM_SECRET__", "a".repeat(40), "f".repeat(40)]) {
       vi.stubEnv("REGISTRATION_CONFIRM_SECRET", bad as string);
 
       await expect(sealRegistrationConfirmToken(CLAIMS, NOW)).rejects.toThrow(RegistrationConfirmSecretError);
-      expect(await openRegistrationConfirmToken(token, NOW)).toEqual({ status: "invalid" });
+      await expect(openRegistrationConfirmToken(token, NOW)).rejects.toThrow(RegistrationConfirmSecretError);
     }
   });
 });

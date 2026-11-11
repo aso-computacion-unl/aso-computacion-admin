@@ -2,13 +2,20 @@ import { readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cookiesMock, revalidatePathMock } = vi.hoisted(() => ({ cookiesMock: vi.fn(), revalidatePathMock: vi.fn() }));
+const { cookiesMock, revalidatePathMock, limiter } = vi.hoisted(() => ({ cookiesMock: vi.fn(), revalidatePathMock: vi.fn(), limiter: {} as { check: (key: string, now?: number) => { allowed: boolean; retryAfterSeconds: number } } }));
 
 vi.mock("server-only", () => ({}));
+// The action's real budget, but a fresh one per test: the members of this file share ids across tests.
+vi.mock("@/infrastructure/http/registration-rate-limiter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/infrastructure/http/registration-rate-limiter")>()),
+  checkRegistrationRateLimit: (key: string, now?: number) => limiter.check(key, now),
+}));
 vi.mock("next/headers", () => ({ cookies: cookiesMock, headers: vi.fn(async () => new Headers()) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
+import { FixedWindowRateLimiter } from "@/infrastructure/http/rate-limiter";
+import { REGISTRATION_RATE_LIMIT_MAX_REQUESTS, REGISTRATION_RATE_LIMIT_MAX_TRACKED_CLIENTS, REGISTRATION_RATE_LIMIT_WINDOW_MS } from "@/infrastructure/http/registration-rate-limiter";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { CANCELLATION_SESSION_EXPIRED_RESULT } from "@/interface/event-registration/registration-action-errors";
 import * as cancellation from "@/interface/event-registration/cancel-registration-action";
@@ -48,6 +55,8 @@ beforeEach(async () => {
   vi.stubEnv("ADMIN_SECRET", "admin-secret-admin-secret-admin-secret-1234");
   vi.stubEnv("FORUM_SESSION_SECRET", "forum-secret-forum-secret-forum-secret-1234");
   vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const fresh = new FixedWindowRateLimiter({ maxRequests: REGISTRATION_RATE_LIMIT_MAX_REQUESTS, windowMs: REGISTRATION_RATE_LIMIT_WINDOW_MS, maxKeys: REGISTRATION_RATE_LIMIT_MAX_TRACKED_CLIENTS });
+  limiter.check = (key, now) => fresh.check(key, now);
   event = await addTestEvent({ registrationMode: "unl", registrationCapacity: 2 });
 });
 
@@ -109,6 +118,26 @@ describe("cancelEventRegistration", () => {
 
     expect(await cancellation.cancelEventRegistration("taller-de-git")).toEqual({ error: "Usted no tiene una inscripción en este evento." });
     expect(stored()).toEqual(before);
+  });
+
+  it("S6: has the registrations' rate limit: a member who keeps pressing is told to wait, nothing is deleted, and another member is not held back", async () => {
+    await signIn({ id: "m1", email: "ana@unl.edu.ec" });
+
+    for (let attempt = 0; attempt < REGISTRATION_RATE_LIMIT_MAX_REQUESTS; attempt += 1) {
+      expect(await cancellation.cancelEventRegistration("taller-de-git")).toEqual({ error: "Usted no tiene una inscripción en este evento." });
+    }
+
+    reserved(event.id, "ana@unl.edu.ec");
+
+    const before = stored();
+
+    expect(await cancellation.cancelEventRegistration("taller-de-git")).toEqual({ error: "Demasiados intentos. Espere unos minutos antes de intentarlo de nuevo." });
+    expect(stored()).toEqual(before);
+
+    reserved(event.id, "luis@unl.edu.ec", "Luis");
+    await signIn({ id: "m2", email: "luis@unl.edu.ec", googleSub: "sub-2" });
+
+    expect(await cancellation.cancelEventRegistration("taller-de-git")).toEqual({ success: true });
   });
 
   it("refuses a suspended member (the guard no longer accepts their session) and an email outside the institutional domain, deleting nothing", async () => {

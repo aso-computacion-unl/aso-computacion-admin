@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { openRegistrationCancelToken } from "@/infrastructure/registration/registration-cancel-token";
+import { RegistrationConfirmSecretError } from "@/infrastructure/registration/registration-confirm-token";
 import { cancelOutcomeMessage } from "@/interface/event-registration/cancel-registration";
 import { getCancelRegistrationPage } from "@/interface/event-registration/cancel-registration-read";
 
@@ -27,7 +28,11 @@ export default async function CancelRegistrationPage({ params, searchParams }: {
   const { token } = await searchParams;
   const page = await getCancelRegistrationPage(slug);
   const value = typeof token === "string" ? token : undefined;
-  const checked = await openRegistrationCancelToken(value);
+  // Without a usable secret no link can be checked: say the service is down, not that the link is bad (S3).
+  const checked = await openRegistrationCancelToken(value).catch((error: unknown) => {
+    if (error instanceof RegistrationConfirmSecretError) return { status: "unavailable" as const };
+    throw error;
+  });
   const eventHref = `/inscripciones/${slug}`;
 
   if (!page) {
@@ -43,12 +48,15 @@ export default async function CancelRegistrationPage({ params, searchParams }: {
     );
   }
 
+  // The button only where the POST would act: not for a link of another event, nor once registration closed (S4).
   const message =
-    checked.status === "valid"
-      ? page.registration?.state === "closed"
-        ? cancelOutcomeMessage({ kind: "closed" })
-        : null
-      : cancelOutcomeMessage({ kind: checked.status });
+    checked.status !== "valid"
+      ? cancelOutcomeMessage({ kind: checked.status })
+      : checked.claims.eventId !== page.eventId
+        ? cancelOutcomeMessage({ kind: "invalid" })
+        : page.closed
+          ? cancelOutcomeMessage({ kind: "closed" })
+          : null;
 
   return (
     <EventTicket event={page.event} mode={page.mode} registration={page.registration ?? undefined}>

@@ -135,6 +135,17 @@ describe("getEventRegistrationPage", () => {
     expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1" }, status: { alreadyRegistered: true } });
   });
 
+  it("S1: gives the UNL page the signed-in member's own email, and only their public name when the account cannot be read", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" } });
+
+    vi.spyOn(getForumServices().ownAccount, "execute").mockRejectedValueOnce(new Error("database is down for maria.cuenca@unl.edu.ec"));
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1", displayName: "María Cuenca", email: null } });
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("maria.cuenca");
+  });
+
   describe("S8: whether the Google sign-in of the UNL page can work", () => {
     const configured = { FORUM_ALLOWED_EMAIL_DOMAIN: "unl.edu.ec", GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org" };
 

@@ -46,7 +46,11 @@ export async function sealRegistrationCancelToken({ registrationId, eventId }: R
     .sign(secretKey());
 }
 
-/** What the token says, `expired` when it was ours but too old, `invalid` for anything missing, forged or not a cancellation token. Never throws. */
+/**
+ * What the token says, `expired` when it was ours but too old, `invalid` for anything missing, forged or not a
+ * cancellation token. Throws `RegistrationConfirmSecretError` only without a usable secret: then nothing can be
+ * checked, and the link is not to blame (the endpoint answers 503 `unavailable`).
+ */
 export async function openRegistrationCancelToken(value: string | undefined, now: Date = new Date()): Promise<RegistrationCancelTokenResult> {
   if (!value || !value.trim()) {
     return { status: "invalid" };
@@ -62,6 +66,8 @@ export async function openRegistrationCancelToken(value: string | undefined, now
 
     return { status: "valid", claims: { registrationId: rid, eventId: eid } };
   } catch (error) {
+    if (error instanceof RegistrationConfirmSecretError) throw error;
+
     return { status: error instanceof errors.JWTExpired ? "expired" : "invalid" };
   }
 }

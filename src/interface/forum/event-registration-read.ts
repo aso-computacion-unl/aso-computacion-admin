@@ -11,6 +11,12 @@ import { getEventRegistrationServices } from "@/interface/public/event-registrat
 import { getForumServices } from "./forum-container";
 import { getForumMember } from "./require-forum-member";
 
+/**
+ * The signed-in member as the UNL stub names them (S1): their own email, read like the header's account, or null when
+ * it cannot be read; the stub then falls back to the public name.
+ */
+export type RegistrationMember = ForumActor & { email: string | null };
+
 /** What the page says about the event, whatever way (if any) it takes registrations. */
 export type EventFacts = EventRegistrationStatus["event"];
 
@@ -23,7 +29,7 @@ export type EventRegistrationPage =
    * The signed-in member, or null: the page then offers the Google login, unless `loginAvailable` is false (the login
    * is not configured on this server): then it says the UNL registration is not available right now (S8).
    */
-  | { kind: "unl"; member: ForumActor | null; loginAvailable: boolean; status: EventRegistrationStatus; calendarHref: string | null; remindersOn: boolean }
+  | { kind: "unl"; member: RegistrationMember | null; loginAvailable: boolean; status: EventRegistrationStatus; calendarHref: string | null; remindersOn: boolean }
   /**
    * The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured.
    * `captchaMisconfigured`: the secret is set without a site key, so the server demands a token the page cannot
@@ -50,7 +56,9 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   const status = await services.status.execute({ slug, now, memberId: member?.memberId });
 
   if (status?.mode === "unl") {
-    return { kind: "unl", member, loginAvailable: isForumEnabled(), status, calendarHref: calendarHrefFor(status.event, now), remindersOn: remindersAreOn() };
+    const named = member ? { ...member, email: await ownEmailOrNone(member.memberId) } : null;
+
+    return { kind: "unl", member: named, loginAvailable: isForumEnabled(), status, calendarHref: calendarHrefFor(status.event, now), remindersOn: remindersAreOn() };
   }
 
   if (status) {
@@ -94,6 +102,17 @@ export interface RegistrationAccess {
  */
 export async function getRegistrationAccess(): Promise<RegistrationAccess> {
   return { member: await ownAccountOrNone(), loginAvailable: isForumEnabled() };
+}
+
+/** Like the header's account: an extra of the stub, so a failed read only leaves the public name to show. */
+async function ownEmailOrNone(memberId: string): Promise<string | null> {
+  try {
+    return (await getForumServices().ownAccount.execute({ memberId }))?.email ?? null;
+  } catch {
+    console.error("Could not read the forum account for the registration stub.");
+
+    return null;
+  }
 }
 
 async function ownAccountOrNone(): Promise<OwnForumAccount | null> {

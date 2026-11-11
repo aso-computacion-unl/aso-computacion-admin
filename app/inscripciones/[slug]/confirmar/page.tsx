@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
+import { RegistrationConfirmSecretError, openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
 import { confirmOutcomeMessage } from "@/interface/event-registration/confirm-registration";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 
@@ -27,7 +27,11 @@ export default async function ConfirmRegistrationPage({ params, searchParams }: 
   const { token } = await searchParams;
   const page = await getEventRegistrationPage(slug);
   const value = typeof token === "string" ? token : undefined;
-  const checked = await openRegistrationConfirmToken(value);
+  // Without a usable secret no link can be checked: say the service is down, not that the link is bad (S3).
+  const checked = await openRegistrationConfirmToken(value).catch((error: unknown) => {
+    if (error instanceof RegistrationConfirmSecretError) return { status: "unavailable" as const };
+    throw error;
+  });
   const formHref = `/inscripciones/${slug}`;
 
   // Only an event with the open form has anything to confirm.
@@ -53,7 +57,7 @@ export default async function ConfirmRegistrationPage({ params, searchParams }: 
       {checked.status === "valid" && value ? (
         <ConfirmRegistration slug={slug} token={value} calendarHref={page.calendarHref} formHref={formHref} />
       ) : (
-        <ConfirmResult message={confirmOutcomeMessage({ kind: checked.status === "expired" ? "expired" : "invalid" })} calendarHref={null} formHref={formHref} />
+        <ConfirmResult message={confirmOutcomeMessage({ kind: checked.status === "valid" ? "invalid" : checked.status })} calendarHref={null} formHref={formHref} />
       )}
     </EventTicket>
   );

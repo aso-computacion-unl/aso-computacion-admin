@@ -10,6 +10,16 @@ import { UnlMemberGuard, type UnlRegistrationConfig } from "./unl-member-guard";
  */
 
 /**
+ * What a use case answers: the repository's outcome, and for a cancellation the event it happened on, so the caller
+ * can record that it happened (the registration itself is gone, and with it everything that named the person).
+ */
+export type CancelResult = Exclude<CancelOutcome, { status: "cancelled" }> | { status: "cancelled"; eventId: string };
+
+function withEvent(outcome: CancelOutcome, eventId: string): CancelResult {
+  return outcome.status === "cancelled" ? { status: "cancelled", eventId } : outcome;
+}
+
+/**
  * The person opened the cancellation link of their email and pressed the button. The link names an event and a
  * registration; it only counts on the event page it was issued for. Possession of a signed link is the proof, so the
  * answer may say "already cancelled" (`not_registered`): it tells nothing to anyone without a link we signed.
@@ -20,14 +30,14 @@ export class CancelRegistrationByLinkUseCase {
     private readonly registrations: EventRegistrationRepository,
   ) {}
 
-  async execute({ slug, eventId, registrationId, now = new Date() }: { slug: string; eventId: string; registrationId: string; now?: Date }): Promise<CancelOutcome | { status: "invalid" }> {
+  async execute({ slug, eventId, registrationId, now = new Date() }: { slug: string; eventId: string; registrationId: string; now?: Date }): Promise<CancelResult | { status: "invalid" }> {
     const event = await this.events.findLiveBySlug(slug);
 
     if (!event) {
       return { status: "not_found" };
     }
 
-    return event.props.id === eventId ? this.registrations.cancel(eventId, { id: registrationId }, now) : { status: "invalid" };
+    return event.props.id === eventId ? withEvent(await this.registrations.cancel(eventId, { id: registrationId }, now), eventId) : { status: "invalid" };
   }
 }
 
@@ -48,7 +58,7 @@ export class CancelUnlRegistrationUseCase {
     this.guard = new UnlMemberGuard(members, config);
   }
 
-  async execute({ slug, memberId, now = new Date() }: { slug: string; memberId: string; now?: Date }): Promise<CancelOutcome> {
+  async execute({ slug, memberId, now = new Date() }: { slug: string; memberId: string; now?: Date }): Promise<CancelResult> {
     const { email } = await this.guard.identify(memberId);
     const event = await this.events.findLiveBySlug(slug);
 
@@ -56,6 +66,6 @@ export class CancelUnlRegistrationUseCase {
       return { status: "not_found" };
     }
 
-    return this.registrations.cancel(event.props.id, { email }, now);
+    return withEvent(await this.registrations.cancel(event.props.id, { email }, now), event.props.id);
   }
 }

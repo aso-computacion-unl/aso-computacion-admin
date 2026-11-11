@@ -44,7 +44,7 @@ export type ConfirmOutcome =
  * already cancelled, deleted by staff or purged). A refusal (`not_found`: the event is not public or is in the trash;
  * `closed`) changes nothing.
  */
-export type CancelOutcome = { status: "cancelled" | "not_registered" } | { status: CancellationRefusal };
+export type CancelOutcome = { status: "cancelled" } | { status: "not_registered" } | { status: CancellationRefusal };
 
 /** Whose registration to cancel: the one a signed link names, or the one of a verified email (a signed-in UNL member). */
 export type CancelTarget = { id: string } | { email: string };

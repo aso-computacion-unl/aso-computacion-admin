@@ -6,6 +6,7 @@ import { checkRegistrationRateLimit } from "@/infrastructure/http/registration-r
 import { reportError } from "@/infrastructure/observability/report-error";
 import { describeError, toSafeError } from "@/infrastructure/observability/safe-error";
 import { openRegistrationCancelToken } from "@/infrastructure/registration/registration-cancel-token";
+import { auditSelfCancellation } from "@/interface/event-registration/audit-self-cancellation";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 import { readJsonObject } from "@/interface/public/read-json-body";
 
@@ -72,6 +73,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const outcome = await getEventRegistrationServices().cancelByLink.execute({ slug, eventId: token.claims.eventId, registrationId: token.claims.registrationId });
+
+    if (outcome.status === "cancelled") {
+      await auditSelfCancellation(outcome.eventId, "email_link");
+    }
 
     if (outcome.status === "cancelled" || outcome.status === "not_registered") {
       return answer({ ok: true, status: outcome.status === "cancelled" ? "cancelled" : "already_cancelled" }, 200);

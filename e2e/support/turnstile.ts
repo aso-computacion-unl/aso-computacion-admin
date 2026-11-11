@@ -3,16 +3,11 @@ import { expect, type Page } from "@playwright/test";
 const TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js*";
 // Cloudflare's script replaced by a widget that passes at once. It marks its box `data-turnstile="ready"`: React
 // mounts the widget in an effect, so by then the form is hydrated. After `reset()` (the form asks for a fresh check
-// once a token is used) the new token arrives only at the person's next click, not on its own: the form clears its
-// alert when a token arrives, and one that came a few milliseconds after the answer would erase the very message a
-// test is looking for (Cloudflare's real widget takes about a second, which no test could count on). It is at the
-// click, not the pointer-down, so removing the alert cannot move the button from under the pointer mid-click.
+// once a token is used) the new token arrives on its own, as Cloudflare's managed widget does for most visitors: the
+// form must keep the server's answer on screen when that happens (issue #122).
 const TURNSTILE_STUB = `(() => {
   let options;
-  const give = () => {
-    document.removeEventListener("click", give, true);
-    options.callback("audit-token");
-  };
+  const give = () => options.callback("audit-token");
   window.turnstile = {
     render(box, given) {
       options = given;
@@ -21,7 +16,7 @@ const TURNSTILE_STUB = `(() => {
       return "stub";
     },
     reset() {
-      document.addEventListener("click", give, true);
+      setTimeout(give, 0);
     },
     remove() {},
   };

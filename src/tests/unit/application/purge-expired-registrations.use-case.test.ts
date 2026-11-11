@@ -6,6 +6,7 @@ import {
   PurgeExpiredRegistrationsUseCase,
   PurgeInterruptedError,
 } from "@/application/event-registration/purge-expired-registrations.use-case";
+import type { EventRegistrationRecord } from "@/application/ports/event-registration-repository.port";
 import { Event, type CreateEventInput } from "@/domain/event";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRegistrationRetentionStore } from "@/tests/fakes/in-memory-event-registration-retention.store";
@@ -27,10 +28,10 @@ async function addEvent(overrides: Partial<CreateEventInput> = {}) {
   return event.props;
 }
 
-function addPeople(eventId: string, count: number) {
+function addPeople(eventId: string, count: number, overrides: Partial<EventRegistrationRecord> = {}) {
   for (let index = 0; index < count; index += 1) {
     sequence += 1;
-    registrations.seed({ id: `r-${sequence}`, eventId, mode: "open", name: `Persona ${sequence}`, email: `p${sequence}@example.com`, career: null, semester: null, createdAt: new Date("2025-12-01T00:00:00Z") });
+    registrations.seed({ id: `r-${sequence}`, eventId, mode: "open", name: `Persona ${sequence}`, email: `p${sequence}@example.com`, career: null, semester: null, createdAt: new Date("2025-12-01T00:00:00Z"), ...overrides });
   }
 }
 
@@ -163,5 +164,58 @@ describe("PurgeExpiredRegistrationsUseCase", () => {
     vi.spyOn(store, "deleteBatch").mockRejectedValue(cause);
 
     await expect(purge().execute(EXPIRY)).rejects.toBe(cause);
+  });
+
+  describe("pending registrations (email never confirmed)", () => {
+    const stored = new Date("2026-04-09T05:00:00.000Z");
+    const WINDOW_END = new Date(stored.getTime() + 48 * 60 * 60 * 1000);
+
+    it("deletes a pending row exactly 48 h after it was stored and not a millisecond before, whatever its event", async () => {
+      const future = await addEvent({ date: "2099-01-01" });
+
+      addPeople(future.id, 2, { confirmedAt: null, createdAt: stored });
+
+      expect(await purge().execute(new Date(WINDOW_END.getTime() - 1))).toEqual({ deleted: 0 });
+      expect(registrations.all()).toHaveLength(2);
+
+      expect(await purge().execute(WINDOW_END)).toEqual({ deleted: 2 });
+      expect(registrations.all()).toHaveLength(0);
+      expect(await events.getById(future.id)).not.toBeNull();
+    });
+
+    it("keeps a confirmed registration of a future event and a recent pending one", async () => {
+      const future = await addEvent({ date: "2099-01-01" });
+
+      addPeople(future.id, 1, { createdAt: stored });
+      addPeople(future.id, 1, { confirmedAt: null, createdAt: new Date(WINDOW_END.getTime() - 1000) });
+
+      expect(await purge().execute(WINDOW_END)).toEqual({ deleted: 0 });
+      expect(registrations.all()).toHaveLength(2);
+    });
+
+    it("counts the pending rows of an expired event once, with the rest of that event's rows", async () => {
+      const old = await addEvent();
+
+      addPeople(old.id, 2);
+      addPeople(old.id, 3, { confirmedAt: null, createdAt: stored });
+
+      expect(await purge().execute(EXPIRY)).toEqual({ deleted: 5 });
+      expect(store.batches.map((batch) => batch.deleted)).toEqual([5]);
+      expect(store.pendingBatches.map((batch) => batch.deleted)).toEqual([0]);
+    });
+
+    it("reports how many rows were already gone when the pending purge fails after the event purge deleted some", async () => {
+      const old = await addEvent();
+      const cause = new Error("connection reset");
+
+      addPeople(old.id, 2);
+      vi.spyOn(store, "deleteStalePendingBatch").mockRejectedValue(cause);
+
+      const failure = await purge().execute(EXPIRY).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(PurgeInterruptedError);
+      expect((failure as PurgeInterruptedError).deleted).toBe(2);
+      expect((failure as PurgeInterruptedError).cause).toBe(cause);
+    });
   });
 });

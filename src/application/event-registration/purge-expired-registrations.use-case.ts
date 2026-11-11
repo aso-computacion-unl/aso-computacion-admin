@@ -1,3 +1,4 @@
+import { pendingPurgeCutoff } from "@/domain/event-registration";
 import { registrationsExpired, retentionCandidateCutoff } from "@/domain/event-registration-retention";
 
 import type { EventRegistrationRetentionStore } from "../ports/event-registration-retention.port";
@@ -24,8 +25,9 @@ export class PurgeInterruptedError extends Error {
 
 /**
  * Retention: deletes the registrations of every event that ended more than 90 days ago (see
- * `registrationsExpired`). It deletes registrations only, never the event, and it is idempotent: running it
- * again deletes what became due since, and nothing else. Run from the daily cron.
+ * `registrationsExpired`), and the pending ones whose 48 h confirmation window ran out (nobody can confirm
+ * them any more, and they hold a stranger's name and email). It deletes registrations only, never the event,
+ * and it is idempotent: running it again deletes what became due since, and nothing else. Run from the daily cron.
  */
 export class PurgeExpiredRegistrationsUseCase {
   constructor(private readonly store: EventRegistrationRetentionStore) {}
@@ -35,24 +37,27 @@ export class PurgeExpiredRegistrationsUseCase {
     const expiredEventIds = candidates.filter((event) => registrationsExpired(event, now)).map((event) => event.id);
     let deleted = 0;
 
-    if (expiredEventIds.length === 0) {
-      return { deleted };
-    }
+    /** Runs `deleteBatch` until a batch comes back short or the cap is hit. */
+    const drain = async (deleteBatch: (limit: number) => Promise<number>) => {
+      for (let batch = 0; batch < PURGE_MAX_BATCHES; batch += 1) {
+        const count = await deleteBatch(PURGE_BATCH_SIZE);
 
-    for (let batch = 0; batch < PURGE_MAX_BATCHES; batch += 1) {
-      let count: number;
+        deleted += count;
 
-      try {
-        count = await this.store.deleteBatch(expiredEventIds, PURGE_BATCH_SIZE);
-      } catch (error) {
-        throw deleted > 0 ? new PurgeInterruptedError(deleted, error) : error;
+        if (count < PURGE_BATCH_SIZE) {
+          break;
+        }
+      }
+    };
+
+    try {
+      if (expiredEventIds.length > 0) {
+        await drain((limit) => this.store.deleteBatch(expiredEventIds, limit));
       }
 
-      deleted += count;
-
-      if (count < PURGE_BATCH_SIZE) {
-        break;
-      }
+      await drain((limit) => this.store.deleteStalePendingBatch(pendingPurgeCutoff(now), limit));
+    } catch (error) {
+      throw deleted > 0 ? new PurgeInterruptedError(deleted, error) : error;
     }
 
     return { deleted };

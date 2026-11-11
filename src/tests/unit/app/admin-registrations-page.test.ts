@@ -23,7 +23,7 @@ type Event = Awaited<ReturnType<typeof addTestEvent>>;
 const render = async (event: Event) => renderToStaticMarkup(await RegistrationsPage({ searchParams: Promise.resolve({ evento: event.id }) }));
 
 function register(event: Event, overrides: Partial<Parameters<typeof testEventRegistration.registrations.seed>[0]> = {}) {
-  testEventRegistration.registrations.seed({ id: `${event.id}-r1`, eventId: event.id, mode: "open", name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5, createdAt: new Date("2026-11-20T15:30:00.000Z"), ...overrides });
+  testEventRegistration.registrations.seed({ id: `${event.id}-r1`, eventId: event.id, mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, createdAt: new Date("2026-11-20T15:30:00.000Z"), ...overrides });
 }
 
 beforeEach(async () => {
@@ -94,20 +94,33 @@ describe("the people of the selected event", () => {
     expect(html).toContain("Con el día del evento");
   });
 
-  it("lists name, email, form, career, cycle and date, with a dash where a UNL account has no career or cycle", async () => {
+  it("lists name, email, form, institution, career, cycle and date, with a dash where a UNL account has none of them", async () => {
     const event = await addTestEvent({ registrationMode: "open" });
     register(event);
-    register(event, { id: "r2", mode: "unl", name: "Luis Mora", email: "luis@unl.edu.ec", career: null, semester: null });
+    register(event, { id: "r2", mode: "unl", name: "Luis Mora", email: "luis@unl.edu.ec", institution: null, career: null, semester: null });
 
     const html = await render(event);
 
-    for (const heading of ["Nombre", "Correo", "Forma", "Carrera", "Ciclo", "Inscrito"]) expect(html).toContain(`>${heading}</th>`);
+    for (const heading of ["Nombre", "Correo", "Forma", "Institución", "Carrera", "Ciclo", "Inscrito"]) expect(html).toContain(`>${heading}</th>`);
     expect(html).toContain("Ana Pérez");
     expect(html).toContain("ana@example.com");
+    expect(html).toContain("Universidad Nacional de Loja");
     expect(html).toContain("Computación");
     expect(html).toContain("20 nov 2026");
-    expect(html).toMatch(/Luis Mora<\/th>.*Cuenta UNL<\/td><td[^>]*>—<\/td><td[^>]*>—<\/td>/);
+    expect(html).toMatch(/Luis Mora<\/th>.*Cuenta UNL<\/td><td[^>]*>—<\/td><td[^>]*>—<\/td><td[^>]*>—<\/td>/);
     expect(html).not.toContain('data-slot="empty-state"');
+  });
+
+  it("lists only confirmed people: a registration whose email was never confirmed is not shown", async () => {
+    const event = await addTestEvent({ registrationMode: "open" });
+    register(event);
+    register(event, { id: "r2", name: "Pendiente Mora", email: "pendiente@example.com", confirmedAt: null });
+
+    const html = await render(event);
+
+    expect(html).toContain("ana@example.com");
+    expect(html).not.toContain("Pendiente Mora");
+    expect(html).not.toContain("pendiente@example.com");
   });
 
   it("an admin can export and delete, and has a quiet link to the event editor; the warning is one line", async () => {

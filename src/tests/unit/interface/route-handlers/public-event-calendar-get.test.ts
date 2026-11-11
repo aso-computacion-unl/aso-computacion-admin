@@ -55,7 +55,7 @@ describe("GET /api/public/events/[slug]/calendar.ics", () => {
   it("contains no personal data even when people have registered", async () => {
     const event = await addTestEvent({ registrationMode: "open" });
     await testEventRegistration.registrations.register(
-      { id: "r1", eventId: event.id, mode: "open", name: "Ana Secreta", email: "ana.secreta@example.com", career: "Carrera Privada", semester: 5 },
+      { id: "r1", eventId: event.id, mode: "open", name: "Ana Secreta", email: "ana.secreta@example.com", institution: "Universidad Nacional de Loja", career: "Carrera Privada", semester: 5, confirmedAt: new Date("2026-11-20T15:00:00.000Z") },
       new Date("2026-11-20T15:00:00.000Z"),
     );
 

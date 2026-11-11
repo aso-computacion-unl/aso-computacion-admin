@@ -23,4 +23,12 @@ export class EventRegistrationRetentionPrismaStore implements EventRegistrationR
       )
     `;
   }
+
+  async deleteStalePendingBatch(createdOnOrBefore: Date, limit: number): Promise<number> {
+    return prisma.$executeRaw`
+      DELETE FROM "EventRegistration" WHERE "id" IN (
+        SELECT "id" FROM "EventRegistration" WHERE "confirmedAt" IS NULL AND "createdAt" <= ${createdOnOrBefore} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED
+      )
+    `;
+  }
 }

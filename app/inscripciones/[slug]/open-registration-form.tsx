@@ -19,24 +19,22 @@ import {
 } from "@/interface/event-registration/open-registration";
 
 import { RegistrationField } from "../_components/registration-field";
-import { ArrowGlyph, CalendarLink, CheckMark } from "../_components/ticket-parts";
+import { ArrowGlyph, CheckMark } from "../_components/ticket-parts";
 import { TurnstileWidget } from "./turnstile-widget";
 
-const PRIVACY_NOTE = "Usamos tus datos solo para esta actividad y los eliminamos 90 días después de que termine. No verificamos tu correo.";
-const MISSING_CHECK = "No pudimos comprobar que eres una persona. Completa la verificación e inténtalo de nuevo.";
+const PRIVACY_NOTE = "Usamos sus datos solo para esta actividad y los eliminamos 90 días después de que termine. Le enviaremos un correo para confirmar su dirección.";
+const MISSING_CHECK = "No pudimos comprobar que usted es una persona. Complete la verificación e inténtelo de nuevo.";
 const SEMESTERS = Array.from({ length: 12 }, (_, index) => String(index + 1));
 
-type Phase = { name: "form" } | { name: "registered" } | { name: "ended"; message: string };
+type Phase = { name: "form" } | { name: "check_email"; email: string } | { name: "ended"; message: string };
 
 interface OpenRegistrationFormProps {
   slug: string;
   /** Cloudflare Turnstile's public key; without it the form sends no token and the server decides. */
   siteKey: string | undefined;
-  /** The event's `.ics`, offered once the person is in; null when there is nothing to add. */
-  calendarHref: string | null;
   /**
    * Why registration is over (full or closed), as the server sees it now; undefined while it is open. The page keeps
-   * the form mounted either way, so whoever takes the last seat keeps their confirmation after the refresh.
+   * the form mounted either way, so whoever just asked keeps their "check your email" notice if the event fills meanwhile.
    */
   closedMessage?: string;
 }
@@ -46,10 +44,10 @@ interface OpenRegistrationFormProps {
  * same endpoint the landing used (so every server rule applies), and says what happened in the place the person
  * is looking: under the field it concerns, or in one alert for everything else.
  */
-export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessage }: OpenRegistrationFormProps) {
+export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegistrationFormProps) {
   const router = useRouter();
   const id = useId();
-  const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", career: "", semester: "" });
+  const [values, setValues] = useState<OpenFormValues>({ name: "", email: "", institution: "", career: "", semester: "" });
   const [errors, setErrors] = useState<OpenFieldErrors>({});
   const [notice, setNotice] = useState<{ message: string; shown: number } | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: "form" });
@@ -112,8 +110,8 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
     setPending(false);
 
     if (outcome.kind === "registered") {
-      setPhase({ name: "registered" });
-      router.refresh();
+      // Pending: no seat is taken until the person opens the link we just emailed, so the seats behind do not change.
+      setPhase({ name: "check_email", email: values.email.trim() });
     } else if (outcome.kind === "field") {
       setErrors({ [outcome.field]: fieldMessage(outcome.field, values[outcome.field]) });
       focusField(outcome.field);
@@ -128,21 +126,16 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
     }
   }
 
-  if (phase.name === "registered") {
+  if (phase.name === "check_email") {
     return (
       <div ref={doneBox} role="status" tabIndex={-1} className="stub-done">
         <CheckMark />
         <div>
-          <h2 className="stub-title">Listo, su cupo está reservado</h2>
+          <h2 className="stub-title">Revise su correo</h2>
           <p className="stub-text">
-            Guarde la fecha y el lugar: <strong>no enviamos correo de confirmación.</strong>
+            Le enviamos un enlace a <strong>{phase.email}</strong>. Su cupo se reserva cuando lo abra y pulse <strong>«Confirmar mi cupo»</strong>; el enlace vale 48 horas. Si no lo ve, busque en la carpeta de correo no deseado.
           </p>
         </div>
-        {calendarHref ? (
-          <div className="stub-actions">
-            <CalendarLink href={calendarHref} />
-          </div>
-        ) : null}
       </div>
     );
   }
@@ -195,8 +188,23 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
             />
           )}
         </RegistrationField>
+        <RegistrationField id={fieldId("institution")} label="Institución" error={errors.institution}>
+          {(described) => (
+            <input
+              id={fieldId("institution")}
+              name="institution"
+              className="ticket-input"
+              value={values.institution}
+              onChange={(event) => change("institution", event.target.value)}
+              autoComplete="organization"
+              required
+              aria-describedby={described}
+              aria-invalid={errors.institution ? true : undefined}
+            />
+          )}
+        </RegistrationField>
         <div className="stub-pair">
-          <RegistrationField id={fieldId("career")} label="Carrera" error={errors.career}>
+          <RegistrationField id={fieldId("career")} label="Carrera (opcional)" error={errors.career}>
             {(described) => (
               <input
                 id={fieldId("career")}
@@ -205,13 +213,12 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
                 value={values.career}
                 onChange={(event) => change("career", event.target.value)}
                 autoComplete="off"
-                required
                 aria-describedby={described}
                 aria-invalid={errors.career ? true : undefined}
               />
             )}
           </RegistrationField>
-          <RegistrationField id={fieldId("semester")} label="Ciclo" error={errors.semester}>
+          <RegistrationField id={fieldId("semester")} label="Ciclo (opcional)" error={errors.semester}>
             {(described) => (
               <select
                 id={fieldId("semester")}
@@ -219,7 +226,6 @@ export function OpenRegistrationForm({ slug, siteKey, calendarHref, closedMessag
                 className="ticket-input"
                 value={values.semester}
                 onChange={(event) => change("semester", event.target.value)}
-                required
                 aria-describedby={described}
                 aria-invalid={errors.semester ? true : undefined}
               >

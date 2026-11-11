@@ -1,6 +1,6 @@
 import type { EventResult } from "../dto/event-result.dto";
 import { toEventResult } from "../mappers/event-result.mapper";
-import type { EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
+import type { ConfirmOutcome, EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { ForumMemberRepository } from "../ports/forum.ports";
 import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
@@ -84,7 +84,7 @@ abstract class RegisterUseCase {
     slug: string,
     now: Date,
     mode: RegistrationMode,
-    data: Pick<EventRegistrationRecord, "name" | "email" | "career" | "semester">,
+    data: Pick<EventRegistrationRecord, "name" | "email" | "institution" | "career" | "semester" | "confirmedAt">,
   ): Promise<RegisterOutcome> {
     const event = await this.events.findLiveBySlug(slug);
 
@@ -98,9 +98,32 @@ abstract class RegisterUseCase {
 
 export class RegisterWithOpenFormUseCase extends RegisterUseCase {
   async execute({ slug, form, now = new Date() }: { slug: string; form: Record<string, unknown>; now?: Date }): Promise<RegisterOutcome> {
-    const { name, email, career, semester } = parseOpenRegistration(form);
+    const { name, email, institution, career, semester } = parseOpenRegistration(form);
 
-    return this.store(slug, now, "open", { name, email, career, semester });
+    // Pending until the person opens the link sent to that address: an unverified email takes no seat.
+    return this.store(slug, now, "open", { name, email, institution, career, semester, confirmedAt: null });
+  }
+}
+
+/**
+ * The person opened the link of their confirmation email and pressed the button. The link names an event and a
+ * registration; it only counts on the event page it was issued for. The seat itself is decided by the repository,
+ * atomically, so a full or closed event refuses here even though the email was perfectly valid.
+ */
+export class ConfirmOpenRegistrationUseCase {
+  constructor(
+    private readonly events: EventRepository,
+    private readonly registrations: EventRegistrationRepository,
+  ) {}
+
+  async execute({ slug, eventId, registrationId, now = new Date() }: { slug: string; eventId: string; registrationId: string; now?: Date }): Promise<ConfirmOutcome> {
+    const event = await this.events.findLiveBySlug(slug);
+
+    if (!event) {
+      return { status: "not_found" };
+    }
+
+    return event.props.id === eventId ? this.registrations.confirm(eventId, registrationId, now) : { status: "invalid" };
   }
 }
 
@@ -137,7 +160,8 @@ export class RegisterWithUnlAccountUseCase extends RegisterUseCase {
 
     const email = this.institutionalEmail(member.email);
 
-    return this.store(slug, now, "unl", { name: member.displayName, email, career: null, semester: null });
+    // Google already verified this address: the seat is taken at once.
+    return this.store(slug, now, "unl", { name: member.displayName, email, institution: null, career: null, semester: null, confirmedAt: now });
   }
 
   private institutionalEmail(raw: string): string {

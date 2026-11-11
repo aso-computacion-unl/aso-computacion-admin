@@ -7,6 +7,8 @@ import type { InMemoryEventRepository } from "./in-memory-event.repository";
 export class InMemoryEventRegistrationRetentionStore implements EventRegistrationRetentionStore {
   /** Every `deleteBatch` call, so a test can see the batches. */
   readonly batches: { eventIds: string[]; limit: number; deleted: number }[] = [];
+  /** Every `deleteStalePendingBatch` call. */
+  readonly pendingBatches: { limit: number; deleted: number }[] = [];
 
   constructor(
     private readonly events: InMemoryEventRepository,
@@ -34,6 +36,21 @@ export class InMemoryEventRegistrationRetentionStore implements EventRegistratio
     }
 
     this.batches.push({ eventIds, limit, deleted: doomed.length });
+
+    return doomed.length;
+  }
+
+  async deleteStalePendingBatch(createdOnOrBefore: Date, limit: number): Promise<number> {
+    const doomed = this.registrations
+      .all()
+      .filter((row) => row.confirmedAt === null && row.createdAt.getTime() <= createdOnOrBefore.getTime())
+      .slice(0, limit);
+
+    for (const row of doomed) {
+      await this.registrations.delete(row.eventId, row.id);
+    }
+
+    this.pendingBatches.push({ limit, deleted: doomed.length });
 
     return doomed.length;
   }

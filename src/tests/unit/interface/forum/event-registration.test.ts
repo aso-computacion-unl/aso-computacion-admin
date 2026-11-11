@@ -120,6 +120,22 @@ describe("getEventRegistrationPage", () => {
     expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1" }, status: { alreadyRegistered: true } });
   });
 
+  it("tells the UNL page whether reminders will be sent, which depends on the mail being set up", async () => {
+    jar({});
+    vi.stubEnv("AUTH_URL", "https://admin.example.org");
+    vi.stubEnv("MAIL_GMAIL_USER", "asociacion@gmail.com");
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "abcdefghijklmnop");
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: true });
+
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "");
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: false });
+
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "abcdefghijklmnop");
+    vi.stubEnv("AUTH_URL", "");
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: false });
+  });
+
   it("offers the open form to anyone, without a session, with the live seats and the widget key when there is one", async () => {
     await addTestEvent({ title: "Abierto", registrationMode: "open", registrationCapacity: 2 });
     vi.stubEnv("TURNSTILE_SITE_KEY", "0x4AAAA-site_key");
@@ -183,9 +199,16 @@ describe("getEventRegistrationPage", () => {
   });
 
   it("keeps showing an open event that is full or closed, so the page can say so instead of hiding it", async () => {
-    await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
+    const event = await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
     await addTestEvent({ title: "Pasado", registrationMode: "open", date: "2000-01-01" });
-    await testEventRegistration.services.registerOpen.execute({ slug: "lleno", form: { name: "Ana", email: "ana@example.com", career: "Computación", semester: 3 } });
+    const registered = await testEventRegistration.services.registerOpen.execute({
+      slug: "lleno",
+      form: { name: "Ana", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 3 },
+    });
+
+    // The seat is taken when the email is confirmed, not before.
+    expect(registered.status).toBe("registered");
+    await testEventRegistration.registrations.confirm(event.id, registered.status === "registered" ? registered.registration.id : "", new Date());
     jar({});
 
     expect(await getEventRegistrationPage("lleno")).toMatchObject({ kind: "open", status: { state: "full", registered: 1 } });

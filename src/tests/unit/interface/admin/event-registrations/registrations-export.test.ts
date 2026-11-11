@@ -16,7 +16,7 @@ beforeEach(async () => {
   vi.stubEnv("ADMIN_SECRET", "test-secret-test-secret-test-secret-1234");
   eventId = (await addTestEvent()).id;
   await testEventRegistration.registrations.register(
-    { id: "r1", eventId, mode: "open", name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 },
+    { id: "r1", eventId, mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, confirmedAt: new Date("2026-11-20T15:30:00.000Z") },
     new Date("2026-11-20T15:30:00.000Z"),
   );
 });
@@ -45,10 +45,21 @@ describe("exportEventRegistrationsCsv (ADMIN only)", () => {
     expect(response.headers.get("Content-Type")).toBe("text/csv; charset=utf-8");
     expect(response.headers.get("Content-Disposition")).toBe('attachment; filename="inscripciones-taller-de-git.csv"');
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(body).toContain('"Ana Pérez","ana@example.com","Formulario abierto","Computación","5"');
+    expect(body).toContain('"Ana Pérez","ana@example.com","Formulario abierto","Universidad Nacional de Loja","Computación","5"');
     expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.actorUserId])).toEqual([["event.registrations_export", "event", eventId, "test-admin"]]);
     expect(testAuth.audit.entries[0]!.summary).toBe("Inscripciones exportadas (1)");
     expect(JSON.stringify(testAuth.audit.entries)).not.toMatch(/ana|example\.com|Pérez/i);
+  });
+
+  it("leaves a registration whose email was never confirmed out of the CSV and of its count", async () => {
+    cookieJar(cookiesMock, await signInAs("ADMIN"));
+    testEventRegistration.registrations.seed({ id: "p1", eventId, mode: "open", name: "Pendiente Pérez", email: "pendiente@example.com", institution: "UNL", career: null, semester: null, createdAt: new Date("2026-11-20T16:00:00.000Z"), confirmedAt: null });
+
+    const body = await (await exportEventRegistrationsCsv(eventId)).text();
+
+    expect(body).not.toContain("pendiente@example.com");
+    expect(body.trim().split("\r\n")).toHaveLength(2);
+    expect(testAuth.audit.entries[0]!.summary).toBe("Inscripciones exportadas (1)");
   });
 
   it("answers 404 for an unknown event, and still writes no audit entry", async () => {

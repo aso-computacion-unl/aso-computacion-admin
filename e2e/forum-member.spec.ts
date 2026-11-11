@@ -1,6 +1,7 @@
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext } from "@playwright/test";
-import { SignJWT } from "jose";
+
+import { FORUM_SESSION_SECRET as SECRET, plantForumMemberSession, type PlantedForumMemberSession } from "./support/forum-session";
 
 /*
  * The signed-in forum, through the real UI and the real database. Opt-in: a forum session cannot be
@@ -13,23 +14,21 @@ import { SignJWT } from "jose";
  * members here are @unl.edu.ec, and registering for an event needs the domain), but never a Google client, so
  * the login stays off and forum.spec.ts still sees "unavailable".
  */
-const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const BASE_URL = "http://127.0.0.1:3100";
 const SCREENSHOT_DIR = process.env.FORUM_E2E_SHOTS;
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 const now = new Date();
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
 
-let token = "";
+let member: PlantedForumMemberSession;
 
 test.skip(!SECRET, "set FORUM_SESSION_SECRET to run the signed-in forum suite");
 
 test.beforeAll(async () => {
   if (!SECRET) return;
 
-  for (const { id, name } of [{ id: "m1", name: "Daniela P." }, { id: "m2", name: "Mateo R." }]) {
-    await prisma.forumMember.create({ data: { id, email: `${id}@unl.edu.ec`, googleSub: `sub-${id}`, displayName: name } });
-  }
+  member = await plantForumMemberSession(prisma, { memberId: "m1", sessionId: "s1", displayName: "Daniela P." });
+  await prisma.forumMember.create({ data: { id: "m2", email: "m2@unl.edu.ec", googleSub: "sub-m2", displayName: "Mateo R." } });
   await prisma.forumCategory.create({ data: { id: "c-prog", slug: "programacion", name: "Programación", description: "Código y errores", sortOrder: 0, updatedAt: now } });
 
   const thread = (id: string, title: string, over: Record<string, unknown> = {}) =>
@@ -42,16 +41,6 @@ test.beforeAll(async () => {
   await thread("t-locked", "Ideas para el hackatón", { lockedAt: ago(5) });
   await thread("t-mine", "Mi duda sobre punteros", { authorId: "m1" });
   await prisma.forumReply.create({ data: { id: "r-help", threadId: "t-mine", authorId: "m2", body: "Revise el **orden** de los `free`.", createdAt: ago(30), updatedAt: ago(30) } });
-
-  await prisma.forumSession.create({ data: { id: "s1", memberId: "m1", expiresAt: new Date(now.getTime() + 3_600_000), lastSeenAt: now } });
-  const issued = Math.floor(Date.now() / 1000);
-  token = await new SignJWT({ sid: "s1", mid: "m1", typ: "forum-session" })
-    .setSubject("m1")
-    .setAudience("aso-computacion-forum")
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(issued)
-    .setExpirationTime(issued + 3600)
-    .sign(new TextEncoder().encode(SECRET));
 });
 
 test.afterAll(async () => {
@@ -61,7 +50,7 @@ test.afterAll(async () => {
 async function memberContext(browser: Browser): Promise<BrowserContext> {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, baseURL: BASE_URL });
 
-  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+  await context.addCookies([member.cookie]);
 
   return context;
 }
@@ -246,7 +235,7 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 
   // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts.
-  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+  await context.addCookies([member.cookie]);
   await prisma.forumSession.update({ where: { id: "s1" }, data: { revokedAt: null } });
   await prisma.forumMember.update({ where: { id: "m1" }, data: { status: "SUSPENDED", suspendedAt: new Date() } });
   await page.goto("/foro");

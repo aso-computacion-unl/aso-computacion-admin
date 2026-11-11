@@ -1,10 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { memberMock } = vi.hoisted(() => ({ memberMock: vi.fn() }));
+
+vi.mock("@/interface/forum/require-forum-member", () => ({ getForumMember: memberMock }));
+
 import RegistrationsListPage, { metadata } from "../../../../app/inscripciones/page";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 
-const render = async () => renderToStaticMarkup(await RegistrationsListPage());
+const render = async (query: { error?: string | string[] } = {}) => renderToStaticMarkup(await RegistrationsListPage({ searchParams: Promise.resolve(query) }));
 const cards = (html: string) => html.match(/<li[\s>][\s\S]*?<\/li>/g) ?? [];
 
 function seedRegistration(eventId: string, id: string, mode: "unl" | "open" = "unl") {
@@ -13,6 +17,7 @@ function seedRegistration(eventId: string, id: string, mode: "unl" | "open" = "u
 
 beforeEach(() => {
   vi.clearAllMocks();
+  memberMock.mockResolvedValue(null);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -45,9 +50,9 @@ describe("D8: /inscripciones is a public list of the events taking registrations
 
     expect(cards(html)).toHaveLength(2);
     expect(first).toContain(`href="/inscripciones/${unl.slug}"`);
-    expect(first).toContain("Con cuenta UNL");
+    expect(first).toContain("Cuenta UNL");
     expect(second).toContain(`href="/inscripciones/${open.slug}"`);
-    expect(second).toContain("Abierta al público");
+    expect(second).toContain("Abierto al público");
   });
 
   it("puts the upcoming events first, soonest first, and the undated last", async () => {
@@ -79,13 +84,13 @@ describe("D8: /inscripciones is a public list of the events taking registrations
     expect(third).toContain("Sin límite de cupos");
   });
 
-  it("gives each event its own h2 with the link to its page, and the description under it when there is one", async () => {
+  it("gives each event its own h3 (under its month's h2) with the link to its page, and the description under it when there is one", async () => {
     await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28", description: "Contenedores desde cero." });
     await addTestEvent({ title: "Meetup sin texto", registrationMode: "open", date: "2099-12-02" });
 
     const [first, second] = cards(await render());
 
-    expect(first).toMatch(/<h2[^>]*><a [^>]*href="\/inscripciones\/taller-de-docker"[^>]*>Taller de Docker<\/a><\/h2>/);
+    expect(first).toMatch(/<h3[^>]*><a [^>]*href="\/inscripciones\/taller-de-docker"[^>]*>Taller de Docker<\/a><\/h3>/);
     expect(first).toContain("Contenedores desde cero.");
     expect(second).not.toContain("reg-card-desc");
   });
@@ -137,5 +142,133 @@ describe("D8: /inscripciones is a public list of the events taking registrations
 
     await addTestEvent({ title: "Charla", registrationMode: "open", date: "2099-12-05" });
     expect(await render()).toContain("2 eventos con inscripción abierta");
+  });
+});
+
+const member = { memberId: "m1", sessionId: "s1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" };
+const stubs = (html: string) => html.match(/<nav[^>]*aria-label="Filtrar por mes"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
+const buttons = (html: string) => stubs(html).match(/<button[\s\S]*?<\/button>/g) ?? [];
+const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+describe("S4: the month filter, one ticket stub per month", () => {
+  it("offers Todos with the total and one stub per month, the full month name over its count, Todos pressed", async () => {
+    await addTestEvent({ title: "Linux", registrationMode: "open", date: "2099-11-14" });
+    await addTestEvent({ title: "Git", registrationMode: "open", date: "2099-11-21" });
+    await addTestEvent({ title: "Hackathon", registrationMode: "unl", date: "2099-12-02" });
+
+    const html = await render();
+    const [all, november, december, ...rest] = buttons(html);
+
+    expect(rest).toEqual([]);
+    expect(text(all!)).toBe("Todos 3 eventos");
+    expect(all).toContain('aria-pressed="true"');
+    expect(text(november!)).toBe("Noviembre 2 eventos");
+    expect(november).toContain('aria-pressed="false"');
+    expect(text(december!)).toBe("Diciembre 1 evento");
+    expect(stubs(html)).not.toMatch(/>\s*(nov|dic)\b/i);
+    expect(html).toMatch(/role="status"[^>]*>Mostrando los 3 eventos</);
+  });
+
+  it("is left out when every open event falls in the same month", async () => {
+    await addTestEvent({ title: "Linux", registrationMode: "open", date: "2099-11-14" });
+    await addTestEvent({ title: "Git", registrationMode: "open", date: "2099-11-21" });
+
+    const html = await render();
+
+    expect(html).not.toContain("Filtrar por mes");
+    expect(html).not.toContain("Mostrando");
+  });
+});
+
+describe("S5: a long list grouped by month, soonest first", () => {
+  it("splits the events under an h2 per month, and adds the year when the list spans more than one", async () => {
+    await addTestEvent({ title: "Cierre de ciclo", registrationMode: "unl", date: "2099-12-18" });
+    await addTestEvent({ title: "Bienvenida", registrationMode: "unl", date: "2100-01-16" });
+
+    const html = await render();
+    const headings = [...html.matchAll(/<h2[^>]*>([^<]*)<\/h2>/g)].map((match) => match[1]);
+
+    expect(headings).toEqual(["Diciembre 2099", "Enero 2100"]);
+    expect(html.indexOf(">Diciembre 2099</h2>")).toBeLessThan(html.indexOf("Cierre de ciclo"));
+    expect(html.indexOf("Cierre de ciclo")).toBeLessThan(html.indexOf(">Enero 2100</h2>"));
+  });
+
+  it("names the month alone while the list stays in one year", async () => {
+    await addTestEvent({ title: "Linux", registrationMode: "open", date: "2099-11-14" });
+    await addTestEvent({ title: "Hackathon", registrationMode: "unl", date: "2099-12-02" });
+
+    const headings = [...(await render()).matchAll(/<h2[^>]*>([^<]*)<\/h2>/g)].map((match) => match[1]);
+
+    expect(headings).toEqual(["Noviembre", "Diciembre"]);
+  });
+
+  it("tags each row with who can register: Abierto al público or Cuenta UNL", async () => {
+    await addTestEvent({ title: "Linux", registrationMode: "open", date: "2099-11-14" });
+    await addTestEvent({ title: "Hackathon", registrationMode: "unl", date: "2099-11-28" });
+
+    const [open, unl] = cards(await render());
+
+    expect(open).toContain("Abierto al público");
+    expect(unl).toContain("Cuenta UNL");
+    expect(unl).not.toContain("Con cuenta UNL");
+  });
+});
+
+describe("S6: the row's action goes to the event's page, which owns the sign-in and the reservation", () => {
+  it("asks a visitor to sign in for a UNL event and to register for an open one", async () => {
+    const open = await addTestEvent({ title: "Linux", registrationMode: "open", date: "2099-11-14" });
+    const unl = await addTestEvent({ title: "Hackathon", registrationMode: "unl", date: "2099-11-28" });
+
+    const [first, second] = cards(await render());
+
+    expect(first).toMatch(new RegExp(`<a [^>]*href="/inscripciones/${open.slug}"[^>]*>Inscribirme</a>`));
+    expect(second).toMatch(new RegExp(`<a [^>]*href="/inscripciones/${unl.slug}"[^>]*>Entrar para inscribirme</a>`));
+  });
+
+  it("asks a signed-in student to register for either kind", async () => {
+    memberMock.mockResolvedValue(member);
+    const unl = await addTestEvent({ title: "Hackathon", registrationMode: "unl", date: "2099-11-28" });
+
+    const [row] = cards(await render());
+
+    expect(row).toMatch(new RegExp(`<a [^>]*href="/inscripciones/${unl.slug}"[^>]*>Inscribirme</a>`));
+    expect(row).not.toContain("Entrar para inscribirme");
+  });
+});
+
+describe("S7: the lead says what the page is for", () => {
+  it("tells a visitor they reserve in a minute", async () => {
+    expect(await render()).toContain("Talleres, charlas y encuentros de la carrera. Reserve su cupo en un minuto.");
+  });
+
+  it("tells a signed-in student they register in one click", async () => {
+    memberMock.mockResolvedValue(member);
+
+    const html = await render();
+
+    expect(html).toContain("Talleres, charlas y encuentros de la carrera. Con su cuenta UNL se inscribe con un clic.");
+    expect(html).not.toContain("Reserve su cupo en un minuto.");
+  });
+});
+
+describe("S8: the empty list stays as it was", () => {
+  it("shows no filter and no month heading while nothing is open", async () => {
+    const html = await render();
+
+    expect(html).toContain("No hay inscripciones abiertas.");
+    expect(html).not.toContain("Filtrar por mes");
+    expect(html.match(/<h2/g)).toHaveLength(1);
+  });
+});
+
+describe("S1: a sign-in started from the header comes back to the list", () => {
+  it("says why it failed, in registration words", async () => {
+    const html = await render({ error: "denied" });
+
+    expect(html).toMatch(/role="alert"[^>]*>Esa cuenta no puede entrar. Use su correo institucional @unl.edu.ec.</);
+  });
+
+  it("ignores an error code it does not know", async () => {
+    expect(await render({ error: "whatever" })).not.toContain('role="alert"');
   });
 });

@@ -65,7 +65,7 @@ describe("requireForumMember", () => {
     jar({ [FORUM_COOKIE_NAME]: forged });
     await expect(requireForumMember()).rejects.toThrow(ForumUnauthorizedError);
 
-    vi.useFakeTimers({ now: Date.now() + 8 * 24 * 60 * 60 * 1000 });
+    vi.useFakeTimers({ now: Date.now() + 31 * 24 * 60 * 60 * 1000 });
     jar({ [FORUM_COOKIE_NAME]: cookie });
     await expect(requireForumMember()).rejects.toThrow(ForumUnauthorizedError);
     vi.useRealTimers();

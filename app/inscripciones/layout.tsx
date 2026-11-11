@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { AppTopBar } from "../_components/app-top-bar";
-import { ThemeToggle } from "../_components/theme-toggle";
+import { getRegistrationAccess } from "@/interface/forum/event-registration-read";
 
+import { AppTopBar } from "../_components/app-top-bar";
+
+import { RegistrationHeaderAccess } from "./_components/header-access";
 import "./inscripciones.css";
 
 export const metadata: Metadata = {
@@ -16,8 +18,11 @@ export const metadata: Metadata = {
  * The registrations' own shell, apart from the forum's (D8): a public section anyone can open from the landing, with
  * its own top bar ("Inscripciones", whose brand leads to the list of events), the theme toggle and a reading column.
  * The list and the event's page share it. Nothing here knows about the forum's rail or top bar, and none of it says "Foro".
+ * The bar stays in view while the list scrolls (S3); on the list it carries the optional UNL access (S1, S2).
  */
-export default function RegistrationLayout({ children }: { children: ReactNode }) {
+export default async function RegistrationLayout({ children }: { children: ReactNode }) {
+  const access = await getRegistrationAccess();
+
   return (
     <div className="min-h-screen">
       <a href="#registration-main" className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3">
@@ -25,7 +30,7 @@ export default function RegistrationLayout({ children }: { children: ReactNode }
       </a>
 
       <AppTopBar productName="Inscripciones" homeHref="/inscripciones" homeLabel="Inscripciones de ASO Computación, inicio">
-        <ThemeToggle />
+        <RegistrationHeaderAccess member={access.member} loginAvailable={access.loginAvailable} />
       </AppTopBar>
 
       <main id="registration-main" className="mx-auto w-full max-w-[70rem] px-4 pt-8 pb-16 sm:px-6">

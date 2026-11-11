@@ -1,7 +1,7 @@
 import type { ForumModerationRepository } from "../ports/forum-moderation.ports";
 import type { ForumReactionRepository } from "../ports/forum-reactions.ports";
 import type { ForumCategoryRepository, ForumMemberRepository, ForumPostRepository, ForumSessionRepository } from "../ports/forum.ports";
-import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase, type ForumLoginConfig } from "./forum-auth.use-cases";
+import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, GetOwnForumAccountUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase, type ForumLoginConfig } from "./forum-auth.use-cases";
 import { CreateForumCategoryUseCase, DeleteForumCategoryUseCase, ListForumCategoriesUseCase, UpdateForumCategoryUseCase } from "./forum-categories.use-cases";
 import { ListForumFeedUseCase } from "./forum-feed.use-case";
 import { ListForumMembersUseCase, type ForumMemberDirectory } from "./forum-members.use-cases";
@@ -44,6 +44,7 @@ export function buildForumServices({ members, sessions, categories, posts, moder
     validateSession: new ValidateForumSessionUseCase(sessions, now),
     checkSuspension: new CheckForumSuspensionUseCase(sessions),
     closeSession: new CloseForumSessionUseCase(sessions, now),
+    ownAccount: new GetOwnForumAccountUseCase(members),
     listCategories: new ListForumCategoriesUseCase(categories),
     createCategory: new CreateForumCategoryUseCase(categories, now),
     updateCategory: new UpdateForumCategoryUseCase(categories, now),

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pageMock } = vi.hoisted(() => ({ pageMock: vi.fn() }));
 
-vi.mock("@/interface/forum/event-registration-read", () => ({ getEventRegistrationPage: pageMock }));
+vi.mock("@/interface/forum/event-registration-read", () => ({ getEventRegistrationPage: pageMock, getRegistrationAccess: async () => ({ member: null, loginAvailable: false }) }));
 vi.mock("@/interface/forum/event-registration", () => ({ registerForEvent: vi.fn() }));
 vi.mock("@/interface/event-registration/cancel-registration-action", () => ({ cancelEventRegistration: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
   useRouter: () => ({ refresh: vi.fn() }),
+  usePathname: () => "/inscripciones/taller-docker",
 }));
 
 import EventRegistrationPage from "../../../../app/inscripciones/[slug]/page";
@@ -446,10 +447,10 @@ describe("the event 404", () => {
 });
 
 describe("the registration layout", () => {
-  const layout = () => renderToStaticMarkup(RegistrationLayout({ children: "contenido" }));
+  const layout = async () => renderToStaticMarkup(await RegistrationLayout({ children: "contenido" }));
 
-  it("is its own shell: a skip link, the brand, the theme toggle and one main landmark", () => {
-    const html = layout();
+  it("is its own shell: a skip link, the brand, the theme toggle and one main landmark", async () => {
+    const html = await layout();
 
     expect(html).toContain('href="#registration-main"');
     expect(html.match(/<main/g)).toHaveLength(1);
@@ -457,8 +458,8 @@ describe("the registration layout", () => {
     expect(html).toContain("ASO Computación");
   });
 
-  it("D8: its own top bar is named Inscripciones and its brand leads to the list, the same on every page of the route", () => {
-    const html = layout();
+  it("D8: its own top bar is named Inscripciones and its brand leads to the list, the same on every page of the route", async () => {
+    const html = await layout();
     const bar = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
 
     expect(bar).toMatch(/<a [^>]*href="\/inscripciones"[^>]*>[\s\S]*?Inscripciones<\/span><\/a>/);
@@ -466,8 +467,8 @@ describe("the registration layout", () => {
     expect(bar).not.toMatch(/foro/i);
   });
 
-  it("has no forum rail, no forum name and no link into the forum", () => {
-    const html = layout();
+  it("has no forum rail, no forum name and no link into the forum", async () => {
+    const html = await layout();
 
     expect(html).not.toMatch(/href="\/foro/);
     expect(html).not.toContain("Foro");

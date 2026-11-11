@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
+import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, GetOwnForumAccountUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
 import { InMemoryForumMemberRepository, InMemoryForumSessionRepository, makeForumMember } from "@/tests/fakes/in-memory-forum";
 
 const NOW = new Date("2026-10-26T12:00:00.000Z");
@@ -220,5 +220,27 @@ describe("CheckForumSuspensionUseCase (D1)", () => {
     suspend("m1");
     members.members.set("m1", makeForumMember({ id: "m1" }));
     expect(await check({ sessionId, memberId: "m1" })).toBe(false);
+  });
+});
+
+describe("GetOwnForumAccountUseCase", () => {
+  it("S2: gives the member their own name and email, for their account menu only", async () => {
+    members.members.set("m1", makeForumMember({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }));
+
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "m1" })).toEqual({ name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+  });
+
+  it("gives nothing for a member that does not exist", async () => {
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "nadie" })).toBeNull();
+  });
+});
+
+describe("S9: the member session lasts thirty days", () => {
+  it("stores a session that expires thirty days after it opens, and no later", async () => {
+    const sessions = new InMemoryForumSessionRepository(members);
+    const { sessionId, expiresAt } = await new OpenForumSessionUseCase(sessions, () => NOW).execute({ memberId: "m1" });
+
+    expect(expiresAt.getTime() - NOW.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(sessions.sessions.get(sessionId)?.expiresAt).toEqual(expiresAt);
   });
 });

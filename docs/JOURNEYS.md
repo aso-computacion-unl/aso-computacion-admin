@@ -31,13 +31,13 @@ Conventions:
 
 - **Entry**: `/foro/hilo/<id>`, `/foro/c/<slug>`, `/foro/c/<slug>/nuevo`. (`/foro/eventos` is no longer a forum page: it redirects out, R3.)
 - **Expected**: redirect to `/foro?next=<path>`; after signing in the student lands on the page they asked for.
-- `next` is kept only for `/foro…` and `/inscripciones/<slug>`; anything else ends at `/foro`.
+- `next` is kept only for `/foro…`, `/inscripciones` (the list, whose header offers the sign-in) and `/inscripciones/<slug>`; anything else ends at `/foro`.
 - **A sign-in that began on an event's page** (`next=/inscripciones/<slug>`, R2) also *fails* back to that page, with `?error=<code>` and told in registration words (D5, D8): the forum landing never shows a registration student a forum screen. A suspended account gets the generic `denied` there; the suspension code is for the forum landing only.
 
 ### F3. A student signs in with Google
 
 - **Entry**: "Entrar con Google" → `/foro/auth/google/start` → Google → `/foro/auth/google/callback`.
-- **First time**: the account is created (active, display name from Google) with a 7-day session.
+- **First time**: the account is created (active, display name from Google) with a 30-day session.
 - **Expected**: `forum_sid` cookie set, redirect to `next` or `/foro`. A previous session in the same browser is revoked.
 - **Refused** (→ F1 with `denied`): login switched off, email not verified, domain not `@unl.edu.ec` or `hd` claim missing, no Google `sub`, email tied to another Google identity. A suspended member is refused with `suspended` (→ F1, D1), apart from these; no session is opened.
 - **Failures** (→ F1): config missing or unexpected error → `unavailable`; Google error, missing/mismatched state cookie → `failed`; Google down → `verification`.

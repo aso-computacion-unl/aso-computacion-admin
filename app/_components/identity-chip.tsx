@@ -26,7 +26,9 @@ interface IdentityChipProps {
   roleLabel: string;
   /** The password session: a signal-red pill and avatar replace the name and the role. */
   emergency?: boolean;
-  /** Explains the session at the top of the menu (the emergency access). */
+  /** The person's own email, under the name inside the menu (the registrations' header, S2); never in the bar. */
+  email?: string;
+  /** Explains the session in the menu: the emergency access, or how long a member's session lasts. */
   notice?: string;
   /** The sign-out control, a form or a button, rendered by the caller because each product signs out its own way. */
   signOut: ReactNode;
@@ -43,7 +45,7 @@ const PILL = "rounded-full px-2.5 py-0.5 text-xs leading-5 font-semibold whitesp
  * while closed, so it is out of the tab order and the accessibility tree until it opens. Opening moves the
  * focus into it; Escape, a click outside or tabbing away closes it, and Escape returns the focus to the chip.
  */
-export function IdentityChip({ name, roleLabel, emergency = false, notice, signOut }: IdentityChipProps) {
+export function IdentityChip({ name, roleLabel, emergency = false, email, notice, signOut }: IdentityChipProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -120,7 +122,9 @@ export function IdentityChip({ name, roleLabel, emergency = false, notice, signO
           ) : (
             <div className="grid gap-1">
               <span className="text-sm font-semibold wrap-anywhere">{name}</span>
+              {email ? <span className="font-mono text-xs text-mist wrap-anywhere">{email}</span> : null}
               <span className={cn(PILL, "w-fit border border-border text-mist")}>{roleLabel}</span>
+              {notice ? <p className="mt-1.5 text-sm leading-snug text-mist">{notice}</p> : null}
             </div>
           )}
         </div>

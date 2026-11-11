@@ -190,7 +190,9 @@ describe("finishForumLogin", () => {
     expect(testForum.sessions.sessions.size).toBe(1);
 
     const [name, token, options] = cookieSetMock.mock.calls.find(([cookie]) => cookie === FORUM_COOKIE_NAME) as [string, string, Record<string, unknown>];
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
+    // S9: the member session's cookie lasts thirty days.
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 30 * 24 * 60 * 60 });
+    expect([...testForum.sessions.sessions.values()][0]!.expiresAt.getTime() - [...testForum.sessions.sessions.values()][0]!.createdAt.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
     expect(await verifyForumSession(token)).toMatchObject({ valid: true });
     expect(name).toBe("forum_sid");
   });
@@ -233,6 +235,15 @@ describe("finishForumLogin", () => {
 
       expect(location(response)).toBe("https://admin.example.org/inscripciones/taller-git");
       expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, expect.any(String), expect.objectContaining({ path: "/" }));
+    });
+
+    it("S1: brings the student back to the list of registrations when the sign-in started from its header", async () => {
+      await sealWith("/inscripciones");
+
+      const response = await finishForumLogin(request("?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/inscripciones");
+      expect(testForum.sessions.sessions.size).toBe(1);
     });
 
     it("ignores a next in the callback URL: without a sealed one it goes to /foro", async () => {
@@ -287,6 +298,14 @@ describe("finishForumLogin", () => {
         await arrange();
 
         expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe(`https://admin.example.org/inscripciones/taller-git?error=${code}`);
+        expect(testForum.sessions.sessions.size).toBe(0);
+      });
+
+      it("S1: returns a refusal that started from the list to the list, with the code", async () => {
+        await sealWith("/inscripciones");
+        completeMock.mockResolvedValue({ ...IDENTITY, emailVerified: false });
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/inscripciones?error=denied");
         expect(testForum.sessions.sessions.size).toBe(0);
       });
 

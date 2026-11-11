@@ -159,7 +159,7 @@ export {
   ResolveForumLoginUseCase,
   ValidateForumSessionUseCase,
 } from "./forum/forum-auth.use-cases";
-export type { ForumActor, ForumGoogleIdentity, ForumLoginConfig, ForumLoginDenial, ForumLoginOutcome } from "./forum/forum-auth.use-cases";
+export type { ForumActor, ForumGoogleIdentity, ForumLoginConfig, ForumLoginDenial, ForumLoginOutcome, OwnForumAccount } from "./forum/forum-auth.use-cases";
 export type {
   ForumCategoryResult,
   ForumReplyResult,

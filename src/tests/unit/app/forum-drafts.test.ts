@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => routerMock }));
 vi.mock("@/interface/forum/forum-posting", () => ({ signOutOfForum: signOutMock }));
 
 import { clearForumDrafts, readDraft, replyDraftKey, threadDraftKey, writeDraft } from "../../../../app/foro/_components/forum-drafts";
-import { SignOutButton } from "../../../../app/foro/_components/sign-out-button";
+import { SignOutButton } from "../../../../app/_components/member-sign-out-button";
 import { click, mount, settle, unmountAll } from "@/tests/support/dom";
 
 beforeEach(() => {

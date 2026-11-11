@@ -4,8 +4,12 @@ import { ValidationError } from "@/domain/domain-error";
 
 import type { ForumMemberRepository, ForumSessionRepository } from "../ports/forum.ports";
 
-/** Matches the forum cookie's lifetime (7 days). */
-export const FORUM_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Matches the forum cookie's lifetime (30 days): a member stays signed in on their own browser for a month, since the
+ * session holds no sensitive data. Fixed from the login, never extended by use; a sign-out or a suspension still
+ * revokes it at once.
+ */
+export const FORUM_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const FORUM_USER_AGENT_MAX_LENGTH = 200;
 /** `lastSeenAt` is rewritten at most this often, so a page full of requests is not a page full of writes. */
 const TOUCH_INTERVAL_MS = 60 * 1000;
@@ -178,6 +182,26 @@ export class ValidateForumSessionUseCase {
     }
 
     return { memberId: found.member.id, sessionId: found.session.id, displayName: found.member.displayName };
+  }
+}
+
+/** The signed-in member's own account, for their account menu (S2): never shown to anyone else. */
+export interface OwnForumAccount {
+  name: string;
+  email: string;
+}
+
+/**
+ * The name and email of the member the guard already resolved, for their own account menu. The actor stays without
+ * the email (other students only ever see the public name); this is the one read that gives it, to the member alone.
+ */
+export class GetOwnForumAccountUseCase {
+  constructor(private readonly members: ForumMemberRepository) {}
+
+  async execute(input: { memberId: string }): Promise<OwnForumAccount | null> {
+    const member = await this.members.findById(input.memberId);
+
+    return member ? { name: member.displayName, email: member.email } : null;
   }
 }
 

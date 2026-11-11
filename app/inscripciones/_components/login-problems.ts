@@ -15,3 +15,8 @@ export const LOGIN_PROBLEM_MESSAGES: Record<ForumLoginErrorCode, string> = {
 export function registrationSignInHref(slug: string): string {
   return `/foro/auth/google/start?next=${encodeURIComponent(`/inscripciones/${slug}`)}`;
 }
+
+/** The same sign-in from the list's header (S1): it returns to the list. */
+export function registrationListSignInHref(): string {
+  return `/foro/auth/google/start?next=${encodeURIComponent("/inscripciones")}`;
+}

@@ -316,5 +316,12 @@ describe("the open registration form with the Turnstile widget", () => {
 
     expect(control(host, '[role="alert"]').textContent).toContain("La inscripción no está disponible en este momento.");
     expect(host.textContent).not.toContain("No pudimos cargar la verificación");
+
+    // The next try cannot be checked: it says that the verification did not load, not to complete it.
+    await click(submit(host));
+    await settle();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(control(host, '[role="alert"]').textContent).toContain("No pudimos cargar la verificación");
+    expect(host.textContent).not.toContain("Complete la verificación");
   });
 });

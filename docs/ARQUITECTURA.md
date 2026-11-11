@@ -82,7 +82,7 @@ Both live **in the admin app**, on the admin's origin, not in the landing. The l
 
 | Environment | Admin | Landing |
 |---|---|---|
-| Production | Vercel project, Node 22, `npm ci` / `npm run build`, Neon + Cloudinary; migrations applied by hand with `prisma migrate deploy` against the direct connection string, **before** deploying code that needs them | Cloudflare Pages, production branch `main`, `pnpm build`, output `dist`; the admin's deploy hook and the daily workflow trigger builds |
+| Production | Vercel project, Node 22, `npm ci` / `npm run build`, Neon + Cloudinary; migrations applied with `prisma migrate deploy` against the direct connection string by the `Migrate production database` workflow, **before** deploying code that needs them | Cloudflare Pages, production branch `main`, `pnpm build`, output `dist`; the admin's deploy hook and the daily workflow trigger builds |
 | Preview deployments | Vercel previews should get **no** production variables (a preview sharing the database would let any branch edit live content; [DEPLOY.md](DEPLOY.md#3-vercel) step 5) | Pages preview branches build from the fallback snapshot with a warning; a separate access-protected project serves preview builds |
 | Local | `npm run dev` with your own Postgres; Google optional (password login otherwise); `npm run seed:demo` for sample data | `pnpm dev`; without `ADMIN_CONTENT_URL` it uses the fallback snapshot |
 | CI | Throwaway Postgres in Docker, test-only credentials, no secrets | Build from the fallback snapshot, no secrets |

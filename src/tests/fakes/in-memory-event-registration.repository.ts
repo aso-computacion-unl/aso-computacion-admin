@@ -1,11 +1,13 @@
 import type {
+  CancelOutcome,
+  CancelTarget,
   ConfirmOutcome,
   EventRegistrationRecord,
   EventRegistrationRepository,
   NewEventRegistration,
   RegisterOutcome,
 } from "@/application/ports/event-registration-repository.port";
-import { isConfirmationExpired, registrationRefusal } from "@/domain/event-registration";
+import { cancellationRefusal, isConfirmationExpired, registrationRefusal } from "@/domain/event-registration";
 
 import type { InMemoryEventRepository } from "./in-memory-event.repository";
 
@@ -113,6 +115,32 @@ export class InMemoryEventRegistrationRepository implements EventRegistrationRep
     this.rows[index] = registration;
 
     return { status: "confirmed", registration };
+  }
+
+  async cancel(eventId: string, who: CancelTarget, now: Date): Promise<CancelOutcome> {
+    const event = await this.events.getById(eventId);
+
+    if (!event) {
+      return { status: "not_found" };
+    }
+
+    const refusal = cancellationRefusal({ event: event.props, now });
+
+    if (refusal) {
+      return { status: refusal };
+    }
+
+    const index = this.rows.findIndex((row) => row.eventId === eventId && ("id" in who ? row.id === who.id : row.email === who.email));
+
+    if (index === -1) {
+      return { status: "not_registered" };
+    }
+
+    const [removed] = this.rows.splice(index, 1);
+
+    this.nonces.delete(removed!.id);
+
+    return { status: "cancelled" };
   }
 
   private confirmed(): EventRegistrationRecord[] {

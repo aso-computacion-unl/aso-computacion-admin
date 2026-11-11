@@ -474,4 +474,139 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
       expect(await registrations.listDueForReminder(event.id, 10)).toEqual([]);
     });
   });
+
+  /*
+   * D7: cancelling deletes the stored registration under the event's lock, so the seat it frees is seen at once and a
+   * refusal leaves every stored row, and the seat count, exactly as they were.
+   */
+  describe("cancel", () => {
+    const stored = (eventId: string) => registrations.list(eventId);
+
+    it("deletes the named registration and frees its seat for the next person, leaving the others untouched", async () => {
+      const event = await addEvent({ registrationCapacity: 2 });
+      const ana = person(event.id, { email: "ana@example.com" });
+      const luis = person(event.id, { email: "luis@example.com" });
+
+      await registrations.register(ana, NOW);
+      await registrations.register(luis, NOW);
+
+      const [, luisRow] = await stored(event.id);
+
+      expect(await registrations.register(person(event.id), NOW)).toEqual({ status: "full" });
+      expect(await registrations.cancel(event.id, { id: ana.id }, NOW)).toEqual({ status: "cancelled" });
+      expect(await stored(event.id)).toEqual([luisRow]);
+      expect(await registrations.count(event.id)).toBe(1);
+      expect((await registrations.register(person(event.id), NOW)).status).toBe("registered");
+    });
+
+    it("finds the registration of a verified email when asked by it, and only that one", async () => {
+      const event = await addEvent({ registrationMode: "unl", registrationCapacity: 3 });
+      const unl = (email: string) => person(event.id, { mode: "unl", email, institution: null, career: null, semester: null });
+
+      await registrations.register(unl("ana@unl.edu.ec"), NOW);
+      await registrations.register(unl("luis@unl.edu.ec"), NOW);
+
+      expect(await registrations.cancel(event.id, { email: "ana@unl.edu.ec" }, NOW)).toEqual({ status: "cancelled" });
+      expect((await stored(event.id)).map((row) => row.email)).toEqual(["luis@unl.edu.ec"]);
+      expect(await registrations.cancel(event.id, { email: "ana@unl.edu.ec" }, NOW)).toEqual({ status: "not_registered" });
+      expect((await stored(event.id)).map((row) => row.email)).toEqual(["luis@unl.edu.ec"]);
+    });
+
+    it("deletes a pending row too, which held no seat", async () => {
+      const event = await addEvent({ registrationCapacity: 1 });
+      const pending = person(event.id, { confirmedAt: null });
+      const seated = person(event.id);
+
+      await registrations.register(pending, NOW);
+      await registrations.register(seated, NOW);
+
+      expect(await registrations.cancel(event.id, { id: pending.id }, NOW)).toEqual({ status: "cancelled" });
+      expect(await registrations.count(event.id)).toBe(1);
+      expect((await stored(event.id)).map((row) => row.id)).toEqual([seated.id]);
+    });
+
+    it("answers not_registered for an unknown id and for an id of another event, changing nothing", async () => {
+      const event = await addEvent({ registrationCapacity: 2 });
+      const other = await addEvent({ title: "Otro taller", registrationCapacity: 2 });
+      const mine = person(event.id);
+      const theirs = person(other.id);
+
+      await registrations.register(mine, NOW);
+      await registrations.register(theirs, NOW);
+
+      expect(await registrations.cancel(event.id, { id: "ghost" }, NOW)).toEqual({ status: "not_registered" });
+      expect(await registrations.cancel(event.id, { id: theirs.id }, NOW)).toEqual({ status: "not_registered" });
+      expect(await registrations.cancel(event.id, { email: theirs.email }, NOW)).toEqual({ status: "not_registered" });
+      expect(await stored(event.id)).toHaveLength(1);
+      expect(await stored(other.id)).toHaveLength(1);
+    });
+
+    it("is closed after the deadline and after the event day, and the rows and the seat count stay", async () => {
+      const deadline = new Date("2026-11-21T00:00:00.000Z");
+      const closing = await addEvent({ title: "Cierra", registrationCapacity: 2, registrationDeadline: deadline });
+      const past = await addEvent({ title: "Pasado", date: "2026-11-10", registrationCapacity: 2 });
+      const a = person(closing.id);
+      const b = person(past.id);
+
+      await registrations.register(a, NOW);
+      await registrations.register(b, new Date("2026-11-01T00:00:00.000Z"));
+
+      const beforeClosing = await stored(closing.id);
+      const beforePast = await stored(past.id);
+
+      expect(await registrations.cancel(closing.id, { id: a.id }, deadline)).toEqual({ status: "closed" });
+      expect(await registrations.cancel(past.id, { id: b.id }, NOW)).toEqual({ status: "closed" });
+      expect(await stored(closing.id)).toEqual(beforeClosing);
+      expect(await stored(past.id)).toEqual(beforePast);
+      expect(await registrations.count(closing.id)).toBe(1);
+      expect(await registrations.cancel(closing.id, { id: a.id }, new Date(deadline.getTime() - 1))).toEqual({ status: "cancelled" });
+    });
+
+    it("is not_found for a draft, a trashed or a missing event, and the registration of a trashed event stays", async () => {
+      const draft = await addEvent({ title: "Borrador", registrationCapacity: 2 });
+      const trashed = await addEvent({ title: "Papelera", registrationCapacity: 2 });
+      const a = person(draft.id);
+      const b = person(trashed.id);
+
+      await registrations.register(a, NOW);
+      await registrations.register(b, NOW);
+      await events.update(Event.reconstitute(draft).update({ isPublished: false }));
+      await events.trash(trashed.id);
+
+      expect(await registrations.cancel(draft.id, { id: a.id }, NOW)).toEqual({ status: "not_found" });
+      expect(await registrations.cancel(trashed.id, { id: b.id }, NOW)).toEqual({ status: "not_found" });
+      expect(await registrations.cancel("00000000-0000-0000-0000-000000000000", { id: "x" }, NOW)).toEqual({ status: "not_found" });
+      expect(await stored(draft.id)).toHaveLength(1);
+      expect(await registrations.count(trashed.id)).toBe(1);
+    });
+
+    it("cancelling the same registration at once deletes it once, and the seat is free exactly once", async () => {
+      const event = await addEvent({ registrationCapacity: 1 });
+      const ana = person(event.id);
+
+      await registrations.register(ana, NOW);
+
+      const outcomes = await Promise.all(Array.from({ length: 6 }, () => registrations.cancel(event.id, { id: ana.id }, NOW)));
+
+      expect(outcomes.filter((outcome) => outcome.status === "cancelled")).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === "not_registered")).toHaveLength(5);
+      expect(await registrations.count(event.id)).toBe(0);
+    });
+
+    it("a cancellation racing a registration for the freed seat never oversells it", async () => {
+      const event = await addEvent({ registrationCapacity: 1 });
+      const ana = person(event.id);
+
+      await registrations.register(ana, NOW);
+
+      const results = await Promise.all([
+        registrations.cancel(event.id, { id: ana.id }, NOW),
+        ...Array.from({ length: 5 }, () => registrations.register(person(event.id), NOW)),
+      ]);
+
+      expect(results[0]).toEqual({ status: "cancelled" });
+      expect(await registrations.count(event.id)).toBeLessThanOrEqual(1);
+      expect(results.slice(1).filter((outcome) => outcome.status === "registered").length).toBeLessThanOrEqual(1);
+    });
+  });
 });

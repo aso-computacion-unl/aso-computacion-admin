@@ -32,3 +32,24 @@ export function mapRegistrationActionError(error: unknown): ForumActionResult {
 
   return mapForumActionError(error);
 }
+
+/** The cancellation's own wording (D7) for the two refusals that name what the student was trying to do. */
+export const CANCELLATION_SESSION_EXPIRED_RESULT: ForumActionResult = {
+  error: "Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para cancelar su inscripción.",
+  sessionExpired: true,
+};
+
+const CANCELLATION_ACCOUNT_MESSAGE = "Su cuenta no puede cancelar cupos. Use su cuenta institucional @unl.edu.ec.";
+
+/** Like `mapRegistrationActionError`, for the action that cancels: same rules, said about cancelling instead of reserving. */
+export function mapCancellationActionError(error: unknown): ForumActionResult {
+  if (error instanceof ForumUnauthorizedError) {
+    return CANCELLATION_SESSION_EXPIRED_RESULT;
+  }
+
+  if (error instanceof ForumMemberSuspendedError || error instanceof ForbiddenError) {
+    return { error: CANCELLATION_ACCOUNT_MESSAGE };
+  }
+
+  return mapRegistrationActionError(error);
+}

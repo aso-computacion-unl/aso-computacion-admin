@@ -3,16 +3,14 @@ import { toEventResult } from "../mappers/event-result.mapper";
 import type { ConfirmOutcome, EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { ForumMemberRepository } from "../ports/forum.ports";
-import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
-import { ForumMemberSuspendedError } from "@/domain/forum";
+import { NotFoundError } from "../use-cases/use-case-error";
+import { UnlMemberGuard, type UnlRegistrationConfig } from "./unl-member-guard";
 import {
   parseOpenRegistration,
   registrationRefusal,
   type RegistrationMode,
   type RegistrationState,
 } from "@/domain/event-registration";
-import { emailDomain, normalizeEmail } from "@/domain/user";
-import { ValidationError } from "@/domain/domain-error";
 
 type IdGenerator = () => string;
 
@@ -132,57 +130,28 @@ export class ConfirmOpenRegistrationUseCase {
   }
 }
 
-export interface UnlRegistrationConfig {
-  /** The institutional domain; unset or blank refuses every UNL registration (fail closed, like the forum login). */
-  allowedDomain?: string;
-}
+export type { UnlRegistrationConfig };
 
 /** A signed-in forum member registers with the verified name and email the forum already holds. */
 export class RegisterWithUnlAccountUseCase extends RegisterUseCase {
-  private readonly allowedDomain: string | undefined;
+  private readonly guard: UnlMemberGuard;
 
   constructor(
     events: EventRepository,
     registrations: EventRegistrationRepository,
-    private readonly members: ForumMemberRepository,
+    members: ForumMemberRepository,
     config: UnlRegistrationConfig,
     newId?: IdGenerator,
   ) {
     super(events, registrations, newId);
-    this.allowedDomain = config.allowedDomain?.trim().replace(/^@/, "").toLowerCase() || undefined;
+    this.guard = new UnlMemberGuard(members, config);
   }
 
   async execute({ slug, memberId, now = new Date() }: { slug: string; memberId: string; now?: Date }): Promise<RegisterOutcome> {
-    const member = await this.members.findById(memberId);
-
-    if (!this.allowedDomain || !member) {
-      throw new ForbiddenError();
-    }
-
-    if (member.status !== "ACTIVE") {
-      throw new ForumMemberSuspendedError();
-    }
-
-    const email = this.institutionalEmail(member.email);
+    const { name, email } = await this.guard.identify(memberId);
 
     // Google already verified this address: the seat is taken at once.
-    return this.store(slug, now, "unl", { name: member.displayName, email, institution: null, career: null, semester: null, confirmedAt: now });
-  }
-
-  private institutionalEmail(raw: string): string {
-    try {
-      const email = normalizeEmail(raw);
-
-      if (emailDomain(email) === this.allowedDomain) {
-        return email;
-      }
-    } catch (error) {
-      if (!(error instanceof ValidationError)) {
-        throw error;
-      }
-    }
-
-    throw new ForbiddenError();
+    return this.store(slug, now, "unl", { name, email, institution: null, career: null, semester: null, confirmedAt: now });
   }
 }
 

@@ -11,6 +11,7 @@ vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: rep
 
 import { todayInEcuador } from "@/domain/calendar-date";
 import { REGISTRATION_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/registration-rate-limiter";
+import { openRegistrationCancelToken } from "@/infrastructure/registration/registration-cancel-token";
 import { openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { testMail } from "@/tests/support/test-mail";
@@ -104,6 +105,22 @@ describe("POST /api/public/events/[slug]/registrations", () => {
         claims: { registrationId: row!.id, eventId: row!.eventId, nonce: testEventRegistration.registrations.confirmNonceOf(row!.id) },
       });
       expect(await testMail.budget.used(TODAY())).toBe(1);
+    });
+
+    it("carries a second, distinct link that cancels that same registration (D7): its own signed token, which does not confirm", async () => {
+      await post(FORM);
+
+      const [row] = stored();
+      const [mail] = testMail.transport.delivered;
+      const confirm = /\/inscripciones\/taller-de-git\/confirmar\?token=([\w.-]+)/.exec(mail!.text);
+      const cancel = /https:\/\/admin\.example\.org\/inscripciones\/taller-de-git\/cancelar\?token=([\w.-]+)/.exec(mail!.text);
+
+      expect(cancel).not.toBeNull();
+      expect(cancel![1]).not.toBe(confirm![1]);
+      expect(await openRegistrationCancelToken(cancel![1])).toEqual({ status: "valid", claims: { registrationId: row!.id, eventId: row!.eventId } });
+      expect(await openRegistrationConfirmToken(cancel![1])).toEqual({ status: "invalid" });
+      expect(await openRegistrationCancelToken(confirm![1])).toEqual({ status: "invalid" });
+      expect(mail!.html).toContain(`href="${cancel![0]}"`);
     });
 
     it("never echoes the address or the link in the answer", async () => {

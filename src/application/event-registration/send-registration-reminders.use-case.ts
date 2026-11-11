@@ -2,7 +2,7 @@ import { isPubliclyVisible } from "@/domain/publication-window";
 import { isInReminderWindow, reminderMailAllowance } from "@/domain/registration-reminder";
 
 import type { EventResult } from "../dto/event-result.dto";
-import type { EventRegistrationRepository } from "../ports/event-registration-repository.port";
+import type { EventRegistrationRecord, EventRegistrationRepository } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { MailMessage, MailSender } from "../ports/mail.ports";
 import { soonestFirst } from "./soonest-first";
@@ -11,10 +11,15 @@ import { soonestFirst } from "./soonest-first";
 export const REMINDER_MAX_CONSECUTIVE_FAILURES = 3;
 
 /** What a reminder says about its event. */
-export type ReminderEvent = Pick<EventResult, "slug" | "title" | "date" | "datePrecision" | "hora" | "lugar">;
+export type ReminderEvent = Pick<EventResult, "id" | "slug" | "title" | "date" | "datePrecision" | "hora" | "lugar">;
 
-/** The subject and body of the reminder of one event; built by the caller, which knows the site's address. */
-export type ReminderMessageBuilder = (event: ReminderEvent) => Pick<MailMessage, "subject" | "text" | "html">;
+/** Who a reminder is for: enough to build a link that is theirs alone (the cancellation of their registration, D7). */
+export type ReminderRecipient = Pick<EventRegistrationRecord, "id">;
+
+type ReminderMessage = Pick<MailMessage, "subject" | "text" | "html">;
+
+/** The subject and body of the reminder of one person for one event; built by the caller, which knows the site's address and signs the person's links. */
+export type ReminderMessageBuilder = (event: ReminderEvent, person: ReminderRecipient) => ReminderMessage | Promise<ReminderMessage>;
 
 /**
  * `done`: everything due was handled (a failed one stays due for tomorrow). `budget`: today's mail budget ran out
@@ -60,12 +65,12 @@ export class SendRegistrationRemindersUseCase {
       // A few more than the budget allows: someone left over tells that the budget, not the list, ended the day, and the
       // extra ones stand in for the sends that fail without spending anything.
       const people = await this.registrations.listDueForReminder(event.id, remaining + REMINDER_MAX_CONSECUTIVE_FAILURES + 1);
-      const message = this.buildMessage(event);
 
       for (const person of people) {
         if (remaining <= 0) return { ...result, stoppedBy: "budget" };
         if (shouldStop()) return { ...result, stoppedBy: "time" };
 
+        const message = await this.buildMessage(event, person);
         const sent = await this.mailer.send({ to: person.email, ...message }, now);
 
         if (sent.status === "sent") {

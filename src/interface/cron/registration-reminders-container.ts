@@ -1,14 +1,14 @@
 import { SendRegistrationRemindersUseCase, type ReminderMessageBuilder } from "@/application";
 import { EventPrismaRepository, EventRegistrationPrismaRepository } from "@/infrastructure";
 import { publicOrigin } from "@/infrastructure/auth/auth-config";
-import { reminderEmail } from "@/interface/event-registration/registration-emails";
+import { buildReminderMessage } from "@/interface/event-registration/reminder-message";
 import { getMailSender } from "@/interface/mail/mail-container";
 
 /** The links of the reminder are built from the admin's public address; without one there is nothing to link to and nothing is sent. */
 function messageBuilder(origin: string | undefined): ReminderMessageBuilder | null {
   if (!origin) return null;
 
-  return (event) => reminderEmail({ event, eventUrl: `${origin}/inscripciones/${event.slug}`, calendarUrl: `${origin}/api/public/events/${event.slug}/calendar.ics` });
+  return buildReminderMessage(origin);
 }
 
 /**

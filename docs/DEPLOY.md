@@ -16,7 +16,15 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
    DATABASE_URL='<direct connection string>' npx prisma migrate deploy
    ```
 
-   `migrate deploy` applies the committed migrations in `prisma/migrations/` and nothing else; it never resets or generates anything. Run it again after every deploy that adds a migration. It is deliberately **not** part of the Vercel build command: a build would run it through the pooler, where Prisma's migration lock can fail.
+   `migrate deploy` applies the committed migrations in `prisma/migrations/` and nothing else; it never resets or generates anything. It is deliberately **not** part of the Vercel build command: a build would run it through the pooler, where Prisma's migration lock can fail.
+
+4. Later migrations do not need the string copied again. The `Migrate production database` workflow (`.github/workflows/migrate.yml`) runs the same command with the direct string stored once in GitHub:
+
+   - One-time setup: in the repository's **Settings → Environments → `production-db`** (deployment branches limited to `main`), add the secret `MIGRATE_DATABASE_URL` with the **direct** string. From a terminal: `gh secret set MIGRATE_DATABASE_URL --env production-db` and paste it when asked. Update it there if the Neon password is ever rotated.
+   - It runs on its own on every push to `main` that touches `prisma/migrations/`, and only ever with what is on `main`: a pull request branch never runs with the production string.
+   - Vercel deploys `main` the moment a merge lands, so the tables have to be there first. Merge the migration **in its own pull request** (only `prisma/migrations/`; migrations stay additive, so the running code ignores it), wait for the workflow to finish, then merge the code that needs it.
+
+   The workflow refuses an empty or pooled string, and never runs for pull requests.
 
 The app's SQL (`FOR UPDATE` row locks, `INSERT ... ON CONFLICT` for the login throttle) uses plain transactions and holds no session state, so it fits PgBouncer's transaction mode on paper. It has only been run against a local Postgres, never against Neon (and never through `@prisma/adapter-pg` there, the driver adapter introduced with Prisma 7): check the first login and the first photo upload after deploying. The runtime pool is the `pg` default of 10 connections per instance with a 5 second connection timeout; both are set in `src/infrastructure/prisma/client.ts`.
 
@@ -74,7 +82,7 @@ Set on Vercel (Production) unless the table says otherwise. The names and placeh
 | `MAIL_GMAIL_APP_PASSWORD` | for email | A Google **app password** for that account (16 letters; the spaces Google shows are ignored). Not the account password. Mark it Sensitive. |
 | `MAIL_FROM_NAME` | no | Display name of the sender. Default `ASO Computación`. |
 | `MAIL_DAILY_LIMIT` | no | Most emails sent in one day (Ecuador time), confirmations and reminders together. Default `400`, under Gmail's ~500. A whole number from 1 to 100000; anything else is ignored (the default applies) and reported by the configuration check. |
-| `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_SECURE` | **test-only: leave unset in production** | Send through another SMTP server instead of `smtp.gmail.com:465`. Only `npm run e2e` sets them, to its local mail sink (`MAIL_SMTP_SECURE` is `true` or `false`; with it unset the connection is secure only on port 465). All unset means Gmail exactly as before; a value that does not parse (no host, a port outside 1-65535) is ignored as a whole and Gmail stays. |
+| `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_SECURE` | **test-only: leave unset in production** | Send through another SMTP server instead of `smtp.gmail.com:465`. Only `npm run e2e` sets them, to its local mail sink (`MAIL_SMTP_SECURE` is `true` or `false`; with it unset the connection is secure only on port 465; a connection without TLS is accepted only to `localhost` or `127.x.x.x`, any other host falls back to Gmail). All unset means Gmail exactly as before; a value that does not parse (no host, a port outside 1-65535) is ignored as a whole and Gmail stays. |
 | `REGISTRATION_CONFIRM_SECRET` | for email | Signs the email-confirmation links (valid 48 h). At least 32 characters and different from `ADMIN_SECRET` and `FORUM_SESSION_SECRET`. Missing or invalid: the open form answers 503. Rotating it invalidates the links already sent. Mark it Sensitive. |
 | `CLOUDINARY_CLOUD_NAME` | yes | Cloudinary cloud name (step 2). |
 | `CLOUDINARY_API_KEY` | yes | Cloudinary API key. |

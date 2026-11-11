@@ -222,6 +222,18 @@ describe("editing your own posts", () => {
     expect(result).toMatchObject({ body: "Editada", editedAt: NOW });
   });
 
+  it("does not mark a post edited, or touch its best-answer mark, when it is saved without changes (D2)", async () => {
+    store.threads.set("t1", { ...store.threads.get("t1")!, bestReplyId: "r1" });
+
+    const thread = await new EditForumThreadUseCase(members, posts, now).execute({ memberId: "m1", threadId: "t1", title: "Duda", body: "Cuerpo" });
+    const reply = await new EditForumReplyUseCase(members, posts, now).execute({ memberId: "m2", replyId: "r1", body: "Respuesta" });
+
+    expect(thread).toMatchObject({ title: "Duda", body: "Cuerpo", editedAt: null });
+    expect(reply).toMatchObject({ body: "Respuesta", editedAt: null });
+    expect(store.threads.get("t1")).toMatchObject({ editedAt: null, bestReplyId: "r1" });
+    expect(store.replies.get("r1")).toMatchObject({ editedAt: null });
+  });
+
   it("refuses to edit your own thread or reply once the thread is locked, and changes nothing", async () => {
     store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", authorId: "m1", lockedAt: NOW }));
 

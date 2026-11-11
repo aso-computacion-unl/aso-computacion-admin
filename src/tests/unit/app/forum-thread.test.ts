@@ -196,23 +196,57 @@ describe("a thread page", () => {
       expect(count(html, ">Reportar<")).toBe(2);
     });
 
-    it("shows «Me sirvió» with its count on every reply, pressed when the viewer left one", async () => {
+    it("shows «Me sirvió» with its count on the opening post and on every reply, pressed when the viewer left one (D2)", async () => {
       seedThread();
       reply("r1", "m2");
       reply("r2", "m2", minutesAgo(30));
+      testForum.store.reactions.set("x0", { memberId: "m2", threadId: "t1", replyId: null });
       testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r1" });
       testForum.store.reactions.set("x2", { memberId: viewerId, threadId: null, replyId: "r1" });
 
       const html = await render("t1");
 
-      expect(count(html, "Me sirvió")).toBe(2);
+      expect(count(html, "Me sirvió")).toBe(3);
       const buttons = html.split("<button").filter((part) => part.includes("Me sirvió"));
 
-      expect(buttons).toHaveLength(2);
-      expect(buttons[0]).toContain('aria-pressed="true"');
-      expect(buttons[0]).toContain(">2</span>");
-      expect(buttons[1]).toContain('aria-pressed="false"');
-      expect(buttons[1]).toContain(">0</span>");
+      expect(buttons).toHaveLength(3);
+      // The opening post first: one reaction, not the viewer's.
+      expect(buttons[0]).toContain('aria-pressed="false"');
+      expect(buttons[0]).toContain(">1</span>");
+      expect(buttons[1]).toContain('aria-pressed="true"');
+      expect(buttons[1]).toContain(">2</span>");
+      expect(buttons[2]).toContain('aria-pressed="false"');
+      expect(buttons[2]).toContain(">0</span>");
+    });
+
+    it("offers «Editar» only on the viewer's own posts, the opening post included (D2)", async () => {
+      seedThread({ authorId: viewerId });
+      reply("r1", "m2");
+      reply("r2", viewerId, minutesAgo(30));
+
+      const html = await render("t1");
+      const opening = html.slice(0, html.indexOf('id="respuesta-r1"'));
+      const others = html.slice(html.indexOf('id="respuesta-r1"'), html.indexOf('id="respuesta-r2"'));
+      const ownReply = html.slice(html.indexOf('id="respuesta-r2"'));
+
+      expect(count(html, ">Editar<")).toBe(2);
+      expect(opening).toContain(">Editar<");
+      expect(others).not.toContain(">Editar<");
+      expect(ownReply).toContain(">Editar<");
+    });
+
+    it("offers no «Editar» on someone else's thread", async () => {
+      seedThread();
+      reply("r1", "m2");
+
+      expect(await render("t1")).not.toContain(">Editar<");
+    });
+
+    it("offers no «Editar» on a locked thread, where the server refuses edits", async () => {
+      seedThread({ authorId: viewerId, lockedAt: new Date() });
+      reply("r1", viewerId);
+
+      expect(await render("t1")).not.toContain(">Editar<");
     });
 
     it("lets only the thread's author mark a reply as the best answer", async () => {
@@ -304,9 +338,9 @@ describe("a thread page", () => {
       const placeholder = html.slice(html.indexOf('id="respuesta-r2"'), html.indexOf('id="respuesta-r3"'));
 
       expect(placeholder).toContain(PLACEHOLDER);
-      expect(placeholder).not.toMatch(/Me sirvió|Reportar|mejor respuesta|<button/);
-      // The two visible replies keep theirs.
-      expect(html.split("Me sirvió")).toHaveLength(3);
+      expect(placeholder).not.toMatch(/Me sirvió|Reportar|mejor respuesta|Editar|<button/);
+      // The two visible replies keep theirs, and the opening post has its «Me sirvió».
+      expect(html.split("Me sirvió")).toHaveLength(4);
       expect(html.split(">Reportar<")).toHaveLength(3);
       expect(html.split("Marcar como mejor respuesta")).toHaveLength(3);
     });

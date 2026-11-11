@@ -272,6 +272,12 @@ export class EditForumThreadUseCase {
 
     const title = parseThreadTitle(input.title);
     const body = parseThreadBody(input.body);
+
+    // Saving what is already there is not an edit: no "editado" mark.
+    if (title === row.thread.title && body === row.thread.body) {
+      return toThreadResult(row, member.id);
+    }
+
     const at = this.now();
 
     throwUnlessEdited(await this.posts.updateThread(row.thread.id, { title, body, at, authorId: member.id }));
@@ -299,6 +305,12 @@ export class EditForumReplyUseCase {
     assertThreadOpen((await visibleThread(this.posts, reply.threadId)).thread);
 
     const body = parseReplyBody(input.body);
+
+    // Saving what is already there is not an edit: no "editado" mark, and the reply keeps a best-answer mark.
+    if (body === reply.body) {
+      return toReplyResult({ reply, authorName: member.displayName }, member.id, null);
+    }
+
     const at = this.now();
 
     throwUnlessEdited(await this.posts.updateReply(reply.id, { body, at, authorId: member.id }));

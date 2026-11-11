@@ -133,13 +133,68 @@ test("D8 / F4: the forum is only the forum: no Inscripciones link in its rail, o
   await context.close();
 });
 
+test("a member edits their own thread and reply, which then read «editado», and reacts to an opening post (D2)", async ({ browser }) => {
+  await prisma.forumThread.create({
+    data: { id: "t-edit", categoryId: "c-prog", authorId: "m1", title: "Duda sobre malloc", body: "¿Cuándo libero?", createdAt: ago(90), updatedAt: ago(90), lastActivityAt: ago(80) },
+  });
+  await prisma.forumReply.create({ data: { id: "r-edit-mine", threadId: "t-edit", authorId: "m1", body: "Me respondo: con free.", createdAt: ago(85), updatedAt: ago(85) } });
+  await prisma.forumReply.create({ data: { id: "r-edit-other", threadId: "t-edit", authorId: "m2", body: "Al terminar de usarlo.", createdAt: ago(80), updatedAt: ago(80) } });
+  const context = await memberContext(browser);
+  const page = await context.newPage();
+
+  await page.goto("/foro/hilo/t-edit");
+  // Only the member's own posts offer «Editar»: the opening post and their reply, not Mateo's.
+  await expect(page.getByRole("button", { name: "Editar" })).toHaveCount(2);
+  await expect(page.locator("#respuesta-r-edit-other").getByRole("button", { name: "Editar" })).toHaveCount(0);
+  await expect(page.getByText("editado")).toHaveCount(0);
+
+  // The opening post: title and text.
+  const opening = page.locator("article").first();
+  await opening.getByRole("button", { name: "Editar" }).click();
+  await opening.getByLabel("Título").fill("Duda sobre malloc y free");
+  await opening.getByLabel("Texto del hilo").fill("¿Cuándo libero la memoria?");
+  await opening.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Duda sobre malloc y free" })).toBeVisible();
+  await expect(opening).toContainText("¿Cuándo libero la memoria?");
+  await expect(opening).toContainText("editado");
+
+  // Their reply: the text only.
+  const mine = page.locator("#respuesta-r-edit-mine");
+  await mine.getByRole("button", { name: "Editar" }).click();
+  await mine.getByLabel("Su respuesta").fill("Me respondo: con free, una sola vez.");
+  await mine.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(mine).toContainText("Me respondo: con free, una sola vez.");
+  await expect(mine).toContainText("editado");
+  await expect.poll(async () => (await prisma.forumReply.findUnique({ where: { id: "r-edit-mine" } }))?.editedAt).not.toBeNull();
+  // Mateo's reply is untouched.
+  expect(await prisma.forumReply.findUnique({ where: { id: "r-edit-other" } })).toMatchObject({ body: "Al terminar de usarlo.", editedAt: null });
+
+  // «Me sirvió» on someone else's opening post.
+  await page.goto("/foro/hilo/t-open");
+  const helpful = page.locator("article").first().getByRole("button", { name: /Me sirvió/ });
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => prisma.forumReaction.count({ where: { threadId: "t-open", memberId: "m1" } })).toBe(1);
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => prisma.forumReaction.count({ where: { threadId: "t-open", memberId: "m1" } })).toBe(0);
+
+  // A locked thread offers no edit, even on the member's own posts.
+  await page.goto("/foro/hilo/t-locked");
+  await expect(page.getByRole("button", { name: "Editar" })).toHaveCount(0);
+
+  await context.close();
+});
+
 test("a member reacts to a reply, marks the best answer of their thread and reports someone else's post", async ({ browser }) => {
   const context = await memberContext(browser);
   const page = await context.newPage();
 
   // «Me sirvió» is a toggle that survives a reload.
   await page.goto("/foro/hilo/t-mine");
-  const helpful = page.getByRole("button", { name: /Me sirvió/ });
+  // The opening post has its own «Me sirvió» (D2): this one is the reply's.
+  const reply = page.locator("#respuesta-r-help");
+  const helpful = reply.getByRole("button", { name: /Me sirvió/ });
   await expect(helpful).toHaveAttribute("aria-pressed", "false");
   await helpful.click();
   await expect(helpful).toHaveAttribute("aria-pressed", "true");
@@ -147,9 +202,9 @@ test("a member reacts to a reply, marks the best answer of their thread and repo
   // The button answers before the server does: wait for the row before leaving the page.
   await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(1);
   await page.reload();
-  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: /Me sirvió/ }).click();
-  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "false");
+  await expect(reply.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "true");
+  await reply.getByRole("button", { name: /Me sirvió/ }).click();
+  await expect(reply.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "false");
   await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(0);
 
   // The author of the thread marks the best answer and takes the mark back. Their own post has no «Reportar».

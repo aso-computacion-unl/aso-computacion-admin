@@ -27,6 +27,12 @@ test.skip(!SECRET, "set FORUM_SESSION_SECRET to run the signed-in forum suite");
 test.beforeAll(async () => {
   if (!SECRET) return;
 
+  // Starts from its own rows only, so the spec can run again against the same database (`--repeat-each`).
+  await prisma.forumThread.deleteMany({ where: { categoryId: "c-prog" } });
+  await prisma.forumSession.deleteMany({ where: { memberId: { in: ["m1", "m2"] } } });
+  await prisma.forumMember.deleteMany({ where: { id: { in: ["m1", "m2"] } } });
+  await prisma.forumCategory.deleteMany({ where: { id: "c-prog" } });
+
   member = await plantForumMemberSession(prisma, { memberId: "m1", sessionId: "s1", displayName: "Daniela P." });
   await prisma.forumMember.create({ data: { id: "m2", email: "m2@unl.edu.ec", googleSub: "sub-m2", displayName: "Mateo R." } });
   await prisma.forumCategory.create({ data: { id: "c-prog", slug: "programacion", name: "Programación", description: "Código y errores", sortOrder: 0, updatedAt: now } });
@@ -301,8 +307,9 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   const context = await memberContext(browser);
   const page = await context.newPage();
 
-  await page.goto("/foro");
-  await page.getByRole("link", { name: "Programación", exact: true }).click();
+  // Narrowed to the category by its URL, not by clicking its chip: at 375 px the category chips exist only while the forum has
+  // two or more categories, which depends on what other specs left in the database (alone, this spec has just one).
+  await page.goto("/foro?categoria=programacion");
   // The list header and the empty end of the list both offer it: the header one is the first.
   await page.getByRole("link", { name: "Nuevo hilo" }).first().click();
   await page.getByLabel("Título").fill("Hilo creado desde el e2e");

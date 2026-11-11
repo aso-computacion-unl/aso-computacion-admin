@@ -52,8 +52,19 @@ async function seedEvent(name: string, overrides: Partial<Prisma.EventUncheckedC
 const registrations = (event: Seeded) => prisma.eventRegistration.findMany({ where: { eventId: event.id }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
 const eventRow = (event: Seeded) => prisma.event.findUniqueOrThrow({ where: { id: event.id } });
 
-function post(request: APIRequestContext, slug: string, who: string, name = ANA.name) {
-  return request.post(`/api/public/events/${slug}/registrations`, { data: { ...ANA, name, email: who, turnstileToken: "audit-token" }, headers: { "x-real-ip": nextIp() } });
+/*
+ * The server checks the Turnstile token with Cloudflare over the network (the test keys pass, but the call is real). When
+ * that call fails the endpoint answers 503 `unavailable` / "La inscripción no está disponible en este momento." and
+ * stores nothing, which says nothing about the rule under test. So the one place that submits a registration retries it
+ * once on exactly that answer; any other answer, or a second 503, is returned as it is.
+ */
+async function post(request: APIRequestContext, slug: string, who: string, name = ANA.name) {
+  const send = () => request.post(`/api/public/events/${slug}/registrations`, { data: { ...ANA, name, email: who, turnstileToken: "audit-token" }, headers: { "x-real-ip": nextIp() } });
+  const first = await send();
+
+  if (first.status() === 503 && (await first.json().catch(() => null))?.error === "unavailable") return send();
+
+  return first;
 }
 
 async function fillForm(page: Page, name: string, who: string) {
@@ -69,7 +80,15 @@ async function registerThroughThePage(page: Page, event: Seeded, name: string, w
   await openForm(page, event.slug);
   await fillForm(page, name, who);
   await page.getByRole("button", { name: "Reservar mi cupo" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Revise su correo" })).toBeVisible();
+
+  // Same Turnstile network check as `post`: on that exact message the form keeps what was typed, so one more click retries.
+  const sent = page.getByRole("status").filter({ hasText: "Revise su correo" });
+  const unavailable = page.getByRole("alert").filter({ hasText: "La inscripción no está disponible en este momento." });
+
+  await sent.or(unavailable).first().waitFor();
+  if (await unavailable.isVisible()) await page.getByRole("button", { name: "Reservar mi cupo" }).click();
+
+  await expect(sent).toBeVisible();
 }
 
 async function logInAsAdmin(page: Page) {

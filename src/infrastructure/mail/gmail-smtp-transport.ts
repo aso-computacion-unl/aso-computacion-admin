@@ -22,7 +22,8 @@ const SOCKET_TIMEOUT_MS = 15_000;
  * `MAIL_SMTP_*` (only the e2e suite sets it, see `smtpEndpoint`) swaps the server for the e2e sink; unset, it is Gmail as always.
  */
 export function createGmailTransporter(config: GmailConfig, { pooled = false, env = process.env }: { pooled?: boolean; env?: Record<string, string | undefined> } = {}) {
-  return nodemailer.createTransport({
+  // `smtpEndpoint` allows a connection without TLS only to this machine (the e2e sink); every other host is SMTPS.
+  return nodemailer.createTransport({ // NOSONAR typescript:S5332
     ...(pooled ? { pool: true, maxConnections: 1 } : {}),
     ...smtpEndpoint(env),
     auth: { user: config.user, pass: config.appPassword },

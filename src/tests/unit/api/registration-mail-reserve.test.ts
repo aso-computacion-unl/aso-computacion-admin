@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: vi.fn(), headers: vi.fn() }));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: vi.fn() }));
 
+import { todayInEcuador } from "@/domain/calendar-date";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { testMail } from "@/tests/support/test-mail";
 
@@ -15,7 +16,8 @@ import { POST } from "../../../../app/api/public/events/[slug]/registrations/rou
  * of it: the open form answers 503 email_budget only when the whole cap is spent.
  */
 const SLUG = "taller-de-git";
-const TODAY = () => new Date().toISOString().slice(0, 10);
+// The budget is kept per day in Ecuador, which is not the UTC date between 00:00 and 05:00 UTC.
+const TODAY = () => todayInEcuador(new Date());
 let sequence = 0;
 
 function register(email: string) {

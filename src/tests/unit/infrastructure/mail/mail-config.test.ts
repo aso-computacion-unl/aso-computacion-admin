@@ -101,7 +101,12 @@ describe("SMTP endpoint (MAIL_SMTP_*, test-only)", () => {
   });
 
   it("allows a plain connection only to this machine: any other host without TLS keeps Gmail's endpoint", () => {
-    expect(smtpEndpoint({ MAIL_SMTP_HOST: "LOCALHOST", MAIL_SMTP_PORT: "2525", MAIL_SMTP_SECURE: "false" })).toEqual({ host: "LOCALHOST", port: 2525, secure: false });
+    // `localhost` is sent as the address itself, so no name lookup can point a plain connection elsewhere.
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "LOCALHOST", MAIL_SMTP_PORT: "2525", MAIL_SMTP_SECURE: "false" })).toEqual({ host: "127.0.0.1", port: 2525, secure: false });
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.53", MAIL_SMTP_PORT: "2525" })).toEqual({ host: "127.0.0.53", port: 2525, secure: false });
+    // Not addresses: a resolver would look these up by name.
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.999.1.1", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
+    expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.01", MAIL_SMTP_PORT: "2525" })).toEqual(GMAIL_SMTP_ENDPOINT);
     expect(smtpEndpoint({ MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_SECURE: "false" })).toEqual({ host: "127.0.0.1", port: 465, secure: false });
     expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org", MAIL_SMTP_SECURE: "false" })).toEqual(GMAIL_SMTP_ENDPOINT);
     expect(smtpEndpoint({ MAIL_SMTP_HOST: "mail.example.org", MAIL_SMTP_PORT: "587" })).toEqual(GMAIL_SMTP_ENDPOINT);

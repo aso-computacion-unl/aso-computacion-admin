@@ -303,4 +303,25 @@ describe("the open registration form with the Turnstile widget", () => {
 
     expect(control(host, '[role="alert"]').textContent).toContain("No pudimos cargar la verificación");
   });
+
+  it("keeps the server's answer on screen when the widget fails to start again after it", async () => {
+    answer(503, { error: "unavailable" });
+    const host = await open({ siteKey: "0x4AAAA" });
+
+    await fill(host);
+    await click(control(host, '[data-testid="solve"]'));
+    await click(submit(host));
+    await settle();
+    await click(control(host, '[data-testid="break"]'));
+
+    expect(control(host, '[role="alert"]').textContent).toContain("La inscripción no está disponible en este momento.");
+    expect(host.textContent).not.toContain("No pudimos cargar la verificación");
+
+    // The next try cannot be checked: it says that the verification did not load, not to complete it.
+    await click(submit(host));
+    await settle();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(control(host, '[role="alert"]').textContent).toContain("No pudimos cargar la verificación");
+    expect(host.textContent).not.toContain("Complete la verificación");
+  });
 });

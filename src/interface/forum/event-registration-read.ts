@@ -87,9 +87,23 @@ export interface RegistrationAccess {
   loginAvailable: boolean;
 }
 
+/**
+ * The account is an extra of the header, never a condition of the pages under it: when it cannot be read (the database
+ * fails), the browser is shown as a visitor and the list and the forms still render. Nothing here grants access; every
+ * registration action runs its own guard.
+ */
 export async function getRegistrationAccess(): Promise<RegistrationAccess> {
-  const actor = await getForumMember();
-  const member = actor ? await getForumServices().ownAccount.execute({ memberId: actor.memberId }) : null;
+  return { member: await ownAccountOrNone(), loginAvailable: isForumEnabled() };
+}
 
-  return { member, loginAvailable: isForumEnabled() };
+async function ownAccountOrNone(): Promise<OwnForumAccount | null> {
+  try {
+    const actor = await getForumMember();
+
+    return actor ? await getForumServices().ownAccount.execute({ memberId: actor.memberId }) : null;
+  } catch {
+    console.error("Could not read the forum account for the header of the registrations.");
+
+    return null;
+  }
 }

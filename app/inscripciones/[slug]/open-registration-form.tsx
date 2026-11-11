@@ -57,6 +57,8 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
   const [resetCount, setResetCount] = useState(0);
   const sending = useRef(false);
   const token = useRef<string | null>(null);
+  // The widget reported that it could not start and has given no token since: asking to complete it would lead nowhere.
+  const widgetBroken = useRef(false);
   const noticeBox = useRef<HTMLDivElement>(null);
   const doneBox = useRef<HTMLDivElement>(null);
 
@@ -98,7 +100,7 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
 
     if (firstInvalid) return focusField(firstInvalid);
 
-    if (siteKey && !token.current) return say(MISSING_CHECK, "check");
+    if (siteKey && !token.current) return say(widgetBroken.current ? CAPTCHA_LOAD_MESSAGE : MISSING_CHECK, "check");
 
     sending.current = true;
     setPending(true);
@@ -259,12 +261,18 @@ export function OpenRegistrationForm({ slug, siteKey, closedMessage }: OpenRegis
               resetCount={resetCount}
               onToken={(value) => {
                 token.current = value;
+                if (value) widgetBroken.current = false;
 
                 // The widget is reset after every answer and usually passes again by itself: that new token must not
                 // erase what the server just said.
                 if (value) setNotice((previous) => (previous?.about === "check" ? null : previous));
               }}
-              onError={() => say(CAPTCHA_LOAD_MESSAGE, "check")}
+              // The same goes for a widget that fails after an answer: what the server said stays, and the next submit
+              // says that the verification could not load, with the way out.
+              onError={() => {
+                widgetBroken.current = true;
+                if (notice?.about !== "answer") say(CAPTCHA_LOAD_MESSAGE, "check");
+              }}
             />
           </div>
         ) : null}

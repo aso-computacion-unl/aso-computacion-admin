@@ -19,6 +19,7 @@ const sentForm = (mock: ReturnType<typeof vi.fn>): Record<string, string> => Obj
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
 });
 
 afterEach(async () => {
@@ -90,8 +91,7 @@ describe("the new-thread form", () => {
 
   it.each([
     ["a suspended member", { error: "Su cuenta no puede participar en el foro." }, "Su cuenta no puede participar en el foro."],
-    ["a closed session", { error: "Inicie sesión para participar en el foro." }, "Inicie sesión para participar en el foro."],
-    ["a member posting too fast", { error: "Está publicando muy rápido. Espere un momento y vuelva a intentarlo.", retryAfterSeconds: 42 }, "Puede volver a intentarlo en 42 s."],
+    ["a member posting too fast", { error: "Está publicando muy rápido: el límite es de 3 publicaciones por minuto. Puede volver a intentarlo en 1 minuto." }, "Puede volver a intentarlo en 1 minuto."],
   ])("announces the refusal of %s as an alert with a way back", async (_label, result, expected) => {
     createThreadMock.mockResolvedValue(result);
     const host = await filledForm();
@@ -104,6 +104,59 @@ describe("the new-thread form", () => {
     expect(alert.textContent).toContain(expected);
     expect(alert.querySelector('a[href="/foro"]')?.textContent).toBe("Volver al foro");
     expect(field<HTMLTextAreaElement>(host, 'textarea[name="body"]').value).not.toBe("");
+  });
+
+  describe("when the session ended while writing (D5)", () => {
+    const EXPIRED = { error: "Inicie sesión para participar en el foro.", sessionExpired: true };
+
+    it("keeps the text and offers a sign-in that comes back to this same page", async () => {
+      createThreadMock.mockResolvedValue(EXPIRED);
+      const host = await filledForm();
+
+      await click(submitButton(host));
+      await settle();
+
+      const alert = field(host, '[role="alert"]');
+
+      expect(alert.textContent).toContain("Inicie sesión para participar en el foro.");
+      expect(alert.querySelector('a[href="/foro?next=%2Fforo%2Fc%2Fprogramacion%2Fnuevo"]')?.textContent).toBe("Iniciar sesión");
+      expect(alert.querySelector('a[href="/foro"]')).toBeNull();
+      expect(field<HTMLInputElement>(host, 'input[name="title"]').value).toBe("¿Cómo depuro un use-after-free?");
+      expect(field<HTMLTextAreaElement>(host, 'textarea[name="body"]').value).toBe("Tengo un **use-after-free**.");
+    });
+
+    it("gives the title and the text back when the page is opened again after signing in", async () => {
+      createThreadMock.mockResolvedValue(EXPIRED);
+      await click(submitButton(await filledForm()));
+      await settle();
+      await unmountAll();
+
+      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+
+      expect(field<HTMLInputElement>(again, 'input[name="title"]').value).toBe("¿Cómo depuro un use-after-free?");
+      expect(field<HTMLTextAreaElement>(again, 'textarea[name="body"]').value).toBe("Tengo un **use-after-free**.");
+    });
+
+    it("keeps one draft per category, and only for this tab", async () => {
+      await filledForm();
+      await unmountAll();
+
+      const other = await mount(createElement(NewThreadForm, { categorySlug: "materias" }));
+
+      expect(field<HTMLInputElement>(other, 'input[name="title"]').value).toBe("");
+    });
+
+    it("forgets the draft once the thread is published", async () => {
+      createThreadMock.mockResolvedValueOnce({ success: true, id: "thread-9" });
+      await click(submitButton(await filledForm()));
+      await settle();
+      await unmountAll();
+
+      const again = await mount(createElement(NewThreadForm, { categorySlug: "programacion" }));
+
+      expect(field<HTMLInputElement>(again, 'input[name="title"]').value).toBe("");
+      expect(window.sessionStorage.length).toBe(0);
+    });
   });
 
   it("turns a rejected call into an error message instead of crashing", async () => {

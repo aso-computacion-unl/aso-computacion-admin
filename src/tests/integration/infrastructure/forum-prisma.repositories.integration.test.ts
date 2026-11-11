@@ -210,17 +210,18 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect(narrowed.counts).toEqual({ open: 1, solved: 0 });
   });
 
-  it("adds a reply, moves the thread's activity and lists replies oldest first without the hidden ones", async () => {
+  it("adds a reply, moves the thread's activity and lists replies oldest first, the hidden ones too (the thread leaves a placeholder for them) but not counted", async () => {
     await seed();
     await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));
 
     expect(await posts.addReply(makeForumReply({ id: "r2", threadId: "t1", authorId: "beto", createdAt: later(2000) }))).toBe("ok");
     expect(await posts.addReply(makeForumReply({ id: "r1", threadId: "t1", authorId: "ana", createdAt: later(1000) }))).toBe("ok");
-    await prisma.forumReply.create({ data: { ...makeForumReply({ id: "r3", threadId: "t1", authorId: "beto" }), hiddenAt: T0 } });
+    await prisma.forumReply.create({ data: { ...makeForumReply({ id: "r3", threadId: "t1", authorId: "beto", createdAt: later(3000) }), hiddenAt: T0 } });
 
-    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.authorName])).toEqual([
-      ["r1", "Ana"],
-      ["r2", "Beto"],
+    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.authorName, row.reply.hiddenAt !== null])).toEqual([
+      ["r1", "Ana", false],
+      ["r2", "Beto", false],
+      ["r3", "Beto", true],
     ]);
     expect((await posts.findThread("t1"))?.replyCount).toBe(2);
   });

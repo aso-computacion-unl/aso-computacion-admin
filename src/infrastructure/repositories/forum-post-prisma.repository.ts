@@ -140,7 +140,7 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
 
   async listReplies(threadId: string): Promise<ReplyRow[]> {
     const rows = await prisma.forumReply.findMany({
-      where: { threadId, hiddenAt: null },
+      where: { threadId },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       include: { author: { select: { displayName: true } } },
     });

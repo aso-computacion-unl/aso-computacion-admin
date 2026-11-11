@@ -10,7 +10,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
+import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
 import * as registration from "@/interface/forum/event-registration";
 import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
 import { signInAs } from "@/tests/support/test-auth";
@@ -56,7 +56,7 @@ describe("registerForEvent requires a forum member", () => {
   ])("is refused with %s: nothing stored", async (_label, cookies) => {
     jar(Object.fromEntries(await Promise.all(Object.entries(cookies).map(async ([key, who]) => [key, await signInAs(who as "ADMIN")]))));
 
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
     expect(stored()).toHaveLength(0);
   });
 });
@@ -81,7 +81,7 @@ describe("registerForEvent", () => {
 
   it("refuses a suspended member (the guard no longer accepts their session) and an email outside the institutional domain", async () => {
     await signIn({ id: "m1", status: "SUSPENDED" });
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
 
     testEventRegistration.registrations.clear();
     await signIn({ id: "m2", email: "ana@gmail.com", googleSub: "sub-2" });

@@ -234,12 +234,13 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 
-  // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts.
+  // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts,
+  // and the forum says why (D1).
   await context.addCookies([member.cookie]);
   await prisma.forumSession.update({ where: { id: "s1" }, data: { revokedAt: null } });
   await prisma.forumMember.update({ where: { id: "m1" }, data: { status: "SUSPENDED", suspendedAt: new Date() } });
   await page.goto("/foro");
-  await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Su cuenta del foro está suspendida" })).toBeVisible();
 
   await context.close();
 });

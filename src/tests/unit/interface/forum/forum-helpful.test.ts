@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
+import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
 import * as bestAnswer from "@/interface/forum/forum-best-answer";
 import * as reactions from "@/interface/forum/forum-helpful";
 import { getForumReactions } from "@/interface/forum/forum-reactions-read";
@@ -72,7 +72,7 @@ describe("the reaction and best-answer actions require a forum member", () => {
       const resolved = Object.fromEntries(await Promise.all(Object.entries(cookies).map(async ([key, who]) => [key, await signInAs(who as "ADMIN")])));
       jar(resolved);
 
-      expect(await ACTION_CALLS[name]!()).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+      expect(await ACTION_CALLS[name]!()).toEqual(FORUM_SESSION_EXPIRED_RESULT);
       expect(testForum.store.reactions.size).toBe(0);
       expect(testForum.store.threads.get("t1")?.bestReplyId).toBeNull();
     });
@@ -102,7 +102,7 @@ describe("«me sirvió»", () => {
   it("refuses a member suspended since, on the very next request", async () => {
     testForum.members.members.set("member-1", { ...testForum.members.members.get("member-1")!, status: "SUSPENDED", suspendedAt: new Date() });
 
-    expect(await reactions.toggleForumThreadReaction("t1")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await reactions.toggleForumThreadReaction("t1")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
     expect(testForum.store.reactions.size).toBe(0);
   });
 
@@ -153,7 +153,7 @@ describe("the best answer", () => {
   it("refuses a member suspended since", async () => {
     testForum.members.members.set("member-1", { ...testForum.members.members.get("member-1")!, status: "SUSPENDED", suspendedAt: new Date() });
 
-    expect(await bestAnswer.setForumBestAnswer("t1", "r1")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await bestAnswer.setForumBestAnswer("t1", "r1")).toEqual(FORUM_SESSION_EXPIRED_RESULT);
     expect(testForum.store.threads.get("t1")?.bestReplyId).toBeNull();
   });
 });

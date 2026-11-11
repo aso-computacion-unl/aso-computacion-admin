@@ -19,6 +19,7 @@ const sentForm = (mock: ReturnType<typeof vi.fn>): Record<string, string> => Obj
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
 });
 
 afterEach(async () => {
@@ -74,5 +75,46 @@ describe("the reply form", () => {
 
     expect(field(host, "textarea").getAttribute("aria-invalid")).toBe("true");
     expect(host.textContent).toContain("El texto es obligatorio.");
+  });
+
+  describe("when the session ended while writing (D5)", () => {
+    it("keeps the reply, offers a sign-in that comes back to this thread, and gives the text back afterwards", async () => {
+      replyMock.mockResolvedValue({ error: "Inicie sesión para participar en el foro.", sessionExpired: true });
+      const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+
+      await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta larga");
+      await click(submitButton(host));
+      await settle();
+
+      const alert = field(host, '[role="alert"]');
+
+      expect(alert.querySelector('a[href="/foro?next=%2Fforo%2Fhilo%2Fthread-1"]')?.textContent).toBe("Iniciar sesión");
+      expect(field<HTMLTextAreaElement>(host, 'textarea[name="body"]').value).toBe("Una respuesta larga");
+
+      await unmountAll();
+      const again = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+
+      expect(field<HTMLTextAreaElement>(again, 'textarea[name="body"]').value).toBe("Una respuesta larga");
+    });
+
+    it("keeps one draft per thread and forgets it once the reply is published", async () => {
+      replyMock.mockResolvedValue({ success: true, id: "reply-3" });
+      const host = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+
+      await typeInto(field(host, 'textarea[name="body"]'), "Una respuesta");
+      await unmountAll();
+
+      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-2" })), 'textarea[name="body"]').value).toBe("");
+      await unmountAll();
+
+      const again = await mount(createElement(ReplyForm, { threadId: "thread-1" }));
+
+      await click(submitButton(again));
+      await settle();
+      await unmountAll();
+
+      expect(field<HTMLTextAreaElement>(await mount(createElement(ReplyForm, { threadId: "thread-1" })), 'textarea[name="body"]').value).toBe("");
+      expect(window.sessionStorage.length).toBe(0);
+    });
   });
 });

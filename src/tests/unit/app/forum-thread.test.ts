@@ -245,6 +245,79 @@ describe("a thread page", () => {
     });
   });
 
+  describe("a reply the moderation hid (D4)", () => {
+    const PLACEHOLDER = "Respuesta oculta por la moderación";
+    const HIDDEN_BODY = "Texto que la moderación ocultó con insultos";
+
+    function seedWithHiddenReply(threadOverrides: Parameters<typeof makeForumThread>[0] = {}) {
+      seedThread({ authorId: viewerId, ...threadOverrides });
+      testForum.members.members.set("m3", makeForumMember({ id: "m3", email: "cris@unl.edu.ec", googleSub: "sub-3", displayName: "Cristóbal Oculto" }));
+      testForum.store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2", body: "Primera visible", createdAt: minutesAgo(60) }));
+      testForum.store.replies.set("r2", makeForumReply({ id: "r2", threadId: "t1", authorId: "m3", body: HIDDEN_BODY, createdAt: minutesAgo(40), hiddenAt: new Date() }));
+      testForum.store.replies.set("r3", makeForumReply({ id: "r3", threadId: "t1", authorId: "m2", body: "Tercera visible", createdAt: minutesAgo(20) }));
+      testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r2" });
+    }
+
+    /** Every string in the element tree the page returns: what React would serialise to the browser as props, not only the markup. */
+    function everyString(node: unknown, seen = new Set<unknown>()): string[] {
+      if (typeof node === "string") return [node];
+      if (typeof node !== "object" || node === null || seen.has(node)) return [];
+
+      seen.add(node);
+
+      return Object.values(node).flatMap((value) => everyString(value, seen));
+    }
+
+    it("leaves the placeholder in its place, in order, and nothing of the reply", async () => {
+      seedWithHiddenReply();
+
+      const html = await render("t1");
+
+      expect(html).toContain(PLACEHOLDER);
+      expect(html.indexOf("Primera visible")).toBeLessThan(html.indexOf(PLACEHOLDER));
+      expect(html.indexOf(PLACEHOLDER)).toBeLessThan(html.indexOf("Tercera visible"));
+      expect(html).not.toContain(HIDDEN_BODY);
+      expect(html).not.toContain("Cristóbal");
+      expect(html).toContain("2 respuestas");
+    });
+
+    it("has no author actions, no reaction and no report on it", async () => {
+      seedWithHiddenReply();
+
+      const html = await render("t1");
+      const placeholder = html.slice(html.indexOf('id="respuesta-r2"'), html.indexOf('id="respuesta-r3"'));
+
+      expect(placeholder).toContain(PLACEHOLDER);
+      expect(placeholder).not.toMatch(/Me sirvió|Reportar|mejor respuesta|<button/);
+      // The two visible replies keep theirs.
+      expect(html.split("Me sirvió")).toHaveLength(3);
+      expect(html.split(">Reportar<")).toHaveLength(3);
+      expect(html.split("Marcar como mejor respuesta")).toHaveLength(3);
+    });
+
+    it("never hands the hidden text, its author or its reactions to a component, which is what reaches the browser", async () => {
+      seedWithHiddenReply();
+
+      const tree = await ThreadPage({ params: Promise.resolve({ id: "t1" }) });
+      const strings = everyString(tree).join("\n");
+
+      expect(strings).toContain("Primera visible");
+      expect(strings).not.toContain(HIDDEN_BODY);
+      expect(strings).not.toContain("Cristóbal");
+    });
+
+    it("fills the best-answer slot with the placeholder when the thread still points at a hidden reply", async () => {
+      seedWithHiddenReply({ bestReplyId: "r2" });
+
+      const html = await render("t1");
+      const slot = html.slice(html.indexOf('id="mejor"'));
+
+      expect(slot.slice(0, slot.indexOf("</article>"))).toContain(PLACEHOLDER);
+      expect(html).not.toContain(HIDDEN_BODY);
+      expect(html).not.toContain("Cristóbal");
+    });
+  });
+
   it("never prints an email or a member id", async () => {
     seedThread();
     testForum.store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2" }));

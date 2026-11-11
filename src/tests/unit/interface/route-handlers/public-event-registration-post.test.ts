@@ -9,6 +9,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: cookiesMock, headers: vi.fn() }));
 vi.mock("@/infrastructure/observability/report-error", () => ({ reportError: reportErrorMock }));
 
+import { todayInEcuador } from "@/domain/calendar-date";
 import { REGISTRATION_RATE_LIMIT_MAX_REQUESTS } from "@/infrastructure/http/registration-rate-limiter";
 import { openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
@@ -79,7 +80,8 @@ describe("POST /api/public/events/[slug]/registrations", () => {
   });
 
   describe("confirmation email", () => {
-    const TODAY = () => new Date().toISOString().slice(0, 10);
+    // The budget is kept per day in Ecuador, which is not the UTC date between 00:00 and 05:00 UTC.
+    const TODAY = () => todayInEcuador(new Date());
 
     it("stores the registration pending, takes no seat and sends one email with a signed 48 h link to the confirm page", async () => {
       const response = await post(FORM);

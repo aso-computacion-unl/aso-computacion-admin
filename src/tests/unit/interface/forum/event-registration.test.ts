@@ -12,7 +12,7 @@ import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { REGISTRATION_SESSION_EXPIRED_RESULT } from "@/interface/event-registration/registration-action-errors";
 import * as registration from "@/interface/forum/event-registration";
-import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
+import { getEventRegistrationPage, getRegistrationAccess } from "@/interface/forum/event-registration-read";
 import { signInAs } from "@/tests/support/test-auth";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { signInToForumAs } from "@/tests/support/test-forum";
@@ -272,5 +272,32 @@ describe("getEventRegistrationPage", () => {
     jar({});
 
     for (const slug of ["nada", "borrador", "borrador-sin"]) expect(await getEventRegistrationPage(slug), slug).toBeNull();
+  });
+});
+
+describe("S1/S2: getRegistrationAccess, what the header of the list offers this browser", () => {
+  const configured = { FORUM_ALLOWED_EMAIL_DOMAIN: "unl.edu.ec", GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org" };
+
+  beforeEach(() => {
+    for (const [name, value] of Object.entries(configured)) vi.stubEnv(name, value);
+  });
+
+  it("offers the sign-in to a visitor when it is configured", async () => {
+    jar({});
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: true });
+  });
+
+  it("does not offer it when it is not configured", async () => {
+    jar({});
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: false });
+  });
+
+  it("names the signed-in member with their own email", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+
+    expect(await getRegistrationAccess()).toEqual({ member: { name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }, loginAvailable: true });
   });
 });

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
+import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, GetOwnForumAccountUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
 import { InMemoryForumMemberRepository, InMemoryForumSessionRepository, makeForumMember } from "@/tests/fakes/in-memory-forum";
 
 const NOW = new Date("2026-10-26T12:00:00.000Z");
@@ -220,5 +220,17 @@ describe("CheckForumSuspensionUseCase (D1)", () => {
     suspend("m1");
     members.members.set("m1", makeForumMember({ id: "m1" }));
     expect(await check({ sessionId, memberId: "m1" })).toBe(false);
+  });
+});
+
+describe("GetOwnForumAccountUseCase", () => {
+  it("S2: gives the member their own name and email, for their account menu only", async () => {
+    members.members.set("m1", makeForumMember({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }));
+
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "m1" })).toEqual({ name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+  });
+
+  it("gives nothing for a member that does not exist", async () => {
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "nadie" })).toBeNull();
   });
 });

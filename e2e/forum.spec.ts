@@ -80,7 +80,7 @@ test("F1: every failed sign-in code is told in its own words and the button offe
   }
 });
 
-test("F2: the way back after signing in is kept only for the forum and the event registration pages; anything else is ignored", async ({ page }) => {
+test("F2: the way back after signing in is kept only for the forum and the registration pages; anything else is ignored", async ({ page }) => {
   const signInHref = async (next: string) => {
     await page.goto(`/foro?next=${encodeURIComponent(next)}`);
 
@@ -89,8 +89,10 @@ test("F2: the way back after signing in is kept only for the forum and the event
 
   expect(await signInHref("/foro/hilo/un-hilo")).toBe(`/foro/auth/google/start?next=${encodeURIComponent("/foro/hilo/un-hilo")}`);
   expect(await signInHref("/inscripciones/un-evento")).toBe(`/foro/auth/google/start?next=${encodeURIComponent("/inscripciones/un-evento")}`);
+  // The list of registrations too: its header starts the same sign-in (inscripciones-acceso S1).
+  expect(await signInHref("/inscripciones")).toBe(`/foro/auth/google/start?next=${encodeURIComponent("/inscripciones")}`);
 
-  for (const foreign of ["https://evil.example/foro", "//evil.example/foro", "/admin", "/inscripciones", "/foro/auth/google/start", "/foro\\evil", "/foro//evil"]) {
+  for (const foreign of ["https://evil.example/foro", "//evil.example/foro", "/admin", "/inscripcionesx", "/inscripciones/", "/foro/auth/google/start", "/foro\\evil", "/foro//evil"]) {
     expect(await signInHref(foreign), foreign).toBe("/foro/auth/google/start");
   }
 });

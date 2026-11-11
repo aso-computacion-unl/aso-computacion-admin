@@ -1,4 +1,4 @@
-import type { ForumActor } from "@/application";
+import type { ForumActor, OwnForumAccount } from "@/application";
 import type { EventRegistrationStatus } from "@/application";
 import type { OpenRegistrationEvent } from "@/application/event-registration/list-open-registration-events.use-case";
 import { todayInEcuador } from "@/domain/calendar-date";
@@ -8,6 +8,7 @@ import { turnstileSecretWithoutSiteKey, turnstileSiteKey } from "@/infrastructur
 import { gmailConfig } from "@/infrastructure/mail/mail-config";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
+import { getForumServices } from "./forum-container";
 import { getForumMember } from "./require-forum-member";
 
 /** What the page says about the event, whatever way (if any) it takes registrations. */
@@ -77,4 +78,18 @@ export type { OpenRegistrationEvent };
  */
 export async function getOpenRegistrationEvents(now: Date = new Date()): Promise<OpenRegistrationEvent[]> {
   return getEventRegistrationServices().openRegistrations.execute({ now });
+}
+
+/** What the header of the registrations offers this browser (S1, S2): the signed-in member's own account, or the sign-in when it can work. */
+export interface RegistrationAccess {
+  member: OwnForumAccount | null;
+  /** The forum's Google sign-in is configured on this server; without it the header offers none. */
+  loginAvailable: boolean;
+}
+
+export async function getRegistrationAccess(): Promise<RegistrationAccess> {
+  const actor = await getForumMember();
+  const member = actor ? await getForumServices().ownAccount.execute({ memberId: actor.memberId }) : null;
+
+  return { member, loginAvailable: isForumEnabled() };
 }

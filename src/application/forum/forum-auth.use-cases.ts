@@ -181,6 +181,26 @@ export class ValidateForumSessionUseCase {
   }
 }
 
+/** The signed-in member's own account, for their account menu (S2): never shown to anyone else. */
+export interface OwnForumAccount {
+  name: string;
+  email: string;
+}
+
+/**
+ * The name and email of the member the guard already resolved, for their own account menu. The actor stays without
+ * the email (other students only ever see the public name); this is the one read that gives it, to the member alone.
+ */
+export class GetOwnForumAccountUseCase {
+  constructor(private readonly members: ForumMemberRepository) {}
+
+  async execute(input: { memberId: string }): Promise<OwnForumAccount | null> {
+    const member = await this.members.findById(input.memberId);
+
+    return member ? { name: member.displayName, email: member.email } : null;
+  }
+}
+
 /**
  * Whether a session names a member the moderation suspended: all the landing asks, to say so instead of the
  * sign-in. It is not the guard: it opens nothing and returns nothing about the member, and it is false for any

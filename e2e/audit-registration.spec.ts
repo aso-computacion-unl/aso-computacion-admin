@@ -304,16 +304,16 @@ test.describe("the public registrations list", () => {
 
     if (SCREENSHOT_DIR) await page.screenshot({ path: `${SCREENSHOT_DIR}/inscripciones-lista-escritorio.png`, fullPage: true });
 
-    await expect(card(unl)).toContainText("Con cuenta UNL");
+    await expect(card(unl)).toContainText("Cuenta UNL");
     await expect(card(unl)).toContainText("Quedan 40 cupos");
-    await expect(card(open)).toContainText("Abierta al público");
+    await expect(card(open)).toContainText("Abierto al público");
     await expect(card(open)).toContainText("Quedan 2 cupos");
     await expect(card(undated)).toContainText("Sin límite de cupos");
     await expect(card(unl).getByRole("link", { name: unl.title })).toHaveAttribute("href", `/inscripciones/${unl.slug}`);
     for (const event of notListed) await expect(page.getByRole("link", { name: event.title }), event.slug).toHaveCount(0);
 
-    // Soonest first, undated last.
-    const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
+    // Soonest first, undated last (the events are h3 under their month's h2).
+    const titles = await page.getByRole("heading", { level: 3 }).allTextContents();
     const at = (event: Seeded) => titles.indexOf(event.title);
 
     expect(at(open)).toBeGreaterThanOrEqual(0);

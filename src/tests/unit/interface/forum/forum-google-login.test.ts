@@ -235,6 +235,15 @@ describe("finishForumLogin", () => {
       expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, expect.any(String), expect.objectContaining({ path: "/" }));
     });
 
+    it("S1: brings the student back to the list of registrations when the sign-in started from its header", async () => {
+      await sealWith("/inscripciones");
+
+      const response = await finishForumLogin(request("?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/inscripciones");
+      expect(testForum.sessions.sessions.size).toBe(1);
+    });
+
     it("ignores a next in the callback URL: without a sealed one it goes to /foro", async () => {
       const response = await finishForumLogin(request(`?code=c&state=the-state&next=${encodeURIComponent("/foro/hilo/evil")}`));
 
@@ -287,6 +296,14 @@ describe("finishForumLogin", () => {
         await arrange();
 
         expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe(`https://admin.example.org/inscripciones/taller-git?error=${code}`);
+        expect(testForum.sessions.sessions.size).toBe(0);
+      });
+
+      it("S1: returns a refusal that started from the list to the list, with the code", async () => {
+        await sealWith("/inscripciones");
+        completeMock.mockResolvedValue({ ...IDENTITY, emailVerified: false });
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/inscripciones?error=denied");
         expect(testForum.sessions.sessions.size).toBe(0);
       });
 

@@ -129,12 +129,13 @@ test("D8 / F4: the forum is only the forum: no Inscripciones link in its rail, o
   await page.setViewportSize({ width: 375, height: 812 });
   await noRegistrations("/foro");
 
-  // The old list address leaves the forum for the registrations, which are not a forum screen: no forum bar, no member chip.
+  // The old list address leaves the forum for the registrations, which are not a forum screen: no forum bar. The member
+  // is named there by the registrations' own account menu (inscripciones-acceso S2), never as the forum.
   await page.goto("/foro/eventos");
   await expect(page).toHaveURL(/\/inscripciones$/);
   await expect(page.getByRole("heading", { level: 1, name: "Inscripciones" })).toBeVisible();
   await expect(page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toBeVisible();
-  await expect(page.getByRole("banner")).not.toContainText(/foro|Daniela/i);
+  await expect(page.getByRole("banner")).not.toContainText(/foro/i);
 
   await context.close();
 });

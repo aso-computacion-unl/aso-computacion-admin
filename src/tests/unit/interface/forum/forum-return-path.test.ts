@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FORUM_RETURN_PATH_MAX_LENGTH, forumSignInHref, parseForumReturnPath } from "@/interface/forum/forum-return-path";
+import { FORUM_RETURN_PATH_MAX_LENGTH, forumSignInHref, isRegistrationReturnPath, parseForumReturnPath } from "@/interface/forum/forum-return-path";
 
 describe("parseForumReturnPath", () => {
   it.each(["/foro", "/foro/hilo/abc123", "/foro/c/programacion?estado=resueltos&pagina=2", "/foro/eventos/hackathon-2026", "/foro/authors"])("keeps the same-origin forum path %s", (path) => {
@@ -8,6 +8,10 @@ describe("parseForumReturnPath", () => {
   });
 
   it.each(["/inscripciones/taller-git", "/inscripciones/taller-git?utm_source=landing", "/inscripciones/a%20b"])("keeps the same-origin event registration path %s", (path) => {
+    expect(parseForumReturnPath(path)).toBe(path);
+  });
+
+  it.each(["/inscripciones", "/inscripciones?utm_source=landing"])("S1: keeps the list of registrations %s, where the header's sign-in starts", (path) => {
     expect(parseForumReturnPath(path)).toBe(path);
   });
 
@@ -41,7 +45,6 @@ describe("parseForumReturnPath", () => {
     ["a raw newline", "/foro/hilo/1\nx"],
     ["a raw tab hiding a slash", "/foro/\t/evil.example"],
     ["a raw space", "/foro/hilo/1 x"],
-    ["the registration root without an event", "/inscripciones"],
     ["the registration root with a slash", "/inscripciones/"],
     ["a look-alike of the registration prefix", "/inscripcionesx/taller"],
     ["dot segments that leave the registration route", "/inscripciones/../admin"],
@@ -73,5 +76,19 @@ describe("forumSignInHref", () => {
 
   it("carries a valid path as an encoded next parameter", () => {
     expect(forumSignInHref("/foro/hilo/abc")).toBe("/foro?next=%2Fforo%2Fhilo%2Fabc");
+  });
+});
+
+describe("isRegistrationReturnPath", () => {
+  it("S1: takes the list and an event's page as registration pages, so a failed sign-in is told there", () => {
+    expect(isRegistrationReturnPath("/inscripciones")).toBe(true);
+    expect(isRegistrationReturnPath("/inscripciones?utm_source=landing")).toBe(true);
+    expect(isRegistrationReturnPath("/inscripciones/taller-git")).toBe(true);
+  });
+
+  it("leaves the forum and a look-alike out", () => {
+    expect(isRegistrationReturnPath("/foro/hilo/abc")).toBe(false);
+    expect(isRegistrationReturnPath("/inscripcionesx")).toBe(false);
+    expect(isRegistrationReturnPath(null)).toBe(false);
   });
 });

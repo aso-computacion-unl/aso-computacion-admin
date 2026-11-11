@@ -7,7 +7,7 @@ import { AppTopBar } from "../_components/app-top-bar";
 import { IdentityChip } from "../_components/identity-chip";
 import { ThemeToggle } from "../_components/theme-toggle";
 
-import { SignOutButton } from "./_components/sign-out-button";
+import { SignOutButton } from "../_components/member-sign-out-button";
 import "./forum.css";
 
 export const metadata: Metadata = {

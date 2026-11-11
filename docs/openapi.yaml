@@ -564,7 +564,7 @@ paths:
               schema: { $ref: "#/components/schemas/RegistrationError" }
               example: { error: not_found }
         "409":
-          description: Las inscripciones cerraron (plazo vencido o día del evento pasado): la inscripción sigue como estaba (`closed`).
+          description: "Las inscripciones cerraron (plazo vencido o día del evento pasado): la inscripción sigue como estaba (`closed`)."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegistrationError" }

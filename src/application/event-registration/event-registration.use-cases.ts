@@ -1,18 +1,16 @@
 import type { EventResult } from "../dto/event-result.dto";
 import { toEventResult } from "../mappers/event-result.mapper";
-import type { EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
+import type { ConfirmOutcome, EventRegistrationRecord, EventRegistrationRepository, RegisterOutcome } from "../ports/event-registration-repository.port";
 import type { EventRepository } from "../ports/event-repository.port";
 import type { ForumMemberRepository } from "../ports/forum.ports";
-import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
-import { ForumMemberSuspendedError } from "@/domain/forum";
+import { NotFoundError } from "../use-cases/use-case-error";
+import { UnlMemberGuard, type UnlRegistrationConfig } from "./unl-member-guard";
 import {
   parseOpenRegistration,
   registrationRefusal,
   type RegistrationMode,
   type RegistrationState,
 } from "@/domain/event-registration";
-import { emailDomain, normalizeEmail } from "@/domain/user";
-import { ValidationError } from "@/domain/domain-error";
 
 type IdGenerator = () => string;
 
@@ -84,7 +82,7 @@ abstract class RegisterUseCase {
     slug: string,
     now: Date,
     mode: RegistrationMode,
-    data: Pick<EventRegistrationRecord, "name" | "email" | "career" | "semester">,
+    data: Pick<EventRegistrationRecord, "name" | "email" | "institution" | "career" | "semester" | "confirmedAt"> & { confirmNonce?: string | null },
   ): Promise<RegisterOutcome> {
     const event = await this.events.findLiveBySlug(slug);
 
@@ -97,63 +95,63 @@ abstract class RegisterUseCase {
 }
 
 export class RegisterWithOpenFormUseCase extends RegisterUseCase {
-  async execute({ slug, form, now = new Date() }: { slug: string; form: Record<string, unknown>; now?: Date }): Promise<RegisterOutcome> {
-    const { name, email, career, semester } = parseOpenRegistration(form);
+  /**
+   * `confirmNonce` is the attempt the caller is about to put in the confirmation link: it replaces the one a pending row
+   * of the same email held, so the link of the earlier attempt stops working (D9).
+   */
+  async execute({ slug, form, now = new Date(), confirmNonce }: { slug: string; form: Record<string, unknown>; now?: Date; confirmNonce?: string }): Promise<RegisterOutcome> {
+    const { name, email, institution, career, semester } = parseOpenRegistration(form);
 
-    return this.store(slug, now, "open", { name, email, career, semester });
+    // Pending until the person opens the link sent to that address: an unverified email takes no seat.
+    return this.store(slug, now, "open", { name, email, institution, career, semester, confirmedAt: null, confirmNonce });
   }
 }
 
-export interface UnlRegistrationConfig {
-  /** The institutional domain; unset or blank refuses every UNL registration (fail closed, like the forum login). */
-  allowedDomain?: string;
+/**
+ * The person opened the link of their confirmation email and pressed the button. The link names an event and a
+ * registration (and the attempt it was issued for); it only counts on the event page it was issued for. The seat itself
+ * is decided by the repository, atomically, so a full or closed event refuses here even though the email was perfectly valid.
+ */
+export class ConfirmOpenRegistrationUseCase {
+  constructor(
+    private readonly events: EventRepository,
+    private readonly registrations: EventRegistrationRepository,
+  ) {}
+
+  /** `nonce`: the attempt the link names, `null` for a link that names none. Required so no caller can skip the check. */
+  async execute({ slug, eventId, registrationId, nonce, now = new Date() }: { slug: string; eventId: string; registrationId: string; nonce: string | null; now?: Date }): Promise<ConfirmOutcome> {
+    const event = await this.events.findLiveBySlug(slug);
+
+    if (!event) {
+      return { status: "not_found" };
+    }
+
+    return event.props.id === eventId ? this.registrations.confirm(eventId, registrationId, now, nonce) : { status: "invalid" };
+  }
 }
+
+export type { UnlRegistrationConfig };
 
 /** A signed-in forum member registers with the verified name and email the forum already holds. */
 export class RegisterWithUnlAccountUseCase extends RegisterUseCase {
-  private readonly allowedDomain: string | undefined;
+  private readonly guard: UnlMemberGuard;
 
   constructor(
     events: EventRepository,
     registrations: EventRegistrationRepository,
-    private readonly members: ForumMemberRepository,
+    members: ForumMemberRepository,
     config: UnlRegistrationConfig,
     newId?: IdGenerator,
   ) {
     super(events, registrations, newId);
-    this.allowedDomain = config.allowedDomain?.trim().replace(/^@/, "").toLowerCase() || undefined;
+    this.guard = new UnlMemberGuard(members, config);
   }
 
   async execute({ slug, memberId, now = new Date() }: { slug: string; memberId: string; now?: Date }): Promise<RegisterOutcome> {
-    const member = await this.members.findById(memberId);
+    const { name, email } = await this.guard.identify(memberId);
 
-    if (!this.allowedDomain || !member) {
-      throw new ForbiddenError();
-    }
-
-    if (member.status !== "ACTIVE") {
-      throw new ForumMemberSuspendedError();
-    }
-
-    const email = this.institutionalEmail(member.email);
-
-    return this.store(slug, now, "unl", { name: member.displayName, email, career: null, semester: null });
-  }
-
-  private institutionalEmail(raw: string): string {
-    try {
-      const email = normalizeEmail(raw);
-
-      if (emailDomain(email) === this.allowedDomain) {
-        return email;
-      }
-    } catch (error) {
-      if (!(error instanceof ValidationError)) {
-        throw error;
-      }
-    }
-
-    throw new ForbiddenError();
+    // Google already verified this address: the seat is taken at once.
+    return this.store(slug, now, "unl", { name, email, institution: null, career: null, semester: null, confirmedAt: now });
   }
 }
 

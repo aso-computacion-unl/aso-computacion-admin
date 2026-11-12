@@ -1,6 +1,7 @@
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type Browser, type BrowserContext } from "@playwright/test";
-import { SignJWT } from "jose";
+
+import { FORUM_SESSION_SECRET as SECRET, plantForumMemberSession, type PlantedForumMemberSession } from "./support/forum-session";
 
 /*
  * The signed-in forum, through the real UI and the real database. Opt-in: a forum session cannot be
@@ -13,23 +14,27 @@ import { SignJWT } from "jose";
  * members here are @unl.edu.ec, and registering for an event needs the domain), but never a Google client, so
  * the login stays off and forum.spec.ts still sees "unavailable".
  */
-const SECRET = process.env.FORUM_SESSION_SECRET ?? "";
 const BASE_URL = "http://127.0.0.1:3100";
 const SCREENSHOT_DIR = process.env.FORUM_E2E_SHOTS;
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 const now = new Date();
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
 
-let token = "";
+let member: PlantedForumMemberSession;
 
 test.skip(!SECRET, "set FORUM_SESSION_SECRET to run the signed-in forum suite");
 
 test.beforeAll(async () => {
   if (!SECRET) return;
 
-  for (const { id, name } of [{ id: "m1", name: "Daniela P." }, { id: "m2", name: "Mateo R." }]) {
-    await prisma.forumMember.create({ data: { id, email: `${id}@unl.edu.ec`, googleSub: `sub-${id}`, displayName: name } });
-  }
+  // Starts from its own rows only, so the spec can run again against the same database (`--repeat-each`).
+  await prisma.forumThread.deleteMany({ where: { categoryId: "c-prog" } });
+  await prisma.forumSession.deleteMany({ where: { memberId: { in: ["m1", "m2"] } } });
+  await prisma.forumMember.deleteMany({ where: { id: { in: ["m1", "m2"] } } });
+  await prisma.forumCategory.deleteMany({ where: { id: "c-prog" } });
+
+  member = await plantForumMemberSession(prisma, { memberId: "m1", sessionId: "s1", displayName: "Daniela P." });
+  await prisma.forumMember.create({ data: { id: "m2", email: "m2@unl.edu.ec", googleSub: "sub-m2", displayName: "Mateo R." } });
   await prisma.forumCategory.create({ data: { id: "c-prog", slug: "programacion", name: "Programación", description: "Código y errores", sortOrder: 0, updatedAt: now } });
 
   const thread = (id: string, title: string, over: Record<string, unknown> = {}) =>
@@ -42,16 +47,6 @@ test.beforeAll(async () => {
   await thread("t-locked", "Ideas para el hackatón", { lockedAt: ago(5) });
   await thread("t-mine", "Mi duda sobre punteros", { authorId: "m1" });
   await prisma.forumReply.create({ data: { id: "r-help", threadId: "t-mine", authorId: "m2", body: "Revise el **orden** de los `free`.", createdAt: ago(30), updatedAt: ago(30) } });
-
-  await prisma.forumSession.create({ data: { id: "s1", memberId: "m1", expiresAt: new Date(now.getTime() + 3_600_000), lastSeenAt: now } });
-  const issued = Math.floor(Date.now() / 1000);
-  token = await new SignJWT({ sid: "s1", mid: "m1", typ: "forum-session" })
-    .setSubject("m1")
-    .setAudience("aso-computacion-forum")
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(issued)
-    .setExpirationTime(issued + 3600)
-    .sign(new TextEncoder().encode(SECRET));
 });
 
 test.afterAll(async () => {
@@ -61,7 +56,7 @@ test.afterAll(async () => {
 async function memberContext(browser: Browser): Promise<BrowserContext> {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, baseURL: BASE_URL });
 
-  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+  await context.addCookies([member.cookie]);
 
   return context;
 }
@@ -110,13 +105,103 @@ test("every member screen fits a 375 px phone, and the Abiertos / Resueltos tabs
   await context.close();
 });
 
+test("D8 / F4: the forum is only the forum: no Inscripciones link in its rail, on a phone or on any of its pages, and /foro/eventos leads out to the registrations", async ({ browser }) => {
+  const context = await memberContext(browser);
+  const page = await context.newPage();
+  const noRegistrations = async (path: string) => {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Inscripciones/ }), path).toHaveCount(0);
+    await expect(page.locator('a[href^="/inscripciones"], a[href^="/foro/eventos"]'), path).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Eventos", exact: true }), path).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Eventos" }), path).toHaveCount(0);
+  };
+
+  // Wide: the rail holds the thread filters and the categories, nothing about events.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await noRegistrations("/foro");
+  await expect(page.getByRole("navigation", { name: "Estado de los hilos" }).first()).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Categoría" }).first()).toBeVisible();
+  await noRegistrations("/foro/hilo/t-open");
+  await noRegistrations("/foro/c/programacion/nuevo");
+
+  // Phone: the filters on top of the list carry no registrations row either.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await noRegistrations("/foro");
+
+  // The old list address leaves the forum for the registrations, which are not a forum screen: no forum bar. The member
+  // is named there by the registrations' own account menu (inscripciones-acceso S2), never as the forum.
+  await page.goto("/foro/eventos");
+  await expect(page).toHaveURL(/\/inscripciones$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Inscripciones" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Inscripciones de ASO Computación, inicio" })).toBeVisible();
+  await expect(page.getByRole("banner")).not.toContainText(/foro/i);
+
+  await context.close();
+});
+
+test("a member edits their own thread and reply, which then read «editado», and reacts to an opening post (D2)", async ({ browser }) => {
+  await prisma.forumThread.create({
+    data: { id: "t-edit", categoryId: "c-prog", authorId: "m1", title: "Duda sobre malloc", body: "¿Cuándo libero?", createdAt: ago(90), updatedAt: ago(90), lastActivityAt: ago(80) },
+  });
+  await prisma.forumReply.create({ data: { id: "r-edit-mine", threadId: "t-edit", authorId: "m1", body: "Me respondo: con free.", createdAt: ago(85), updatedAt: ago(85) } });
+  await prisma.forumReply.create({ data: { id: "r-edit-other", threadId: "t-edit", authorId: "m2", body: "Al terminar de usarlo.", createdAt: ago(80), updatedAt: ago(80) } });
+  const context = await memberContext(browser);
+  const page = await context.newPage();
+
+  await page.goto("/foro/hilo/t-edit");
+  // Only the member's own posts offer «Editar»: the opening post and their reply, not Mateo's.
+  await expect(page.getByRole("button", { name: "Editar" })).toHaveCount(2);
+  await expect(page.locator("#respuesta-r-edit-other").getByRole("button", { name: "Editar" })).toHaveCount(0);
+  await expect(page.getByText("editado")).toHaveCount(0);
+
+  // The opening post: title and text.
+  const opening = page.locator("article").first();
+  await opening.getByRole("button", { name: "Editar" }).click();
+  await opening.getByLabel("Título").fill("Duda sobre malloc y free");
+  await opening.getByLabel("Texto del hilo").fill("¿Cuándo libero la memoria?");
+  await opening.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Duda sobre malloc y free" })).toBeVisible();
+  await expect(opening).toContainText("¿Cuándo libero la memoria?");
+  await expect(opening).toContainText("editado");
+
+  // Their reply: the text only.
+  const mine = page.locator("#respuesta-r-edit-mine");
+  await mine.getByRole("button", { name: "Editar" }).click();
+  await mine.getByLabel("Su respuesta").fill("Me respondo: con free, una sola vez.");
+  await mine.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(mine).toContainText("Me respondo: con free, una sola vez.");
+  await expect(mine).toContainText("editado");
+  await expect.poll(async () => (await prisma.forumReply.findUnique({ where: { id: "r-edit-mine" } }))?.editedAt).not.toBeNull();
+  // Mateo's reply is untouched.
+  expect(await prisma.forumReply.findUnique({ where: { id: "r-edit-other" } })).toMatchObject({ body: "Al terminar de usarlo.", editedAt: null });
+
+  // «Me sirvió» on someone else's opening post.
+  await page.goto("/foro/hilo/t-open");
+  const helpful = page.locator("article").first().getByRole("button", { name: /Me sirvió/ });
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => prisma.forumReaction.count({ where: { threadId: "t-open", memberId: "m1" } })).toBe(1);
+  await helpful.click();
+  await expect(helpful).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => prisma.forumReaction.count({ where: { threadId: "t-open", memberId: "m1" } })).toBe(0);
+
+  // A locked thread offers no edit, even on the member's own posts.
+  await page.goto("/foro/hilo/t-locked");
+  await expect(page.getByRole("button", { name: "Editar" })).toHaveCount(0);
+
+  await context.close();
+});
+
 test("a member reacts to a reply, marks the best answer of their thread and reports someone else's post", async ({ browser }) => {
   const context = await memberContext(browser);
   const page = await context.newPage();
 
   // «Me sirvió» is a toggle that survives a reload.
   await page.goto("/foro/hilo/t-mine");
-  const helpful = page.getByRole("button", { name: /Me sirvió/ });
+  // The opening post has its own «Me sirvió» (D2): this one is the reply's.
+  const reply = page.locator("#respuesta-r-help");
+  const helpful = reply.getByRole("button", { name: /Me sirvió/ });
   await expect(helpful).toHaveAttribute("aria-pressed", "false");
   await helpful.click();
   await expect(helpful).toHaveAttribute("aria-pressed", "true");
@@ -124,9 +209,9 @@ test("a member reacts to a reply, marks the best answer of their thread and repo
   // The button answers before the server does: wait for the row before leaving the page.
   await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(1);
   await page.reload();
-  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: /Me sirvió/ }).click();
-  await expect(page.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "false");
+  await expect(reply.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "true");
+  await reply.getByRole("button", { name: /Me sirvió/ }).click();
+  await expect(reply.getByRole("button", { name: /Me sirvió/ })).toHaveAttribute("aria-pressed", "false");
   await expect.poll(() => prisma.forumReaction.count({ where: { replyId: "r-help" } })).toBe(0);
 
   // The author of the thread marks the best answer and takes the mark back. Their own post has no «Reportar».
@@ -223,8 +308,9 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   const context = await memberContext(browser);
   const page = await context.newPage();
 
-  await page.goto("/foro");
-  await page.getByRole("link", { name: "Programación", exact: true }).click();
+  // Narrowed to the category by its URL, not by clicking its chip: at 375 px the category chips exist only while the forum has
+  // two or more categories, which depends on what other specs left in the database (alone, this spec has just one).
+  await page.goto("/foro?categoria=programacion");
   // The list header and the empty end of the list both offer it: the header one is the first.
   await page.getByRole("link", { name: "Nuevo hilo" }).first().click();
   await page.getByLabel("Título").fill("Hilo creado desde el e2e");
@@ -245,12 +331,13 @@ test("a member publishes a thread and a reply, signs out, and a suspended member
   await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
 
-  // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts.
-  await context.addCookies([{ name: "forum_sid", value: token, domain: "127.0.0.1", path: "/" }]);
+  // The same cookie again, for a member the moderation suspended in the meantime: the session no longer counts,
+  // and the forum says why (D1).
+  await context.addCookies([member.cookie]);
   await prisma.forumSession.update({ where: { id: "s1" }, data: { revokedAt: null } });
   await prisma.forumMember.update({ where: { id: "m1" }, data: { status: "SUSPENDED", suspendedAt: new Date() } });
   await page.goto("/foro");
-  await expect(page.getByRole("link", { name: "Entrar con Google" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Su cuenta del foro está suspendida" })).toBeVisible();
 
   await context.close();
 });

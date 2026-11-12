@@ -103,7 +103,7 @@ export interface ForumPostRepository {
    * lands after the caller read the reply wins: the foreign key alone cannot tell which thread a reply is in.
    */
   setBestReply(threadId: string, replyId: string | null): Promise<ForumBestAnswerOutcome>;
-  /** Not hidden, oldest first. */
+  /** Oldest first, hidden replies included (`hiddenAt` set): the thread shows a placeholder for them. */
   listReplies(threadId: string): Promise<ForumReplyRow[]>;
   findReply(id: string): Promise<ForumReply | null>;
   /**
@@ -114,4 +114,6 @@ export interface ForumPostRepository {
   updateReply(id: string, change: { body: string; at: Date; authorId: string }): Promise<ForumEditOutcome>;
   /** Threads plus replies written by the member since `since`: what the posting throttle counts. */
   countPostsSince(memberId: string, since: Date): Promise<number>;
+  /** When the member's oldest thread or reply since `since` was written, or null when there is none: the post whose leaving the window frees the throttle. */
+  oldestPostSince(memberId: string, since: Date): Promise<Date | null>;
 }

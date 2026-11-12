@@ -9,21 +9,25 @@ import { getOpenRegistrationEvents } from "@/interface/forum/event-registration-
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("getOpenRegistrationEvents", () => {
-  it("returns what the use case lists", async () => {
-    const events = [{ slug: "taller", title: "Taller", date: "2099-11-28", datePrecision: "day", capacity: null, seatsLeft: null }];
-    servicesMock.mockReturnValue({ openUnl: { execute: vi.fn().mockResolvedValue(events) } });
+  it("returns what the use case lists, UNL and open events alike, for the given moment", async () => {
+    const events = [
+      { slug: "taller", title: "Taller", mode: "unl", date: "2099-11-28", datePrecision: "day", capacity: null, seatsLeft: null },
+      { slug: "charla", title: "Charla", mode: "open", date: "2099-12-05", datePrecision: "day", capacity: 30, seatsLeft: 12 },
+    ];
+    const execute = vi.fn().mockResolvedValue(events);
+    const now = new Date("2099-11-01T00:00:00Z");
+    servicesMock.mockReturnValue({ openRegistrations: { execute } });
 
-    expect(await getOpenRegistrationEvents()).toEqual(events);
+    expect(await getOpenRegistrationEvents(now)).toEqual(events);
+    expect(execute).toHaveBeenCalledWith({ now });
   });
 
-  it("degrades to no events when the read fails, so the forum home still opens, and logs the failure", async () => {
-    servicesMock.mockReturnValue({ openUnl: { execute: vi.fn().mockRejectedValue(new Error("db down")) } });
+  it("lets a failed read fail: the page is the list, so an empty one would say nothing is open when it could not be read", async () => {
+    servicesMock.mockReturnValue({ openRegistrations: { execute: vi.fn().mockRejectedValue(new Error("db down")) } });
 
-    expect(await getOpenRegistrationEvents()).toEqual([]);
-    expect(console.error).toHaveBeenCalled();
+    await expect(getOpenRegistrationEvents()).rejects.toThrow("db down");
   });
 });

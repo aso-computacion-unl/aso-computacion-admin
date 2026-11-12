@@ -68,19 +68,25 @@ model Event {
 }
 
 // S8: one person signed up for one event. Personal data, so only what each mode needs: `unl` rows hold the
-// forum member's verified name and email; `open` rows add career and semester. The email is lower-cased
-// (CHECK) and unique per event, which is what makes a second registration by the same person a no-op.
-// Rows go with their event (cascade) and are deleted by an ADMIN on request.
+// forum member's verified name and email; `open` rows add institution and, optionally, career and semester.
+// The email is lower-cased (CHECK) and unique per event, which is what makes a second registration by the same
+// person a no-op. An `open` row stays pending (confirmedAt null, no seat) until its email is confirmed; `unl`
+// rows are born confirmed (CHECK). Rows go with their event (cascade) and are deleted by an ADMIN on request.
 model EventRegistration {
-  id        String                @id
-  eventId   String
-  event     Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  mode      EventRegistrationMode
-  name      String
-  email     String
-  career    String?
-  semester  Int?
-  createdAt DateTime              @default(now())
+  id             String                @id
+  eventId        String
+  event          Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  mode           EventRegistrationMode
+  name           String
+  email          String
+  institution    String?
+  career         String?
+  semester       Int?
+  createdAt      DateTime              @default(now())
+  confirmedAt    DateTime?
+  reminderSentAt DateTime?
+  /// The attempt a pending row waits on: signed into its confirmation link, replaced when the same email registers again, so only the latest link confirms. Null on rows from before it existed (their links carry none) and on UNL rows.
+  confirmNonce   String?
 
   @@unique([eventId, email])
   @@index([eventId, createdAt])
@@ -314,6 +320,14 @@ model LoginAttempt {
   lastAttemptAt BigInt
 
   @@index([lastAttemptAt])
+}
+
+// Daily budget of outgoing email (the provider caps what one account may send a day). One row per calendar day in
+// Ecuador (`YYYY-MM-DD`), `sent` counts the messages reserved that day; reserving is one atomic upsert that refuses
+// at the limit. Rows are tiny and one a day, so they are never purged.
+model MailDailyCounter {
+  day  String @id
+  sent Int
 }
 
 enum UserRole {

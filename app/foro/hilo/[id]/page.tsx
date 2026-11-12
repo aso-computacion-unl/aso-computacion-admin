@@ -7,9 +7,11 @@ import { threadStatus } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { getForumReactions } from "@/interface/forum/forum-reactions-read";
-import { getForumThread } from "@/interface/forum/forum-read";
+import { getForumDraftOwner, getForumThread } from "@/interface/forum/forum-read";
 
 import { BestAnswerButton } from "../../_components/best-answer-button";
+import { EditPost } from "../../_components/edit-post";
+import { HiddenPostCard } from "../../_components/hidden-post-card";
 import { PostCard } from "../../_components/post-card";
 import { PostTime } from "../../_components/post-time";
 import { ReactionButton } from "../../_components/reaction-button";
@@ -37,9 +39,11 @@ export const dynamic = "force-dynamic";
 
 export default async function ThreadPage({ params }: ThreadPageProps) {
   const { id } = await params;
-  const [{ category, thread, replies }, reactions] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id, threadPath(id)))]);
+  const [{ category, thread, replies }, reactions, memberId] = await Promise.all([loadThread(id), orNotFound(getForumReactions(id, threadPath(id))), getForumDraftOwner(threadPath(id))]);
   const now = new Date();
   const status = threadStatus({ hasBestAnswer: thread.bestReplyId !== null, locked: thread.locked });
+  // A hidden reply keeps its place as a placeholder but is not counted: it is not something the student can read.
+  const shownReplies = replies.filter((reply) => !("hidden" in reply)).length;
 
   return (
     <>
@@ -71,7 +75,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
           ) : null}
           <span>
             <strong className="font-semibold text-foreground">{thread.authorName}</strong>
-            {thread.mine ? " (usted)" : null} abrió este hilo <PostTime date={thread.createdAt} now={now} /> · {replies.length} {replies.length === 1 ? "respuesta" : "respuestas"}
+            {thread.mine ? " (usted)" : null} abrió este hilo <PostTime date={thread.createdAt} now={now} /> · {shownReplies} {shownReplies === 1 ? "respuesta" : "respuestas"}
           </span>
         </div>
       </header>
@@ -82,29 +86,41 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
           editedAt={thread.editedAt}
           body={thread.body}
           now={now}
-          footer={thread.mine ? null : <ReportButton target={{ kind: "thread", id: thread.id }} />}
+          footer={
+            <>
+              <ReactionButton key={`${reactions.thread.count}:${reactions.thread.mine}`} target={{ kind: "thread", id: thread.id }} count={reactions.thread.count} mine={reactions.thread.mine} />
+              {/* The server refuses edits on a locked thread, so they are not offered there. */}
+              {thread.mine && !thread.locked ? <EditPost target={{ kind: "thread", id: thread.id, threadId: thread.id, title: thread.title, body: thread.body }} /> : null}
+              {thread.mine ? null : <ReportButton target={{ kind: "thread", id: thread.id }} />}
+            </>
+          }
         />
-        {replies.map((reply) => (
-          <PostCard
-            key={reply.id}
-            id={reply.isBest ? "mejor" : `respuesta-${reply.id}`}
-            authorName={reply.authorName}
-            mine={reply.mine}
-            createdAt={reply.createdAt}
-            editedAt={reply.editedAt}
-            body={reply.body}
-            now={now}
-            best={reply.isBest}
-            footer={
-              <>
-                {/* Keyed by what the server last said, so a refresh resets the control to it. */}
-                <ReactionButton key={`${reactions.replies[reply.id]?.count ?? 0}:${reactions.replies[reply.id]?.mine ?? false}`} replyId={reply.id} count={reactions.replies[reply.id]?.count ?? 0} mine={reactions.replies[reply.id]?.mine ?? false} />
-                {thread.mine && !thread.locked ? <BestAnswerButton threadId={thread.id} replyId={reply.id} isBest={reply.isBest} /> : null}
-                {reply.mine ? null : <ReportButton target={{ kind: "reply", id: reply.id }} />}
-              </>
-            }
-          />
-        ))}
+        {replies.map((reply) =>
+          "hidden" in reply ? (
+            <HiddenPostCard key={reply.id} id={reply.isBest ? "mejor" : `respuesta-${reply.id}`} best={reply.isBest} />
+          ) : (
+            <PostCard
+              key={reply.id}
+              id={reply.isBest ? "mejor" : `respuesta-${reply.id}`}
+              authorName={reply.authorName}
+              mine={reply.mine}
+              createdAt={reply.createdAt}
+              editedAt={reply.editedAt}
+              body={reply.body}
+              now={now}
+              best={reply.isBest}
+              footer={
+                <>
+                  {/* Keyed by what the server last said, so a refresh resets the control to it. */}
+                  <ReactionButton key={`${reactions.replies[reply.id]?.count ?? 0}:${reactions.replies[reply.id]?.mine ?? false}`} target={{ kind: "reply", id: reply.id }} count={reactions.replies[reply.id]?.count ?? 0} mine={reactions.replies[reply.id]?.mine ?? false} />
+                  {reply.mine && !thread.locked ? <EditPost target={{ kind: "reply", id: reply.id, threadId: thread.id, body: reply.body }} /> : null}
+                  {thread.mine && !thread.locked ? <BestAnswerButton threadId={thread.id} replyId={reply.id} isBest={reply.isBest} /> : null}
+                  {reply.mine ? null : <ReportButton target={{ kind: "reply", id: reply.id }} />}
+                </>
+              }
+            />
+          ),
+        )}
         <li>
           <span
             aria-hidden="true"
@@ -118,7 +134,7 @@ export default async function ThreadPage({ params }: ThreadPageProps) {
               Se puede leer, pero ya no admite respuestas nuevas.
             </div>
           ) : (
-            <ReplyForm threadId={thread.id} />
+            <ReplyForm threadId={thread.id} memberId={memberId} />
           )}
         </li>
       </ol>

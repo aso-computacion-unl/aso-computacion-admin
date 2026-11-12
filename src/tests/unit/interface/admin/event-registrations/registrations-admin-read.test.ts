@@ -22,7 +22,7 @@ beforeEach(async () => {
   vi.stubEnv("ADMIN_SECRET", "test-secret-test-secret-test-secret-1234");
   eventId = (await addTestEvent({ registrationCapacity: 10 })).id;
   await testEventRegistration.registrations.register(
-    { id: "r1", eventId, mode: "open", name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5 },
+    { id: "r1", eventId, mode: "open", name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5, confirmedAt: new Date("2026-11-20T15:30:00.000Z") },
     new Date("2026-11-20T15:30:00.000Z"),
   );
 });

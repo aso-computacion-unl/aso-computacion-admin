@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
-import { getOpenRegistrationEvents } from "@/interface/forum/event-registration-read";
-import { parseForumLoginError } from "@/interface/forum/forum-login-errors";
+import { parseForumLandingError } from "@/interface/forum/forum-login-errors";
 import { parsePageParam, parseThreadFilter, type ThreadFilter } from "@/interface/forum/forum-display";
 import { feedHref } from "@/interface/forum/forum-links";
 import { orNotFound } from "@/interface/forum/forum-page-errors";
 import { parseForumReturnPath } from "@/interface/forum/forum-return-path";
 import { getForumCategories, getForumFeed } from "@/interface/forum/forum-read";
+import { hasSuspendedForumSession } from "@/interface/forum/forum-suspension";
 import { getForumMember } from "@/interface/forum/require-forum-member";
 
 import { CategoryFilter } from "./_components/category-filter";
@@ -15,9 +15,9 @@ import { ForumRail } from "./_components/forum-rail";
 import { ForumShell } from "./_components/forum-shell";
 import { NewThreadMenu } from "./_components/new-thread-menu";
 import { Pagination } from "./_components/pagination";
-import { RegistrationsLink } from "./_components/registrations-link";
 import { SignInGate } from "./_components/sign-in-gate";
 import { StartThreadRow } from "./_components/start-thread-row";
+import { SuspensionNotice } from "./_components/suspension-notice";
 import { ThreadFilterTabs } from "./_components/thread-filter-tabs";
 import { ThreadListEmpty } from "./_components/thread-list-empty";
 import { ThreadRow } from "./_components/thread-row";
@@ -38,15 +38,21 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   // Not `getForumFeed` first: it sends a visitor to /foro, which is this page.
   if (!member) {
-    return <SignInGate problem={parseForumLoginError(error)} next={parseForumReturnPath(typeof next === "string" ? next : null) ?? undefined} />;
+    const returnTo = parseForumReturnPath(typeof next === "string" ? next : null) ?? undefined;
+
+    // Only words: the guard above has already refused this request, and a suspended member gets no forum from here either.
+    if (await hasSuspendedForumSession()) {
+      return <SuspensionNotice next={returnTo} />;
+    }
+
+    return <SignInGate problem={parseForumLandingError(error)} next={returnTo} />;
   }
 
   const filter = parseThreadFilter(estado);
   const categorySlug = typeof categoria === "string" && categoria !== "" ? categoria : undefined;
   // The feed carries only the names; the rail also shows what each category is for and how many threads it has.
-  const [feed, openEvents, railCategories] = await Promise.all([
+  const [feed, railCategories] = await Promise.all([
     orNotFound(getForumFeed({ categorySlug, state: filter, page: parsePageParam(pagina) })),
-    getOpenRegistrationEvents(),
     orNotFound(getForumCategories()),
   ]);
   const { categories, category, items, counts, page, pageCount } = feed;
@@ -66,9 +72,7 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
 
   return (
     // The list fills the width under the top bar: the rail of filters as tall as the screen, then the list and the guide on its side.
-    <ForumShell
-      rail={<ForumRail section="threads" filter={filter} counts={counts} categories={railCategories} category={category?.slug} registrationsCount={openEvents.length} />}
-    >
+    <ForumShell rail={<ForumRail filter={filter} counts={counts} categories={railCategories} category={category?.slug} />}>
       <div className="mx-auto grid max-w-[100rem] gap-x-10 gap-y-12 2xl:min-h-[calc(100dvh-3.5rem-5rem)] 2xl:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="min-w-0">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:mb-6">
@@ -85,9 +89,6 @@ export default async function ForumHomePage({ searchParams }: ForumHomePageProps
                 <CategoryFilter categories={categories} active={category?.slug} filter={filter} />
               </div>
             ) : null}
-            <div className="border-t border-border px-2 py-1.5">
-              <RegistrationsLink count={openEvents.length} current={false} orientation="horizontal" />
-            </div>
           </div>
 
           {category?.description ? (

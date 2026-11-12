@@ -150,10 +150,22 @@ describe("registrationState", () => {
 });
 
 describe("parseOpenRegistration", () => {
-  const valid = { name: "  Ana   María Pérez ", email: " Ana.Perez@Example.COM ", career: " Computación ", semester: "5" };
+  const valid = { name: "  Ana   María Pérez ", email: " Ana.Perez@Example.COM ", institution: " Universidad  Nacional de Loja ", career: " Computación ", semester: "5" };
 
   it("trims, collapses spaces and lower-cases the email", () => {
-    expect(parseOpenRegistration(valid)).toEqual({ name: "Ana María Pérez", email: "ana.perez@example.com", career: "Computación", semester: 5 });
+    expect(parseOpenRegistration(valid)).toEqual({
+      name: "Ana María Pérez",
+      email: "ana.perez@example.com",
+      institution: "Universidad Nacional de Loja",
+      career: "Computación",
+      semester: 5,
+    });
+  });
+
+  it("treats career and semester as optional: missing or blank become null", () => {
+    expect(parseOpenRegistration({ ...valid, career: undefined, semester: undefined })).toMatchObject({ career: null, semester: null });
+    expect(parseOpenRegistration({ ...valid, career: "   ", semester: "" })).toMatchObject({ career: null, semester: null });
+    expect(parseOpenRegistration({ ...valid, career: null, semester: null })).toMatchObject({ career: null, semester: null });
   });
 
   it("keeps accents, ñ, CJK and emoji (a valid surrogate pair is not a lone one)", () => {
@@ -176,13 +188,16 @@ describe("parseOpenRegistration", () => {
     ["email", { email: 42 }],
     ["email", { email: undefined }],
     ["email", { email: `${"a".repeat(250)}@x.co` }],
-    ["career", { career: "" }],
     ["career", { career: "c".repeat(121) }],
+    ["career", { career: 42 }],
+    ["institution", { institution: undefined }],
+    ["institution", { institution: "  " }],
+    ["institution", { institution: "i".repeat(121) }],
+    ["institution", { institution: "UNL\u0000" }],
     ["semester", { semester: "0" }],
     ["semester", { semester: "13" }],
     ["semester", { semester: "2.5" }],
     ["semester", { semester: "dos" }],
-    ["semester", { semester: undefined }],
   ])("refuses an invalid %s", (field, override) => {
     expect(() => parseOpenRegistration({ ...valid, ...override })).toThrow(expect.objectContaining({ name: "ValidationError", field }));
   });

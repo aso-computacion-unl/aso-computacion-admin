@@ -9,7 +9,7 @@ vi.mock("next/headers", () => ({ cookies: cookiesMock, headers: vi.fn(async () =
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
+import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
 import * as moderation from "@/interface/forum/forum-moderation";
 import { makeForumCategory, makeForumMember, makeForumReply, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { signInAs } from "@/tests/support/test-auth";
@@ -66,7 +66,7 @@ describe("the forum report actions require a forum member", () => {
       const resolved = Object.fromEntries(await Promise.all(Object.entries(cookies).map(async ([key, who]) => [key, await signInAs(who as "ADMIN")])));
       jar(resolved);
 
-      expect(await ACTION_CALLS[name]!()).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+      expect(await ACTION_CALLS[name]!()).toEqual(FORUM_SESSION_EXPIRED_RESULT);
       expect(testForum.store.reports.size).toBe(0);
     });
   });
@@ -113,7 +113,7 @@ describe("reporting a post", () => {
     testForum.members.members.set(memberId, { ...testForum.members.members.get(memberId)!, status: "SUSPENDED", suspendedAt: new Date() });
 
     for (const call of Object.values(ACTION_CALLS)) {
-      expect(await call()).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+      expect(await call()).toEqual(FORUM_SESSION_EXPIRED_RESULT);
     }
     expect(testForum.store.reports.size).toBe(0);
   });

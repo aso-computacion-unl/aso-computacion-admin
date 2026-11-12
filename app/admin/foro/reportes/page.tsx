@@ -116,6 +116,9 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
             ))}
           </ul>
         </nav>
+        <Link href="/admin/foro/miembros" className={LINK}>
+          Miembros
+        </Link>
         {actor.role === "ADMIN" ? (
           <Link href="/admin/foro/categorias" className={LINK}>
             Categorías

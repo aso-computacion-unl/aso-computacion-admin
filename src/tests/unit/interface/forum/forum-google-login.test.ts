@@ -149,6 +149,37 @@ describe("startForumLogin", () => {
   });
 });
 
+describe("D5/D8: a sign-in that starts from an event's registration page", () => {
+  it("fails closed back to that page, not to the forum, so no registration screen speaks of the forum", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+
+    const response = await startForumLogin(new Request(`https://admin.example.org/foro/auth/google/start?next=${encodeURIComponent("/inscripciones/taller-git")}`));
+
+    expect(location(response)).toBe("https://admin.example.org/inscripciones/taller-git?error=unavailable");
+    expect(cookieSetMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed to the forum landing when the return path is a forum one or invalid", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+
+    for (const next of ["/foro/hilo/abc", "/inscripciones/", "https://evil.example/inscripciones/x"]) {
+      const response = await startForumLogin(new Request(`https://admin.example.org/foro/auth/google/start?next=${encodeURIComponent(next)}`));
+
+      expect(location(response), next).toBe("https://admin.example.org/foro?error=unavailable");
+    }
+  });
+
+  it("sends a Google start that blows up back to the registration page too", async () => {
+    startMock.mockImplementation(() => {
+      throw new Error("boom");
+    });
+
+    const response = await startForumLogin(new Request(`https://admin.example.org/foro/auth/google/start?next=${encodeURIComponent("/inscripciones/taller-git?utm=1")}`));
+
+    expect(location(response)).toBe("https://admin.example.org/inscripciones/taller-git?utm=1&error=unavailable");
+  });
+});
+
 describe("finishForumLogin", () => {
   it("signs a new student in: creates the member, opens a session, sets the site-wide cookie and goes to the forum", async () => {
     const response = await finishForumLogin(request("?code=auth-code&state=the-state"));
@@ -159,7 +190,9 @@ describe("finishForumLogin", () => {
     expect(testForum.sessions.sessions.size).toBe(1);
 
     const [name, token, options] = cookieSetMock.mock.calls.find(([cookie]) => cookie === FORUM_COOKIE_NAME) as [string, string, Record<string, unknown>];
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
+    // S9: the member session's cookie lasts thirty days.
+    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 30 * 24 * 60 * 60 });
+    expect([...testForum.sessions.sessions.values()][0]!.expiresAt.getTime() - [...testForum.sessions.sessions.values()][0]!.createdAt.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
     expect(await verifyForumSession(token)).toMatchObject({ valid: true });
     expect(name).toBe("forum_sid");
   });
@@ -204,6 +237,15 @@ describe("finishForumLogin", () => {
       expect(cookieSetMock).toHaveBeenCalledWith(FORUM_COOKIE_NAME, expect.any(String), expect.objectContaining({ path: "/" }));
     });
 
+    it("S1: brings the student back to the list of registrations when the sign-in started from its header", async () => {
+      await sealWith("/inscripciones");
+
+      const response = await finishForumLogin(request("?code=c&state=the-state"));
+
+      expect(location(response)).toBe("https://admin.example.org/inscripciones");
+      expect(testForum.sessions.sessions.size).toBe(1);
+    });
+
     it("ignores a next in the callback URL: without a sealed one it goes to /foro", async () => {
       const response = await finishForumLogin(request(`?code=c&state=the-state&next=${encodeURIComponent("/foro/hilo/evil")}`));
 
@@ -245,6 +287,50 @@ describe("finishForumLogin", () => {
       expect(testForum.sessions.sessions.size).toBe(0);
     });
 
+    describe("D5/D8: when the sealed path is an event's registration page", () => {
+      it.each([
+        ["a refused account", async () => completeMock.mockResolvedValue({ ...IDENTITY, emailVerified: false }), "denied"],
+        ["a rejected token", async () => completeMock.mockRejectedValue(new GoogleAuthError("token")), "failed"],
+        ["a Google outage", async () => completeMock.mockRejectedValue(new GoogleAuthError("unavailable")), "verification"],
+        ["an unexpected failure", async () => completeMock.mockRejectedValue(new Error("boom")), "unavailable"],
+      ])("returns to that page with the code for %s, so the refusal is told in registration words", async (_label, arrange, code) => {
+        await sealWith("/inscripciones/taller-git");
+        await arrange();
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe(`https://admin.example.org/inscripciones/taller-git?error=${code}`);
+        expect(testForum.sessions.sessions.size).toBe(0);
+      });
+
+      it("S1: returns a refusal that started from the list to the list, with the code", async () => {
+        await sealWith("/inscripciones");
+        completeMock.mockResolvedValue({ ...IDENTITY, emailVerified: false });
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/inscripciones?error=denied");
+        expect(testForum.sessions.sessions.size).toBe(0);
+      });
+
+      it("tells a suspended member the generic refusal, never the forum's suspension code, and opens no session", async () => {
+        testForum.members.members.set("m1", makeForumMember({ id: "m1", email: "ana@unl.edu.ec", googleSub: "sub-ana", status: "SUSPENDED", suspendedAt: new Date() }));
+        await sealWith("/inscripciones/taller-git");
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/inscripciones/taller-git?error=denied");
+        expect(testForum.sessions.sessions.size).toBe(0);
+      });
+
+      it("returns there when the person declines at Google", async () => {
+        await sealWith("/inscripciones/taller-git");
+
+        expect(location(await finishForumLogin(request("?error=access_denied&state=the-state")))).toBe("https://admin.example.org/inscripciones/taller-git?error=failed");
+      });
+
+      it("keeps the query of the page and adds the code to it", async () => {
+        await sealWith("/inscripciones/taller-git?utm=landing");
+        completeMock.mockRejectedValue(new GoogleAuthError("token"));
+
+        expect(location(await finishForumLogin(request("?code=c&state=the-state")))).toBe("https://admin.example.org/inscripciones/taller-git?utm=landing&error=failed");
+      });
+    });
+
     it("keeps the refusal for a state that does not match, even with a sealed path", async () => {
       await sealWith("/foro/hilo/abc");
 
@@ -270,12 +356,12 @@ describe("finishForumLogin", () => {
       expect(cookiesSet()).not.toContain(FORUM_COOKIE_NAME);
     });
 
-    it("refuses a suspended member", async () => {
+    it("refuses a suspended member with a code of its own, and still opens no session", async () => {
       testForum.members.members.set("m1", makeForumMember({ id: "m1", email: "ana@unl.edu.ec", googleSub: "sub-ana", status: "SUSPENDED", suspendedAt: new Date() }));
 
       const response = await finishForumLogin(request("?code=c&state=the-state"));
 
-      expect(location(response)).toBe("https://admin.example.org/foro?error=denied");
+      expect(location(response)).toBe("https://admin.example.org/foro?error=suspended");
       expect(testForum.sessions.sessions.size).toBe(0);
       expect(cookiesSet()).not.toContain(FORUM_COOKIE_NAME);
     });

@@ -11,7 +11,7 @@ import { getForumServices } from "./forum-container";
 const resolveActor = cache((sessionId: string, memberId: string) => getForumServices().validateSession.execute({ sessionId, memberId }));
 
 /** Next signals redirects, 404s and "this render needs the request" by throwing; none of those is a session failure. */
-function isFrameworkSignal(error: unknown): boolean {
+export function isFrameworkSignal(error: unknown): boolean {
   const digest = (error as { digest?: unknown } | null)?.digest;
 
   return typeof digest === "string" && (digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_"));

@@ -13,7 +13,12 @@ export type RegistrationMode = Exclude<EventRegistrationMode, "none">;
 export const EVENT_REGISTRATION_CAPACITY_MAX = 5000;
 export const REGISTRATION_NAME_MAX_LENGTH = 120;
 export const REGISTRATION_CAREER_MAX_LENGTH = 120;
+export const REGISTRATION_INSTITUTION_MAX_LENGTH = 120;
+/** An open-form registration waits this long for its email to be confirmed; until then it takes no seat. */
+export const REGISTRATION_CONFIRMATION_TTL_MS = 48 * 60 * 60 * 1000;
 export const REGISTRATION_SEMESTER_MAX = 12;
+/** The cancellation link of an email works this long after it was issued: a registration is purged 90 days after its event, so a year outlasts any link that still has something to cancel. */
+export const REGISTRATION_CANCEL_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 export interface RegistrationSettings {
   readonly mode: EventRegistrationMode;
@@ -50,6 +55,44 @@ export function assertRegistrationSettings(
   return { mode: value as EventRegistrationMode, capacity: capacity ?? null, deadline: deadline ?? null };
 }
 
+/** What an admin's save changes for the people who already registered: the mode they signed up through, or the seats left for them. */
+export type RegistrationChangeImpact = "mode" | "seats";
+
+export interface RegistrationChangeInput {
+  /** People registered and confirmed: a pending one holds no seat and is nobody's to warn about. */
+  registered: number;
+  current: { mode: EventRegistrationMode; capacity: number | null };
+  /** What the form sent; `undefined` for a setting it did not send, which the save leaves as it is. */
+  next: { mode?: EventRegistrationMode; capacity?: number | null };
+}
+
+/**
+ * The changes of a save that need the admin's confirmation (D14), in the order the warning tells them. None while no
+ * one is registered. A mode change always counts (the registered people signed up through the old one). Seats count
+ * when the save sets a limit below the registered people that is lower than the one in force: keeping or raising a
+ * limit that is already below them, or lifting it, warns about nothing. Switching registration off clears the limit,
+ * so it is only a mode change.
+ */
+export function registrationChangeImpacts({ registered, current, next }: RegistrationChangeInput): RegistrationChangeImpact[] {
+  if (registered <= 0) {
+    return [];
+  }
+
+  const mode = next.mode ?? current.mode;
+  const capacity = mode === "none" ? null : next.capacity === undefined ? current.capacity : next.capacity;
+  const impacts: RegistrationChangeImpact[] = [];
+
+  if (mode !== current.mode) {
+    impacts.push("mode");
+  }
+
+  if (capacity !== null && capacity < registered && (current.capacity === null || capacity < current.capacity)) {
+    impacts.push("seats");
+  }
+
+  return impacts;
+}
+
 /** The slice of an event the rules read. */
 export interface RegistrableEvent {
   readonly isPublished: boolean;
@@ -63,6 +106,16 @@ export interface RegistrableEvent {
 }
 
 export type RegistrationRefusal = "not_found" | "mode_mismatch" | "closed" | "full" | "duplicate";
+
+/** Pending rows stored at or before this instant can no longer be confirmed: they hold a stranger's data for nothing. */
+export function pendingPurgeCutoff(now: Date): Date {
+  return new Date(now.getTime() - REGISTRATION_CONFIRMATION_TTL_MS);
+}
+
+/** A pending registration whose confirmation window has run out: its link no longer confirms anything. */
+export function isConfirmationExpired(pendingSince: Date, now: Date): boolean {
+  return now.getTime() - pendingSince.getTime() >= REGISTRATION_CONFIRMATION_TTL_MS;
+}
 
 /** The deadline instant has passed, or the event day is before today in Ecuador (a month-only or missing date never closes). */
 function isClosed(event: RegistrableEvent, now: Date): boolean {
@@ -87,13 +140,29 @@ export function registrationState(event: RegistrableEvent, registered: number, n
   return event.registrationCapacity !== null && registered >= event.registrationCapacity ? "full" : "open";
 }
 
+export type CancellationRefusal = "not_found" | "closed";
+
+/**
+ * Whether a registration of this event can still be cancelled (D7): the event is public, and registration has not
+ * closed (deadline or day passed; after that the organizers are told by the person, not by the page). Neither the
+ * mode nor the seats matter: someone who registered the old way, or on a full event, can still let the seat go.
+ * Who is cancelling, and that the registration exists, are decided elsewhere.
+ */
+export function cancellationRefusal({ event, now }: { event: RegistrableEvent; now: Date }): CancellationRefusal | null {
+  if (!isPubliclyVisible(event, now)) {
+    return "not_found";
+  }
+
+  return isClosed(event, now) ? "closed" : null;
+}
+
 export interface RegistrationContext {
   event: RegistrableEvent;
   /** The way this person is trying to register. */
   mode: RegistrationMode;
-  /** Registrations already stored for the event. */
+  /** Confirmed registrations of the event: a pending one takes no seat. */
   registered: number;
-  /** This same person (by email) is already registered. */
+  /** This same person (by email) is already registered and confirmed. */
   alreadyRegistered: boolean;
   now: Date;
 }
@@ -127,12 +196,13 @@ export function registrationRefusal({ event, mode, registered, alreadyRegistered
   return null;
 }
 
-/** What the open form collects: nothing else is stored. */
+/** What the open form collects: nothing else is stored. Career and semester are optional (people from outside the UNL). */
 export interface OpenRegistrationData {
   name: string;
   email: string;
-  career: string;
-  semester: number;
+  institution: string;
+  career: string | null;
+  semester: number | null;
 }
 
 // Control characters (including NUL, line breaks and tabs) have no place in a name that ends up in a CSV and a sheet.
@@ -154,7 +224,19 @@ function text(field: string, value: unknown, max: number): string {
   return collapsed;
 }
 
-function semester(value: unknown): number {
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === "string" && value.trim().length === 0);
+}
+
+function optionalText(field: string, value: unknown, max: number): string | null {
+  return isBlank(value) ? null : text(field, value, max);
+}
+
+function semester(value: unknown): number | null {
+  if (isBlank(value)) {
+    return null;
+  }
+
   const parsed = typeof value === "number" ? value : typeof value === "string" && /^\d{1,2}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
 
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > REGISTRATION_SEMESTER_MAX) {
@@ -173,5 +255,11 @@ export function parseOpenRegistration(input: Record<string, unknown>): OpenRegis
     throw new ValidationError("email", "email must be a valid address");
   }
 
-  return { name, email, career: text("career", input.career, REGISTRATION_CAREER_MAX_LENGTH), semester: semester(input.semester) };
+  return {
+    name,
+    email,
+    institution: text("institution", input.institution, REGISTRATION_INSTITUTION_MAX_LENGTH),
+    career: optionalText("career", input.career, REGISTRATION_CAREER_MAX_LENGTH),
+    semester: semester(input.semester),
+  };
 }

@@ -1,7 +1,7 @@
 import type { EventRegistrationRecord } from "@/application";
 import { formatEcuadorDateTime } from "@/domain/calendar-date";
 
-const HEADER = ["Nombre", "Correo", "Forma de inscripción", "Carrera", "Ciclo", "Inscrito el (hora de Ecuador)"];
+const HEADER = ["Nombre", "Correo", "Forma de inscripción", "Institución", "Carrera", "Ciclo", "Inscrito el (hora de Ecuador)"];
 const MODE_LABELS = { unl: "Cuenta UNL", open: "Formulario abierto" } as const;
 
 /** A cell a spreadsheet would run as a formula (`=`, `+`, `-`, `@`, tab, CR) gets a leading `'`, which shows as plain text. */
@@ -22,6 +22,7 @@ export function registrationsToCsv(registrations: readonly EventRegistrationReco
     registration.name,
     registration.email,
     MODE_LABELS[registration.mode],
+    registration.institution ?? "",
     registration.career ?? "",
     registration.semester === null ? "" : String(registration.semester),
     formatEcuadorDateTime(registration.createdAt).replace("T", " "),

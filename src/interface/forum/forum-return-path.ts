@@ -14,17 +14,23 @@ const PROBE_ORIGIN = "https://forum.invalid";
 // of slash, backslash, percent and control characters (a second decoding somewhere must not find one).
 const FORBIDDEN = /[\u0000-\u0020\u007f\\]|\/\/|%(?:2f|5c|25|[01][0-9a-f]|7f)/i;
 
+/** Whether a value names the list of registrations (with or without a query) or a path below it. */
+function isRegistrationPath(value: string): boolean {
+  return value === REGISTRATION_PATH || value.startsWith(`${REGISTRATION_PATH}/`) || value.startsWith(`${REGISTRATION_PATH}?`);
+}
+
 /**
  * The same-origin path a sign-in may return to, normalized, or null for anything else (the caller falls back
  * to the forum landing; a bad value is never an error). Only `/foro` and `/foro/**` pass (never the forum's own
- * auth routes), and `/inscripciones/<slug>`, the event registration page; so the value is safe to put in a redirect.
+ * auth routes), `/inscripciones`, the list of registrations, and `/inscripciones/<slug>`, the event registration
+ * page; so the value is safe to put in a redirect.
  */
 export function parseForumReturnPath(value: string | null | undefined): string | null {
   if (!value || value.length > FORUM_RETURN_PATH_MAX_LENGTH || FORBIDDEN.test(value)) {
     return null;
   }
 
-  if (value !== FORUM_HOME_PATH && !value.startsWith(`${FORUM_HOME_PATH}/`) && !value.startsWith(`${REGISTRATION_PATH}/`)) {
+  if (value !== FORUM_HOME_PATH && !value.startsWith(`${FORUM_HOME_PATH}/`) && !isRegistrationPath(value)) {
     return null;
   }
 
@@ -38,8 +44,8 @@ export function parseForumReturnPath(value: string | null | undefined): string |
 
   const { pathname } = url;
   const inForum = pathname === FORUM_HOME_PATH || pathname.startsWith(`${FORUM_HOME_PATH}/`);
-  // An event page needs a slug: the bare `/inscripciones/` is not a page.
-  const inRegistration = pathname.startsWith(`${REGISTRATION_PATH}/`) && pathname.length > REGISTRATION_PATH.length + 1;
+  // The list itself (its header offers the sign-in, S1) or an event page, which needs a slug: the bare `/inscripciones/` is not a page.
+  const inRegistration = pathname === REGISTRATION_PATH || (pathname.startsWith(`${REGISTRATION_PATH}/`) && pathname.length > REGISTRATION_PATH.length + 1);
   const lowered = pathname.toLowerCase();
   const inAuth = lowered === FORUM_AUTH_PATH || lowered.startsWith(`${FORUM_AUTH_PATH}/`);
 
@@ -48,6 +54,11 @@ export function parseForumReturnPath(value: string | null | undefined): string |
   }
 
   return `${pathname}${url.search}`;
+}
+
+/** Whether a (validated) return path is a registration page, the list or an event's: a sign-in that began there must end there, even when it fails. */
+export function isRegistrationReturnPath(path: string | null): path is string {
+  return path !== null && isRegistrationPath(path);
 }
 
 /** Where to send a visitor so the sign-in brings them back to `returnTo` (an invalid or missing one is just the landing). */

@@ -2,15 +2,15 @@
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { toggleMock } = vi.hoisted(() => ({ toggleMock: vi.fn() }));
+const { toggleMock, toggleThreadMock } = vi.hoisted(() => ({ toggleMock: vi.fn(), toggleThreadMock: vi.fn() }));
 
-vi.mock("@/interface/forum/forum-helpful", () => ({ toggleForumReplyReaction: toggleMock, toggleForumThreadReaction: vi.fn() }));
+vi.mock("@/interface/forum/forum-helpful", () => ({ toggleForumReplyReaction: toggleMock, toggleForumThreadReaction: toggleThreadMock }));
 
 import { ReactionButton } from "../../../../app/foro/_components/reaction-button";
 import { click, mount, settle, unmountAll } from "@/tests/support/dom";
 
 const button = (host: HTMLElement) => host.querySelector<HTMLButtonElement>("button")!;
-const mountButton = (props: { count: number; mine: boolean } = { count: 2, mine: false }) => mount(createElement(ReactionButton, { replyId: "r1", ...props }));
+const mountButton = (props: { count: number; mine: boolean } = { count: 2, mine: false }) => mount(createElement(ReactionButton, { target: { kind: "reply", id: "r1" }, ...props }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -41,6 +41,19 @@ describe("the «me sirvió» button", () => {
     expect(toggleMock).toHaveBeenCalledWith("r1");
     expect(button(host).getAttribute("aria-pressed")).toBe("true");
     expect(button(host).textContent).toContain("3");
+  });
+
+  it("on the opening post asks the server for the thread, not a reply (D2)", async () => {
+    toggleThreadMock.mockResolvedValue({ success: true, reacted: true, count: 1 });
+    const host = await mount(createElement(ReactionButton, { target: { kind: "thread", id: "t1" }, count: 0, mine: false }));
+
+    await click(button(host));
+    await settle();
+
+    expect(toggleThreadMock).toHaveBeenCalledWith("t1");
+    expect(toggleMock).not.toHaveBeenCalled();
+    expect(button(host).getAttribute("aria-pressed")).toBe("true");
+    expect(button(host).textContent).toContain("1");
   });
 
   it("takes the reaction back on the second click", async () => {

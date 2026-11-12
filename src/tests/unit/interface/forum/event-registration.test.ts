@@ -10,9 +10,10 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
-import { FORUM_SESSION_EXPIRED_MESSAGE } from "@/interface/forum/forum-action-result";
+import { REGISTRATION_SESSION_EXPIRED_RESULT } from "@/interface/event-registration/registration-action-errors";
 import * as registration from "@/interface/forum/event-registration";
-import { getEventRegistrationPage } from "@/interface/forum/event-registration-read";
+import { getEventRegistrationPage, getRegistrationAccess } from "@/interface/forum/event-registration-read";
+import { getForumServices } from "@/interface/forum/forum-container";
 import { signInAs } from "@/tests/support/test-auth";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 import { signInToForumAs } from "@/tests/support/test-forum";
@@ -56,7 +57,7 @@ describe("registerForEvent requires a forum member", () => {
   ])("is refused with %s: nothing stored", async (_label, cookies) => {
     jar(Object.fromEntries(await Promise.all(Object.entries(cookies).map(async ([key, who]) => [key, await signInAs(who as "ADMIN")]))));
 
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(REGISTRATION_SESSION_EXPIRED_RESULT);
     expect(stored()).toHaveLength(0);
   });
 });
@@ -81,12 +82,26 @@ describe("registerForEvent", () => {
 
   it("refuses a suspended member (the guard no longer accepts their session) and an email outside the institutional domain", async () => {
     await signIn({ id: "m1", status: "SUSPENDED" });
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: FORUM_SESSION_EXPIRED_MESSAGE });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual(REGISTRATION_SESSION_EXPIRED_RESULT);
 
     testEventRegistration.registrations.clear();
     await signIn({ id: "m2", email: "ana@gmail.com", googleSub: "sub-2" });
-    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: "Su cuenta no puede participar en el foro." });
+    expect(await registration.registerForEvent("taller-de-git")).toEqual({ error: "Su cuenta no puede reservar cupos. Use su cuenta institucional @unl.edu.ec." });
     expect(stored()).toHaveLength(0);
+  });
+
+  it("D5: an expired session and a refused account are told in registration words, never as the forum, and the expired one can offer the sign-in", async () => {
+    jar({});
+    const expired = await registration.registerForEvent("taller-de-git");
+
+    await signIn({ id: "m2", email: "ana@gmail.com", googleSub: "sub-2" });
+    const refused = await registration.registerForEvent("taller-de-git");
+
+    expect(expired).toEqual({ error: "Su sesión terminó. Entre de nuevo con su cuenta @unl.edu.ec para reservar su cupo.", sessionExpired: true });
+
+    for (const result of [expired, refused]) {
+      expect(result.error).not.toMatch(/foro/i);
+    }
   });
 
   it("says why when the event is full, closed, open-form only or unknown", async () => {
@@ -118,6 +133,52 @@ describe("getEventRegistrationPage", () => {
     await registration.registerForEvent("taller-de-git");
 
     expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1" }, status: { alreadyRegistered: true } });
+  });
+
+  it("S1: gives the UNL page the signed-in member's own email, and only their public name when the account cannot be read", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" } });
+
+    vi.spyOn(getForumServices().ownAccount, "execute").mockRejectedValueOnce(new Error("database is down for maria.cuenca@unl.edu.ec"));
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: { memberId: "m1", displayName: "María Cuenca", email: null } });
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("maria.cuenca");
+  });
+
+  describe("S8: whether the Google sign-in of the UNL page can work", () => {
+    const configured = { FORUM_ALLOWED_EMAIL_DOMAIN: "unl.edu.ec", GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org" };
+
+    beforeEach(() => {
+      jar({});
+      for (const [name, value] of Object.entries(configured)) vi.stubEnv(name, value);
+    });
+
+    it("is available when the forum's Google login is fully configured", async () => {
+      expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", loginAvailable: true });
+    });
+
+    it.each(["FORUM_ALLOWED_EMAIL_DOMAIN", "FORUM_SESSION_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "AUTH_URL"])("is not available without %s: the page must not offer a sign-in that cannot work", async (name) => {
+      vi.stubEnv(name, "");
+
+      expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", member: null, loginAvailable: false });
+    });
+  });
+
+  it("tells the UNL page whether reminders will be sent, which depends on the mail being set up", async () => {
+    jar({});
+    vi.stubEnv("AUTH_URL", "https://admin.example.org");
+    vi.stubEnv("MAIL_GMAIL_USER", "asociacion@gmail.com");
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "abcdefghijklmnop");
+
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: true });
+
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "");
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: false });
+
+    vi.stubEnv("MAIL_GMAIL_APP_PASSWORD", "abcdefghijklmnop");
+    vi.stubEnv("AUTH_URL", "");
+    expect(await getEventRegistrationPage("taller-de-git")).toMatchObject({ kind: "unl", remindersOn: false });
   });
 
   it("offers the open form to anyone, without a session, with the live seats and the widget key when there is one", async () => {
@@ -183,9 +244,16 @@ describe("getEventRegistrationPage", () => {
   });
 
   it("keeps showing an open event that is full or closed, so the page can say so instead of hiding it", async () => {
-    await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
+    const event = await addTestEvent({ title: "Lleno", registrationMode: "open", registrationCapacity: 1 });
     await addTestEvent({ title: "Pasado", registrationMode: "open", date: "2000-01-01" });
-    await testEventRegistration.services.registerOpen.execute({ slug: "lleno", form: { name: "Ana", email: "ana@example.com", career: "Computación", semester: 3 } });
+    const registered = await testEventRegistration.services.registerOpen.execute({
+      slug: "lleno",
+      form: { name: "Ana", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 3 },
+    });
+
+    // The seat is taken when the email is confirmed, not before.
+    expect(registered.status).toBe("registered");
+    await testEventRegistration.registrations.confirm(event.id, registered.status === "registered" ? registered.registration.id : "", new Date());
     jar({});
 
     expect(await getEventRegistrationPage("lleno")).toMatchObject({ kind: "open", status: { state: "full", registered: 1 } });
@@ -216,5 +284,41 @@ describe("getEventRegistrationPage", () => {
     jar({});
 
     for (const slug of ["nada", "borrador", "borrador-sin"]) expect(await getEventRegistrationPage(slug), slug).toBeNull();
+  });
+});
+
+describe("S1/S2: getRegistrationAccess, what the header of the list offers this browser", () => {
+  const configured = { FORUM_ALLOWED_EMAIL_DOMAIN: "unl.edu.ec", GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", AUTH_URL: "https://admin.example.org" };
+
+  beforeEach(() => {
+    for (const [name, value] of Object.entries(configured)) vi.stubEnv(name, value);
+  });
+
+  it("offers the sign-in to a visitor when it is configured", async () => {
+    jar({});
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: true });
+  });
+
+  it("does not offer it when it is not configured", async () => {
+    jar({});
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: false });
+  });
+
+  it("names the signed-in member with their own email", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+
+    expect(await getRegistrationAccess()).toEqual({ member: { name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }, loginAvailable: true });
+  });
+
+  it("treats the browser as a visitor, and says so in the log without personal data, when the account cannot be read", async () => {
+    await signIn({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+    vi.spyOn(getForumServices().ownAccount, "execute").mockRejectedValueOnce(new Error("database is down for maria.cuenca@unl.edu.ec"));
+
+    expect(await getRegistrationAccess()).toEqual({ member: null, loginAvailable: true });
+    expect(console.error).toHaveBeenCalledOnce();
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("maria.cuenca");
   });
 });

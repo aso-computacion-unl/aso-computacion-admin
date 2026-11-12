@@ -1,11 +1,21 @@
-import type { ForumActor } from "@/application";
+import type { ForumActor, OwnForumAccount } from "@/application";
 import type { EventRegistrationStatus } from "@/application";
-import type { OpenUnlEvent } from "@/application/event-registration/list-open-unl-events.use-case";
+import type { OpenRegistrationEvent } from "@/application/event-registration/list-open-registration-events.use-case";
 import { todayInEcuador } from "@/domain/calendar-date";
+import { publicOrigin } from "@/infrastructure/auth/auth-config";
+import { isForumEnabled } from "@/infrastructure/forum/forum-config";
 import { turnstileSecretWithoutSiteKey, turnstileSiteKey } from "@/infrastructure/http/turnstile";
+import { gmailConfig } from "@/infrastructure/mail/mail-config";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 
+import { getForumServices } from "./forum-container";
 import { getForumMember } from "./require-forum-member";
+
+/**
+ * The signed-in member as the UNL stub names them (S1): their own email, read like the header's account, or null when
+ * it cannot be read; the stub then falls back to the public name.
+ */
+export type RegistrationMember = ForumActor & { email: string | null };
 
 /** What the page says about the event, whatever way (if any) it takes registrations. */
 export type EventFacts = EventRegistrationStatus["event"];
@@ -15,8 +25,11 @@ export type EventFacts = EventRegistrationStatus["event"];
  * event, or null when there is nothing to add (no exact day, or the day already passed).
  */
 export type EventRegistrationPage =
-  /** The signed-in member, or null: the page then offers the Google login. */
-  | { kind: "unl"; member: ForumActor | null; status: EventRegistrationStatus; calendarHref: string | null }
+  /**
+   * The signed-in member, or null: the page then offers the Google login, unless `loginAvailable` is false (the login
+   * is not configured on this server): then it says the UNL registration is not available right now (S8).
+   */
+  | { kind: "unl"; member: RegistrationMember | null; loginAvailable: boolean; status: EventRegistrationStatus; calendarHref: string | null; remindersOn: boolean }
   /**
    * The public form: no session needed. `siteKey` is the Turnstile widget's public key, if configured.
    * `captchaMisconfigured`: the secret is set without a site key, so the server demands a token the page cannot
@@ -24,6 +37,11 @@ export type EventRegistrationPage =
    */
   | { kind: "open"; status: EventRegistrationStatus; siteKey: string | undefined; captchaMisconfigured: boolean; calendarHref: string | null }
   | { kind: "none"; event: EventFacts; calendarHref: string | null };
+
+/** Whether a registered person will get a reminder: the mail is set up and there is an address to link to. The page promises it only then. */
+function remindersAreOn(): boolean {
+  return gmailConfig() !== null && publicOrigin(process.env.AUTH_URL) !== undefined;
+}
 
 function calendarHrefFor(event: EventFacts, now: Date): string | null {
   const upcoming = event.date !== null && event.datePrecision === "day" && event.date >= todayInEcuador(now);
@@ -38,7 +56,9 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   const status = await services.status.execute({ slug, now, memberId: member?.memberId });
 
   if (status?.mode === "unl") {
-    return { kind: "unl", member, status, calendarHref: calendarHrefFor(status.event, now) };
+    const named = member ? { ...member, email: await ownEmailOrNone(member.memberId) } : null;
+
+    return { kind: "unl", member: named, loginAvailable: isForumEnabled(), status, calendarHref: calendarHrefFor(status.event, now), remindersOn: remindersAreOn() };
   }
 
   if (status) {
@@ -58,18 +78,51 @@ export async function getEventRegistrationPage(slug: string, now: Date = new Dat
   return { kind: "none", event: facts, calendarHref: calendarHrefFor(facts, now) };
 }
 
-export type { OpenUnlEvent };
+export type { OpenRegistrationEvent };
 
 /**
- * The events the forum home offers to register for. The aside is a bonus on the thread list, so a failed
- * read leaves it out (and is logged) instead of taking the whole home down.
+ * The events the public `/inscripciones` list shows: every one that takes a registration right now, UNL or open form.
+ * A failed read is not hidden: the page is the list, and an empty one would say that nothing is open.
  */
-export async function getOpenRegistrationEvents(now: Date = new Date()): Promise<OpenUnlEvent[]> {
-  try {
-    return await getEventRegistrationServices().openUnl.execute({ now });
-  } catch (error) {
-    console.error("Could not list the events open for registration", error);
+export async function getOpenRegistrationEvents(now: Date = new Date()): Promise<OpenRegistrationEvent[]> {
+  return getEventRegistrationServices().openRegistrations.execute({ now });
+}
 
-    return [];
+/** What the header of the registrations offers this browser (S1, S2): the signed-in member's own account, or the sign-in when it can work. */
+export interface RegistrationAccess {
+  member: OwnForumAccount | null;
+  /** The forum's Google sign-in is configured on this server; without it the header offers none. */
+  loginAvailable: boolean;
+}
+
+/**
+ * The account is an extra of the header, never a condition of the pages under it: when it cannot be read (the database
+ * fails), the browser is shown as a visitor and the list and the forms still render. Nothing here grants access; every
+ * registration action runs its own guard.
+ */
+export async function getRegistrationAccess(): Promise<RegistrationAccess> {
+  return { member: await ownAccountOrNone(), loginAvailable: isForumEnabled() };
+}
+
+/** Like the header's account: an extra of the stub, so a failed read only leaves the public name to show. */
+async function ownEmailOrNone(memberId: string): Promise<string | null> {
+  try {
+    return (await getForumServices().ownAccount.execute({ memberId }))?.email ?? null;
+  } catch {
+    console.error("Could not read the forum account for the registration stub.");
+
+    return null;
+  }
+}
+
+async function ownAccountOrNone(): Promise<OwnForumAccount | null> {
+  try {
+    const actor = await getForumMember();
+
+    return actor ? await getForumServices().ownAccount.execute({ memberId: actor.memberId }) : null;
+  } catch {
+    console.error("Could not read the forum account for the header of the registrations.");
+
+    return null;
   }
 }

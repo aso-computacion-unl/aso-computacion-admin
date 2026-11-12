@@ -2,10 +2,12 @@ import "server-only";
 
 import { Prisma, type ForumMember as ForumMemberRow } from "@/generated/prisma/client";
 
+import type { ForumMemberCriteria, ForumMemberDirectory } from "@/application/forum/forum-members.use-cases";
 import type { ForumMemberRepository } from "@/application/ports/forum.ports";
 import type { ForumMember } from "@/domain/forum";
 
 import { prisma } from "../prisma/client";
+import { searchWhere } from "./publication-filter";
 
 /** The member as the domain knows it; also used by the session repository's join. */
 export function toForumMember(row: ForumMemberRow): ForumMember {
@@ -21,7 +23,7 @@ export function toForumMember(row: ForumMemberRow): ForumMember {
   };
 }
 
-export class ForumMemberPrismaRepository implements ForumMemberRepository {
+export class ForumMemberPrismaRepository implements ForumMemberRepository, ForumMemberDirectory {
   async findById(id: string): Promise<ForumMember | null> {
     const row = await prisma.forumMember.findUnique({ where: { id } });
 
@@ -55,5 +57,15 @@ export class ForumMemberPrismaRepository implements ForumMemberRepository {
 
   async recordLogin(id: string, at: Date): Promise<void> {
     await prisma.forumMember.updateMany({ where: { id }, data: { lastLoginAt: at } });
+  }
+
+  async list({ filter, search }: ForumMemberCriteria, page: { offset: number; limit: number }) {
+    const where: Prisma.ForumMemberWhereInput = { ...(filter === "suspended" ? { status: "SUSPENDED" } : {}), ...searchWhere(search, ["displayName", "email"]) };
+    const [rows, total] = await Promise.all([
+      prisma.forumMember.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], skip: page.offset, take: page.limit }),
+      prisma.forumMember.count({ where }),
+    ]);
+
+    return { items: rows.map(toForumMember), total };
   }
 }

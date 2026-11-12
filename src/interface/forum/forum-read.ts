@@ -6,8 +6,13 @@ import { requireForumPageMember } from "./require-forum-page-member";
 
 // Reads that feed the forum pages (T15b). Every one checks the member itself: a layout is not re-rendered
 // on client navigation, so a page that read without checking would keep showing data after a revoke or a
-// suspension. Results are the forum DTOs: public names only, never an email or a member id. `returnTo` is the
+// suspension. Results are the forum DTOs: public names only, never an email or a member id (the one id a page hands the browser is the draft's owner, below). `returnTo` is the
 // calling page's own path, carried through the sign-in so the visitor lands back on it.
+
+/** The signed-in member's id, for the forms: a draft kept in the browser is tied to it and given back only to the same member (D5). */
+export async function getForumDraftOwner(returnTo?: string) {
+  return (await requireForumPageMember(returnTo)).memberId;
+}
 
 /** The categories in display order, with the count of visible threads. */
 export async function getForumCategories(returnTo?: string) {

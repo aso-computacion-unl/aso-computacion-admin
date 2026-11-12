@@ -22,6 +22,7 @@ import type {
   ForumReportQueue,
   ForumReportRow,
 } from "@/application/ports/forum-moderation.ports";
+import type { ForumMemberCriteria, ForumMemberDirectory } from "@/application/forum/forum-members.use-cases";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { ForumCategory, ForumMember, ForumReply, ForumReport, ForumThread } from "@/domain/forum";
 
@@ -94,7 +95,7 @@ export function makeForumReport(overrides: Partial<ForumReport> = {}): ForumRepo
   };
 }
 
-export class InMemoryForumMemberRepository implements ForumMemberRepository {
+export class InMemoryForumMemberRepository implements ForumMemberRepository, ForumMemberDirectory {
   readonly members = new Map<string, ForumMember>();
 
   constructor(initial: ForumMember[] = []) {
@@ -122,6 +123,16 @@ export class InMemoryForumMemberRepository implements ForumMemberRepository {
   async recordLogin(id: string, at: Date) {
     const member = this.members.get(id);
     if (member) this.members.set(id, { ...member, lastLoginAt: at });
+  }
+
+  async list({ filter, search }: ForumMemberCriteria, page: { offset: number; limit: number }) {
+    const text = search.toLowerCase();
+    const wanted = [...this.members.values()]
+      .filter((member) => filter === "all" || member.status === "SUSPENDED")
+      .filter((member) => text === "" || member.displayName.toLowerCase().includes(text) || member.email.toLowerCase().includes(text))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
+
+    return { items: wanted.slice(page.offset, page.offset + page.limit), total: wanted.length };
   }
 }
 
@@ -296,7 +307,7 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
 
   async listReplies(threadId: string): Promise<ForumReplyRow[]> {
     const replies = [...this.store.replies.values()]
-      .filter((reply) => reply.threadId === threadId && !reply.hiddenAt)
+      .filter((reply) => reply.threadId === threadId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     return Promise.all(replies.map(async (reply) => ({ reply, authorName: await this.nameOf(reply.authorId) })));
@@ -324,6 +335,12 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     const replies = [...this.store.replies.values()].filter((reply) => reply.authorId === memberId && reply.createdAt >= since);
 
     return threads.length + replies.length;
+  }
+
+  async oldestPostSince(memberId: string, since: Date) {
+    const times = [...this.store.threads.values(), ...this.store.replies.values()].filter((post) => post.authorId === memberId && post.createdAt >= since).map((post) => post.createdAt.getTime());
+
+    return times.length === 0 ? null : new Date(Math.min(...times));
   }
 }
 

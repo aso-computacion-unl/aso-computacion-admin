@@ -24,6 +24,16 @@ const minutesAgo = (minutes: number) => new Date(NOW.getTime() - minutes * 60_00
 
 const render = (id: string) => ThreadPage({ params: Promise.resolve({ id }) }).then((element) => renderToStaticMarkup(element));
 
+/** The `memberId` props found anywhere in the element tree the page returned (before it renders): what the page hands the browser. */
+function memberIdProps(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(memberIdProps);
+  if (typeof node !== "object" || node === null || !("props" in node)) return [];
+
+  const props = (node as { props: { memberId?: unknown; children?: unknown } }).props;
+
+  return [...(typeof props.memberId === "string" ? [props.memberId] : []), ...memberIdProps(props.children)];
+}
+
 let viewerId = "";
 
 function seedThread(overrides: Parameters<typeof makeForumThread>[0] = {}) {
@@ -45,6 +55,12 @@ beforeEach(async () => {
 });
 
 describe("a thread page", () => {
+  it("hands the reply box the id of the member reading, which owns the draft kept in the browser (D5)", async () => {
+    seedThread();
+
+    expect(memberIdProps(await ThreadPage({ params: Promise.resolve({ id: "t1" }) }))).toEqual([viewerId]);
+  });
+
   it("is for members: a visitor goes to the sign-in at /foro, which brings them back to this thread", async () => {
     seedThread();
     cookiesMock.mockResolvedValue(cookieJar({}));
@@ -180,23 +196,57 @@ describe("a thread page", () => {
       expect(count(html, ">Reportar<")).toBe(2);
     });
 
-    it("shows «Me sirvió» with its count on every reply, pressed when the viewer left one", async () => {
+    it("shows «Me sirvió» with its count on the opening post and on every reply, pressed when the viewer left one (D2)", async () => {
       seedThread();
       reply("r1", "m2");
       reply("r2", "m2", minutesAgo(30));
+      testForum.store.reactions.set("x0", { memberId: "m2", threadId: "t1", replyId: null });
       testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r1" });
       testForum.store.reactions.set("x2", { memberId: viewerId, threadId: null, replyId: "r1" });
 
       const html = await render("t1");
 
-      expect(count(html, "Me sirvió")).toBe(2);
+      expect(count(html, "Me sirvió")).toBe(3);
       const buttons = html.split("<button").filter((part) => part.includes("Me sirvió"));
 
-      expect(buttons).toHaveLength(2);
-      expect(buttons[0]).toContain('aria-pressed="true"');
-      expect(buttons[0]).toContain(">2</span>");
-      expect(buttons[1]).toContain('aria-pressed="false"');
-      expect(buttons[1]).toContain(">0</span>");
+      expect(buttons).toHaveLength(3);
+      // The opening post first: one reaction, not the viewer's.
+      expect(buttons[0]).toContain('aria-pressed="false"');
+      expect(buttons[0]).toContain(">1</span>");
+      expect(buttons[1]).toContain('aria-pressed="true"');
+      expect(buttons[1]).toContain(">2</span>");
+      expect(buttons[2]).toContain('aria-pressed="false"');
+      expect(buttons[2]).toContain(">0</span>");
+    });
+
+    it("offers «Editar» only on the viewer's own posts, the opening post included (D2)", async () => {
+      seedThread({ authorId: viewerId });
+      reply("r1", "m2");
+      reply("r2", viewerId, minutesAgo(30));
+
+      const html = await render("t1");
+      const opening = html.slice(0, html.indexOf('id="respuesta-r1"'));
+      const others = html.slice(html.indexOf('id="respuesta-r1"'), html.indexOf('id="respuesta-r2"'));
+      const ownReply = html.slice(html.indexOf('id="respuesta-r2"'));
+
+      expect(count(html, ">Editar<")).toBe(2);
+      expect(opening).toContain(">Editar<");
+      expect(others).not.toContain(">Editar<");
+      expect(ownReply).toContain(">Editar<");
+    });
+
+    it("offers no «Editar» on someone else's thread", async () => {
+      seedThread();
+      reply("r1", "m2");
+
+      expect(await render("t1")).not.toContain(">Editar<");
+    });
+
+    it("offers no «Editar» on a locked thread, where the server refuses edits", async () => {
+      seedThread({ authorId: viewerId, lockedAt: new Date() });
+      reply("r1", viewerId);
+
+      expect(await render("t1")).not.toContain(">Editar<");
     });
 
     it("lets only the thread's author mark a reply as the best answer", async () => {
@@ -242,6 +292,79 @@ describe("a thread page", () => {
 
       expect(html).not.toContain("Mateo R. le sirvió");
       expect(html).not.toContain("reaccion");
+    });
+  });
+
+  describe("a reply the moderation hid (D4)", () => {
+    const PLACEHOLDER = "Respuesta oculta por la moderación";
+    const HIDDEN_BODY = "Texto que la moderación ocultó con insultos";
+
+    function seedWithHiddenReply(threadOverrides: Parameters<typeof makeForumThread>[0] = {}) {
+      seedThread({ authorId: viewerId, ...threadOverrides });
+      testForum.members.members.set("m3", makeForumMember({ id: "m3", email: "cris@unl.edu.ec", googleSub: "sub-3", displayName: "Cristóbal Oculto" }));
+      testForum.store.replies.set("r1", makeForumReply({ id: "r1", threadId: "t1", authorId: "m2", body: "Primera visible", createdAt: minutesAgo(60) }));
+      testForum.store.replies.set("r2", makeForumReply({ id: "r2", threadId: "t1", authorId: "m3", body: HIDDEN_BODY, createdAt: minutesAgo(40), hiddenAt: new Date() }));
+      testForum.store.replies.set("r3", makeForumReply({ id: "r3", threadId: "t1", authorId: "m2", body: "Tercera visible", createdAt: minutesAgo(20) }));
+      testForum.store.reactions.set("x1", { memberId: "m2", threadId: null, replyId: "r2" });
+    }
+
+    /** Every string in the element tree the page returns: what React would serialise to the browser as props, not only the markup. */
+    function everyString(node: unknown, seen = new Set<unknown>()): string[] {
+      if (typeof node === "string") return [node];
+      if (typeof node !== "object" || node === null || seen.has(node)) return [];
+
+      seen.add(node);
+
+      return Object.values(node).flatMap((value) => everyString(value, seen));
+    }
+
+    it("leaves the placeholder in its place, in order, and nothing of the reply", async () => {
+      seedWithHiddenReply();
+
+      const html = await render("t1");
+
+      expect(html).toContain(PLACEHOLDER);
+      expect(html.indexOf("Primera visible")).toBeLessThan(html.indexOf(PLACEHOLDER));
+      expect(html.indexOf(PLACEHOLDER)).toBeLessThan(html.indexOf("Tercera visible"));
+      expect(html).not.toContain(HIDDEN_BODY);
+      expect(html).not.toContain("Cristóbal");
+      expect(html).toContain("2 respuestas");
+    });
+
+    it("has no author actions, no reaction and no report on it", async () => {
+      seedWithHiddenReply();
+
+      const html = await render("t1");
+      const placeholder = html.slice(html.indexOf('id="respuesta-r2"'), html.indexOf('id="respuesta-r3"'));
+
+      expect(placeholder).toContain(PLACEHOLDER);
+      expect(placeholder).not.toMatch(/Me sirvió|Reportar|mejor respuesta|Editar|<button/);
+      // The two visible replies keep theirs, and the opening post has its «Me sirvió».
+      expect(html.split("Me sirvió")).toHaveLength(4);
+      expect(html.split(">Reportar<")).toHaveLength(3);
+      expect(html.split("Marcar como mejor respuesta")).toHaveLength(3);
+    });
+
+    it("never hands the hidden text, its author or its reactions to a component, which is what reaches the browser", async () => {
+      seedWithHiddenReply();
+
+      const tree = await ThreadPage({ params: Promise.resolve({ id: "t1" }) });
+      const strings = everyString(tree).join("\n");
+
+      expect(strings).toContain("Primera visible");
+      expect(strings).not.toContain(HIDDEN_BODY);
+      expect(strings).not.toContain("Cristóbal");
+    });
+
+    it("fills the best-answer slot with the placeholder when the thread still points at a hidden reply", async () => {
+      seedWithHiddenReply({ bestReplyId: "r2" });
+
+      const html = await render("t1");
+      const slot = html.slice(html.indexOf('id="mejor"'));
+
+      expect(slot.slice(0, slot.indexOf("</article>"))).toContain(PLACEHOLDER);
+      expect(html).not.toContain(HIDDEN_BODY);
+      expect(html).not.toContain("Cristóbal");
     });
   });
 

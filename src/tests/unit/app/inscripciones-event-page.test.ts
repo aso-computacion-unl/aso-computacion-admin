@@ -5,13 +5,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { pageMock } = vi.hoisted(() => ({ pageMock: vi.fn() }));
 
-vi.mock("@/interface/forum/event-registration-read", () => ({ getEventRegistrationPage: pageMock }));
+vi.mock("@/interface/forum/event-registration-read", () => ({ getEventRegistrationPage: pageMock, getRegistrationAccess: async () => ({ member: null, loginAvailable: false }) }));
 vi.mock("@/interface/forum/event-registration", () => ({ registerForEvent: vi.fn() }));
+vi.mock("@/interface/event-registration/cancel-registration-action", () => ({ cancelEventRegistration: vi.fn() }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
   useRouter: () => ({ refresh: vi.fn() }),
+  usePathname: () => "/inscripciones/taller-docker",
 }));
 
 import EventRegistrationPage from "../../../../app/inscripciones/[slug]/page";
@@ -20,12 +22,13 @@ import RegistrationLayout from "../../../../app/inscripciones/layout";
 
 const event = { slug: "taller-docker", title: "Taller de Docker", description: null, date: "2026-11-20", datePrecision: "day" as const, hora: "15:00", lugar: "Laboratorio 2" };
 const status = (over: Record<string, unknown> = {}) => ({ event, mode: "unl", state: "open", alreadyRegistered: false, capacity: 30, registered: 0, deadline: null, ...over });
-const unl = (member: unknown, over: Record<string, unknown> = {}) => ({ kind: "unl", member, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over) });
+const unl = (member: unknown, over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "unl", member, loginAvailable: true, remindersOn: false, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status(over), ...extra });
 const open = (over: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({ kind: "open", siteKey: undefined, calendarHref: "/api/public/events/taller-docker/calendar.ics", status: status({ mode: "open", ...over }), ...extra });
 const none = (extra: Record<string, unknown> = {}) => ({ kind: "none", event, calendarHref: "/api/public/events/taller-docker/calendar.ics", ...extra });
-const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez" };
+const member = { memberId: "m1", sessionId: "s1", displayName: "Ana Pérez", email: "ana.perez@unl.edu.ec" };
 
-const render = async () => renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }) }));
+const render = async (query: { error?: string | string[] } = {}) =>
+  renderToStaticMarkup(await EventRegistrationPage({ params: Promise.resolve({ slug: "taller-docker" }), searchParams: Promise.resolve(query) }));
 
 beforeEach(() => {
   pageMock.mockReset();
@@ -155,17 +158,68 @@ describe("the event registration page", () => {
     expect(html).not.toContain("ticket-meter");
   });
 
-  it("offers the one-click reservation to a signed-in member, who sees their name and no sign-in", async () => {
+  it("offers the one-click reservation to a signed-in member, who sees their email and no sign-in", async () => {
     pageMock.mockResolvedValue(unl(member));
 
     const html = await render();
     const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
 
-    expect(stub).toContain("Ana Pérez");
+    expect(stub).toContain("ana.perez@unl.edu.ec");
     expect(stub).toMatch(/<button[^>]*class="ticket-cta"[^>]*>Reservar mi cupo/);
     expect(html).not.toContain("Inscribirme");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("<form");
+  });
+
+  it("S1: names the signed-in account in the stub by its email, and by the public name only when the email could not be read", async () => {
+    pageMock.mockResolvedValue(unl(member));
+
+    let stub = (await render()).match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+    expect(stub).toMatch(/Se reservará para <strong>ana\.perez@unl\.edu\.ec<\/strong>/);
+    expect(stub).not.toContain("Ana Pérez");
+
+    pageMock.mockResolvedValue(unl({ ...member, email: null }));
+    stub = (await render()).match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+    expect(stub).toMatch(/Se reservará a nombre de <strong>Ana Pérez<\/strong>/);
+  });
+
+  it("promises a reminder by email to a registered member only when reminders are on, and says there is no confirmation email otherwise", async () => {
+    pageMock.mockResolvedValue({ ...unl(member, { alreadyRegistered: true }), remindersOn: true });
+
+    const on = await render();
+
+    expect(on).toContain("unos días antes del evento le enviaremos un recordatorio");
+    expect(on).not.toContain("no enviamos correo de confirmación");
+
+    pageMock.mockResolvedValue({ ...unl(member, { alreadyRegistered: true }), remindersOn: false });
+
+    const off = await render();
+
+    expect(off).toContain("no enviamos correo de confirmación");
+    expect(off).not.toContain("le enviaremos un recordatorio");
+  });
+
+  it("D7: offers a registered member the way to cancel (a full event included: that is what frees the seat), and nobody else", async () => {
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true }));
+    expect(await render()).toContain("Cancelar mi inscripción");
+
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true, state: "full" }));
+    expect(await render()).toContain("Cancelar mi inscripción");
+
+    // Once registration closed the server would refuse: the page does not offer it, and says who to write to.
+    pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true, state: "closed" }));
+
+    const closed = await render();
+
+    expect(closed).not.toContain("Cancelar mi inscripción");
+    expect(closed).toContain("directiva de ASO");
+
+    for (const other of [unl(member), unl(null), unl(member, { state: "full" }), unl(null, { state: "closed" }), open(), none()]) {
+      pageMock.mockResolvedValue(other);
+      expect(await render()).not.toContain("Cancelar mi inscripción");
+    }
   });
 
   it("says so when the member is already registered, with the calendar, or when the seats are gone", async () => {
@@ -189,6 +243,85 @@ describe("the event registration page", () => {
     expect(html).not.toContain("auth/google/start");
   });
 
+  describe("S8: the Google login is not configured on this server", () => {
+    it("says the UNL registration is not available right now to a visitor, instead of a sign-in that cannot work", async () => {
+      pageMock.mockResolvedValue(unl(null, {}, { loginAvailable: false }));
+
+      const html = await render();
+      const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+
+      expect(stub).toMatch(/<p role="status" class="stub-closed">La inscripción con cuenta UNL no está disponible en este momento\./);
+      expect(html).not.toContain("auth/google");
+      expect(html).not.toContain("Entrar con Google");
+      expect(html).not.toContain("Reservar mi cupo");
+      expect(html).toContain("Taller de Docker");
+      expect(html).toContain("Quedan 30 cupos");
+    });
+
+    it("still lets someone who is already signed in reserve, and still tells a registered member they are in", async () => {
+      pageMock.mockResolvedValue(unl(member, {}, { loginAvailable: false }));
+      expect(await render()).toContain("Reservar mi cupo");
+
+      pageMock.mockResolvedValue(unl(member, { alreadyRegistered: true }, { loginAvailable: false }));
+      expect(await render()).toContain("Usted ya está inscrito en este evento.");
+    });
+
+    it("keeps saying a full or closed event is full or closed before anything about the login", async () => {
+      pageMock.mockResolvedValue(unl(null, { state: "closed" }, { loginAvailable: false }));
+
+      const html = await render();
+
+      expect(html).toContain("Las inscripciones de este evento ya cerraron.");
+      expect(html).not.toContain("no está disponible en este momento");
+    });
+
+    it("does not touch the open form, which has no Google login", async () => {
+      pageMock.mockResolvedValue(open());
+
+      expect(await render()).not.toContain("no está disponible en este momento");
+    });
+  });
+
+  describe("D5: a failed sign-in comes back to this page and is told in registration words", () => {
+    it.each(["unavailable", "failed", "denied", "verification"])("shows %s as an alert above the sign-in, with a button to try again, and never says foro", async (code) => {
+      pageMock.mockResolvedValue(unl(null));
+
+      const html = await render({ error: code });
+      const stub = html.match(/<section class="ticket-stub"[\s\S]*<\/section>/)?.[0] ?? "";
+      const alert = stub.match(/<p role="alert"[\s\S]*?<\/p>/)?.[0] ?? "";
+
+      expect(alert).not.toBe("");
+      expect(alert).not.toMatch(/foro/i);
+      expect(stub.indexOf(alert)).toBeLessThan(stub.indexOf("auth/google/start"));
+      expect(stub).toContain("Intentar de nuevo");
+      expect(stub).not.toContain("Entrar con Google");
+      expect(stub).toContain('href="/foro/auth/google/start?next=%2Finscripciones%2Ftaller-docker"');
+    });
+
+    it("explains a refused account by pointing to the institutional one", async () => {
+      pageMock.mockResolvedValue(unl(null));
+
+      expect(await render({ error: "denied" })).toContain("Esa cuenta no puede entrar. Use su correo institucional @unl.edu.ec.");
+    });
+
+    it.each([{ error: "suspended" }, { error: "<script>" }, { error: ["denied", "failed"] }, {}])("ignores an unknown or forum-only code (%j): the plain sign-in", async (query) => {
+      pageMock.mockResolvedValue(unl(null));
+
+      const html = await render(query);
+
+      expect(html).not.toContain('role="alert"');
+      expect(html).toContain("Entrar con Google");
+    });
+
+    it("does not show the problem to someone signed in or on an event that offers no sign-in", async () => {
+      pageMock.mockResolvedValue(unl(member));
+      expect(await render({ error: "denied" })).not.toContain('role="alert"');
+
+      pageMock.mockResolvedValue(unl(null, {}, { loginAvailable: false }));
+      expect(await render({ error: "denied" })).not.toContain('role="alert"');
+    });
+  });
+
   it("is a 404 for an unknown or non-public event", async () => {
     pageMock.mockResolvedValue(null);
 
@@ -208,18 +341,18 @@ describe("the open registration of the same page", () => {
     expect(html).toContain("12 de 30 inscritos · cierra el 18 nov 2026, 18:00");
     expect(html).toContain("Inscripciones abiertas");
     expect(html.match(/<section class="ticket-stub"[\s\S]*<form/)).not.toBeNull();
-    for (const name of ["name", "email", "career", "semester"]) expect(html).toContain(`name="${name}"`);
+    for (const name of ["name", "email", "institution", "career", "semester"]) expect(html).toContain(`name="${name}"`);
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Reservar mi cupo/);
-    expect(html).toContain("Usamos tus datos solo para esta actividad");
+    expect(html).toContain("Usamos sus datos solo para esta actividad");
     expect(html).not.toContain("auth/google/start");
     expect(html).not.toContain("Inscribirme");
     expect(html).not.toMatch(/\busted\b|\bSu inscripción\b/i);
   });
 
-  it("says the form's last field is the ciclo", async () => {
+  it("says the form's last field is the optional ciclo", async () => {
     pageMock.mockResolvedValue(open());
 
-    expect(await render()).toMatch(/<label[^>]*>Ciclo<\/label>/);
+    expect(await render()).toMatch(/<label[^>]*>Ciclo \(opcional\)<\/label>/);
   });
 
   it("hides the form when the seats are gone and says so, keeping the numbers", async () => {
@@ -321,15 +454,17 @@ describe("the event 404", () => {
     expect(html).not.toContain("categoría");
     expect(html).not.toContain("hilo");
     expect(html).not.toContain("en el foro");
-    expect(html).not.toContain('href="/foro"');
+    expect(html).not.toContain('href="/foro');
+    expect(html).toContain('href="/inscripciones"');
+    expect(html).toContain("Ver las inscripciones abiertas");
   });
 });
 
 describe("the registration layout", () => {
-  const layout = () => renderToStaticMarkup(RegistrationLayout({ children: "contenido" }));
+  const layout = async () => renderToStaticMarkup(await RegistrationLayout({ children: "contenido" }));
 
-  it("is its own shell: a skip link, the brand, the theme toggle and one main landmark", () => {
-    const html = layout();
+  it("is its own shell: a skip link, the brand, the theme toggle and one main landmark", async () => {
+    const html = await layout();
 
     expect(html).toContain('href="#registration-main"');
     expect(html.match(/<main/g)).toHaveLength(1);
@@ -337,8 +472,17 @@ describe("the registration layout", () => {
     expect(html).toContain("ASO Computación");
   });
 
-  it("has no forum rail, no forum name and no link into the forum", () => {
-    const html = layout();
+  it("D8: its own top bar is named Inscripciones and its brand leads to the list, the same on every page of the route", async () => {
+    const html = await layout();
+    const bar = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
+
+    expect(bar).toMatch(/<a [^>]*href="\/inscripciones"[^>]*>[\s\S]*?Inscripciones<\/span><\/a>/);
+    expect(bar).toContain("Inscripciones de ASO Computación, inicio");
+    expect(bar).not.toMatch(/foro/i);
+  });
+
+  it("has no forum rail, no forum name and no link into the forum", async () => {
+    const html = await layout();
 
     expect(html).not.toMatch(/href="\/foro/);
     expect(html).not.toContain("Foro");

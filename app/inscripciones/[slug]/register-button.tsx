@@ -4,19 +4,30 @@ import { useState, useTransition } from "react";
 
 import { registerForEvent } from "@/interface/forum/event-registration";
 
+import { PassGoogleButton } from "../_components/pass-google-button";
 import { ArrowGlyph } from "../_components/ticket-parts";
 
-/** Registers the signed-in member and says what happened; the page behind it refreshes by itself on success. */
-export function RegisterButton({ slug }: { slug: string }) {
+interface RegisterButtonProps {
+  slug: string;
+  /** Where the sign-in that comes back to this page starts; null when the Google login is not configured here. */
+  signInHref: string | null;
+}
+
+/**
+ * Registers the signed-in member and says what happened; the page behind it refreshes by itself on success. When the
+ * session is gone (D5) the message is the registration's and, where the login works, the way back in is offered
+ * right under it: it returns to this same event page.
+ */
+export function RegisterButton({ slug, signInHref }: RegisterButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; sessionExpired: boolean } | null>(null);
 
   function register() {
     setError(null);
     startTransition(async () => {
       const result = await registerForEvent(slug);
 
-      if (result.error) setError(result.error);
+      if (result.error) setError({ message: result.error, sessionExpired: result.sessionExpired === true });
     });
   }
 
@@ -28,9 +39,10 @@ export function RegisterButton({ slug }: { slug: string }) {
       </button>
       {error ? (
         <p role="alert" className="ticket-error">
-          {error}
+          {error.message}
         </p>
       ) : null}
+      {error?.sessionExpired && signInHref ? <PassGoogleButton href={signInHref}>Entrar con Google</PassGoogleButton> : null}
     </div>
   );
 }

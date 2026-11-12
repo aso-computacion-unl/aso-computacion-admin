@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { SignJWT } from "jose";
 
+import { E2E_SMTP_PORT, startSmtpSink } from "../e2e/support/smtp-sink.ts";
 import { createIntegrationEnvironment } from "./run-prisma-integration-tests.mjs";
 import { assertSafePrismaTestTarget, CANONICAL_TEST_DATABASE_URL } from "./prisma-test-target.mjs";
 
@@ -19,12 +20,24 @@ const COMPOSE_ARGUMENTS = ["--context", "default", "compose", "--project-name", 
 const E2E_ADMIN_PASSWORD = "e2e-only-admin-password-0123456789";
 const E2E_FORUM_DOMAIN = "unl.edu.ec";
 const E2E_ADMIN_SECRET = "e2e-only-session-secret-0123456789-abcdefghij";
+// Signs the confirmation links of the open registration form. Never equal to the admin's or the forum's secret (the app ignores it then).
+const E2E_REGISTRATION_CONFIRM_SECRET = "e2e-only-confirm-secret-0123456789-abcdefghij";
+// The origin the app is served on: the public origin its emailed links point at (`next start` on 3100, see playwright.config.ts).
+const E2E_APP_ORIGIN = "http://127.0.0.1:3100";
+// Fake Gmail account: the app only needs it to look configured, because `MAIL_SMTP_*` sends every message to the local sink.
+const E2E_MAIL_USER = "e2e-sender@example.org";
+const E2E_MAIL_APP_PASSWORD = "e2e-only-app-password";
+// Cloudflare's published Turnstile test keys: the widget renders and passes by itself, and siteverify accepts any token.
+const E2E_TURNSTILE_SITE_KEY = "1x00000000000000000000AA";
+const E2E_TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
 
 // Every variable that switches a feature on, by name (the full list the app reads, besides the test-only values
 // below). Next loads `.env*` files for each variable the process does not already define, so the developer's own
 // config would otherwise reach the build: Google sign-in folds the password form under "Acceso de emergencia",
 // a forum domain turns the forum login on, an AUTH_URL adds registration links, and so on. The specs describe
 // a server with none of them, so each is set to "" (the app treats empty as unset, and Next never overrides it).
+// The exceptions (the confirm secret, the fake mail account and sink, Turnstile's test keys, AUTH_URL) are set to
+// test values in `buildAppEnvironment`.
 const FEATURE_VARIABLES = [
   // Admin sign-in: Google, the emergency password, who may enter.
   "GOOGLE_CLIENT_ID",
@@ -46,6 +59,14 @@ const FEATURE_VARIABLES = [
   "CRON_SECRET",
   "PREVIEW_TOKEN_SECRET",
   "PUBLIC_CORS_ORIGINS",
+  // Confirmation emails: a developer's Gmail never sends anything from a test (the app gets a fake account and the sink).
+  "MAIL_GMAIL_USER",
+  "MAIL_GMAIL_APP_PASSWORD",
+  "MAIL_FROM_NAME",
+  "MAIL_DAILY_LIMIT",
+  "MAIL_SMTP_HOST",
+  "MAIL_SMTP_PORT",
+  "MAIL_SMTP_SECURE",
   // The real landing deploy and error reporting.
   "CLOUDFLARE_DEPLOY_HOOK_URL",
   "SENTRY_DSN",
@@ -107,6 +128,45 @@ function run(command, arguments_, environment, label) {
   }
 }
 
+/** `run` for a process that must not block this one: the SMTP sink lives here and has to answer while Playwright runs. */
+function runAsync(command, arguments_, environment, label) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, arguments_, { env: environment, stdio: "inherit" });
+
+    child.on("error", () => reject(new Error(`${label} failed.`)));
+    child.on("close", (status) => (status === 0 ? resolve() : reject(new Error(`${label} failed${status === null ? "" : ` (exit status ${status})`}.`))));
+  });
+}
+
+/** The environment of the build and of `next start`: the caller's, with every feature switched off or set to a test value. */
+export function buildAppEnvironment(environment, testDatabaseUrl) {
+  return {
+    ...environment,
+    ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
+    // Opt-in: the signed-in forum specs run only when the caller supplies a secret, never one from a `.env*` file.
+    // With it, the members' domain is set too (registering for an event with a UNL account needs it); the login
+    // itself stays off, because there is no Google client, so forum.spec.ts still sees "unavailable".
+    FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
+    FORUM_ALLOWED_EMAIL_DOMAIN: environment.FORUM_SESSION_SECRET ? E2E_FORUM_DOMAIN : "",
+    // Signs the confirmation links (`confirmToken` in audit-registration.spec.ts reads the same value to seed its own).
+    REGISTRATION_CONFIRM_SECRET: environment.REGISTRATION_CONFIRM_SECRET || E2E_REGISTRATION_CONFIRM_SECRET,
+    // The open registration form works for real: Turnstile's always-pass test keys, a public origin for the emailed
+    // links, and a fake Gmail account whose SMTP host is the sink (e2e/support/smtp-sink.ts, started by `runE2e`).
+    TURNSTILE_SITE_KEY: E2E_TURNSTILE_SITE_KEY,
+    TURNSTILE_SECRET_KEY: E2E_TURNSTILE_SECRET_KEY,
+    AUTH_URL: E2E_APP_ORIGIN,
+    MAIL_GMAIL_USER: E2E_MAIL_USER,
+    MAIL_GMAIL_APP_PASSWORD: E2E_MAIL_APP_PASSWORD,
+    MAIL_SMTP_HOST: "127.0.0.1",
+    MAIL_SMTP_PORT: String(E2E_SMTP_PORT),
+    MAIL_SMTP_SECURE: "false",
+    DATABASE_URL: testDatabaseUrl,
+    TEST_DATABASE_URL: testDatabaseUrl,
+    ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,
+    ADMIN_SECRET: environment.ADMIN_SECRET ?? E2E_ADMIN_SECRET,
+  };
+}
+
 // `playwrightArguments` go straight to `playwright test` (a file, `-g <title>`), so one spec can run against the same build.
 export async function runE2e(environment = process.env, playwrightArguments = []) {
   const testDatabaseUrl = environment.TEST_DATABASE_URL ?? CANONICAL_TEST_DATABASE_URL;
@@ -116,20 +176,9 @@ export async function runE2e(environment = process.env, playwrightArguments = []
   // Docker and Prisma get the stripped environment of the integration runner. The app, the build and
   // the browser keep the real one (HOME holds the installed Chromium) plus the test-only values.
   const databaseEnvironment = createIntegrationEnvironment(testDatabaseUrl, environment, temporaryDirectory);
-  const appEnvironment = {
-    ...environment,
-    ...Object.fromEntries(FEATURE_VARIABLES.map((name) => [name, ""])),
-    // Opt-in: the signed-in forum specs run only when the caller supplies a secret, never one from a `.env*` file.
-    // With it, the members' domain is set too (registering for an event with a UNL account needs it); the login
-    // itself stays off, because there is no Google client, so forum.spec.ts still sees "unavailable".
-    FORUM_SESSION_SECRET: environment.FORUM_SESSION_SECRET ?? "",
-    FORUM_ALLOWED_EMAIL_DOMAIN: environment.FORUM_SESSION_SECRET ? E2E_FORUM_DOMAIN : "",
-    DATABASE_URL: testDatabaseUrl,
-    TEST_DATABASE_URL: testDatabaseUrl,
-    ADMIN_PASSWORD: environment.ADMIN_PASSWORD ?? E2E_ADMIN_PASSWORD,
-    ADMIN_SECRET: environment.ADMIN_SECRET ?? E2E_ADMIN_SECRET,
-  };
+  const appEnvironment = buildAppEnvironment(environment, testDatabaseUrl);
   let composeAttempted = false;
+  let sink;
   let failure;
 
   try {
@@ -140,10 +189,17 @@ export async function runE2e(environment = process.env, playwrightArguments = []
     appEnvironment.E2E_EDITOR_SESSION = editorSession;
     appEnvironment.E2E_REVOKABLE_EDITOR_SESSION = revokableEditorSession;
     run("npx", ["next", "build"], appEnvironment, "Next build");
-    run("npx", ["playwright", "test", ...playwrightArguments], appEnvironment, "Playwright");
+    // The sink writes what the app "sends" into a directory both it and the specs (E2E_MAIL_DIR) know.
+    const mailDirectory = join(temporaryDirectory, "mail");
+
+    sink = await startSmtpSink({ directory: mailDirectory });
+    appEnvironment.E2E_MAIL_DIR = mailDirectory;
+    await runAsync("npx", ["playwright", "test", ...playwrightArguments], appEnvironment, "Playwright");
   } catch (error) {
     failure = error;
   }
+
+  await sink?.close();
 
   try {
     if (composeAttempted) {

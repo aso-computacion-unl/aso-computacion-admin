@@ -40,23 +40,20 @@ export function RegistrationsEmptyState({ eventId, slug, mode, isPublished, admi
     );
   }
 
-  if (mode === "open") {
-    return (
-      <EmptyState icon="board" action={<code className="font-mono text-[0.8125rem] text-mist wrap-anywhere">#evento-{slug}</code>}>
-        {EMPTY} El formulario abierto está en la tarjeta de este evento en el sitio público. Comparta esa sección con la ancla de abajo.
-      </EmptyState>
-    );
-  }
-
+  // Both ways of registering live on the event's own page, so the one next step is to share its link (D15).
+  const how =
+    mode === "open"
+      ? "El formulario abierto está en la página de inscripción de este evento: cualquier persona lo llena sin iniciar sesión y confirma su correo."
+      : "Las personas se inscriben con su cuenta UNL en la página de inscripción de este evento.";
   const link = registrationPageUrl(slug, adminOrigin);
 
   return link ? (
     <EmptyState icon="board" action={<CopyLink link={link} label="Link de la página de inscripción" />}>
-      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de inscripción de este evento. Comparta este link.
+      {EMPTY} {how} Comparta este link.
     </EmptyState>
   ) : (
     <EmptyState icon="board" action={<code className="font-mono text-[0.8125rem] text-mist wrap-anywhere">/inscripciones/{slug}</code>}>
-      {EMPTY} Las personas se inscriben con su cuenta UNL en la página de inscripción de este evento. Para copiar el link completo falta configurar AUTH_URL con la dirección pública del panel.
+      {EMPTY} {how} Para copiar el link completo falta configurar AUTH_URL con la dirección pública del panel.
     </EmptyState>
   );
 }

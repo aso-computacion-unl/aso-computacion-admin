@@ -10,7 +10,7 @@ const BASE_URL = "http://127.0.0.1:3100";
 
 // The open form's rate limit is five attempts per client every ten minutes and every request here comes from the
 // same address: the whole file posts to it at most twice.
-const FORM = { name: "Ana Pérez", email: "ana@example.com", career: "Computación", semester: 5, turnstileToken: "token" };
+const FORM = { name: "Ana Pérez", email: "ana@example.com", institution: "Universidad Nacional de Loja", career: "Computación", semester: 5 };
 
 async function logInAsAdmin(page: Page) {
   await page.goto("/login");
@@ -53,7 +53,7 @@ test.beforeAll(() => {
   expect(EDITOR_SESSION, "run the suite with `npm run e2e`").not.toBe("");
 });
 
-test("an event with the open form: the settings stick, the public API and the calendar file show it, and the form fails closed without Turnstile", async ({ page, request }) => {
+test("an event with the open form: the settings stick, the public API and the calendar file show it, and the form refuses a request without the Turnstile check", async ({ page, request }) => {
   const title = `E2E inscripcion ${Date.now()}`;
 
   await logInAsAdmin(page);
@@ -83,11 +83,12 @@ test("an event with the open form: the settings stick, the public API and the ca
   expect(ics).toContain("DTSTART:20991128T140000Z");
   expect((await request.get("/api/public/events/no-existe/calendar.ics")).status()).toBe(404);
 
-  // The e2e app has no Turnstile secret and runs in production mode: the open form is closed, and nothing is stored.
+  // The e2e app has Cloudflare's test secret: a request that brings no Turnstile token is refused before anything is read,
+  // and nothing is stored. (That the form also refuses when Turnstile cannot decide, 503, is the unit test of the check.)
   const refused = await request.post(`/api/public/events/${slug}/registrations`, { data: FORM });
 
-  expect(refused.status()).toBe(503);
-  expect(await refused.json()).toEqual({ error: "unavailable" });
+  expect(refused.status()).toBe(400);
+  expect(await refused.json()).toEqual({ error: "captcha" });
   expect((await request.post(`/api/public/events/${slug}/registrations`, { data: "{not json", headers: { "content-type": "application/json" } })).status()).toBe(400);
 
   await page.goto(`/admin/registrations?evento=${id}`);

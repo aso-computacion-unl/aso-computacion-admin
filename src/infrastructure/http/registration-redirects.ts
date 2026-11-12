@@ -4,6 +4,6 @@
  * previous deploy) keep working through a permanent redirect (308). Next appends the request's query string to a
  * destination that has none, so `/foro/eventos/x?y=1` ends at `/inscripciones/x?y=1`.
  *
- * `/foro/eventos` itself (the member list) stays in the forum and is not redirected.
+ * `/foro/eventos` itself redirects to the public `/inscripciones` list from its page (`app/foro/eventos/page.tsx`).
  */
 export const REGISTRATION_REDIRECTS = [{ source: "/foro/eventos/:slug", destination: "/inscripciones/:slug", permanent: true }] as const;

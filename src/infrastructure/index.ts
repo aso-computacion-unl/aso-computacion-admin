@@ -26,3 +26,4 @@ export { ForumPostPrismaRepository } from "./repositories/forum-post-prisma.repo
 export { ForumSessionPrismaRepository } from "./repositories/forum-session-prisma.repository";
 export { EventRegistrationPrismaRepository } from "./repositories/event-registration-prisma.repository";
 export { EventRegistrationRetentionPrismaStore } from "./repositories/event-registration-retention-prisma.store";
+export { MailDailyBudgetPrismaStore } from "./repositories/mail-daily-budget-prisma.store";

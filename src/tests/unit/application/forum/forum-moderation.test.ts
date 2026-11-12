@@ -233,11 +233,17 @@ describe("SetForumPostHiddenUseCase", () => {
     await setHidden().execute({ target: REPLY, hidden: true, moderatorId: "u1" });
     expect(store.replies.get("r1")).toMatchObject({ hiddenAt: NOW });
     expect(store.threads.get("t1")?.bestReplyId).toBeNull();
-    expect((await viewThread()).replies.map((reply) => reply.id)).toEqual([]);
+    expect((await viewThread()).replies).toEqual([
+      { id: "r1", hidden: true, isBest: false },
+      { id: "r2", hidden: true, isBest: false },
+    ]);
 
     await setHidden().execute({ target: REPLY, hidden: false, moderatorId: "u1" });
     expect(store.threads.get("t1")?.bestReplyId).toBeNull();
-    expect((await viewThread()).replies.map((reply) => reply.id)).toEqual(["r1"]);
+    expect((await viewThread()).replies.map((reply) => [reply.id, "hidden" in reply])).toEqual([
+      ["r1", false],
+      ["r2", true],
+    ]);
   });
 
   it("answers not found for an unknown post", async () => {

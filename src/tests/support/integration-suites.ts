@@ -35,4 +35,5 @@ export const INTEGRATION_SUITES: readonly string[] = [
   "src/tests/integration/infrastructure/social-proof-schema.integration.test.ts",
   "src/tests/integration/infrastructure/sponsor-prisma.repository.integration.test.ts",
   "src/tests/integration/infrastructure/public-social-proof.integration.test.ts",
+  "src/tests/integration/infrastructure/mail-daily-budget-prisma.store.integration.test.ts",
 ];

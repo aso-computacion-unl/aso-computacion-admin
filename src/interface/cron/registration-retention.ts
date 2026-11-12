@@ -18,7 +18,7 @@ export async function runRegistrationRetention(now: Date): Promise<PurgeResult> 
       await recordAudit(SYSTEM_ACTOR, {
         action: ACTION,
         entityType: "event",
-        summary: `Depuración de inscripciones: ${result.deleted} eliminadas, 90 días después de cada evento`,
+        summary: `Depuración de inscripciones: ${result.deleted} eliminadas (90 días después de cada evento o correo sin confirmar en 48 h)`,
       });
     }
 

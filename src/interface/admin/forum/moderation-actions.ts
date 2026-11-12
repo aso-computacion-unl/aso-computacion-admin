@@ -9,10 +9,11 @@
  *   setForumThreadHidden(threadId, hidden)         hide a thread from students, or show it again
  *   setForumReplyHidden(replyId, hidden)           same for a reply (a hidden reply stops being the best answer)
  *   setForumThreadLocked(threadId, locked)         a locked thread takes no replies and no edits
- *   setForumMemberSuspended(memberId, suspended)   suspending also signs the member out of the forum everywhere
+ *   setForumMemberSuspended(memberId, suspended)   suspending also signs the member out of the forum everywhere;
+ *                                                  the report queue and the members list (`/admin/foro/miembros`) both bind it
  *   closeForumReport(reportId, outcome, note?)     outcome "RESOLVED" or "DISMISSED"; note up to 500 characters
  *
- * Reads for the page: `getAdminForumReports()` in ./forum-moderation-read.
+ * Reads for the pages: `getAdminForumReports()` and `getAdminForumMembers()` in ./forum-moderation-read.
  */
 
 import { revalidatePath } from "next/cache";
@@ -25,6 +26,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { getForumServices } from "../../forum/forum-container";
 import { mapActionError as mapError, type ActionResult } from "../action-result";
+import { MEMBERS_PATH } from "./member-list-params";
 
 // Every action starts with the session guard, before it reads any input or touches a use case (a server
 // action can be POSTed to any page). Moderating is editor-level: any signed-in user. Audit summaries carry
@@ -139,6 +141,7 @@ export async function setForumMemberSuspended(memberId: string, suspended: boole
     }
 
     revalidatePath(MODERATION_PATH);
+    revalidatePath(MEMBERS_PATH);
     return changed ? { success: true } : NO_CHANGE;
   } catch (error) {
     return mapActionError(error);

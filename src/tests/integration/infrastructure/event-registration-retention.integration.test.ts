@@ -38,6 +38,8 @@ async function addPeople(eventId: string, count: number) {
       career: "Computación",
       semester: 3,
       createdAt: new Date("2025-12-01T00:00:00Z"),
+      // Confirmed seats, like every real registration the event purge is about; pending ones follow their own 48 h rule.
+      confirmedAt: new Date("2025-12-01T00:00:00Z"),
     })),
   });
 }
@@ -123,5 +125,20 @@ describe("registration retention purge (integration)", () => {
 
     expect(await purge.execute(EXPIRY)).toEqual({ deleted: PURGE_BATCH_SIZE + 7 });
     expect(await remaining(event.id)).toBe(0);
+  });
+
+  it("deletes a pending registration 48 h after it was stored, even for a future event, and keeps confirmed and fresher ones", async () => {
+    const future = await addEvent({ date: "2099-01-01" });
+    const stored = new Date("2026-04-09T05:00:00.000Z");
+    const windowEnd = new Date(stored.getTime() + 48 * 60 * 60 * 1000);
+    const row = (id: string, confirmedAt: Date | null, createdAt: Date) => ({ id, eventId: future.id, mode: "open" as const, name: id, email: `${id}@example.com`, institution: "UNL", confirmedAt, createdAt });
+
+    await prisma.eventRegistration.createMany({
+      data: [row("stale", null, stored), row("fresh", null, new Date(windowEnd.getTime() - 1000)), row("confirmed", stored, stored)],
+    });
+
+    expect(await purge.execute(new Date(windowEnd.getTime() - 1))).toEqual({ deleted: 0 });
+    expect(await purge.execute(windowEnd)).toEqual({ deleted: 1 });
+    expect((await prisma.eventRegistration.findMany({ orderBy: { id: "asc" } })).map((registration) => registration.id)).toEqual(["confirmed", "fresh"]);
   });
 });

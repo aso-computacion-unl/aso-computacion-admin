@@ -37,6 +37,19 @@ function toThreadResult({ thread, authorName }: ForumThreadRow, viewerId: string
   };
 }
 
+/**
+ * A reply the moderation hid, as the thread shows it: only that it was there and whether it was the best answer. Its
+ * text, author, dates and reactions are not copied: whatever is not here cannot reach the browser.
+ */
+export interface ForumHiddenReplyResult {
+  id: string;
+  hidden: true;
+  isBest: boolean;
+}
+
+/** A reply of the thread page: shown, or hidden by the moderation (`"hidden" in reply`). */
+export type ForumThreadReply = ForumReplyResult | ForumHiddenReplyResult;
+
 function toReplyResult({ reply, authorName }: ForumReplyRow, viewerId: string, bestReplyId: string | null): ForumReplyResult {
   return {
     id: reply.id,
@@ -135,7 +148,8 @@ export class ListForumThreadsUseCase {
 export interface ForumThreadView {
   category: { slug: string; name: string };
   thread: ForumThreadResult;
-  replies: ForumReplyResult[];
+  /** Oldest first. A hidden reply keeps its place as a placeholder (D4). */
+  replies: ForumThreadReply[];
 }
 
 export class GetForumThreadUseCase {
@@ -155,7 +169,7 @@ export class GetForumThreadUseCase {
     return {
       category: { slug: category.slug, name: category.name },
       thread: toThreadResult(row, input.viewerId),
-      replies: replies.map((reply) => toReplyResult(reply, input.viewerId, row.thread.bestReplyId)),
+      replies: replies.map((reply) => (reply.reply.hiddenAt ? { id: reply.reply.id, hidden: true, isBest: reply.reply.id === row.thread.bestReplyId } : toReplyResult(reply, input.viewerId, row.thread.bestReplyId))),
     };
   }
 }
@@ -258,6 +272,12 @@ export class EditForumThreadUseCase {
 
     const title = parseThreadTitle(input.title);
     const body = parseThreadBody(input.body);
+
+    // Saving what is already there is not an edit: no "editado" mark.
+    if (title === row.thread.title && body === row.thread.body) {
+      return toThreadResult(row, member.id);
+    }
+
     const at = this.now();
 
     throwUnlessEdited(await this.posts.updateThread(row.thread.id, { title, body, at, authorId: member.id }));
@@ -285,6 +305,12 @@ export class EditForumReplyUseCase {
     assertThreadOpen((await visibleThread(this.posts, reply.threadId)).thread);
 
     const body = parseReplyBody(input.body);
+
+    // Saving what is already there is not an edit: no "editado" mark, and the reply keeps a best-answer mark.
+    if (body === reply.body) {
+      return toReplyResult({ reply, authorName: member.displayName }, member.id, null);
+    }
+
     const at = this.now();
 
     throwUnlessEdited(await this.posts.updateReply(reply.id, { body, at, authorId: member.id }));

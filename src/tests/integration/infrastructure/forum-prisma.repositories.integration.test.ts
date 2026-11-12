@@ -53,6 +53,42 @@ describe("ForumMemberPrismaRepository (integration)", () => {
   });
 });
 
+describe("ForumMemberPrismaRepository.list (integration)", () => {
+  const suspended = makeForumMember({ id: "cris", email: "cris@unl.edu.ec", googleSub: "sub-cris", displayName: "Cristina 100%", status: "SUSPENDED", suspendedAt: T0 });
+
+  async function seedMembers() {
+    await members.create({ ...ana, createdAt: later(1000) });
+    await members.create({ ...beto, createdAt: later(3000) });
+    await members.create({ ...suspended, createdAt: later(2000) });
+  }
+
+  it("lists the newest account first and counts every match, whatever the page", async () => {
+    await seedMembers();
+
+    const first = await members.list({ filter: "all", search: "" }, { offset: 0, limit: 2 });
+
+    expect(first.total).toBe(3);
+    expect(first.items.map((member) => member.id)).toEqual(["beto", "cris"]);
+    expect((await members.list({ filter: "all", search: "" }, { offset: 2, limit: 2 })).items.map((member) => member.id)).toEqual(["ana"]);
+  });
+
+  it("filters the suspended ones and searches the name or the email, ignoring case", async () => {
+    await seedMembers();
+
+    expect((await members.list({ filter: "suspended", search: "" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["cris"]);
+    expect((await members.list({ filter: "all", search: "BETO@unl" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["beto"]);
+    expect((await members.list({ filter: "all", search: "cristina" }, { offset: 0, limit: 10 })).total).toBe(1);
+    expect((await members.list({ filter: "suspended", search: "ana" }, { offset: 0, limit: 10 })).total).toBe(0);
+  });
+
+  it("treats % and _ in a search as plain text", async () => {
+    await seedMembers();
+
+    expect((await members.list({ filter: "all", search: "%" }, { offset: 0, limit: 10 })).items.map((member) => member.id)).toEqual(["cris"]);
+    expect((await members.list({ filter: "all", search: "_" }, { offset: 0, limit: 10 })).total).toBe(0);
+  });
+});
+
 describe("ForumSessionPrismaRepository (integration)", () => {
   const record = (id: string, overrides = {}) => ({ id, memberId: "ana", createdAt: T0, expiresAt: later(3_600_000), revokedAt: null, lastSeenAt: T0, userAgent: "UA", ipHash: "h", ...overrides });
 
@@ -174,17 +210,18 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect(narrowed.counts).toEqual({ open: 1, solved: 0 });
   });
 
-  it("adds a reply, moves the thread's activity and lists replies oldest first without the hidden ones", async () => {
+  it("adds a reply, moves the thread's activity and lists replies oldest first, the hidden ones too (the thread leaves a placeholder for them) but not counted", async () => {
     await seed();
     await posts.create(makeForumThread({ id: "t1", categoryId: "c1", authorId: "ana" }));
 
     expect(await posts.addReply(makeForumReply({ id: "r2", threadId: "t1", authorId: "beto", createdAt: later(2000) }))).toBe("ok");
     expect(await posts.addReply(makeForumReply({ id: "r1", threadId: "t1", authorId: "ana", createdAt: later(1000) }))).toBe("ok");
-    await prisma.forumReply.create({ data: { ...makeForumReply({ id: "r3", threadId: "t1", authorId: "beto" }), hiddenAt: T0 } });
+    await prisma.forumReply.create({ data: { ...makeForumReply({ id: "r3", threadId: "t1", authorId: "beto", createdAt: later(3000) }), hiddenAt: T0 } });
 
-    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.authorName])).toEqual([
-      ["r1", "Ana"],
-      ["r2", "Beto"],
+    expect((await posts.listReplies("t1")).map((row) => [row.reply.id, row.authorName, row.reply.hiddenAt !== null])).toEqual([
+      ["r1", "Ana", false],
+      ["r2", "Beto", false],
+      ["r3", "Beto", true],
     ]);
     expect((await posts.findThread("t1"))?.replyCount).toBe(2);
   });
@@ -290,5 +327,17 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect(await posts.countPostsSince("ana", T0)).toBe(2);
     expect(await posts.countPostsSince("beto", T0)).toBe(1);
     expect(await posts.countPostsSince("ana", later(60_000))).toBe(0);
+  });
+
+  it("finds when a member's oldest thread or reply since a time was written", async () => {
+    await seed();
+    await posts.create(makeForumThread({ id: "old", categoryId: "c1", authorId: "ana", createdAt: later(-60_000) }));
+    await posts.create(makeForumThread({ id: "new", categoryId: "c1", authorId: "ana", createdAt: later(2000) }));
+    await posts.addReply(makeForumReply({ id: "r1", threadId: "new", authorId: "ana", createdAt: later(1000) }));
+    await posts.addReply(makeForumReply({ id: "r2", threadId: "new", authorId: "beto", createdAt: later(500) }));
+
+    expect(await posts.oldestPostSince("ana", T0)).toEqual(later(1000));
+    expect(await posts.oldestPostSince("ana", later(1500))).toEqual(later(2000));
+    expect(await posts.oldestPostSince("ana", later(60_000))).toBeNull();
   });
 });

@@ -9,23 +9,25 @@ import { ValidationError } from "@/domain/domain-error";
 import {
   parseOpenRegistration,
   REGISTRATION_CAREER_MAX_LENGTH,
+  REGISTRATION_INSTITUTION_MAX_LENGTH,
   REGISTRATION_NAME_MAX_LENGTH,
   REGISTRATION_SEMESTER_MAX,
 } from "@/domain/event-registration";
 
-export const OPEN_FIELDS = ["name", "email", "career", "semester"] as const;
+export const OPEN_FIELDS = ["name", "email", "institution", "career", "semester"] as const;
 export type OpenField = (typeof OPEN_FIELDS)[number];
 export type OpenFormValues = Record<OpenField, string>;
 export type OpenFieldErrors = Partial<Record<OpenField, string>>;
 
 // A value each field accepts, swapped in for one that failed so the next field can be checked in the same pass.
-const ACCEPTED: OpenFormValues = { name: "x", email: "x@x.co", career: "x", semester: "1" };
+const ACCEPTED: OpenFormValues = { name: "x", email: "x@x.co", institution: "x", career: "x", semester: "1" };
 
 const EMPTY_MESSAGES: Record<OpenField, string> = {
-  name: "Escribe tu nombre.",
-  email: "Escribe tu correo.",
-  career: "Escribe tu carrera.",
-  semester: `Elige tu ciclo, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
+  name: "Escriba su nombre.",
+  email: "Escriba su correo.",
+  institution: "Escriba su institución.",
+  career: "Escriba su carrera.",
+  semester: `Elija su ciclo, del 1 al ${REGISTRATION_SEMESTER_MAX}.`,
 };
 
 // Control characters and lone surrogates: the same text the domain refuses to store.
@@ -39,11 +41,13 @@ export function fieldMessage(field: OpenField, value: string): string {
 
   switch (field) {
     case "name":
-      return CONTROL_CHARACTERS.test(text) ? "Tu nombre tiene caracteres que no podemos guardar." : `Tu nombre es muy largo: usa hasta ${REGISTRATION_NAME_MAX_LENGTH} caracteres.`;
+      return CONTROL_CHARACTERS.test(text) ? "Su nombre tiene caracteres que no podemos guardar." : `Su nombre es muy largo: use hasta ${REGISTRATION_NAME_MAX_LENGTH} caracteres.`;
+    case "institution":
+      return CONTROL_CHARACTERS.test(text) ? "Su institución tiene caracteres que no podemos guardar." : `El nombre de su institución es muy largo: use hasta ${REGISTRATION_INSTITUTION_MAX_LENGTH} caracteres.`;
     case "career":
-      return CONTROL_CHARACTERS.test(text) ? "Tu carrera tiene caracteres que no podemos guardar." : `Tu carrera es muy larga: usa hasta ${REGISTRATION_CAREER_MAX_LENGTH} caracteres.`;
+      return CONTROL_CHARACTERS.test(text) ? "Su carrera tiene caracteres que no podemos guardar." : `Su carrera es muy larga: use hasta ${REGISTRATION_CAREER_MAX_LENGTH} caracteres.`;
     case "email":
-      return "Revisa tu correo: no parece una dirección válida.";
+      return "Revise su correo: no parece una dirección válida.";
     case "semester":
       return EMPTY_MESSAGES.semester;
   }
@@ -78,8 +82,10 @@ export function openPayload(values: OpenFormValues, turnstileToken: string | nul
   return {
     name: values.name,
     email: values.email,
-    career: values.career,
-    semester: Number(values.semester),
+    institution: values.institution,
+    // Career and semester are optional: an empty one is left out rather than sent blank.
+    ...(values.career.trim() ? { career: values.career } : {}),
+    ...(values.semester ? { semester: Number(values.semester) } : {}),
     ...(turnstileToken ? { turnstileToken } : {}),
   };
 }
@@ -87,7 +93,7 @@ export function openPayload(values: OpenFormValues, turnstileToken: string | nul
 export type OpenOutcome =
   | { kind: "registered" }
   | { kind: "field"; field: OpenField }
-  | { kind: "duplicate" | "full" | "closed" | "not_found" | "captcha" | "unavailable" | "failed" }
+  | { kind: "duplicate" | "full" | "closed" | "not_found" | "captcha" | "unavailable" | "email_unavailable" | "email_budget" | "failed" }
   | { kind: "rate_limited"; retryAfterSeconds: number | null };
 
 /** Refusals after which this page has nothing left to offer the person: the form gives way to the state. */
@@ -117,7 +123,7 @@ export function outcomeFromResponse(status: number, body: unknown, retryAfter: s
     return { kind: "rate_limited", retryAfterSeconds: retryAfter && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null };
   }
 
-  if (code === "captcha" || code === "unavailable" || code === "not_found") return { kind: code };
+  if (code === "captcha" || code === "unavailable" || code === "email_unavailable" || code === "email_budget" || code === "not_found") return { kind: code };
   if (status === 409 && (code === "duplicate" || code === "full" || code === "closed")) return { kind: code };
 
   return { kind: "failed" };
@@ -133,27 +139,29 @@ function waitText(seconds: number | null): string {
 }
 
 const MESSAGES = {
-  duplicate: "Ya hay una inscripción con ese correo para este evento. No necesitas hacer nada más.",
+  duplicate: "Ya hay una inscripción con ese correo para este evento. No necesita hacer nada más.",
   full: "Ya no quedan cupos para este evento.",
   closed: "Las inscripciones de este evento ya cerraron.",
   not_found: "Este evento ya no recibe inscripciones desde aquí.",
-  captcha: "No pudimos comprobar que eres una persona. Completa la verificación e inténtalo de nuevo.",
-  unavailable: "La inscripción no está disponible en este momento. Inténtalo de nuevo en unos minutos.",
-  failed: "No pudimos enviar tu inscripción. Revisa tu conexión e inténtalo de nuevo.",
+  captcha: "No pudimos comprobar que usted es una persona. Complete la verificación e inténtelo de nuevo.",
+  unavailable: "La inscripción no está disponible en este momento. Inténtelo de nuevo en unos minutos.",
+  email_unavailable: "No pudimos enviarle el correo de confirmación en este momento. Inténtelo de nuevo en unos minutos.",
+  email_budget: "Hoy ya enviamos todos los correos de confirmación que podemos. Inténtelo de nuevo mañana.",
+  failed: "No pudimos enviar su inscripción. Revise su conexión e inténtelo de nuevo.",
 } as const;
 
 /** The widget could not even start (blocked script, no network): there is no token to send, now or later. */
-export const CAPTCHA_LOAD_MESSAGE = "No pudimos cargar la verificación. Recarga la página e inténtalo de nuevo.";
+export const CAPTCHA_LOAD_MESSAGE = "No pudimos cargar la verificación. Recargue la página e inténtelo de nuevo.";
 
 /** Said instead of `MESSAGES.captcha` when the page showed no widget (no site key): there is no verification to complete. */
-const CAPTCHA_WITHOUT_WIDGET = "No pudimos comprobar que eres una persona. Inténtalo de nuevo en unos minutos.";
+const CAPTCHA_WITHOUT_WIDGET = "No pudimos comprobar que usted es una persona. Inténtelo de nuevo en unos minutos.";
 
 /**
  * The sentence for every outcome that is not a success and not tied to one field. `widget`: whether the page
  * shows the Turnstile check, which decides whether "complete the verification" is something the person can do.
  */
 export function outcomeMessage(outcome: Exclude<OpenOutcome, { kind: "registered" | "field" }>, { widget = true }: { widget?: boolean } = {}): string {
-  if (outcome.kind === "rate_limited") return `Hiciste varios intentos seguidos. Vuelve a intentarlo en ${waitText(outcome.retryAfterSeconds)}.`;
+  if (outcome.kind === "rate_limited") return `Hizo varios intentos seguidos. Vuelva a intentarlo en ${waitText(outcome.retryAfterSeconds)}.`;
 
   return outcome.kind === "captcha" && !widget ? CAPTCHA_WITHOUT_WIDGET : MESSAGES[outcome.kind];
 }

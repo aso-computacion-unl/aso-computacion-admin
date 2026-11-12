@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { Label } from "@/components/ui/label";
 import type { ForumActionResult } from "@/interface/forum/forum-action-result";
+import { forumSignInHref } from "@/interface/forum/forum-return-path";
 
 /** A labelled control with its hint and error wired together, so a screen reader reads them as one field. */
 export function ForumField({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: (describedBy: string | undefined) => ReactNode }) {
@@ -29,10 +30,11 @@ export function ForumField({ id, label, hint, error, children }: { id: string; l
 }
 
 /**
- * The outcome of a refused submit that belongs to no field: the server's message, how long to wait when
- * the member posts too fast, and a way back to the forum (the sign-in is there when the session is gone).
+ * The outcome of a refused submit that belongs to no field: the server's message and a way out. When the
+ * session is gone the way out is the sign-in, which brings the member back to `returnTo` (the form's own
+ * page, where the draft is waiting); otherwise it is the way back to the forum.
  */
-export function SubmitError({ result }: { result: ForumActionResult | null }) {
+export function SubmitError({ result, returnTo }: { result: ForumActionResult | null; returnTo?: string }) {
   const message = result?.error ?? result?.fieldErrors?.form;
 
   if (!message) return null;
@@ -42,10 +44,10 @@ export function SubmitError({ result }: { result: ForumActionResult | null }) {
       <Icon name="alert" className="mt-0.5 size-4 shrink-0 text-error" />
       <div className="grid gap-1">
         <p>{message}</p>
-        {result?.retryAfterSeconds ? <p className="text-mist">Puede volver a intentarlo en {result.retryAfterSeconds} s.</p> : null}
+        {result?.sessionExpired && returnTo ? <p className="text-mist">Lo que escribió se conserva: al volver lo encontrará aquí.</p> : null}
         {result?.error ? (
-          <Link href="/foro" className="w-fit text-sky-bright underline underline-offset-4">
-            Volver al foro
+          <Link href={result.sessionExpired ? forumSignInHref(returnTo) : "/foro"} className="w-fit text-sky-bright underline underline-offset-4">
+            {result.sessionExpired ? "Iniciar sesión" : "Volver al foro"}
           </Link>
         ) : null}
       </div>

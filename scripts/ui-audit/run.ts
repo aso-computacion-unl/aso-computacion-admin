@@ -22,6 +22,9 @@ import { mintForumSession } from "./forum-session";
 import { adminTargets, forumTargets, landingTargets, loginTarget } from "./targets";
 
 const NAVIGATION_TIMEOUT = 90_000;
+// The app's forum session cookie (src/infrastructure/forum/forum-session-jwt.ts, server-only so not imported here).
+const FORUM_COOKIE_NAME = "forum_sid";
+const FORUM_COOKIE_PATH = "/";
 const IDLE_TIMEOUT = 10_000;
 
 /** The dev overlays are not part of the product: keep them out of the pictures. */
@@ -205,7 +208,7 @@ async function main(): Promise<void> {
       if (!tracked) {
         const context = await newContext(browser, variant, { storageState: auth === "admin" ? adminState : undefined });
 
-        if (auth === "forum") await context.addCookies([{ name: "forum_session", value: forum.token, domain: "localhost", path: "/foro", httpOnly: true, sameSite: "Lax" }]);
+        if (auth === "forum") await context.addCookies([{ name: FORUM_COOKIE_NAME, value: forum.token, domain: "localhost", path: FORUM_COOKIE_PATH, httpOnly: true, sameSite: "Lax" }]);
         tracked = await track(context);
         contexts.set(key, tracked);
       }

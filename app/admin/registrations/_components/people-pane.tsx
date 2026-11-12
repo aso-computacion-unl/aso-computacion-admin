@@ -17,13 +17,14 @@ function PeopleTable({ eventId, title, registrations, canManage }: { eventId: st
   return (
     // `relative` keeps the screen-reader-only text inside the scroll area instead of widening the page.
     <Panel className="relative mt-3 overflow-x-auto" aria-label="Lista de inscripciones">
-      <table className="w-full min-w-176 border-collapse text-left text-sm">
+      <table className="w-full min-w-208 border-collapse text-left text-sm">
         <caption className="sr-only">Inscripciones de {title}</caption>
         <thead>
           <tr className="border-b border-border text-mist">
             <th scope="col" className="py-2 pr-4 font-semibold">Nombre</th>
             <th scope="col" className="py-2 pr-4 font-semibold">Correo</th>
             <th scope="col" className="py-2 pr-4 font-semibold">Forma</th>
+            <th scope="col" className="py-2 pr-4 font-semibold">Institución</th>
             <th scope="col" className="py-2 pr-4 font-semibold">Carrera</th>
             <th scope="col" className="py-2 pr-4 font-semibold">Ciclo</th>
             <th scope="col" className="py-2 pr-4 font-semibold">Inscrito</th>
@@ -36,7 +37,8 @@ function PeopleTable({ eventId, title, registrations, canManage }: { eventId: st
               <th scope="row" className="py-3 pr-4 font-semibold wrap-anywhere">{registration.name}</th>
               <td className="py-3 pr-4 font-mono text-[0.8125rem] wrap-anywhere">{registration.email}</td>
               <td className="py-3 pr-4">{MODE_LABELS[registration.mode]}</td>
-              <td className="py-3 pr-4">{registration.career ?? "—"}</td>
+              <td className="py-3 pr-4 wrap-anywhere">{registration.institution ?? "—"}</td>
+              <td className="py-3 pr-4 wrap-anywhere">{registration.career ?? "—"}</td>
               <td className="py-3 pr-4">{registration.semester ?? "—"}</td>
               <td className="py-3 pr-4 whitespace-nowrap">{formatWhen(registration.createdAt)}</td>
               {canManage ? (

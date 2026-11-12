@@ -140,7 +140,7 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
 
   async listReplies(threadId: string): Promise<ReplyRow[]> {
     const rows = await prisma.forumReply.findMany({
-      where: { threadId, hiddenAt: null },
+      where: { threadId },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       include: { author: { select: { displayName: true } } },
     });
@@ -196,5 +196,16 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     ]);
 
     return threads + replies;
+  }
+
+  async oldestPostSince(memberId: string, since: Date): Promise<Date | null> {
+    const where = { authorId: memberId, createdAt: { gte: since } };
+    const [thread, reply] = await Promise.all([
+      prisma.forumThread.findFirst({ where, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+      prisma.forumReply.findFirst({ where, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+    ]);
+    const times = [thread, reply].flatMap((post) => (post ? [post.createdAt.getTime()] : []));
+
+    return times.length === 0 ? null : new Date(Math.min(...times));
   }
 }

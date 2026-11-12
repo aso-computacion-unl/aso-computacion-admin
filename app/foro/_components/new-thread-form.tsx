@@ -10,6 +10,7 @@ import { feedHref } from "@/interface/forum/forum-links";
 import { createForumThread } from "@/interface/forum/forum-posting";
 
 import { ForumField, SubmitError } from "./form-feedback";
+import { threadDraftKey } from "./forum-drafts";
 import { MarkdownBody } from "./markdown-body";
 import { MarkdownEditor } from "./markdown-editor";
 import { useForumForm } from "./use-forum-form";
@@ -17,11 +18,11 @@ import { useForumForm } from "./use-forum-form";
 const TITLE_MAX = 120;
 const BODY_MAX = 10000;
 
-/** The composer of a new thread: title, Markdown text with its preview, and the way back to the category. */
-export function NewThreadForm({ categorySlug }: { categorySlug: string }) {
+/** The composer of a new thread: title, Markdown text with its preview, and the way back to the category. `memberId` owns the draft kept while writing. */
+export function NewThreadForm({ categorySlug, memberId }: { categorySlug: string; memberId: string }) {
   const router = useRouter();
   const id = useId();
-  const { values, setValue, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => createForumThread(categorySlug, previous, formData), { title: "", body: "" });
+  const { values, setValue, handleSubmit, state, pending, errors } = useForumForm((previous, formData) => createForumThread(categorySlug, previous, formData), { title: "", body: "" }, { key: threadDraftKey(categorySlug), memberId });
   const published = state?.success === true;
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export function NewThreadForm({ categorySlug }: { categorySlug: string }) {
         </section>
       </div>
 
-      <SubmitError result={state} />
+      <SubmitError result={state} returnTo={`/foro/c/${encodeURIComponent(categorySlug)}/nuevo`} />
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <span className="mr-auto font-mono text-xs text-mist" aria-hidden="true">

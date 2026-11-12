@@ -22,7 +22,7 @@ vi.mock("../../../../app/_components/theme-toggle", () => ({ ThemeToggle: () => 
 
 import ForumLayout from "../../../../app/foro/layout";
 import ForumHomePage from "../../../../app/foro/page";
-import { FORUM_LOGIN_ERROR_MESSAGES, FORUM_LOGIN_ERRORS } from "@/interface/forum/forum-login-errors";
+import { FORUM_LANDING_ERROR_MESSAGES, FORUM_LANDING_ERRORS } from "@/interface/forum/forum-login-errors";
 import { FORUM_THREADS_PAGE_SIZE } from "@/application/forum/forum-threads.use-cases";
 import { makeForumCategory, makeForumMember, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { cookieJar, forumMemberJar, stubForumSecrets } from "@/tests/support/forum-page";
@@ -43,6 +43,68 @@ beforeEach(() => {
   stubForumSecrets();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   cookiesMock.mockResolvedValue(cookieJar({}));
+});
+
+describe("/foro with a suspended account (D1)", () => {
+  async function suspendedJar() {
+    const { jar, memberId } = await forumMemberJar({ displayName: "Daniela P." });
+    testForum.members.members.set(memberId, { ...testForum.members.members.get(memberId)!, status: "SUSPENDED", suspendedAt: new Date() });
+    cookiesMock.mockResolvedValue(jar);
+
+    return memberId;
+  }
+
+  it("shows the suspension notice instead of the sign-in, and nothing of the forum", async () => {
+    testForum.store.categories.set("c1", makeForumCategory({ id: "c1", name: "Programación" }));
+    testForum.store.threads.set("t1", makeForumThread({ id: "t1", categoryId: "c1", title: "Hilo secreto de prueba" }));
+    await suspendedJar();
+
+    const html = await renderHome();
+    const text = textOf(html);
+
+    expect(text).toContain("Su cuenta del foro está suspendida");
+    expect(text).toContain("escriba a la directiva de ASO");
+    expect(html).not.toContain("Su carrera se resuelve");
+    expect(html).not.toContain("Programación");
+    expect(html).not.toContain("Hilo secreto de prueba");
+    expect(html).not.toContain("Daniela");
+    expect(html).not.toContain('role="alert"');
+  });
+
+  it("still lets them try another account, and carries the page they came for", async () => {
+    await suspendedJar();
+
+    const html = await renderHome(undefined, "/foro/hilo/abc");
+
+    expect(textOf(html)).toContain("Entrar con otra cuenta de Google");
+    expect(html).toContain('href="/foro/auth/google/start?next=%2Fforo%2Fhilo%2Fabc"');
+  });
+
+  it("is told only to the holder of that member's cookie: a visitor, an admin and an active member see what they always saw", async () => {
+    const memberId = await suspendedJar();
+
+    cookiesMock.mockResolvedValue(cookieJar({}));
+    expect(textOf(await renderHome())).not.toContain("suspendida");
+    expect(textOf(await renderHome())).toContain("Su carrera se resuelve aquí");
+
+    cookiesMock.mockResolvedValue(cookieJar({ [AUTH_COOKIE_NAME]: await signInAs("ADMIN") }));
+    expect(textOf(await renderHome())).not.toContain("suspendida");
+
+    testForum.store.categories.set("c1", makeForumCategory({ id: "c1", name: "Programación" }));
+    testForum.members.members.set(memberId, { ...testForum.members.members.get(memberId)!, status: "ACTIVE", suspendedAt: null });
+    const { jar } = await forumMemberJar({ id: "other", email: "other@unl.edu.ec", googleSub: "sub-other" });
+    cookiesMock.mockResolvedValue(jar);
+    const html = await renderHome();
+
+    expect(html).not.toContain("suspendida");
+    expect(html).toContain("Programación");
+  });
+
+  it("keeps the identity chip out of the top bar, like for any visitor", async () => {
+    await suspendedJar();
+
+    expect(await renderLayout()).not.toContain("Daniela");
+  });
 });
 
 describe("/foro as a visitor", () => {
@@ -117,17 +179,21 @@ describe("/foro as a visitor", () => {
     expect(html).not.toContain("next=");
   });
 
-  it.each(FORUM_LOGIN_ERRORS)("explains a failed sign-in (%s) as an alert and offers to try again", async (code) => {
+  it.each(FORUM_LANDING_ERRORS)("explains a failed sign-in (%s) as an alert and offers to try again", async (code) => {
     const html = await renderHome(code);
 
     expect(html).toContain('role="alert"');
-    expect(html.replace(/&#x27;/g, "'")).toContain(FORUM_LOGIN_ERROR_MESSAGES[code]);
+    expect(html.replace(/&#x27;/g, "'")).toContain(FORUM_LANDING_ERROR_MESSAGES[code]);
     expect(html).toContain("Entrar de nuevo con Google");
   });
 
-  it("tells a refused student (which includes a suspended member) what may have happened", async () => {
-    expect(await renderHome("denied")).toContain("suspendido su cuenta");
-    expect(await renderHome("failed")).not.toContain("suspendido su cuenta");
+  it("tells a suspended account refused at the Google sign-in so, apart from the other refusals (D1)", async () => {
+    const suspended = textOf(await renderHome("suspended"));
+
+    expect(suspended).toContain("Su cuenta del foro está suspendida");
+    expect(suspended).toContain("escriba a la directiva de ASO");
+    expect(textOf(await renderHome("denied"))).not.toContain("suspendid");
+    expect(textOf(await renderHome("verification"))).not.toContain("directiva");
   });
 
   it("ignores an unknown error code instead of echoing it", async () => {
@@ -323,42 +389,18 @@ describe("/foro as a member", () => {
     expect(html.match(/<aside/g)).toHaveLength(1);
   });
 
-  it("puts Inscripciones in its own group of the rail, with the number of events open, apart from the categories", async () => {
+  it("D8: the forum is only the forum: no Inscripciones link, no Eventos group, in the rail or on phones, whatever is open", async () => {
     seedForum();
     await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
-    await addTestEvent({ title: "Hackathon UNL", registrationMode: "unl", date: "2099-12-05" });
-    await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
-    await addTestEvent({ title: "Taller que ya pasó", registrationMode: "unl", date: "2020-01-10" });
-
-    const html = await renderQuery({});
-    const group = html.match(/<h2[^>]*>Eventos<\/h2><nav aria-label="Eventos">[\s\S]*?<\/nav>/)?.[0] ?? "";
-
-    expect(group).toMatch(/<a [^>]*href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>2<span class="sr-only"> abiertas<\/span><\/span>/);
-    expect(group).not.toContain("aria-current");
-    expect(html.indexOf("Categorías</h2>")).toBeLessThan(html.indexOf("Eventos</h2>"));
-    expect(html.indexOf('href="/foro?categoria=propuestas"')).toBeLessThan(html.indexOf("Eventos</h2>"));
-  });
-
-  it("says Inscripciones with a count of zero while no event is open, and keeps the guide to the forum", async () => {
-    seedForum();
     await addTestEvent({ title: "Charla abierta al público", registrationMode: "open" });
 
     const html = await renderQuery({});
 
-    expect(html).toMatch(/href="\/foro\/eventos"[^>]*>[\s\S]*?Inscripciones<span[^>]*>0<span class="sr-only"> abiertas<\/span>/);
+    expect(html).not.toContain("Inscripciones");
+    expect(html).not.toContain("Eventos");
+    expect(html).not.toContain('href="/foro/eventos"');
+    expect(html).not.toContain('href="/inscripciones');
     expect(html).toContain("Cómo funciona el foro");
-  });
-
-  it("keeps a way to Inscripciones on phones, under the filters that lg up move to the rail", async () => {
-    seedForum();
-    await addTestEvent({ title: "Taller de Docker", registrationMode: "unl", date: "2099-11-28" });
-
-    const html = await renderQuery({});
-    const phones = html.match(/<div class="[^"]*\blg:hidden\b[^"]*">[\s\S]*?<\/nav><\/div><\/div>/)?.[0] ?? "";
-
-    expect(html.match(/aria-label="Eventos"/g)).toHaveLength(2);
-    expect(phones).toContain('href="/foro/eventos"');
-    expect(phones).toContain("Inscripciones");
   });
 
   it("is a rail with the filters and the categories beside the list, with the guide after it", async () => {

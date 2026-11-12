@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { signSession, verifySession } from "@/infrastructure/auth/session-jwt";
+import { SESSION_DURATION_SECONDS } from "@/infrastructure/auth/session-jwt";
 import { FORUM_SESSION_DURATION_SECONDS, ForumSecretError, signForumSession, verifyForumSession } from "@/infrastructure/forum/forum-session-jwt";
 import { openForumOAuthState, sealForumOAuthState } from "@/infrastructure/forum/forum-oauth-state";
 
@@ -24,11 +25,22 @@ afterEach(() => {
 });
 
 describe("forum session token", () => {
-  it("round-trips the session and member ids, with a seven day lifetime", async () => {
+  it("S9: round-trips the session and member ids, with a thirty day lifetime", async () => {
     const result = await verifyForumSession(await signForumSession(claims));
 
     expect(result).toMatchObject({ valid: true, payload: { sid: "session-1", memberId: "member-1" } });
-    expect(FORUM_SESSION_DURATION_SECONDS).toBe(7 * 24 * 60 * 60);
+    expect(FORUM_SESSION_DURATION_SECONDS).toBe(30 * 24 * 60 * 60);
+  });
+
+  it("S9: signs a token that expires thirty days after it is issued", async () => {
+    const token = await signForumSession(claims);
+    const { iat, exp } = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString("utf8")) as { iat: number; exp: number };
+
+    expect(exp - iat).toBe(30 * 24 * 60 * 60);
+  });
+
+  it("S9: leaves the admin session at 24 hours", () => {
+    expect(SESSION_DURATION_SECONDS).toBe(24 * 60 * 60);
   });
 
   it("fails closed without a usable forum secret, for signing and for verifying", async () => {

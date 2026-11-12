@@ -14,19 +14,22 @@ const APP_DIR = join(__dirname, "..", "..", "..", "..", "app");
 // its two Google routes are outside the admin middleware on purpose, and its guard fails closed. Every page
 // of the student screens (`requireForumPageMember`) sends a visitor to the sign-in at `/foro`.
 // `/foro/x` stands for the catch-all that answers an unknown forum address with the forum's own 404 (it shows no data).
-// `/foro/eventos` lists the events open for registration: a student screen like the home, so a visitor without a
-// forum session gets the same sign-in gate and no event.
+// `/foro/eventos` only redirects (308) to `/inscripciones`, the public list of the registrations: it shows nothing itself.
 const FORUM_ROUTES = ["/foro", "/foro/x", "/foro/c/x", "/foro/c/x/nuevo", "/foro/hilo/x", "/foro/auth/google/start", "/foro/auth/google/callback", "/foro/eventos"];
+// `/inscripciones` is the public list of the events taking registrations (D8): no session, no personal data, only the
+// titles, dates and seats left that the landing shows too. Its sign-in, when a student reserves, is on the event's page.
 // `/inscripciones/<slug>` is the event registration page, outside the forum: it shows the event's registration state to
 // anyone (open form, pase libre or the UNL sign-in), and its UNL action only works for a signed-in forum member (the
 // forum guard, never the admin one). The old `/foro/eventos/<slug>` is a redirect in next.config.ts, not a route.
 // `/invitacion/<token>` is where an invitee lands before they have an account: it only says whether the
 // link still works (and for whom), and the sign-in it leads to is the same Google callback as above.
-const PUBLIC_ROUTES: string[] = ["/login", "/inscripciones/x", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
+const PUBLIC_ROUTES: string[] = ["/login", "/inscripciones", "/inscripciones/x", "/invitacion/x", "/auth/google/start", "/auth/google/callback", "/api/health", "/api/public/content", "/api/public/preview", "/api/cron/scheduled-rebuild", ...FORUM_ROUTES];
 // The open-form event registration is public by design: Turnstile, a strict rate limit and the atomic use case are its guards.
 // The `.ics` download is public read-only data of a published event, with no personal data.
 // `/api/public/events/seats` is public read-only counts (slug, capacity, registered, seats left): no personal data.
-PUBLIC_ROUTES.push("/api/public/events/x/registrations", "/api/public/events/x/calendar.ics", "/api/public/events/seats");
+// `/api/public/events/<slug>/registrations/confirm` and its page `/inscripciones/<slug>/confirmar` confirm an email: the signed
+// token in the link is the only credential, the page only shows a button (never confirms on GET) and the POST has its own rate limit.
+PUBLIC_ROUTES.push("/api/public/events/x/registrations", "/api/public/events/x/registrations/confirm", "/inscripciones/x/confirmar", "/api/public/events/x/calendar.ics", "/api/public/events/seats");
 
 /** URL paths of every page and route handler under `app/`, with dynamic segments filled and route groups dropped. */
 function discoverRoutes(dir: string = APP_DIR, prefix = ""): string[] {

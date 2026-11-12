@@ -29,7 +29,7 @@ describe("runRegistrationRetention", () => {
       action: "event.registration_purge",
       entityType: "event",
       entityId: null,
-      summary: "Depuración de inscripciones: 7 eliminadas, 90 días después de cada evento",
+      summary: "Depuración de inscripciones: 7 eliminadas (90 días después de cada evento o correo sin confirmar en 48 h)",
     });
   });
 

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Icon } from "@/components/icons";
 import { feedHref } from "@/interface/forum/forum-links";
-import { getForumCategories } from "@/interface/forum/forum-read";
+import { getForumCategories, getForumDraftOwner } from "@/interface/forum/forum-read";
 
 import { NewThreadForm } from "../../../_components/new-thread-form";
 
@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
 
 export default async function NewThreadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = (await getForumCategories(`/foro/c/${slug}/nuevo`)).find((candidate) => candidate.slug === slug);
+  const returnTo = `/foro/c/${slug}/nuevo`;
+  const [categories, memberId] = await Promise.all([getForumCategories(returnTo), getForumDraftOwner(returnTo)]);
+  const category = categories.find((candidate) => candidate.slug === slug);
 
   if (!category) {
     notFound();
@@ -31,7 +33,7 @@ export default async function NewThreadPage({ params }: { params: Promise<{ slug
       <p className="mb-5 text-mist">
         Se publica en <strong className="font-semibold text-foreground">{category.name}</strong>.
       </p>
-      <NewThreadForm categorySlug={category.slug} />
+      <NewThreadForm categorySlug={category.slug} memberId={memberId} />
     </>
   );
 }

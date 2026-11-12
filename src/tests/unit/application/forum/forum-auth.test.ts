@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
+import { CheckForumSuspensionUseCase, CloseForumSessionUseCase, FORUM_SESSION_TTL_MS, GetOwnForumAccountUseCase, OpenForumSessionUseCase, ResolveForumLoginUseCase, ValidateForumSessionUseCase } from "@/application/forum/forum-auth.use-cases";
 import { InMemoryForumMemberRepository, InMemoryForumSessionRepository, makeForumMember } from "@/tests/fakes/in-memory-forum";
 
 const NOW = new Date("2026-10-26T12:00:00.000Z");
@@ -183,5 +183,64 @@ describe("forum sessions", () => {
 
     expect(sessions.sessions.get(sessionId)?.revokedAt).toEqual(NOW);
     expect(await validate().execute({ sessionId, memberId: "m1" })).toBeNull();
+  });
+});
+
+describe("CheckForumSuspensionUseCase (D1)", () => {
+  let sessions: InMemoryForumSessionRepository;
+
+  const check = (input: { sessionId: string; memberId: string }) => new CheckForumSuspensionUseCase(sessions).execute(input);
+  const suspend = (id: string) => members.members.set(id, makeForumMember({ id, status: "SUSPENDED", suspendedAt: NOW }));
+
+  beforeEach(() => {
+    members.members.set("m1", makeForumMember({ id: "m1" }));
+    sessions = new InMemoryForumSessionRepository(members);
+  });
+
+  it("is true for the session of a suspended member, also once the suspension closed that session", async () => {
+    const { sessionId } = await new OpenForumSessionUseCase(sessions, () => NOW, () => "s1").execute({ memberId: "m1" });
+
+    suspend("m1");
+    expect(await check({ sessionId, memberId: "m1" })).toBe(true);
+
+    await sessions.revoke(sessionId, NOW);
+    expect(await check({ sessionId, memberId: "m1" })).toBe(true);
+  });
+
+  it("is false for an active member, a reactivated one, an unknown session, and a session of somebody else", async () => {
+    const { sessionId } = await new OpenForumSessionUseCase(sessions, () => NOW, () => "s1").execute({ memberId: "m1" });
+    members.members.set("m2", makeForumMember({ id: "m2", email: "b@unl.edu.ec", googleSub: "sub-b" }));
+    suspend("m2");
+
+    expect(await check({ sessionId, memberId: "m1" })).toBe(false);
+    expect(await check({ sessionId: "ghost", memberId: "m1" })).toBe(false);
+    // The cookie names a session of m1 and claims to be m2, who is suspended: the claim does not count.
+    expect(await check({ sessionId, memberId: "m2" })).toBe(false);
+
+    suspend("m1");
+    members.members.set("m1", makeForumMember({ id: "m1" }));
+    expect(await check({ sessionId, memberId: "m1" })).toBe(false);
+  });
+});
+
+describe("GetOwnForumAccountUseCase", () => {
+  it("S2: gives the member their own name and email, for their account menu only", async () => {
+    members.members.set("m1", makeForumMember({ id: "m1", displayName: "María Cuenca", email: "maria.cuenca@unl.edu.ec" }));
+
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "m1" })).toEqual({ name: "María Cuenca", email: "maria.cuenca@unl.edu.ec" });
+  });
+
+  it("gives nothing for a member that does not exist", async () => {
+    expect(await new GetOwnForumAccountUseCase(members).execute({ memberId: "nadie" })).toBeNull();
+  });
+});
+
+describe("S9: the member session lasts thirty days", () => {
+  it("stores a session that expires thirty days after it opens, and no later", async () => {
+    const sessions = new InMemoryForumSessionRepository(members);
+    const { sessionId, expiresAt } = await new OpenForumSessionUseCase(sessions, () => NOW).execute({ memberId: "m1" });
+
+    expect(expiresAt.getTime() - NOW.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(sessions.sessions.get(sessionId)?.expiresAt).toEqual(expiresAt);
   });
 });

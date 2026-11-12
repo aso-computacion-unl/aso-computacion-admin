@@ -24,11 +24,18 @@ export async function getAdminEventCounts() {
   return getEventUseCases().count.execute();
 }
 
-/** One event with its active photos, or null when it does not exist. */
+/**
+ * One event with its active photos and the people registered and confirmed in it, or null when it does not exist. The
+ * count is what the edit form's warning compares a mode or seats change against (D14): a pending registration holds no
+ * seat and is not counted.
+ */
 export async function getAdminEvent(id: string) {
   await requirePageSession();
   try {
-    return await getEventUseCases().get.execute({ id });
+    const useCases = getEventUseCases();
+    const event = await useCases.get.execute({ id });
+
+    return { ...event, registeredCount: await useCases.registeredCount(id) };
   } catch (error) {
     if (error instanceof NotFoundError) return null;
     throw error;

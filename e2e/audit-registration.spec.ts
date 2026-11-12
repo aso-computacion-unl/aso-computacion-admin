@@ -251,7 +251,7 @@ test.describe("the public event page", () => {
 
     try {
       await page.goto(`/inscripciones/${event.slug}`);
-      await expect(page.getByRole("region", { name: "Inscripción" }).getByText("Lucía Ñ.")).toBeVisible();
+      await expect(page.getByRole("region", { name: "Inscripción" }).getByText(member.email)).toBeVisible();
       await page.getByRole("button", { name: "Reservar mi cupo" }).click();
       await expect(page.getByText("Usted ya está inscrito en este evento.")).toBeVisible();
       await expect(page.getByText("Quedan 4 cupos")).toBeVisible();

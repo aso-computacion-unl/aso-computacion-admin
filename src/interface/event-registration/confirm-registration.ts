@@ -4,13 +4,11 @@
  * button is a client component.
  */
 
+import { errorCode, postToRegistrationEndpoint, retryAfterSeconds, waitText } from "./registration-endpoint-answer";
+
 export type ConfirmOutcome =
   | { kind: "confirmed" | "already_confirmed" | "full" | "closed" | "expired" | "invalid" | "not_found" | "unavailable" | "failed" }
   | { kind: "rate_limited"; retryAfterSeconds: number | null };
-
-function errorCode(body: unknown): string | undefined {
-  return body !== null && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-}
 
 /** Reads the confirm endpoint's answer (docs/REFERENCIA.md, "Event registration") without trusting its shape. */
 export function confirmOutcomeFromResponse(status: number, body: unknown, retryAfter: string | null): ConfirmOutcome {
@@ -20,11 +18,7 @@ export function confirmOutcomeFromResponse(status: number, body: unknown, retryA
     return result === "confirmed" || result === "already_confirmed" ? { kind: result } : { kind: "failed" };
   }
 
-  if (status === 429) {
-    const seconds = Number(retryAfter);
-
-    return { kind: "rate_limited", retryAfterSeconds: retryAfter && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null };
-  }
+  if (status === 429) return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(retryAfter) };
 
   const code = errorCode(body);
 
@@ -42,15 +36,6 @@ export interface ConfirmMessage {
   backToForm: boolean;
   /** Worth pressing the button again. */
   retry: boolean;
-}
-
-function waitText(seconds: number | null): string {
-  if (seconds === null) return "unos minutos";
-  if (seconds < 60) return `${seconds} ${seconds === 1 ? "segundo" : "segundos"}`;
-
-  const minutes = Math.ceil(seconds / 60);
-
-  return `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
 }
 
 const NONE = { reserved: false, backToForm: false, retry: false } as const;
@@ -82,17 +67,6 @@ export function confirmOutcomeMessage(outcome: ConfirmOutcome): ConfirmMessage {
 }
 
 /** Posts the token to the confirm endpoint of the event (same origin: no CORS) and never throws: a dead network is an outcome too. */
-export async function submitConfirmation(slug: string, token: string, send: typeof fetch = fetch): Promise<ConfirmOutcome> {
-  try {
-    const response = await send(`/api/public/events/${encodeURIComponent(slug)}/registrations/confirm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const body: unknown = await response.json().catch(() => null);
-
-    return confirmOutcomeFromResponse(response.status, body, response.headers.get("Retry-After"));
-  } catch {
-    return { kind: "failed" };
-  }
+export function submitConfirmation(slug: string, token: string, send: typeof fetch = fetch): Promise<ConfirmOutcome> {
+  return postToRegistrationEndpoint(slug, "/confirm", { token }, confirmOutcomeFromResponse, { kind: "failed" }, send);
 }

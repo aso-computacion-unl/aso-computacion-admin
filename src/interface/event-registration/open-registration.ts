@@ -14,6 +14,8 @@ import {
   REGISTRATION_SEMESTER_MAX,
 } from "@/domain/event-registration";
 
+import { errorCode, postToRegistrationEndpoint, retryAfterSeconds, waitText } from "./registration-endpoint-answer";
+
 export const OPEN_FIELDS = ["name", "email", "institution", "career", "semester"] as const;
 export type OpenField = (typeof OPEN_FIELDS)[number];
 export type OpenFormValues = Record<OpenField, string>;
@@ -101,10 +103,6 @@ export function endsRegistration(outcome: OpenOutcome): outcome is { kind: "full
   return outcome.kind === "full" || outcome.kind === "closed" || outcome.kind === "not_found";
 }
 
-function errorCode(body: unknown): string | undefined {
-  return body !== null && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-}
-
 /** Reads the public endpoint's answer (docs/REFERENCIA.md, "Event registration") without trusting its shape. */
 export function outcomeFromResponse(status: number, body: unknown, retryAfter: string | null): OpenOutcome {
   if (status === 201) return { kind: "registered" };
@@ -117,25 +115,12 @@ export function outcomeFromResponse(status: number, body: unknown, retryAfter: s
     return isOpenField(field) ? { kind: "field", field } : { kind: "failed" };
   }
 
-  if (status === 429) {
-    const seconds = Number(retryAfter);
-
-    return { kind: "rate_limited", retryAfterSeconds: retryAfter && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null };
-  }
+  if (status === 429) return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(retryAfter) };
 
   if (code === "captcha" || code === "unavailable" || code === "email_unavailable" || code === "email_budget" || code === "not_found") return { kind: code };
   if (status === 409 && (code === "duplicate" || code === "full" || code === "closed")) return { kind: code };
 
   return { kind: "failed" };
-}
-
-function waitText(seconds: number | null): string {
-  if (seconds === null) return "unos minutos";
-  if (seconds < 60) return `${seconds} ${seconds === 1 ? "segundo" : "segundos"}`;
-
-  const minutes = Math.ceil(seconds / 60);
-
-  return `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
 }
 
 const MESSAGES = {
@@ -167,17 +152,6 @@ export function outcomeMessage(outcome: Exclude<OpenOutcome, { kind: "registered
 }
 
 /** Posts to the public endpoint of the event (same origin: no CORS) and never throws: a dead network is an outcome too. */
-export async function submitOpenRegistration(slug: string, payload: Record<string, unknown>, send: typeof fetch = fetch): Promise<OpenOutcome> {
-  try {
-    const response = await send(`/api/public/events/${encodeURIComponent(slug)}/registrations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body: unknown = await response.json().catch(() => null);
-
-    return outcomeFromResponse(response.status, body, response.headers.get("Retry-After"));
-  } catch {
-    return { kind: "failed" };
-  }
+export function submitOpenRegistration(slug: string, payload: Record<string, unknown>, send: typeof fetch = fetch): Promise<OpenOutcome> {
+  return postToRegistrationEndpoint(slug, "", payload, outcomeFromResponse, { kind: "failed" }, send);
 }

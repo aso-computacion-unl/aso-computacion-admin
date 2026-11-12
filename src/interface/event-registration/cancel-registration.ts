@@ -4,13 +4,11 @@
  * imports: the button is a client component.
  */
 
+import { errorCode, postToRegistrationEndpoint, retryAfterSeconds, waitText } from "./registration-endpoint-answer";
+
 export type CancelOutcome =
   | { kind: "cancelled" | "already_cancelled" | "closed" | "expired" | "invalid" | "not_found" | "unavailable" | "failed" }
   | { kind: "rate_limited"; retryAfterSeconds: number | null };
-
-function errorCode(body: unknown): string | undefined {
-  return body !== null && typeof body === "object" && "error" in body && typeof body.error === "string" ? body.error : undefined;
-}
 
 /** Reads the cancel endpoint's answer (docs/REFERENCIA.md, "Event registration") without trusting its shape. */
 export function cancelOutcomeFromResponse(status: number, body: unknown, retryAfter: string | null): CancelOutcome {
@@ -20,11 +18,7 @@ export function cancelOutcomeFromResponse(status: number, body: unknown, retryAf
     return result === "cancelled" || result === "already_cancelled" ? { kind: result } : { kind: "failed" };
   }
 
-  if (status === 429) {
-    const seconds = Number(retryAfter);
-
-    return { kind: "rate_limited", retryAfterSeconds: retryAfter && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null };
-  }
+  if (status === 429) return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(retryAfter) };
 
   const code = errorCode(body);
 
@@ -40,15 +34,6 @@ export interface CancelMessage {
   backToEvent: boolean;
   /** Worth pressing the button again. */
   retry: boolean;
-}
-
-function waitText(seconds: number | null): string {
-  if (seconds === null) return "unos minutos";
-  if (seconds < 60) return `${seconds} ${seconds === 1 ? "segundo" : "segundos"}`;
-
-  const minutes = Math.ceil(seconds / 60);
-
-  return `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
 }
 
 const DONE = { backToEvent: true, retry: false } as const;
@@ -79,17 +64,6 @@ export function cancelOutcomeMessage(outcome: CancelOutcome): CancelMessage {
 }
 
 /** Posts the token to the cancel endpoint of the event (same origin: no CORS) and never throws: a dead network is an outcome too. */
-export async function submitCancellation(slug: string, token: string, send: typeof fetch = fetch): Promise<CancelOutcome> {
-  try {
-    const response = await send(`/api/public/events/${encodeURIComponent(slug)}/registrations/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const body: unknown = await response.json().catch(() => null);
-
-    return cancelOutcomeFromResponse(response.status, body, response.headers.get("Retry-After"));
-  } catch {
-    return { kind: "failed" };
-  }
+export function submitCancellation(slug: string, token: string, send: typeof fetch = fetch): Promise<CancelOutcome> {
+  return postToRegistrationEndpoint(slug, "/cancel", { token }, cancelOutcomeFromResponse, { kind: "failed" }, send);
 }

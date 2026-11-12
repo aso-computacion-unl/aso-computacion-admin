@@ -16,7 +16,6 @@
  * The registration route's one idea is the paper pass: a white sheet with a red tear-off, in both themes (it is a
  * physical object, so it does not repaint with the theme). Three pieces share it:
  *
- *   .pass      the sign-in screen ("Su pase de estudiante"): the sheet and a red stub holding the Google button.
  *   .ticket    the event: date stub, title and seats on paper, then a perforation and the navy tear-off with the
  *              action that depends on the mode (form, one-click confirm, free entry).
  *   .reg-card  the event in the public list (`/inscripciones`): a compact row of the same paper, with its action.
@@ -25,7 +24,6 @@
  * Only the notches follow the theme: they cut the sheet with the page's own background.
  */
 @layer components {
-	.pass,
 	.ticket,
 	.reg-card,
 	.reg-stub {
@@ -46,122 +44,7 @@
 		--cut: var(--color-background);
 	}
 
-	/* ---------- The sign-in pass ---------- */
-
-	.pass-page {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		place-items: center;
-		min-height: calc(100dvh - 3.5rem);
-		padding: 2rem 1rem 4rem;
-		overflow-x: clip;
-	}
-
-	.pass {
-		position: relative;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		width: 70rem;
-		max-width: 100%;
-		transform: rotate(-1deg);
-	}
-
-	.pass-main {
-		display: grid;
-		gap: 1.75rem;
-		align-content: space-between;
-		padding: 2rem 1.75rem 1.75rem;
-		background: var(--paper);
-		color: var(--on-paper);
-	}
-
-	.pass-tag {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		font-weight: 600;
-		line-height: 1;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-	}
-
-	.pass-main .pass-tag {
-		color: var(--paper-soft);
-	}
-
-	.pass-title {
-		font-size: clamp(2rem, 10.8vw, 3.5rem);
-		font-weight: 900;
-		font-stretch: 108%;
-		line-height: 0.9;
-		letter-spacing: -0.05em;
-		overflow-wrap: anywhere;
-	}
-
-	.pass-fields {
-		display: grid;
-		grid-template-columns: 1fr;
-		gap: 1.75rem;
-	}
-
-	.pass-fields > span {
-		display: block;
-		font-family: var(--font-mono);
-		font-size: 0.6875rem;
-		font-weight: 600;
-		line-height: 1;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: var(--paper-soft);
-	}
-
-	.pass-fields > span::after {
-		content: "";
-		display: block;
-		height: 1px;
-		margin-top: 1.125rem;
-		border-bottom: 2px dotted var(--paper-edge);
-	}
-
-	.pass-stub {
-		position: relative;
-		display: grid;
-		align-content: center;
-		padding: 2.25rem 1.75rem 1.75rem;
-		background: var(--color-signal);
-		color: var(--on-signal);
-	}
-
-	/* Phone: the stub hangs under the sheet and is torn off along its top edge. */
-	.pass-stub::before {
-		content: "";
-		position: absolute;
-		top: -1px;
-		right: 1rem;
-		left: 1rem;
-		border-top: 4px dashed #ffffff;
-	}
-
-	.pass-notch {
-		position: absolute;
-		top: -0.9375rem;
-		width: 1.875rem;
-		height: 1.875rem;
-		border-radius: 50%;
-		background: var(--cut);
-	}
-
-	.pass-notch[data-side="a"] {
-		left: -0.9375rem;
-	}
-
-	.pass-notch[data-side="b"] {
-		right: -0.9375rem;
-	}
-
-	.pass-stub .pass-tag {
-		margin-bottom: 1.25rem;
-		color: var(--on-signal);
-	}
+	/* ---------- The Google button of the tear-off (`PassGoogleButton`) ---------- */
 
 	.pass-google {
 		display: grid;
@@ -176,103 +59,6 @@
 		--google-button-hover: #e8edf4;
 		cursor: progress;
 		pointer-events: none;
-	}
-
-	.pass-stub a:focus-visible {
-		outline-color: #ffffff;
-		outline-offset: 4px;
-	}
-
-	.pass-note {
-		margin-top: 1rem;
-		font-family: var(--font-mono);
-		font-size: 0.875rem;
-		line-height: 1.4;
-	}
-
-	.pass-note b {
-		font-weight: 700;
-	}
-
-	.pass-error {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-		padding: 0.625rem 0.75rem;
-		background: #ffffff;
-		color: var(--paper-red);
-		font-size: 0.875rem;
-		font-weight: 600;
-		line-height: 1.4;
-	}
-
-	.pass-error svg {
-		margin-top: 0.125rem;
-		flex: none;
-	}
-
-	@media (min-width: 48rem) {
-		.pass-page {
-			padding-inline: 1.5rem;
-		}
-
-		.pass {
-			grid-template-columns: minmax(0, 1fr) 23.75rem;
-			transform: rotate(-1.4deg);
-		}
-
-		.pass-main {
-			min-height: 26rem;
-			padding: 3.25rem 3.5rem 3rem;
-		}
-
-		.pass-title {
-			font-size: clamp(4rem, 6.4vw, 5.5rem);
-		}
-
-		.pass-fields {
-			grid-template-columns: 1fr 1fr;
-		}
-
-		.pass-stub {
-			padding: 3rem 2.5rem;
-		}
-
-		/* Wide: the stub sits beside the sheet and is torn off along its left edge. */
-		.pass-stub::before {
-			inset: 1.125rem auto 1.125rem -1px;
-			border-top: 0;
-			border-left: 4px dashed #ffffff;
-		}
-
-		.pass-notch {
-			width: 2.125rem;
-			height: 2.125rem;
-		}
-
-		.pass-notch[data-side="a"] {
-			top: -1.0625rem;
-			left: -1.0625rem;
-		}
-
-		.pass-notch[data-side="b"] {
-			top: auto;
-			right: auto;
-			bottom: -1.0625rem;
-			left: -1.0625rem;
-		}
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		.pass {
-			transition: transform 0.25s var(--ease-reveal);
-		}
-
-		.pass:hover,
-		.pass:focus-within {
-			transform: rotate(0deg);
-		}
 	}
 
 	/* ---------- The event ticket ---------- */

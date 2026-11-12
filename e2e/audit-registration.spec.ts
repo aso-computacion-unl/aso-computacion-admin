@@ -11,7 +11,9 @@ import { openForm, stubTurnstile, widgetReady } from "./support/turnstile";
  * Audit of the event registration ("inscripción"): the public page in its three modes, the open form, the
  * public endpoints and the admin views, with the happy, error and edge cases of each. Every event is seeded
  * straight into the database under a unique prefix (and removed at the end), so the file shares a database
- * with the other specs. Each test comes from its own made-up client address (`x-real-ip`): the registration
+ * with the other specs. The mail sink keeps every message of the run, so a test that reads its mail writes to an
+ * address of its own run too (`STAMP`, new for each repeat of `--repeat-each`): it must not find an earlier repeat's
+ * mail. Each test comes from its own made-up client address (`x-real-ip`): the registration
  * limit is five attempts per address, and no test may eat another's.
  *
  * `npm run e2e` runs the open form for real: Cloudflare's always-pass Turnstile test keys, and a fake Gmail
@@ -455,30 +457,33 @@ test.describe("the open form in the browser", () => {
     const event = await seedEvent("exito", { registrationCapacity: 3 });
 
     await openForm(page, event.slug);
-    await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: "  JOSÉ.Ñandú@Exámple.COM ", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
+    const typed = `JOSÉ.Ñandú.${STAMP.toUpperCase()}@Exámple.COM`;
+    const stored = `josé.ñandú.${STAMP}@exámple.com`;
+
+    await fillForm(page, { name: "  José   Ñandú 李雷 😀  ", email: `  ${typed} `, career: "Ingeniería en Sistemas / Computación — «UNL»", semester: "12" });
     await page.getByRole("button", { name: "Reservar mi cupo" }).click();
 
     const done = page.getByRole("status").filter({ hasText: "Revise su correo" });
 
     await expect(done).toBeFocused();
-    await expect(done).toContainText("JOSÉ.Ñandú@Exámple.COM");
+    await expect(done).toContainText(typed);
     await expect(page.getByRole("link", { name: "Añadir al calendario" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Reservar mi cupo" })).toHaveCount(0);
     // No seat is taken until the link is used: the seats behind do not move.
     await expect(page.getByText("Quedan 3 cupos")).toBeVisible();
     // The confirmation really went out, to the address as the person wrote it once cleaned up, and carries the link.
-    const [mail] = await waitForMail("josé.ñandú@exámple.com");
+    const [mail] = await waitForMail(stored);
 
     expect(mail!.subject).toBe(`Confirme su cupo en «${event.title}»`);
     expect(confirmationLink(mail!)).toContain(`/inscripciones/${event.slug}/confirmar?token=`);
     expect(await registrations(event)).toMatchObject([
-      { mode: "open", name: "José Ñandú 李雷 😀", email: "josé.ñandú@exámple.com", institution: "Universidad Nacional de Loja", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12, confirmedAt: null },
+      { mode: "open", name: "José Ñandú 李雷 😀", email: stored, institution: "Universidad Nacional de Loja", career: "Ingeniería en Sistemas / Computación — «UNL»", semester: 12, confirmedAt: null },
     ]);
   });
 
   test("R4 → R5: the open form, the link in the email, the confirmation and the seat that was taken, with the real widget", async ({ page }) => {
     const event = await seedEvent("deextremo", { registrationCapacity: 2 });
-    const address = "extremo@example.com";
+    const address = `extremo-${STAMP}@example.com`;
 
     // No stub here: Cloudflare's own widget (its always-pass test key) renders in the page and gives the token.
     await page.goto(`/inscripciones/${event.slug}`);

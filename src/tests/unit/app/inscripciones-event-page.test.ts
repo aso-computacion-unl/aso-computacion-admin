@@ -509,7 +509,7 @@ describe("the route owns its styles", () => {
     const forum = readFileSync(join(dir, "..", "foro", "forum.css"), "utf8");
 
     expect(own.length).toBeGreaterThan(0);
-    for (const selector of [".ticket-stub", ".pass-stub"]) {
+    for (const selector of [".ticket-stub", ".pass-google"]) {
       expect(css).toContain(selector);
       expect(forum).not.toContain(selector);
     }

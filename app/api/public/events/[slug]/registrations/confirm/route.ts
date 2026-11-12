@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { assertSlug } from "@/domain/slug";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { checkRegistrationRateLimit } from "@/infrastructure/http/registration-rate-limiter";
 import { reportError } from "@/infrastructure/observability/report-error";
 import { describeError, toSafeError } from "@/infrastructure/observability/safe-error";
 import { openRegistrationConfirmToken } from "@/infrastructure/registration/registration-confirm-token";
+import { bodyRefusal, isEventSlug } from "@/interface/event-registration/public-event-route";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
 import { readJsonObject } from "@/interface/public/read-json-body";
 
@@ -28,16 +28,6 @@ function answer(body: object, status: number, headers: Record<string, string> = 
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 }
 
-function isSlug(value: string): boolean {
-  try {
-    assertSlug(value);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Confirms the email of a pending open registration and takes its seat. Only a POST does: the link in the email opens
  * a page whose button sends this request, because mail scanners and link previews fetch every link with GET and must
@@ -55,14 +45,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { slug } = await params;
 
-  if (!isSlug(slug)) {
+  if (!isEventSlug(slug)) {
     return answer({ error: "not_found" }, 404);
   }
 
   const body = await readJsonObject(request, MAX_BODY_BYTES);
 
   if (!body.ok) {
-    return answer({ error: body.status === 413 ? "too_large" : body.status === 415 ? "unsupported_media_type" : "bad_request" }, body.status);
+    return answer({ error: bodyRefusal(body.status) }, body.status);
   }
 
   try {

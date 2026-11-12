@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { ValidationError } from "@/domain/domain-error";
-import { assertSlug } from "@/domain/slug";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { checkRegistrationRateLimit } from "@/infrastructure/http/registration-rate-limiter";
@@ -9,6 +8,7 @@ import { verifyTurnstile } from "@/infrastructure/http/turnstile";
 import { reportError } from "@/infrastructure/observability/report-error";
 import { describeError, toSafeError } from "@/infrastructure/observability/safe-error";
 import { requestOpenRegistration } from "@/interface/event-registration/open-registration-request";
+import { bodyRefusal, isEventSlug } from "@/interface/event-registration/public-event-route";
 import { readJsonObject } from "@/interface/public/read-json-body";
 
 // A write: never prerendered, never cached.
@@ -30,16 +30,6 @@ function answer(request: Request, body: object, status: number, headers: Record<
   return withCors(request, response);
 }
 
-function isSlug(value: string): boolean {
-  try {
-    assertSlug(value);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Open-form registration for an event. Order matters and is cheapest first: rate limit, shape of the request,
  * Turnstile, then the request (which validates the fields strictly, makes sure an email can go out, stores the
@@ -55,14 +45,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { slug } = await params;
 
-  if (!isSlug(slug)) {
+  if (!isEventSlug(slug)) {
     return answer(request, { error: "not_found" }, 404);
   }
 
   const body = await readJsonObject(request, MAX_BODY_BYTES);
 
   if (!body.ok) {
-    return answer(request, { error: body.status === 413 ? "too_large" : body.status === 415 ? "unsupported_media_type" : "bad_request" }, body.status);
+    return answer(request, { error: bodyRefusal(body.status) }, body.status);
   }
 
   const captcha = await verifyTurnstile(body.value.turnstileToken);

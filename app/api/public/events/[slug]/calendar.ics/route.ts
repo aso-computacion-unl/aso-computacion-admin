@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { assertSlug } from "@/domain/slug";
 import { publicOrigin } from "@/infrastructure/auth/auth-config";
 import { getPublicClientKey } from "@/infrastructure/http/client-ip";
 import { handlePreflight, withCors } from "@/infrastructure/http/cors";
 import { checkPublicRateLimit } from "@/infrastructure/http/rate-limiter";
 import { reportError } from "@/infrastructure/observability/report-error";
+import { isEventSlug } from "@/interface/event-registration/public-event-route";
 import { buildEventIcs } from "@/interface/public/event-ics";
 import { registrationPageUrl } from "@/interface/public/public-event-extras";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
@@ -15,16 +15,6 @@ export const dynamic = "force-dynamic";
 
 /** The file only changes when the event is edited; a minute at the edge spares the database a burst of identical reads. */
 const CACHE_CONTROL = "public, max-age=0, s-maxage=60, must-revalidate";
-
-function isSlug(value: string): boolean {
-  try {
-    assertSlug(value);
-
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function failure(request: Request, status: number, error: string, headers: Record<string, string> = {}): NextResponse {
   return withCors(request, NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store", ...headers } }));
@@ -43,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { slug } = await params;
 
-  if (!isSlug(slug)) {
+  if (!isEventSlug(slug)) {
     return failure(request, 404, "Not found");
   }
 

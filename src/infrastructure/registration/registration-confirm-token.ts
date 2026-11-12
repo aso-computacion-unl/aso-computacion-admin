@@ -1,9 +1,10 @@
 import "server-only";
 
-import { SignJWT, errors, jwtVerify } from "jose";
-
 import { REGISTRATION_CONFIRMATION_TTL_MS } from "@/domain/event-registration";
-import { registrationConfirmSecret } from "@/infrastructure/mail/mail-config";
+
+import { openRegistrationLinkToken, sealRegistrationLinkToken } from "./registration-link-token";
+
+export { RegistrationConfirmSecretError } from "./registration-link-token";
 
 /*
  * The link in the confirmation email carries this token. Its own secret (`REGISTRATION_CONFIRM_SECRET`, never equal to
@@ -14,16 +15,8 @@ import { registrationConfirmSecret } from "@/infrastructure/mail/mail-config";
  * nonce, so only the link of the latest attempt confirms. A token without one is a link sent before that existed.
  */
 const PURPOSE = "registration-confirm";
-const ALGORITHM = "HS256";
 
 export const REGISTRATION_CONFIRM_TTL_SECONDS = REGISTRATION_CONFIRMATION_TTL_MS / 1000;
-
-export class RegistrationConfirmSecretError extends Error {
-  constructor() {
-    super("REGISTRATION_CONFIRM_SECRET must be defined, differ from ADMIN_SECRET and FORUM_SESSION_SECRET and be at least 32 characters long.");
-    this.name = "RegistrationConfirmSecretError";
-  }
-}
 
 export interface RegistrationConfirmClaims {
   registrationId: string;
@@ -34,25 +27,9 @@ export interface RegistrationConfirmClaims {
 
 export type RegistrationConfirmTokenResult = { status: "valid"; claims: RegistrationConfirmClaims } | { status: "expired" | "invalid" };
 
-function secretKey(): Uint8Array {
-  const secret = registrationConfirmSecret();
-
-  if (!secret) {
-    throw new RegistrationConfirmSecretError();
-  }
-
-  return new TextEncoder().encode(secret);
-}
-
 /** The signed token for one pending registration, valid 48 h from `now`. Throws `RegistrationConfirmSecretError` without a usable secret. */
-export async function sealRegistrationConfirmToken({ registrationId, eventId, nonce }: RegistrationConfirmClaims, now: Date = new Date()): Promise<string> {
-  const issuedAt = Math.floor(now.getTime() / 1000);
-
-  return new SignJWT({ purpose: PURPOSE, rid: registrationId, eid: eventId, ...(nonce ? { nce: nonce } : {}) })
-    .setProtectedHeader({ alg: ALGORITHM })
-    .setIssuedAt(issuedAt)
-    .setExpirationTime(issuedAt + REGISTRATION_CONFIRM_TTL_SECONDS)
-    .sign(secretKey());
+export function sealRegistrationConfirmToken({ registrationId, eventId, nonce }: RegistrationConfirmClaims, now: Date = new Date()): Promise<string> {
+  return sealRegistrationLinkToken(PURPOSE, { rid: registrationId, eid: eventId, ...(nonce ? { nce: nonce } : {}) }, REGISTRATION_CONFIRM_TTL_SECONDS, now);
 }
 
 /**
@@ -61,26 +38,17 @@ export async function sealRegistrationConfirmToken({ registrationId, eventId, no
  * checked, and the link is not to blame (the endpoint answers 503 `unavailable`).
  */
 export async function openRegistrationConfirmToken(value: string | undefined, now: Date = new Date()): Promise<RegistrationConfirmTokenResult> {
-  if (!value || !value.trim()) {
-    return { status: "invalid" };
+  const token = await openRegistrationLinkToken(PURPOSE, value, now);
+
+  if (token.status !== "valid") {
+    return token;
   }
 
-  try {
-    const { payload } = await jwtVerify(value.trim(), secretKey(), { algorithms: [ALGORITHM], requiredClaims: ["exp", "iat"], currentDate: now });
-    const { purpose, rid, eid, nce } = payload;
+  const { rid, eid, nce } = token.payload;
 
-    if (purpose !== PURPOSE || typeof rid !== "string" || !rid || typeof eid !== "string" || !eid) {
-      return { status: "invalid" };
-    }
-
-    if (nce === undefined) {
-      return { status: "valid", claims: { registrationId: rid, eventId: eid } };
-    }
-
-    return typeof nce === "string" && nce ? { status: "valid", claims: { registrationId: rid, eventId: eid, nonce: nce } } : { status: "invalid" };
-  } catch (error) {
-    if (error instanceof RegistrationConfirmSecretError) throw error;
-
-    return { status: error instanceof errors.JWTExpired ? "expired" : "invalid" };
+  if (nce === undefined) {
+    return { status: "valid", claims: { registrationId: rid, eventId: eid } };
   }
+
+  return typeof nce === "string" && nce ? { status: "valid", claims: { registrationId: rid, eventId: eid, nonce: nce } } : { status: "invalid" };
 }

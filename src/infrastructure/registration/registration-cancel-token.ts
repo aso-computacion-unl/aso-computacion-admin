@@ -1,10 +1,8 @@
 import "server-only";
 
-import { SignJWT, errors, jwtVerify } from "jose";
-
 import { REGISTRATION_CANCEL_TTL_MS } from "@/domain/event-registration";
-import { registrationConfirmSecret } from "@/infrastructure/mail/mail-config";
-import { RegistrationConfirmSecretError } from "@/infrastructure/registration/registration-confirm-token";
+
+import { openRegistrationLinkToken, sealRegistrationLinkToken } from "./registration-link-token";
 
 /*
  * The link that cancels a registration (D7), in the confirmation and the reminder emails. Signed with the same secret
@@ -14,7 +12,6 @@ import { RegistrationConfirmSecretError } from "@/infrastructure/registration/re
  * whether the event still lets it go. It lives a year, as long as there can be something to cancel.
  */
 const PURPOSE = "registration-cancel";
-const ALGORITHM = "HS256";
 
 export const REGISTRATION_CANCEL_TTL_SECONDS = REGISTRATION_CANCEL_TTL_MS / 1000;
 
@@ -25,25 +22,9 @@ export interface RegistrationCancelClaims {
 
 export type RegistrationCancelTokenResult = { status: "valid"; claims: RegistrationCancelClaims } | { status: "expired" | "invalid" };
 
-function secretKey(): Uint8Array {
-  const secret = registrationConfirmSecret();
-
-  if (!secret) {
-    throw new RegistrationConfirmSecretError();
-  }
-
-  return new TextEncoder().encode(secret);
-}
-
 /** The signed token for one registration, valid a year from `now`. Throws `RegistrationConfirmSecretError` without a usable secret. */
-export async function sealRegistrationCancelToken({ registrationId, eventId }: RegistrationCancelClaims, now: Date = new Date()): Promise<string> {
-  const issuedAt = Math.floor(now.getTime() / 1000);
-
-  return new SignJWT({ purpose: PURPOSE, rid: registrationId, eid: eventId })
-    .setProtectedHeader({ alg: ALGORITHM })
-    .setIssuedAt(issuedAt)
-    .setExpirationTime(issuedAt + REGISTRATION_CANCEL_TTL_SECONDS)
-    .sign(secretKey());
+export function sealRegistrationCancelToken({ registrationId, eventId }: RegistrationCancelClaims, now: Date = new Date()): Promise<string> {
+  return sealRegistrationLinkToken(PURPOSE, { rid: registrationId, eid: eventId }, REGISTRATION_CANCEL_TTL_SECONDS, now);
 }
 
 /**
@@ -52,22 +33,7 @@ export async function sealRegistrationCancelToken({ registrationId, eventId }: R
  * checked, and the link is not to blame (the endpoint answers 503 `unavailable`).
  */
 export async function openRegistrationCancelToken(value: string | undefined, now: Date = new Date()): Promise<RegistrationCancelTokenResult> {
-  if (!value || !value.trim()) {
-    return { status: "invalid" };
-  }
+  const token = await openRegistrationLinkToken(PURPOSE, value, now);
 
-  try {
-    const { payload } = await jwtVerify(value.trim(), secretKey(), { algorithms: [ALGORITHM], requiredClaims: ["exp", "iat"], currentDate: now });
-    const { purpose, rid, eid } = payload;
-
-    if (purpose !== PURPOSE || typeof rid !== "string" || !rid || typeof eid !== "string" || !eid) {
-      return { status: "invalid" };
-    }
-
-    return { status: "valid", claims: { registrationId: rid, eventId: eid } };
-  } catch (error) {
-    if (error instanceof RegistrationConfirmSecretError) throw error;
-
-    return { status: error instanceof errors.JWTExpired ? "expired" : "invalid" };
-  }
+  return token.status === "valid" ? { status: "valid", claims: { registrationId: token.payload.rid, eventId: token.payload.eid } } : token;
 }

@@ -41,6 +41,8 @@ export interface SessionRepository {
   /** True when the session was active and is now revoked. */
   revoke(id: string, at: Date): Promise<boolean>;
   revokeAllForUser(userId: string, at: Date): Promise<number>;
+  /** Atomically revokes the user's unexpired, unrevoked sessions except the current one; returns the count changed. */
+  revokeOtherActiveForUser(userId: string, currentSessionId: string, at: Date): Promise<number>;
   /**
    * Not revoked and not expired at `now`, newest first. The scope is always explicit: one user's
    * sessions, or `"all"` (only for a caller that already passed an admin check). An empty user id

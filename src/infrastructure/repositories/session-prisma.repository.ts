@@ -42,6 +42,15 @@ export class SessionPrismaRepository implements SessionRepository {
     return count;
   }
 
+  async revokeOtherActiveForUser(userId: string, currentSessionId: string, at: Date): Promise<number> {
+    const { count } = await prisma.session.updateMany({
+      where: { userId, id: { not: currentSessionId }, revokedAt: null, expiresAt: { gt: at } },
+      data: { revokedAt: at },
+    });
+
+    return count;
+  }
+
   async listActive(now: Date, scope: SessionScope): Promise<ActiveSessionView[]> {
     const rows = await prisma.session.findMany({
       where: { revokedAt: null, expiresAt: { gt: now }, ...(scope === "all" ? {} : { userId: scope.userId }) },

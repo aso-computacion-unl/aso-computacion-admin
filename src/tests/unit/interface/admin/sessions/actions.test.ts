@@ -121,8 +121,8 @@ describe("session server actions", () => {
       expect(await actions.revokeOtherSessions("test-editor")).toEqual({ success: true });
 
       expect([revoked(a.sessionId), revoked(b.sessionId), revoked(current)]).toEqual([true, true, false]);
-      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.actorUserId])).toEqual([
-        ["session.revoke_others", "session", "test-editor", "test-editor"],
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.actorUserId, entry.summary])).toEqual([
+        ["session.revoke_others", "session", "test-editor", "test-editor", "Sesiones cerradas: 2"],
       ]);
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
     });
@@ -170,28 +170,13 @@ describe("session server actions", () => {
       expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
     });
 
-    it("when a revoke fails midway, audits and revalidates for the sessions already closed, then reports the failure", async () => {
+    it("maps an atomic update failure without revoking, auditing or revalidating", async () => {
       cookieJar(cookiesMock, await signInAs("EDITOR"));
-      const a = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
-      const b = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
-      const original = testAuth.sessions.revoke.bind(testAuth.sessions);
-      vi.spyOn(testAuth.sessions, "revoke").mockImplementationOnce(original).mockRejectedValueOnce(new Error("db down"));
-
-      const result = await actions.revokeOtherSessions("test-editor");
-
-      expect(result).toHaveProperty("error");
-      expect(result).not.toHaveProperty("success");
-      expect([a.sessionId, b.sessionId].filter(revoked)).toHaveLength(1);
-      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityId, entry.summary])).toEqual([["session.revoke_others", "test-editor", "Sesiones cerradas: 1"]]);
-      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/sesiones");
-    });
-
-    it("a failure before anything closed is not audited or revalidated", async () => {
-      cookieJar(cookiesMock, await signInAs("EDITOR"));
-      await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
-      vi.spyOn(testAuth.sessions, "revoke").mockRejectedValueOnce(new Error("db down"));
+      const other = await testAuth.services.startSession.execute({ subject: { kind: "user", userId: "test-editor" } });
+      vi.spyOn(testAuth.sessions, "revokeOtherActiveForUser").mockRejectedValueOnce(new Error("db down"));
 
       expect(await actions.revokeOtherSessions("test-editor")).toHaveProperty("error");
+      expect(revoked(other.sessionId)).toBe(false);
       expect(testAuth.audit.entries).toEqual([]);
       expect(revalidatePathMock).not.toHaveBeenCalled();
     });

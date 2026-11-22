@@ -4,10 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { SignJWT } from "jose";
-
 import { E2E_SMTP_PORT, startSmtpSink } from "../e2e/support/smtp-sink.ts";
+import { requireRuntimeValue } from "../src/infrastructure/config/runtime-env.ts";
 import { createIntegrationEnvironment } from "./run-prisma-integration-tests.mjs";
 import { assertSafePrismaTestTarget, CANONICAL_TEST_DATABASE_URL } from "./prisma-test-target.mjs";
 
@@ -86,7 +84,11 @@ const E2E_EDITOR_EMAIL = "e2e-editor@example.org";
 async function seedEditorSessions(databaseUrl, secret) {
   // Plain Node cannot resolve the `@/` alias, so this reaches the generated client by path (Node strips its
   // types); the `.ts` extensions in its imports are what `importFileExtension` in schema.prisma is for.
-  const { PrismaClient } = await import("../src/generated/prisma/client.ts");
+  const [{ PrismaClient }, { PrismaPg }, { SignJWT }] = await Promise.all([
+    import("../src/generated/prisma/client.ts"),
+    import("@prisma/adapter-pg"),
+    import("jose"),
+  ]);
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
 
   try {
@@ -167,8 +169,27 @@ export function buildAppEnvironment(environment, testDatabaseUrl) {
   };
 }
 
+function assertSignedInUnlCoverage(environment) {
+  if (!environment.CI || environment.CI === "false") return;
+
+  const secret = environment.FORUM_SESSION_SECRET;
+  const adminSecret = environment.ADMIN_SECRET ?? E2E_ADMIN_SECRET;
+  const message = "Signed-in UNL e2e coverage in CI requires FORUM_SESSION_SECRET: set a test-only value of at least 32 characters, distinct from ADMIN_SECRET.";
+
+  try {
+    requireRuntimeValue("FORUM_SESSION_SECRET", secret);
+  } catch {
+    throw new Error(message);
+  }
+  // The app trims its secret, but the browser fixture signs with the raw value.
+  if (secret !== secret.trim() || secret.length < 32 || secret === adminSecret.trim()) {
+    throw new Error(message);
+  }
+}
+
 // `playwrightArguments` go straight to `playwright test` (a file, `-g <title>`), so one spec can run against the same build.
 export async function runE2e(environment = process.env, playwrightArguments = []) {
+  assertSignedInUnlCoverage(environment);
   const testDatabaseUrl = environment.TEST_DATABASE_URL ?? CANONICAL_TEST_DATABASE_URL;
   assertSafePrismaTestTarget(testDatabaseUrl);
 

@@ -64,6 +64,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54329/aso_computacion_admin_test?schema=public
       ADMIN_PASSWORD: e2e-only-admin-password-0123456789
       ADMIN_SECRET: e2e-only-session-secret-0123456789-abcdefghij
+      FORUM_SESSION_SECRET: e2e-only-forum-secret-0123456789-abcdefghij
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,12 +76,20 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       # Lifecycle scripts are skipped above; run the project's own postinstall (prisma generate) from the local install.
       - run: npm run postinstall
+      - run: node --test scripts/run-e2e.test.mjs
       # Chromium only, with the system libraries it needs, through the Playwright CLI pinned by the lockfile
       # (never an on-demand npx download).
       - run: npm run e2e:browsers
       # Starts the disposable Postgres, migrates it, builds the app, runs Playwright against `next start`, tears down.
       - run: npm run e2e
-      # Traces and page snapshots of failed tests (Playwright keeps them on failure): the only evidence of a CI-only failure.
+      # Keep the coverage evidence on success as well as on test failure.
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-playwright-report
+          path: playwright-report/
+          retention-days: 7
+      # Traces and page snapshots of failed tests (Playwright keeps them on failure).
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

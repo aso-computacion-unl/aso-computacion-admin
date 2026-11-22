@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { E2E_SMTP_PORT, startSmtpSink } from "../e2e/support/smtp-sink.ts";
 import { confirmationLink, waitForMail } from "../e2e/support/mail-sink.ts";
@@ -58,6 +60,49 @@ test("a caller's own confirm secret is shared with the specs, and an empty one f
 test("the forum domain is only set when the caller opted in to the signed-in forum suite", () => {
   assert.equal(buildAppEnvironment({}, DATABASE_URL).FORUM_ALLOWED_EMAIL_DOMAIN, "");
   assert.equal(buildAppEnvironment({ FORUM_SESSION_SECRET: "f".repeat(40) }, DATABASE_URL).FORUM_ALLOWED_EMAIL_DOMAIN, "unl.edu.ec");
+});
+
+// Deliberately invalid target: the CLI must never reach Docker or a database in these tests.
+function runPreflight(environment) {
+  const { status, stdout, stderr } = spawnSync(process.execPath, ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", fileURLToPath(new URL("./run-e2e.mjs", import.meta.url))], {
+    env: { TEST_DATABASE_URL: "invalid", ...environment },
+    encoding: "utf8",
+  });
+
+  return { status, stdout, stderr };
+}
+
+const invalidDatabaseResult = {
+  status: 1,
+  stdout: "",
+  stderr: "TEST_DATABASE_URL must target the isolated Prisma test database. Set it to the documented canonical test URL.\n",
+};
+const testForumSecret = "e2e-only-forum-secret-0123456789-abcdefghij";
+
+for (const [label, config] of Object.entries({
+  missing: {},
+  empty: { FORUM_SESSION_SECRET: "" },
+  short: { FORUM_SESSION_SECRET: "short" },
+  placeholder: { FORUM_SESSION_SECRET: `__REPLACE_${"X".repeat(32)}__` },
+  reused: { FORUM_SESSION_SECRET: testForumSecret, ADMIN_SECRET: testForumSecret },
+})) {
+  test(`preflight rejects ${label} signed-in UNL configuration in CI`, () => {
+    assert.deepEqual(runPreflight({ CI: "true", ...config }), {
+      status: 1,
+      stdout: "",
+      stderr: "Signed-in UNL e2e coverage in CI requires FORUM_SESSION_SECRET: set a test-only value of at least 32 characters, distinct from ADMIN_SECRET.\n",
+    });
+  });
+}
+
+test("preflight accepts signed-in UNL configuration in CI", () => {
+  assert.deepEqual(runPreflight({ CI: "true", FORUM_SESSION_SECRET: testForumSecret }), invalidDatabaseResult);
+});
+
+test("preflight leaves signed-in UNL configuration optional locally", () => {
+  assert.deepEqual(runPreflight({}), invalidDatabaseResult);
+  assert.deepEqual(runPreflight({ CI: "false" }), invalidDatabaseResult);
+  assert.equal(buildAppEnvironment({}, DATABASE_URL).FORUM_SESSION_SECRET, "");
 });
 
 test("the sink keeps what nodemailer sends it, and a spec reads the confirmation link from the text", async () => {

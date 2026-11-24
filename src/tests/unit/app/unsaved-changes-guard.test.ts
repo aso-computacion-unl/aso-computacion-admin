@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 /** `next/link` needs the app router; here a click on a link is recorded instead of navigating. */
 const visits = vi.hoisted((): string[] => []);
+const push = vi.hoisted(() => vi.fn<(href: string) => void>());
 
 vi.mock("next/link", () => ({
   default: ({ href, onClick, ...props }: ComponentProps<"a"> & { href: string }) =>
@@ -18,14 +19,18 @@ vi.mock("next/link", () => ({
     }),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+
 import { ActionBar, Field, FormFeedback } from "../../../../app/admin/_components/form-parts";
 import { PageHeader } from "../../../../app/admin/_components/page-header";
+import { UnsavedChangesProvider } from "../../../../app/admin/_components/unsaved-changes";
 import { useControlledForm } from "../../../../app/admin/_components/use-controlled-form";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { click, mount, typeInto, unmountAll } from "@/tests/support/dom";
 
 afterEach(async () => {
   visits.length = 0;
+  push.mockReset();
   await unmountAll();
 });
 
@@ -34,8 +39,12 @@ type Control = Parameters<ComponentProps<typeof Field>["children"]>[0];
 
 const INITIAL = { title: "Hola" };
 
-/** The back link in the page header and the form below it, the way every edit page puts them. */
+/** The back link in the page header and the form below it, the way every edit page puts them, under the layout's provider. */
 function Page({ action }: { action: Action }) {
+  return createElement(UnsavedChangesProvider, null, createElement(EditPage, { action }));
+}
+
+function EditPage({ action }: { action: Action }) {
   const { bind, handleSubmit, state, isPending } = useControlledForm(action, INITIAL);
 
   return createElement(
@@ -58,8 +67,9 @@ const failing: Action = async () => ({ error: "No se pudo guardar." });
 const title = (host: HTMLElement) => host.querySelector<HTMLInputElement>('input[name="title"]')!;
 const submit = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
 const backLink = (host: HTMLElement) => [...host.querySelectorAll("a")].find((link) => link.textContent === "Volver a eventos")!;
-const confirmation = (host: HTMLElement) => host.querySelector('[role="group"][aria-label="Confirmar: salir sin guardar"]');
-const button = (host: HTMLElement, label: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
+// The question is the admin's one shared dialog, which sits in `body`, outside the page's own markup.
+const confirmation = () => document.querySelector('[role="alertdialog"]');
+const button = (label: string) => [...document.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
 
 /** What the browser does on unload: the page asks to stay when a listener cancels the event. */
 function unloadIsBlocked(): boolean {
@@ -140,7 +150,7 @@ describe("the back link with unsaved changes", () => {
     await click(backLink(host));
 
     expect(visits).toEqual(["/admin/events"]);
-    expect(confirmation(host)).toBeNull();
+    expect(confirmation()).toBeNull();
   });
 
   it("asks first when something has changed, and does not leave yet", async () => {
@@ -150,7 +160,7 @@ describe("the back link with unsaved changes", () => {
     await click(backLink(host));
 
     expect(visits).toEqual([]);
-    expect(confirmation(host)?.textContent).toContain("Tiene cambios sin guardar");
+    expect(confirmation()?.textContent).toContain("Tiene cambios sin guardar");
   });
 
   it("puts the focus on the safe choice, and 'Seguir editando' closes the question and returns to the link", async () => {
@@ -159,11 +169,11 @@ describe("the back link with unsaved changes", () => {
     await typeInto(title(host), "Hola mundo");
     await click(backLink(host));
 
-    expect(document.activeElement).toBe(button(host, "Seguir editando"));
+    expect(document.activeElement).toBe(button("Seguir editando"));
 
-    await click(button(host, "Seguir editando"));
+    await click(button("Seguir editando"));
 
-    expect(confirmation(host)).toBeNull();
+    expect(confirmation()).toBeNull();
     expect(document.activeElement).toBe(backLink(host));
     expect(visits).toEqual([]);
     expect(title(host).value).toBe("Hola mundo");
@@ -174,9 +184,11 @@ describe("the back link with unsaved changes", () => {
 
     await typeInto(title(host), "Hola mundo");
     await click(backLink(host));
-    await click([...host.querySelectorAll("a")].find((link) => link.textContent === "Salir sin guardar")!);
+    await click(button("Salir sin guardar"));
 
-    expect(visits).toEqual(["/admin/events"]);
+    expect(visits).toEqual([]);
+    expect(push).toHaveBeenCalledWith("/admin/events");
+    expect(confirmation()).toBeNull();
   });
 
   it("takes the question back once a save leaves nothing unsaved", async () => {
@@ -186,6 +198,6 @@ describe("the back link with unsaved changes", () => {
     await click(backLink(host));
     await submit(host);
 
-    expect(confirmation(host)).toBeNull();
+    expect(confirmation()).toBeNull();
   });
 });

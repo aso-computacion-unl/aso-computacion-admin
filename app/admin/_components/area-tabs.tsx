@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/domain/user";
@@ -7,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { MoreMenu } from "./more-menu";
 import { AJUSTES_TABS, CONTENIDO_MORE, CONTENIDO_TABS, visibleTo, type TabItem } from "./nav-items";
+import { GuardedLink } from "./unsaved-changes";
 
 type AreaTabsProps =
   | {
@@ -30,6 +29,7 @@ const TAB = cn(
 /**
  * The tab strip at the top of the pages of an area: Contenido (the types of the landing, with "+ Crear" for the
  * current one) and Ajustes. The strip scrolls sideways inside its own box on a phone, so it never widens the page.
+ * Its links ask before they leave unsaved changes behind (`GuardedLink`).
  */
 export function AreaTabs(props: AreaTabsProps) {
   const { current } = props;
@@ -53,10 +53,10 @@ export function AreaTabs(props: AreaTabsProps) {
       </div>
       {create ? (
         <Button asChild className="shrink-0">
-          <Link href={create}>
+          <GuardedLink href={create}>
             <Icon name="plus" />
             Crear
-          </Link>
+          </GuardedLink>
         </Button>
       ) : null}
     </div>
@@ -65,7 +65,7 @@ export function AreaTabs(props: AreaTabsProps) {
 
 function Tab({ tab, current }: { tab: TabItem; current: string }) {
   return (
-    <Link href={tab.href} aria-current={tab.href === current ? "page" : undefined} className={TAB}>
+    <GuardedLink href={tab.href} aria-current={tab.href === current ? "page" : undefined} className={TAB}>
       {tab.label}
       {tab.adminOnly ? (
         <>
@@ -73,6 +73,6 @@ function Tab({ tab, current }: { tab: TabItem; current: string }) {
           <span className="sr-only"> solo administradores</span>
         </>
       ) : null}
-    </Link>
+    </GuardedLink>
   );
 }

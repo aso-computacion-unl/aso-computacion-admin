@@ -6,7 +6,8 @@ import { INTEGRATION_SUITES } from "./src/tests/support/integration-suites";
 export default defineConfig({
   // Next.js compiles JSX with the automatic runtime; mirror it here so app
   // components written in JSX (no React import) stay unit-testable.
-  esbuild: { jsx: "automatic" },
+  // Vite 8 transforms with Oxc instead of esbuild.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     // Mirrors the `paths` in tsconfig.json; the more specific aliases come first.
     alias: {

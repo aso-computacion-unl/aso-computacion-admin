@@ -114,7 +114,7 @@ paths:
                       startDate: "2026-11-20T15:00:00-05:00"
                       endDate: null
                       location: Aula 12
-                      registrationUrl: null
+                      registrationUrl: https://aso-computacion-admin.vercel.app/inscripciones/taller-git
                 faqs: []
                 pillars: []
                 socials: []
@@ -1218,7 +1218,7 @@ components:
         location: { type: [string, "null"] }
         registrationUrl:
           type: [string, "null"]
-          description: La página de inscripción cuando la aloja este admin (`unl`).
+          description: La página de inscripción de este admin (`unl` y `open`); `null` si el evento no tiene inscripción.
     PublicEvent:
       type: object
       required:

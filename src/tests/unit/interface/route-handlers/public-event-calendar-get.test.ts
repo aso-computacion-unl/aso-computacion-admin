@@ -52,6 +52,14 @@ describe("GET /api/public/events/[slug]/calendar.ics", () => {
     expect(body).toContain("URL:https://admin.example/inscripciones/taller-de-git");
   });
 
+  it("links the registration page of an open-form event too, and no page when the event takes no registrations", async () => {
+    await addTestEvent({ slug: "taller-de-git", registrationMode: "open" });
+    await addTestEvent({ slug: "charla-abierta", registrationMode: "none" });
+
+    expect(await (await get()).text()).toContain("URL:https://admin.example/inscripciones/taller-de-git");
+    expect(await (await get("charla-abierta")).text()).not.toContain("URL:");
+  });
+
   it("contains no personal data even when people have registered", async () => {
     const event = await addTestEvent({ registrationMode: "open" });
     await testEventRegistration.registrations.register(

@@ -39,7 +39,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const event = await getEventRegistrationServices().publicEvent.execute({ slug, now: new Date() });
-    const url = event?.registrationMode === "unl" ? registrationPageUrl(slug, publicOrigin(process.env.AUTH_URL)) : null;
+    const takesRegistrations = event?.registrationMode === "unl" || event?.registrationMode === "open";
+    const url = takesRegistrations ? registrationPageUrl(slug, publicOrigin(process.env.AUTH_URL)) : null;
     const ics = event && buildEventIcs(event, { url });
 
     if (!ics) {

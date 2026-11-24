@@ -3,6 +3,7 @@ import { NewsItem, type CreateNewsItemInput } from "@/domain/news-item";
 import type { NewsItemResult } from "../dto/news-item-result.dto";
 import { toNewsItemResult } from "../mappers/news-item-result.mapper";
 import type { NewsRepository } from "../ports/news-repository.port";
+import { withSlugIssue } from "./merge-slug-issue";
 import { resolveNewsSlug } from "./resolve-news-slug";
 
 /** The cover is added afterwards with `SetNewsCoverUseCase`, once the item has an id. */
@@ -12,8 +13,12 @@ export class CreateNewsItemUseCase {
   constructor(private readonly news: NewsRepository) {}
 
   async execute(command: CreateNewsItemCommand): Promise<NewsItemResult> {
-    const slug = await resolveNewsSlug(this.news, command.title, command.slug);
-    const created = await this.news.create(NewsItem.create({ ...command, slug }));
+    const item = await withSlugIssue(
+      () => resolveNewsSlug(this.news, command.title, command.slug),
+      command.slug ?? "",
+      (slug) => NewsItem.create({ ...command, slug }),
+    );
+    const created = await this.news.create(item);
 
     return toNewsItemResult(created);
   }

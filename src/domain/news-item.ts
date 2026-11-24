@@ -1,5 +1,5 @@
 import { assertCalendarDate, todayInEcuador } from "./calendar-date";
-import { ValidationError } from "./domain-error";
+import { collectValidation, ValidationError } from "./domain-error";
 import { assertPublicationWindow } from "./publication-window";
 import { assertSlug, slugify } from "./slug";
 import { httpsUrl, requiredText } from "./text";
@@ -84,20 +84,25 @@ function buildCover(cover: NewsCover): NewsCover {
 type BuildFields = Omit<NewsItemFields, "slug" | "publishedAt" | "publishAt" | "unpublishAt"> &
   Partial<Pick<NewsItemFields, "slug" | "publishedAt" | "publishAt" | "unpublishAt">>;
 
+/** Every independent rule is checked, so one save reports all of them; the slug derived from a bad title is not. */
 function build(base: Pick<NewsItemProps, "id" | "createdAt" | "updatedAt">, fields: BuildFields): NewsItemProps {
-  const title = requiredText("title", fields.title, NEWS_TITLE_MAX_LENGTH);
+  return collectValidation((check) => {
+    const title = check(() => requiredText("title", fields.title, NEWS_TITLE_MAX_LENGTH));
+    const slugSource = fields.slug ?? (title === undefined ? undefined : slugify(title));
+    const { cover } = fields;
 
-  return {
-    ...base,
-    slug: assertSlug(fields.slug ?? slugify(title)),
-    title,
-    summary: requiredText("summary", fields.summary, NEWS_SUMMARY_MAX_LENGTH),
-    body: requiredText("body", fields.body, NEWS_BODY_MAX_LENGTH),
-    publishedAt: assertCalendarDate("publishedAt", fields.publishedAt ?? todayInEcuador(base.createdAt)),
-    cover: fields.cover ? buildCover(fields.cover) : null,
-    isPublished: fields.isPublished,
-    ...assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
-  };
+    return {
+      ...base,
+      slug: slugSource === undefined ? "" : check(() => assertSlug(slugSource)),
+      title,
+      summary: check(() => requiredText("summary", fields.summary, NEWS_SUMMARY_MAX_LENGTH)),
+      body: check(() => requiredText("body", fields.body, NEWS_BODY_MAX_LENGTH)),
+      publishedAt: check(() => assertCalendarDate("publishedAt", fields.publishedAt ?? todayInEcuador(base.createdAt))),
+      cover: cover ? check(() => buildCover(cover)) : null,
+      isPublished: fields.isPublished,
+      ...check(() => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null)),
+    };
+  });
 }
 
 export class NewsItem {

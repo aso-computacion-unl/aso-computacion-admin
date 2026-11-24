@@ -159,29 +159,14 @@ export class RevokeSessionUseCase {
   }
 }
 
-/** A bulk revoke failed after closing `closed` sessions: the caller still audits and refreshes those, then reports `cause`. */
-export class PartialSessionRevokeError extends Error {
-  constructor(
-    public readonly closed: number,
-    public override readonly cause: unknown,
-  ) {
-    super(`Closed ${closed} session(s) before failing`);
-    this.name = "PartialSessionRevokeError";
-  }
-}
-
-/**
- * "Cerrar las demás": revokes a person's sessions except the one the caller is using. Built from the
- * list and revoke use cases, so it asks the same permission as a single revoke: anyone for their own
- * sessions, ADMIN for another person's. The caller's current session is never revoked, whoever it names.
- */
+/** "Cerrar las demás": revoke active sessions for oneself, or for another person as ADMIN. */
 export class RevokeOtherSessionsUseCase {
   constructor(
-    private readonly list: ListActiveSessionsUseCase,
-    private readonly revoke: RevokeSessionUseCase,
+    private readonly sessions: SessionRepository,
+    private readonly now: Clock = () => new Date(),
   ) {}
 
-  /** Returns how many sessions it closed. A failure after some were closed is a `PartialSessionRevokeError` carrying that count. */
+  /** Returns the number of sessions this request revoked, never including the caller's current session. */
   async execute({ actor, userId }: { actor: Actor; userId: string }): Promise<number> {
     const isOwn = actor.userId !== null && userId === actor.userId;
 
@@ -189,21 +174,6 @@ export class RevokeOtherSessionsUseCase {
       throw new ForbiddenError();
     }
 
-    const targets = (await this.list.execute({ actor })).filter((session) => session.userId === userId && session.id !== actor.sessionId);
-    let closed = 0;
-
-    for (const { id } of targets) {
-      try {
-        await this.revoke.execute({ actor, sessionId: id });
-        closed += 1;
-      } catch (error) {
-        // Closed by someone else since the list was read: the goal is met.
-        if (error instanceof NotFoundError) continue;
-
-        throw closed > 0 ? new PartialSessionRevokeError(closed, error) : error;
-      }
-    }
-
-    return closed;
+    return this.sessions.revokeOtherActiveForUser(userId, actor.sessionId, this.now());
   }
 }

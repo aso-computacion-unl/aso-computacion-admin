@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ListActiveSessionsUseCase,
-  PartialSessionRevokeError,
   RevokeOtherSessionsUseCase,
   RevokeSessionUseCase,
   SESSION_TTL_MS,
@@ -285,7 +284,7 @@ describe("RevokeOtherSessionsUseCase", () => {
     await start().execute({ subject: { kind: "break_glass" } });
   });
 
-  const revokeOthers = () => new RevokeOtherSessionsUseCase(new ListActiveSessionsUseCase(sessions, now), new RevokeSessionUseCase(sessions, now));
+  const revokeOthers = () => new RevokeOtherSessionsUseCase(sessions, now);
   const isRevoked = (id: string) => sessions.sessions.get(id)?.revokedAt != null;
   const ana: Actor = { ...editor, sessionId: "s1" };
 
@@ -333,22 +332,13 @@ describe("RevokeOtherSessionsUseCase", () => {
     expect([isRevoked("s4"), isRevoked("s6")]).toEqual([false, true]);
   });
 
-  it("carries the count already closed when a revoke fails midway, with the original error as the cause", async () => {
+  it("rethrows an atomic update error untouched and leaves the sessions active", async () => {
     const boom = new Error("db down");
-    const original = sessions.revoke.bind(sessions);
-    vi.spyOn(sessions, "revoke").mockImplementationOnce(original).mockRejectedValueOnce(boom);
-
-    const failure = await revokeOthers().execute({ actor: ana, userId: "ana" }).catch((error: unknown) => error);
-
-    expect(failure).toBeInstanceOf(PartialSessionRevokeError);
-    expect(failure).toMatchObject({ closed: 1, cause: boom });
-  });
-
-  it("rethrows the original error untouched when nothing had been closed yet", async () => {
-    const boom = new Error("db down");
-    vi.spyOn(sessions, "revoke").mockRejectedValueOnce(boom);
+    vi.spyOn(sessions, "revokeOtherActiveForUser").mockRejectedValueOnce(boom);
 
     await expect(revokeOthers().execute({ actor: ana, userId: "ana" })).rejects.toBe(boom);
+    const active = await new ListActiveSessionsUseCase(sessions, now).execute({ actor: ana });
+    expect(active.map(({ id }) => id).sort()).toEqual(["s1", "s2", "s3"]);
   });
 
   it("revokes nothing and says so when there are no other sessions", async () => {

@@ -100,6 +100,10 @@ export class InMemorySessionRepository implements SessionRepository {
   }
 
   async revoke(id: string, at: Date) {
+    return this.markRevoked(id, at);
+  }
+
+  private markRevoked(id: string, at: Date) {
     const session = this.sessions.get(id);
     if (!session || session.revokedAt) return false;
     this.sessions.set(id, { ...session, revokedAt: at });
@@ -110,6 +114,15 @@ export class InMemorySessionRepository implements SessionRepository {
     let count = 0;
     for (const session of this.sessions.values()) {
       if (session.userId === userId && (await this.revoke(session.id, at))) count += 1;
+    }
+    return count;
+  }
+
+  async revokeOtherActiveForUser(userId: string, currentSessionId: string, at: Date) {
+    let count = 0;
+    for (const session of this.sessions.values()) {
+      if (session.userId !== userId || session.id === currentSessionId || session.revokedAt || session.expiresAt <= at) continue;
+      if (this.markRevoked(session.id, at)) count += 1;
     }
     return count;
   }

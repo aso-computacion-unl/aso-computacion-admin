@@ -13,7 +13,7 @@ Unit tests (`npm test`), integration tests against Postgres (`npm run test:integ
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare's always-pass test keys | The open form's widget renders and passes; the server verifies the token with the test secret (needs network access to `challenges.cloudflare.com`) |
 | `AUTH_URL` | `http://127.0.0.1:3100` | The public origin of the links in emails and invitations |
 | `REGISTRATION_CONFIRM_SECRET` | test value (or the caller's) | Signs the confirmation links; shared with the test process, which seeds its own pending rows |
-| `FORUM_SESSION_SECRET` | the caller's, else empty | Opt-in for the signed-in forum suites |
+| `FORUM_SESSION_SECRET` | the caller's, else empty | Required in CI; optional locally for signed-in UNL journeys |
 
 Every other feature variable is forced to empty (a developer's `.env*` never leaks in).
 
@@ -40,7 +40,9 @@ Cloudflare's script keeps a page from reaching `networkidle`, so form specs neve
 FORUM_SESSION_SECRET=<32+ characters> npm run e2e
 ```
 
-Without it `forum-member`, `audit-forum` and the UNL-member registration test skip. Specs that need a member use `e2e/support/forum-session.ts`:
+Use a test-only value distinct from `ADMIN_SECRET`. CI provides one explicitly, fails before starting services if the value is missing or invalid, and uploads the HTML report as `e2e-playwright-report` when Playwright produces it. Google OAuth remains disabled; the tests use planted sessions in the disposable database.
+
+Locally, without the secret, `forum-member`, `audit-forum`, `forum-browse`, `forum-ux`, and `forum-moderation-conflicts` skip, as do the signed-in cases in `registration-access`, `registration-cancel`, and `audit-registration`. Specs that need a member use `e2e/support/forum-session.ts`:
 
 ```ts
 const member = await plantForumMemberSession(prisma, { memberId: "m1", displayName: "Daniela P." });
@@ -51,10 +53,10 @@ It upserts the `ForumMember` and `ForumSession` rows and signs the `forum-sessio
 
 ### What skips
 
-Only the signed-in forum suites, and only without `FORUM_SESSION_SECRET` (above). The open registration form no longer skips: the harness has Turnstile and a mail sink.
+In the harness, omitting `FORUM_SESSION_SECRET` locally skips the signed-in UNL cases listed above. The open registration form no longer skips: the harness has Turnstile and a mail sink.
 
 The rules the old harness proved by being unconfigured are covered another way: "no Turnstile secret closes the form (503)" by `src/tests/unit/infrastructure/http/turnstile.test.ts` and a mocked 503 in `event-page.spec.ts`; "secret without site key says unavailable" by `inscripciones-event-page.test.ts`; "no AUTH_URL, no invite link" by `users/actions.test.ts`.
 
 ### Unit test of the harness
 
-`node --test scripts/run-e2e.test.mjs` checks `buildAppEnvironment` and the sink with nodemailer (it is not part of `npm test`, whose Vitest include is `src/tests/**`).
+`node --test scripts/run-e2e.test.mjs` checks CI/local preflight, `buildAppEnvironment`, and the sink with nodemailer (it is not part of `npm test`, whose Vitest include is `src/tests/**`).

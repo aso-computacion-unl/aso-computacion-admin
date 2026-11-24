@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { RevokeOtherSessionsUseCase, ValidateSessionUseCase } from "@/application/auth/session.use-cases";
 import { prisma } from "@/infrastructure/prisma/client";
 import { AuditLogPrismaRepository } from "@/infrastructure/repositories/audit-log-prisma.repository";
 import { SessionPrismaRepository } from "@/infrastructure/repositories/session-prisma.repository";
@@ -153,6 +154,56 @@ describe("SessionPrismaRepository (integration)", () => {
     expect(all[0]).toMatchObject({ userName: null, kind: "break_glass" });
     expect((await sessions.listActive(later(100), { userId: "ana" })).map((session) => session.id)).toEqual(["old"]);
     expect(await sessions.listActive(later(100), { userId: "" })).toEqual([]);
+  });
+});
+
+describe("RevokeOtherSessionsUseCase (integration)", () => {
+  it("counts each revocation once across concurrent requests and keeps unaffected sessions intact", async () => {
+    const at = later(100);
+    const now = () => at;
+    const repository = new SessionPrismaRepository();
+    const revoke = repository.revoke.bind(repository);
+    // If the caller uses a per-session read/write loop, hold its first write until
+    // both requests have read the same unrevoked row. The writes still hit PostgreSQL.
+    let arrivals = 0;
+    let release!: () => void;
+    const bothRead = new Promise<void>((resolve) => { release = resolve; });
+    vi.spyOn(repository, "revoke").mockImplementation(async (id, when) => {
+      if (id === "other-new") {
+        if (++arrivals === 2) release();
+        await bothRead;
+      }
+      return revoke(id, when);
+    });
+    await users.create(makeUser({ id: "ana" }));
+    await users.create(makeUser({ id: "ben", email: "ben@example.org" }));
+    for (const row of [
+      sessionOf("current", "ana"),
+      sessionOf("other-old", "ana"),
+      sessionOf("other-new", "ana", { createdAt: later(10) }),
+      sessionOf("already-revoked", "ana", { revokedAt: later(20) }),
+      sessionOf("expired", "ana", { expiresAt: at }),
+      sessionOf("different-user", "ben"),
+      sessionOf("emergency", null),
+    ]) await repository.create(row);
+
+    const validate = new ValidateSessionUseCase(repository, now);
+    const validateUser = (sessionId: string) => validate.execute({ sessionId, kind: "user", breakGlassEnabled: false });
+    const actor = await validateUser("current");
+    if (!actor) throw new Error("Expected an active actor");
+    const bulk = new RevokeOtherSessionsUseCase(repository, now);
+    const input = { actor, userId: "ana" };
+    const counts = await Promise.all([bulk.execute(input), bulk.execute(input)]);
+
+    expect(counts.sort()).toEqual([0, 2]);
+    expect(await validateUser("current")).toEqual(actor);
+    expect(await validateUser("other-old")).toBeNull();
+    expect(await validateUser("other-new")).toBeNull();
+    expect(await validateUser("different-user")).toMatchObject({ userId: "ben" });
+    expect(await validate.execute({ sessionId: "emergency", kind: "break_glass", breakGlassEnabled: true })).toMatchObject({ kind: "break_glass" });
+    expect((await repository.findWithUser("already-revoked"))?.session.revokedAt).toEqual(later(20));
+    expect((await repository.findWithUser("expired"))?.session.revokedAt).toBeNull();
+    expect(await bulk.execute(input)).toBe(0);
   });
 });
 

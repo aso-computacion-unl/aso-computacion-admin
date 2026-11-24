@@ -71,6 +71,45 @@ describe("assertNoFocusedOrSkippedIntegrationTests", () => {
     expect(() => assertNoFocusedOrSkippedIntegrationTests(source)).not.toThrow();
   });
 
+  it.each([
+    '// it.only("comment", () => undefined);',
+    '/* describe["only"]("comment", () => undefined); */',
+    'const single = \'it.only("string", () => undefined)\';',
+    'const double = "it.skip(\\"string\\", () => undefined)";',
+    "const template = `it.only(${'x'}, () => undefined)`;",
+    'const pattern = /it.only("regex")/;',
+    'foo.only("not a test alias", () => undefined);',
+    'helpers.it.only("nested property", () => undefined);',
+    'const focused = it.only;',
+    '(it.only)("parenthesized callee", () => undefined);',
+    'new it.only("constructor");',
+    'it.each([["a"]])("%s", () => undefined);',
+    'it["each"]([["a"]])("%s", () => undefined);',
+    'const ratio = total / count; const other = "/"; it("persists", () => undefined);',
+  ])("does not flag modifier-shaped text outside a test call chain: %s", (source) => {
+    expect(() => assertNoFocusedOrSkippedIntegrationTests(source)).not.toThrow();
+  });
+
+  it.each([
+    'it.skip.each([["a"], ["b"]])("x", () => undefined);',
+    'describe["only"]("database", () => undefined);',
+    "it['skip']('database', () => undefined);",
+    'it\n  // a comment between the alias and its modifier\n  .only("database", () => undefined);',
+    'it?.only("database", () => undefined);',
+    'it.only?.("database", () => undefined);',
+    'it[`only`]("database", () => undefined);',
+    'it["on" + "ly"]("database", () => undefined);',
+    'it.only<string>("database", () => undefined);',
+    'const label = `${it.only("inside a substitution", () => undefined)}`;',
+    'const pattern = /"/; it.only("after a regex with a quote", () => undefined);',
+    'const quoted = "it.only(\\"x\\")"; it.skip("after an escaped string", () => undefined);',
+    'describe("suite", () => {\n  it("ok", () => undefined);\n  test.todo("nested");\n});',
+  ])("flags test call chains regardless of formatting and access style: %s", (source) => {
+    expect(() => assertNoFocusedOrSkippedIntegrationTests(source)).toThrow(
+      "Prisma integration tests must not contain .only or .skip; must not contain focused or skipped modifiers.",
+    );
+  });
+
   it("accepts ordinary executable integration tests", () => {
     expect(() => assertNoFocusedOrSkippedIntegrationTests('it("persists", () => undefined);')).not.toThrow();
   });

@@ -70,7 +70,7 @@ El orden es siempre el mismo, sea cual sea su rol:
 | Ruleset | Reglas | Quién puede saltarlo |
 |---|---|---|
 | `main: checks` | La CI pasa en verde (`checks`, `integration`, `e2e`); no se permite `force push` ni borrar `main` | Nadie |
-| `main: review` | Todo cambio entra por un Pull Request, con **1 aprobación del code owner** (`.github/CODEOWNERS`); un push nuevo descarta la aprobación anterior y las conversaciones tienen que quedar resueltas | Solo el administrador de la organización |
+| `main: review` | Todo cambio entra por un Pull Request, con **1 aprobación del code owner** (`.github/CODEOWNERS`); un push nuevo descarta la aprobación anterior y las conversaciones tienen que quedar resueltas; solo se mergea con *Squash and merge* | Solo el administrador de la organización |
 
 En la práctica hay dos perfiles:
 
@@ -81,8 +81,9 @@ Además:
 
 - La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`), y el workflow `Docs` construye el portal de documentación.
 - Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
-  Las menores y de parche se aprueban y se mergean solas cuando pasan los checks obligatorios
-  (`.github/workflows/dependabot-auto-merge.yml`); las mayores esperan revisión manual.
+  En las menores y de parche, un workflow deja activado el auto-merge (`.github/workflows/dependabot-auto-merge.yml`),
+  pero como esa aprobación la da un bot, que no es code owner, el PR espera a que el mantenedor lo apruebe; con su aprobación
+  y la CI en verde se mergea solo. Las mayores esperan una revisión completa.
 
 ### Tamaño de los PRs
 

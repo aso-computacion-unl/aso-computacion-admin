@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
 
 /*
@@ -113,4 +114,42 @@ test("the rail asks before it leaves unsaved changes, and leaves only on 'Salir 
   await rail.click();
   await question.getByRole("button", { name: "Salir sin guardar" }).click();
   await expect(page).toHaveURL(/\/admin\/registrations$/);
+});
+
+test("a link inside a page's own content asks before it leaves unsaved changes, and leaves only on 'Salir sin guardar'", async ({ page }) => {
+  await logInAsAdmin(page);
+
+  // A published event with registration: its edit page links to the registrations from its own content, and a published
+  // item never autosaves, so the change stays unsaved.
+  await page.goto("/admin/events/new", { waitUntil: "networkidle" });
+  await page.getByLabel("Título").fill(`E2E enlace ${STAMP}`);
+  await page.getByLabel("Fecha", { exact: true }).fill("2099-11-28");
+  await openMoreOptions(page);
+  await page.getByLabel("Hora").fill("09:00 - 11:00");
+  await page.getByLabel("Lugar").fill("Laboratorio 2");
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
+  await page.getByRole("radio", { name: "Formulario abierto" }).check();
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
+  await publish(page);
+  await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
+  const id = /\/admin\/events\/([^/]+)\/edit/.exec(page.url())![1]!;
+
+  await page.getByLabel("Título").fill(`E2E enlace ${STAMP} sin guardar`);
+
+  const link = page.getByRole("link", { name: "Ver inscripciones" });
+  const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
+
+  await link.click();
+  await expect(question).toBeVisible();
+  await expect(question.getByRole("button", { name: "Seguir editando" })).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`/admin/events/${id}/edit`));
+
+  await page.keyboard.press("Escape");
+  await expect(question).toHaveCount(0);
+  await expect(link).toBeFocused();
+  await expect(page.getByLabel("Título")).toHaveValue(`E2E enlace ${STAMP} sin guardar`);
+
+  await link.click();
+  await question.getByRole("button", { name: "Salir sin guardar" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${id}$`));
 });

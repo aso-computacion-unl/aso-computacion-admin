@@ -12,7 +12,7 @@ import { AdminThemeDefault } from "../_components/theme-toggle";
 
 import { Rail, TabBar } from "./_components/admin-nav";
 import { ToastProvider } from "./_components/toast";
-import { UnsavedChangesProvider } from "./_components/unsaved-changes";
+import { GuardedForm, UnsavedChangesProvider } from "./_components/unsaved-changes";
 import "./timeline.css";
 
 // Every admin page checks the session in the database, so none of them can be prerendered.
@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
 
   const emergency = actor.kind === "break_glass";
 
-  // One "leave without saving?" dialog for the whole admin: the rail, the tab bar and the links of every page ask through it.
+  // One "leave without saving?" dialog for the whole admin: the rail, the tab bar, the top bar's logo, the sign-out and the links of every page ask through it.
   return (
     <UnsavedChangesProvider>
       <div className="min-h-screen lg:grid lg:grid-cols-[6.75rem_minmax(0,1fr)]">
@@ -55,12 +55,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
               emergency={emergency}
               notice={emergency ? BREAK_GLASS_NOTICE : undefined}
               signOut={
-                <form action={logout}>
+                <GuardedForm action={logout}>
                   <Button variant="quiet" type="submit" className="w-full justify-start">
                     <Icon name="out" />
                     Cerrar sesión
                   </Button>
-                </form>
+                </GuardedForm>
               }
             />
           </AppTopBar>

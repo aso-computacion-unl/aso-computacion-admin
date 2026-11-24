@@ -1,4 +1,4 @@
-import { ValidationError } from "./domain-error";
+import { collectValidation, ValidationError } from "./domain-error";
 import { assertRegistrationSettings, type EventRegistrationMode } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
 import { assertSlug, slugify } from "./slug";
@@ -167,31 +167,39 @@ function registrationFields(fields: Partial<EventFields>) {
   return { registrationMode: mode, registrationCapacity: capacity, registrationDeadline: deadline };
 }
 
+/** Every independent rule is checked, so one save reports all of them; the slug derived from a bad title is not. */
 function build(
   base: Pick<EventProps, "id" | "createdAt" | "updatedAt">,
   fields: Partial<EventFields> & Pick<EventFields, "title">,
 ): EventProps {
-  const title = requiredText("title", fields.title, EVENT_TITLE_MAX_LENGTH);
-  const slug = assertSlug(fields.slug ?? slugify(title));
+  return collectValidation((check) => {
+    const title = check(() => requiredText("title", fields.title, EVENT_TITLE_MAX_LENGTH));
+    const slugSource = fields.slug ?? (title === undefined ? undefined : slugify(title));
+    const slug = slugSource === undefined ? "" : check(() => assertSlug(slugSource));
+    const description = check(() => optionalText("description", fields.description, EVENT_DESCRIPTION_MAX_LENGTH));
+    const date = check(() => validateDate(fields.date));
+    const datePrecision = check(() => validateDatePrecision(fields.datePrecision));
 
-  return {
-    ...base,
-    slug,
-    title,
-    description: optionalText("description", fields.description, EVENT_DESCRIPTION_MAX_LENGTH),
-    ...normaliseDate(validateDate(fields.date), validateDatePrecision(fields.datePrecision)),
-    type: validateType(fields.type),
-    commitMessage: optionalText("commitMessage", fields.commitMessage, EVENT_SHORT_TEXT_MAX_LENGTH),
-    hora: optionalText("hora", fields.hora, EVENT_SHORT_TEXT_MAX_LENGTH),
-    lugar: optionalText("lugar", fields.lugar, EVENT_SHORT_TEXT_MAX_LENGTH),
-    para: optionalText("para", fields.para, EVENT_SHORT_TEXT_MAX_LENGTH),
-    featured: fields.featured ?? false,
-    ...validateLink(fields.linkUrl, fields.linkLabel),
-    highlights: validateHighlights(fields.highlights),
-    isPublished: fields.isPublished ?? false,
-    ...assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
-    ...registrationFields(fields),
-  };
+    return {
+      ...base,
+      slug,
+      title,
+      description,
+      // After a failed check the value is `undefined` and the props are discarded; the fallbacks only keep this from throwing.
+      ...normaliseDate(date ?? null, datePrecision ?? "day"),
+      type: check(() => validateType(fields.type)),
+      commitMessage: check(() => optionalText("commitMessage", fields.commitMessage, EVENT_SHORT_TEXT_MAX_LENGTH)),
+      hora: check(() => optionalText("hora", fields.hora, EVENT_SHORT_TEXT_MAX_LENGTH)),
+      lugar: check(() => optionalText("lugar", fields.lugar, EVENT_SHORT_TEXT_MAX_LENGTH)),
+      para: check(() => optionalText("para", fields.para, EVENT_SHORT_TEXT_MAX_LENGTH)),
+      featured: fields.featured ?? false,
+      ...check(() => validateLink(fields.linkUrl, fields.linkLabel)),
+      highlights: check(() => validateHighlights(fields.highlights)),
+      isPublished: fields.isPublished ?? false,
+      ...check(() => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null)),
+      ...check(() => registrationFields(fields)),
+    };
+  });
 }
 
 export class Event {

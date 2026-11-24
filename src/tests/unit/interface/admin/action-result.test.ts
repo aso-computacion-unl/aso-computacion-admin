@@ -43,6 +43,30 @@ describe("mapActionError", () => {
     expect(mapActionError(new ValidationError("title", "invalid"), { title: "Hasta 60 caracteres." })).toEqual({ fieldErrors: { title: "Hasta 60 caracteres." } });
   });
 
+  it("reports every field of an aggregated domain rejection, first message per field", () => {
+    const error = ValidationError.fromIssues([
+      { field: "slug", message: "slug is already used by another event" },
+      { field: "linkLabel", message: "linkLabel needs a linkUrl" },
+      { field: "unpublishAt", message: "unpublishAt must be after publishAt" },
+      { field: "slug", message: "slug must be lowercase letters and digits separated by hyphens (at most 80 characters)" },
+    ]);
+
+    expect(mapActionError(error)).toEqual({
+      fieldErrors: {
+        slug: "El identificador solo admite minúsculas, números y guiones, y no puede repetirse.",
+        linkLabel: "El texto del enlace admite hasta 80 caracteres y requiere un enlace.",
+        unpublishAt: "La fecha de retiro debe ser posterior a la de publicación.",
+      },
+    });
+    expect(mapActionError(ValidationError.fromIssues([{ field: "title", message: "x" }]), { title: "Hasta 60 caracteres." })).toEqual({ fieldErrors: { title: "Hasta 60 caracteres." } });
+  });
+
+  it("maps a single domain rejection to exactly its one field and catalogued text", () => {
+    expect(mapActionError(new ValidationError("slug", "slug is already used by another event"))).toEqual({
+      fieldErrors: { slug: "El identificador solo admite minúsculas, números y guiones, y no puede repetirse." },
+    });
+  });
+
   it("reports a schema issue on the field it points at, with the schema's own message", () => {
     const parsed = z.object({ title: z.string().min(1, "Falta el título") }).safeParse({ title: "" });
 

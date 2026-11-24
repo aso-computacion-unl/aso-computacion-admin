@@ -120,7 +120,14 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
   }
 
   if (error instanceof ValidationError) {
-    return fieldError(error.field, undefined, fieldMessages);
+    // Every rule the domain rejected in this save, each on its field; a field that fails twice keeps its first text.
+    const fieldErrors: Record<string, string> = {};
+
+    for (const { field } of error.issues) {
+      if (!(field in fieldErrors)) fieldErrors[field] = fieldMessage(field, fieldMessages);
+    }
+
+    return { fieldErrors };
   }
 
   if (error instanceof InvalidImageFormatError) {

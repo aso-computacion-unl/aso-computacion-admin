@@ -83,7 +83,7 @@ export function useFocusFirstInvalid(result: ActionResult | null, formRef: RefOb
 }
 
 // Which forms on the page hold changes that were never saved, each with whether an autosave of them is on its way.
-// The shared "leave without saving?" dialog (unsaved-changes.tsx) reads it before any guarded link leaves.
+// The shared "leave without saving?" dialog (unsaved-changes.tsx) reads it before any link or the sign-out leaves.
 const unsavedForms = new Map<symbol, { saving: boolean }>();
 const unsavedListeners = new Set<() => void>();
 
@@ -106,10 +106,11 @@ function unsavedState(): UnsavedState {
 
 /**
  * While `dirty`, the browser asks before the tab closes or reloads (even while `saving`: closing the tab could cut the
- * request short), and the form counts for `useUnsavedState`. The in-app links of the admin shell (rail, tab bar, area
- * tabs, "Más", the back link) are `GuardedLink`s: they open the shared dialog while the state is `unsaved`. `saving`
- * is an autosave request on its way, which ends in the server even after the page changes. The browser's own Back and
- * Forward buttons are not caught: the App Router has no event to stop them.
+ * request short), and the form counts for `useUnsavedState`. While the state is `unsaved`, every way out inside the
+ * admin opens the shared dialog (unsaved-changes.tsx): the `GuardedLink`s of the shell, the sign-out, and any other
+ * same-site link (the top bar's logo, the links of a page's content). `saving` is an autosave request on its way, which
+ * ends in the server even after the page changes. The browser's own Back and Forward buttons are not caught: the App
+ * Router has no event to stop them.
  */
 export function useUnsavedChangesGuard(dirty: boolean, saving = false) {
   const [form] = useState(() => Symbol("unsaved form"));

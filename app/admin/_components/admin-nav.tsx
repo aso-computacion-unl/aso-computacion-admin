@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import isotype from "@/components/brand/isotype.svg";
@@ -11,13 +10,15 @@ import { cn } from "@/lib/utils";
 import type { Role } from "@/domain/user";
 
 import { activeArea, areaNav } from "./nav-items";
+import { GuardedLink } from "./unsaved-changes";
 
 const FOCUS = "focus-visible:outline-3 focus-visible:-outline-offset-4 focus-visible:outline-white";
 
 /**
  * Rail (desktop): a narrow strip in the deep navy of the design, the isotype on top (it is the way to Inicio)
  * and the four areas under it, an icon above a short label. The area of the current page is lit by the
- * `matches` of each item (see nav-items.ts), not by guessing from the link's own path.
+ * `matches` of each item (see nav-items.ts), not by guessing from the link's own path. Every link asks before it
+ * leaves unsaved changes behind (`GuardedLink`), and so does the tab bar.
  */
 export function Rail({ role }: { role: Role }) {
   const pathname = usePathname();
@@ -25,18 +26,18 @@ export function Rail({ role }: { role: Role }) {
 
   return (
     <nav aria-label="Áreas" className="flex h-full flex-col items-center py-4">
-      <Link
+      <GuardedLink
         href="/admin"
         aria-label="ASO Computación, inicio de la administración"
         aria-current={pathname === "/admin" ? "page" : undefined}
         className={cn("grid size-16 place-items-center rounded-sm", FOCUS, "focus-visible:outline-offset-2")}
       >
         <Image src={isotype} alt="" width={46} height={52} priority />
-      </Link>
+      </GuardedLink>
       <ul className="mt-4 grid w-full gap-1">
         {areaNav(role).map((item) => (
           <li key={item.href}>
-            <Link
+            <GuardedLink
               href={item.href}
               aria-current={item === current ? "page" : undefined}
               className={cn(
@@ -48,7 +49,7 @@ export function Rail({ role }: { role: Role }) {
             >
               <Icon name={item.icon} className="size-7" />
               {item.label}
-            </Link>
+            </GuardedLink>
           </li>
         ))}
       </ul>
@@ -68,7 +69,7 @@ export function TabBar({ role }: { role: Role }) {
       <ul className="grid h-17 grid-cols-4">
         {areaNav(role).map((item) => (
           <li key={item.href} className="contents">
-            <Link
+            <GuardedLink
               href={item.href}
               aria-current={item === current ? "page" : undefined}
               className={cn(
@@ -80,7 +81,7 @@ export function TabBar({ role }: { role: Role }) {
             >
               <Icon name={item.icon} className="size-6" />
               {item.label}
-            </Link>
+            </GuardedLink>
           </li>
         ))}
       </ul>

@@ -82,8 +82,9 @@ export function useFocusFirstInvalid(result: ActionResult | null, formRef: RefOb
   }, [result, formRef]);
 }
 
-// Which forms on the page hold changes that were never saved: the back link asks before it leaves while any does.
-const unsavedForms = new Set<symbol>();
+// Which forms on the page hold changes that were never saved, each with whether an autosave of them is on its way.
+// The shared "leave without saving?" dialog (unsaved-changes.tsx) reads it before any guarded link leaves.
+const unsavedForms = new Map<symbol, { saving: boolean }>();
 const unsavedListeners = new Set<() => void>();
 
 function announceUnsavedChange() {
@@ -91,41 +92,69 @@ function announceUnsavedChange() {
 }
 
 /**
- * While `dirty`, the browser asks before the tab closes or reloads, and `useHasUnsavedChanges` says so to the
- * rest of the page (the back link). It does not catch a click on another in-app link: only the back link asks.
+ * - `clean`: no form holds unsaved changes.
+ * - `saving`: every form that does is being saved by its autosave right now, so leaving loses nothing.
+ * - `unsaved`: some form holds changes nobody is saving: a guarded link asks first.
  */
-export function useUnsavedChangesGuard(dirty: boolean) {
+export type UnsavedState = "clean" | "saving" | "unsaved";
+
+function unsavedState(): UnsavedState {
+  if (unsavedForms.size === 0) return "clean";
+
+  return [...unsavedForms.values()].some((form) => !form.saving) ? "unsaved" : "saving";
+}
+
+/**
+ * While `dirty`, the browser asks before the tab closes or reloads (even while `saving`: closing the tab could cut the
+ * request short), and the form counts for `useUnsavedState`. The in-app links of the admin shell (rail, tab bar, area
+ * tabs, "Más", the back link) are `GuardedLink`s: they open the shared dialog while the state is `unsaved`. `saving`
+ * is an autosave request on its way, which ends in the server even after the page changes. The browser's own Back and
+ * Forward buttons are not caught: the App Router has no event to stop them.
+ */
+export function useUnsavedChangesGuard(dirty: boolean, saving = false) {
+  const [form] = useState(() => Symbol("unsaved form"));
+
   useEffect(() => {
     if (!dirty) return;
 
-    const form = Symbol("unsaved form");
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
 
-    unsavedForms.add(form);
-    announceUnsavedChange();
     window.addEventListener("beforeunload", warn);
+
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    unsavedForms.set(form, { saving });
+    announceUnsavedChange();
 
     return () => {
       unsavedForms.delete(form);
       announceUnsavedChange();
-      window.removeEventListener("beforeunload", warn);
     };
-  }, [dirty]);
+  }, [dirty, saving, form]);
 }
 
-export function useHasUnsavedChanges(): boolean {
+export function useUnsavedState(): UnsavedState {
   return useSyncExternalStore(
     (listener) => {
       unsavedListeners.add(listener);
 
       return () => unsavedListeners.delete(listener);
     },
-    () => unsavedForms.size > 0,
-    () => false,
+    unsavedState,
+    () => "clean",
   );
+}
+
+/** True while leaving would lose changes: some form holds edits that no autosave is storing right now. */
+export function useHasUnsavedChanges(): boolean {
+  return useUnsavedState() === "unsaved";
 }
 
 const differs = <V extends object>(a: V, b: V) => (Object.keys(a) as (keyof V)[]).some((key) => a[key] !== b[key]);
@@ -165,7 +194,7 @@ export function useControlledForm<V extends { [K in keyof V]: string | boolean }
   const isPending = sending || queued;
 
   useFocusFirstInvalid(state, formRef);
-  useUnsavedChangesGuard(dirty);
+  useUnsavedChangesGuard(dirty, autosaveOut);
 
   // A save the server accepted makes what was submitted the stored text.
   if (answered !== serverState) {

@@ -91,3 +91,26 @@ test("a create page never saves by itself: nothing exists until 'Crear pregunta'
   await other.goto(`/admin/faqs?q=${STAMP}`);
   await expect(other.getByRole("link", { name: `Editar: ${question}` })).toHaveCount(0);
 });
+
+test("the rail asks before it leaves unsaved changes, and leaves only on 'Salir sin guardar'", async ({ page }) => {
+  await logInAsAdmin(page);
+  await page.goto("/admin/faqs/new");
+  await page.getByLabel("Pregunta", { exact: true }).fill(`¿Sin guardar ${STAMP}?`);
+
+  const rail = page.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Inscripciones" }).first();
+  const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
+
+  await rail.click();
+  await expect(question).toBeVisible();
+  await expect(question.getByRole("button", { name: "Seguir editando" })).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
+
+  await page.keyboard.press("Escape");
+  await expect(question).toHaveCount(0);
+  await expect(rail).toBeFocused();
+  await expect(page.getByLabel("Pregunta", { exact: true })).toHaveValue(`¿Sin guardar ${STAMP}?`);
+
+  await rail.click();
+  await question.getByRole("button", { name: "Salir sin guardar" }).click();
+  await expect(page).toHaveURL(/\/admin\/registrations$/);
+});

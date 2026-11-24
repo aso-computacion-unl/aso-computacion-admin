@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 import type { TabItem } from "./nav-items";
+import { GuardedLink } from "./unsaved-changes";
 
 const MENU_WIDTH = 224;
 const EDGE = 8;
@@ -81,15 +81,17 @@ export function MoreMenu({ items, current, tabClassName }: MoreMenuProps) {
         className="fixed z-50 grid w-56 gap-0.5 rounded bg-card p-2 shadow-[0_0_0_1.5px_var(--color-border),6px_6px_0_var(--color-signal)]"
       >
         {items.map((item) => (
-          <Link
+          <GuardedLink
             key={item.href}
             href={item.href}
+            // The menu closes on the click: if the owner keeps editing, the focus goes back to "Más".
+            returnFocusTo={button}
             aria-current={item.href === current ? "page" : undefined}
             onClick={() => setOpen(false)}
             className="flex min-h-12 items-center rounded-xs px-3 font-semibold hover:bg-foreground/6 aria-[current=page]:bg-action aria-[current=page]:text-on-action"
           >
             {item.label}
-          </Link>
+          </GuardedLink>
         ))}
       </div>
     </li>

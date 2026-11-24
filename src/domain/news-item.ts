@@ -1,7 +1,7 @@
 import { assertCalendarDate, todayInEcuador } from "./calendar-date";
 import { collectValidation, ValidationError } from "./domain-error";
 import { assertPublicationWindow } from "./publication-window";
-import { assertSlug, slugify } from "./slug";
+import { titleAndSlug } from "./slug";
 import { httpsUrl, requiredText } from "./text";
 
 export const NEWS_TITLE_MAX_LENGTH = 120;
@@ -86,23 +86,29 @@ type BuildFields = Omit<NewsItemFields, "slug" | "publishedAt" | "publishAt" | "
 
 /** Every independent rule is checked, so one save reports all of them; the slug derived from a bad title is not. */
 function build(base: Pick<NewsItemProps, "id" | "createdAt" | "updatedAt">, fields: BuildFields): NewsItemProps {
-  return collectValidation((check) => {
-    const title = check(() => requiredText("title", fields.title, NEWS_TITLE_MAX_LENGTH));
-    const slugSource = fields.slug ?? (title === undefined ? undefined : slugify(title));
-    const { cover } = fields;
+  const { cover } = fields;
 
-    return {
+  return collectValidation(
+    {
+      identity: () => titleAndSlug(fields.title, fields.slug, NEWS_TITLE_MAX_LENGTH),
+      summary: () => requiredText("summary", fields.summary, NEWS_SUMMARY_MAX_LENGTH),
+      body: () => requiredText("body", fields.body, NEWS_BODY_MAX_LENGTH),
+      publishedAt: () => assertCalendarDate("publishedAt", fields.publishedAt ?? todayInEcuador(base.createdAt)),
+      cover: () => (cover ? buildCover(cover) : null),
+      publication: () => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
+    },
+    (checked) => ({
       ...base,
-      slug: slugSource === undefined ? "" : check(() => assertSlug(slugSource)),
-      title,
-      summary: check(() => requiredText("summary", fields.summary, NEWS_SUMMARY_MAX_LENGTH)),
-      body: check(() => requiredText("body", fields.body, NEWS_BODY_MAX_LENGTH)),
-      publishedAt: check(() => assertCalendarDate("publishedAt", fields.publishedAt ?? todayInEcuador(base.createdAt))),
-      cover: cover ? check(() => buildCover(cover)) : null,
+      slug: checked.identity.slug,
+      title: checked.identity.title,
+      summary: checked.summary,
+      body: checked.body,
+      publishedAt: checked.publishedAt,
+      cover: checked.cover,
       isPublished: fields.isPublished,
-      ...check(() => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null)),
-    };
-  });
+      ...checked.publication,
+    }),
+  );
 }
 
 export class NewsItem {
@@ -136,11 +142,16 @@ export class NewsItem {
       return this.with(updates);
     }
 
-    if (!cover) {
-      throw new ValidationError("coverAlt", "coverAlt needs a cover");
-    }
-
-    return this.with({ ...updates, cover: { ...cover, alt: coverAlt } });
+    // Independent of the other rules, so it is reported together with them.
+    return collectValidation(
+      {
+        coverAlt: () => {
+          if (!cover) throw new ValidationError("coverAlt", "coverAlt needs a cover");
+        },
+        item: () => this.with(cover ? { ...updates, cover: { ...cover, alt: coverAlt } } : updates),
+      },
+      (checked) => checked.item,
+    );
   }
 
   withCover(cover: NewsCover): NewsItem {

@@ -1,7 +1,7 @@
 import { collectValidation, ValidationError } from "./domain-error";
 import { assertRegistrationSettings, type EventRegistrationMode } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
-import { assertSlug, slugify } from "./slug";
+import { titleAndSlug } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
 
 /** Same vocabulary as the landing's activity filter chips. */
@@ -172,34 +172,41 @@ function build(
   base: Pick<EventProps, "id" | "createdAt" | "updatedAt">,
   fields: Partial<EventFields> & Pick<EventFields, "title">,
 ): EventProps {
-  return collectValidation((check) => {
-    const title = check(() => requiredText("title", fields.title, EVENT_TITLE_MAX_LENGTH));
-    const slugSource = fields.slug ?? (title === undefined ? undefined : slugify(title));
-    const slug = slugSource === undefined ? "" : check(() => assertSlug(slugSource));
-    const description = check(() => optionalText("description", fields.description, EVENT_DESCRIPTION_MAX_LENGTH));
-    const date = check(() => validateDate(fields.date));
-    const datePrecision = check(() => validateDatePrecision(fields.datePrecision));
-
-    return {
+  return collectValidation(
+    {
+      identity: () => titleAndSlug(fields.title, fields.slug, EVENT_TITLE_MAX_LENGTH),
+      description: () => optionalText("description", fields.description, EVENT_DESCRIPTION_MAX_LENGTH),
+      date: () => validateDate(fields.date),
+      datePrecision: () => validateDatePrecision(fields.datePrecision),
+      type: () => validateType(fields.type),
+      commitMessage: () => optionalText("commitMessage", fields.commitMessage, EVENT_SHORT_TEXT_MAX_LENGTH),
+      hora: () => optionalText("hora", fields.hora, EVENT_SHORT_TEXT_MAX_LENGTH),
+      lugar: () => optionalText("lugar", fields.lugar, EVENT_SHORT_TEXT_MAX_LENGTH),
+      para: () => optionalText("para", fields.para, EVENT_SHORT_TEXT_MAX_LENGTH),
+      link: () => validateLink(fields.linkUrl, fields.linkLabel),
+      highlights: () => validateHighlights(fields.highlights),
+      publication: () => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
+      registration: () => registrationFields(fields),
+    },
+    (checked) => ({
       ...base,
-      slug,
-      title,
-      description,
-      // After a failed check the value is `undefined` and the props are discarded; the fallbacks only keep this from throwing.
-      ...normaliseDate(date ?? null, datePrecision ?? "day"),
-      type: check(() => validateType(fields.type)),
-      commitMessage: check(() => optionalText("commitMessage", fields.commitMessage, EVENT_SHORT_TEXT_MAX_LENGTH)),
-      hora: check(() => optionalText("hora", fields.hora, EVENT_SHORT_TEXT_MAX_LENGTH)),
-      lugar: check(() => optionalText("lugar", fields.lugar, EVENT_SHORT_TEXT_MAX_LENGTH)),
-      para: check(() => optionalText("para", fields.para, EVENT_SHORT_TEXT_MAX_LENGTH)),
+      slug: checked.identity.slug,
+      title: checked.identity.title,
+      description: checked.description,
+      ...normaliseDate(checked.date, checked.datePrecision),
+      type: checked.type,
+      commitMessage: checked.commitMessage,
+      hora: checked.hora,
+      lugar: checked.lugar,
+      para: checked.para,
       featured: fields.featured ?? false,
-      ...check(() => validateLink(fields.linkUrl, fields.linkLabel)),
-      highlights: check(() => validateHighlights(fields.highlights)),
+      ...checked.link,
+      highlights: checked.highlights,
       isPublished: fields.isPublished ?? false,
-      ...check(() => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null)),
-      ...check(() => registrationFields(fields)),
-    };
-  });
+      ...checked.publication,
+      ...checked.registration,
+    }),
+  );
 }
 
 export class Event {

@@ -106,3 +106,27 @@ describe("news save reports the slug taken together with the entity's own failur
     expect(error.issues).toHaveLength(1);
   });
 });
+
+describe("a bad title without an explicit slug reports no slug issue", () => {
+  it("event create: title and the other failing rule", async () => {
+    const events = new InMemoryEventRepository(new InMemoryEventPhotoRepository());
+    const error = await caught(() => new CreateEventUseCase(events).execute({ title: "   ", linkLabel: "Ver" }));
+
+    expect(error.issues).toEqual([
+      { field: "title", message: "title is required" },
+      { field: "linkLabel", message: "linkLabel needs a linkUrl" },
+    ]);
+  });
+
+  it("news create: title and the other failing rule", async () => {
+    const news = new InMemoryNewsRepository();
+    const error = await caught(() =>
+      new CreateNewsItemUseCase(news).execute({ ...NEWS, title: "   ", publishAt: OPEN, unpublishAt: BEFORE_OPEN }),
+    );
+
+    expect(error.issues).toEqual([
+      { field: "title", message: "title is required" },
+      { field: "unpublishAt", message: "unpublishAt must be after publishAt" },
+    ]);
+  });
+});

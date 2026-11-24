@@ -86,3 +86,43 @@ describe("NewsItem reports every failing rule at once", () => {
     expect(error.issues).toHaveLength(1);
   });
 });
+
+describe("a bad title never reports the slug derived from it", () => {
+  it("event: title and the other failing rule, no slug issue", () => {
+    const error = caught(() => Event.create({ title: "   ", linkLabel: "Ver" }));
+
+    expect(error.issues).toEqual([
+      { field: "title", message: "title is required" },
+      { field: "linkLabel", message: "linkLabel needs a linkUrl" },
+    ]);
+  });
+
+  it("news: title and the other failing rule, no slug issue", () => {
+    const error = caught(() => NewsItem.create({ ...NEWS, title: "   ", publishAt: OPEN, unpublishAt: BEFORE_OPEN }));
+
+    expect(error.issues).toEqual([
+      { field: "title", message: "title is required" },
+      { field: "unpublishAt", message: "unpublishAt must be after publishAt" },
+    ]);
+  });
+});
+
+describe("a cover alt without a cover is one more collected rule", () => {
+  it("alone it is still exactly the old single error", () => {
+    const item = NewsItem.create(NEWS);
+    const error = caught(() => item.update({ coverAlt: "Foto" }));
+
+    expect(error).toMatchObject({ field: "coverAlt", message: "coverAlt needs a cover" });
+    expect(error.issues).toEqual([{ field: "coverAlt", message: "coverAlt needs a cover" }]);
+  });
+
+  it("comes back together with the item's other failures", () => {
+    const item = NewsItem.create(NEWS);
+    const error = caught(() => item.update({ coverAlt: "Foto", publishAt: OPEN, unpublishAt: BEFORE_OPEN }));
+
+    expect(error.issues).toEqual([
+      { field: "coverAlt", message: "coverAlt needs a cover" },
+      { field: "unpublishAt", message: "unpublishAt must be after publishAt" },
+    ]);
+  });
+});

@@ -1,8 +1,8 @@
 # Deploying the admin
 
-The admin runs on **Vercel**, stores data in **Neon** (Postgres) and images in **Cloudinary**. It feeds the static landing (Cloudflare Pages) through `GET /api/public/content` and a deploy hook. Nothing here is automated: each service is set up once by hand.
+The admin runs on **Vercel**, stores data in **Neon** (Postgres) and images in **Cloudinary**. It feeds the static landing (Cloudflare Pages) through `GET /api/public/content` and a deploy hook. Each service is set up once by hand; after that, Vercel deploys every merge to `main` and the `Migrate production database` workflow applies new migrations (section 1, step 4).
 
-Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Vercel](#3-vercel) → [seed](#5-seeding-the-landing-content) → [wire the landing](#6-wiring-the-landing). The [checklist](#8-first-deploy-checklist) at the end puts it in one list.
+Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Vercel](#3-vercel) → [seed](#5-seeding-the-landing-content) → [wire the landing](#6-wiring-the-landing). The [checklist](#9-first-deploy-checklist) at the end puts it in one list.
 
 ## 1. Neon (Postgres)
 
@@ -21,8 +21,10 @@ Order of work: [Neon](#1-neon-postgres) → [Cloudinary](#2-cloudinary) → [Ver
 4. Later migrations do not need the string copied again. The `Migrate production database` workflow (`.github/workflows/migrate.yml`) runs the same command with the direct string stored once in GitHub:
 
    - One-time setup: in the repository's **Settings → Environments → `production-db`** (deployment branches limited to `main`), add the secret `MIGRATE_DATABASE_URL` with the **direct** string. From a terminal: `gh secret set MIGRATE_DATABASE_URL --env production-db` and paste it when asked. Update it there if the Neon password is ever rotated.
-   - It runs on its own on every push to `main` that touches `prisma/migrations/`, and only ever with what is on `main`: a pull request branch never runs with the production string.
-   - Vercel deploys `main` the moment a merge lands, so the tables have to be there first. Merge the migration **in its own pull request** (only `prisma/migrations/`; migrations stay additive, so the running code ignores it), wait for the workflow to finish, then merge the code that needs it.
+   - It runs on its own once the `CI` workflow has **passed** on a push to `main`, and checks out exactly the commit CI validated: a red or cancelled CI run applies nothing. It runs after every green push to `main` (with nothing pending, `migrate deploy` is a no-op), and only ever with what is on `main`: a pull request branch never runs with the production string.
+   - Vercel deploys `main` the moment a merge lands, so the tables have to be there first. Merge the migration **in its own pull request** (only `prisma/migrations/`; migrations stay additive, so the running code ignores it), wait for CI on `main` and then for this workflow to finish (about ten minutes in total), then merge the code that needs it. The "Deploy order: run the migration first" notes in [section 8](#8-operating-notes) mean exactly this.
+   - A Dependabot update merged by auto-merge is pushed by GitHub Actions itself, and such a push starts no CI run on `main`, so this workflow does not run for it either. Dependabot never adds migrations, and the next green push applies anything pending.
+   - If CI fails on `main` (a flaky `e2e`, for instance), the workflow does not run and nothing else warns about it. Before merging the code that needs a migration, check that **Actions → Migrate production database** has a green run for that commit; if not, re-run the failed CI jobs on `main` or run the workflow by hand (it applies what is on `main`).
 
    The workflow refuses an empty or pooled string, and never runs for pull requests.
 

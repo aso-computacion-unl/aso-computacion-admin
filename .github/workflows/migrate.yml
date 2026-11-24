@@ -3,7 +3,10 @@ name: Migrate production database
 # Applies the committed Prisma migrations to the production database, so nobody has to copy the
 # Neon connection string by hand for every migration. See docs/DEPLOY.md, section 1.
 #
-# - On a push to main that touches prisma/migrations/, it runs on its own.
+# - It runs on its own after the CI workflow succeeds on a push to main, and checks out exactly the
+#   commit that CI validated. A failed or cancelled CI run applies nothing. It runs after every green
+#   push to main, not only those touching prisma/migrations/: `migrate deploy` with nothing pending is
+#   a no-op, and a later green run picks up a migration whose own CI run was cancelled by a newer push.
 # - Run it by hand (Actions > Migrate production database > Run workflow) to apply again what is
 #   on main, for instance after fixing the secret.
 #
@@ -15,10 +18,10 @@ name: Migrate production database
 # (the DIRECT Neon string, no `-pooler`). That environment accepts runs from main only, so a
 # branch cannot swap this file to reach it.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - "prisma/migrations/**"
   workflow_dispatch:
 
 permissions:
@@ -31,12 +34,22 @@ concurrency:
 
 jobs:
   migrate:
+    # workflow_run also fires for pull requests whose head branch is called "main" (forks included):
+    # only a successful CI run of a push to this repository's main gets through.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: production-db
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The commit CI validated; on a manual run, the tip of main.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

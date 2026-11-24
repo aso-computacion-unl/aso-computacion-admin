@@ -61,19 +61,29 @@ El orden es siempre el mismo, sea cual sea su rol:
    Si cambió algo visual, revíselo con `npm run dev` en celular (390 px) y escritorio.
 6. **Abra el PR** contra `main`, complete la plantilla y enlace el issue (`Closes #12`).
 7. **Revisión.** Responda los comentarios con commits nuevos en la misma rama; no reescriba la historia de una rama que ya está en revisión.
-8. **Merge.** Quien aprueba (o quien abrió el PR, una vez aprobado) hace el merge y borra la rama.
+8. **Merge.** Una vez aprobado y con la CI en verde, quien abrió el PR (o quien lo aprobó) hace el merge con **Squash and merge**; GitHub borra la rama sola.
 
 ### Reglas de la rama `main`
 
-`main` es lo que está desplegado. Está protegida:
+`main` es lo que está desplegado: cada merge se publica en Vercel y, si trae una migración, se aplica en producción. GitHub la protege con dos **rulesets** (*Settings → Rules → Rulesets*). Un ruleset es un conjunto de reglas con nombre que GitHub aplica a una rama; cada uno tiene su propia lista de *bypass*, es decir, quién puede saltarse **todas** sus reglas. Por eso las reglas están separadas en dos: lo que nadie se salta y lo que solo el mantenedor puede saltarse.
 
-- Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
-- Cada PR necesita **1 aprobación** de otra persona. GitHub le pide la revisión al mantenedor de forma automática (`.github/CODEOWNERS`).
-- No se permite `force push` ni borrar `main`.
+| Ruleset | Reglas | Quién puede saltarlo |
+|---|---|---|
+| `main: checks` | La CI pasa en verde (`checks`, `integration`, `e2e`); no se permite `force push` ni borrar `main` | Nadie |
+| `main: review` | Todo cambio entra por un Pull Request, con **1 aprobación del code owner** (`.github/CODEOWNERS`); un push nuevo descarta la aprobación anterior y las conversaciones tienen que quedar resueltas; solo se mergea con *Squash and merge* | Solo el administrador de la organización |
+
+En la práctica hay dos perfiles:
+
+- **Colaboradores** (estudiantes con permiso de escritura): trabajan en ramas de este repositorio (no hace falta un fork) y siguen el flujo de arriba. Cada PR necesita la aprobación del mantenedor, que GitHub le pide sola, y la CI en verde.
+- **Mantenedor** (el administrador de la organización): también entra siempre por PR y con la CI en verde, pero puede mergear sin aprobación de otra persona (`gh pr merge --squash --admin`), porque hoy no hay un segundo revisor. Antes de hacerlo, el cambio pasa una verificación independiente y, si toca datos, seguridad, contratos públicos o la entrega (migraciones, workflows, dependencias), una revisión de código aparte. Ni el mantenedor puede mergear con la CI en rojo.
+
+Además:
+
 - La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`), y el workflow `Docs` construye el portal de documentación.
 - Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
-  Las menores y de parche se aprueban y se mergean solas cuando pasan los checks obligatorios
-  (`.github/workflows/dependabot-auto-merge.yml`); las mayores esperan revisión manual.
+  En las menores y de parche, un workflow deja activado el auto-merge (`.github/workflows/dependabot-auto-merge.yml`),
+  pero como esa aprobación la da un bot, que no es code owner, el PR espera a que el mantenedor lo apruebe; con su aprobación
+  y la CI en verde se mergea solo. Las mayores esperan una revisión completa.
 
 ### Tamaño de los PRs
 
@@ -169,7 +179,7 @@ Protegen la seguridad del panel y la privacidad de la directiva. Un PR que las r
 - **Cada server action verifica la sesión y el rol** como primera instrucción: `requireSession()` si puede llamarla cualquier usuario con sesión, o `requireRole("ADMIN")` si es solo para administradores. Tiene además una fila en `src/tests/support/action-policy.ts` y un test que prueba que sin sesión no escribe nada (ver la [referencia técnica](docs/REFERENCIA.md#server-actions-are-guarded-individually)).
 - **El foro es una zona aparte.** Las acciones y lecturas del foro verifican `requireForumMember()` / `requireForumPageMember()` (cookie `forum_session`, nunca la del admin) y nunca devuelven el correo de un estudiante en un DTO. Una cookie del foro no puede pasar un guard del admin, ni al revés: hay tests que lo prueban y no se tocan para que pasen (ver la [referencia técnica](docs/REFERENCIA.md#the-forum-is-a-separate-zone)).
 - **La directiva solo tiene nombre, cargo y foto.** Nada de teléfono, correo, edad ni redes personales: hay tests que fallan si aparecen esos campos en el modelo o en una migración.
-- **Migraciones solo hacia adelante.** No edite una migración ya mergeada; agregue una nueva. Las migraciones de producción se aplican a mano (ver `docs/DEPLOY.md`).
+- **Migraciones solo hacia adelante.** No edite una migración ya mergeada; agregue una nueva. En producción se aplican solas: el workflow `Migrate production database` corre `prisma migrate deploy` cuando la CI pasa en `main`. Por eso la migración entra en su propio PR y el código que la usa se mergea después de que el workflow termine (ver `docs/DEPLOY.md`, sección 1).
 - **La API pública solo expone lo publicado.** Cualquier campo nuevo en `/api/public/content` es un cambio de contrato con la landing: coordine el PR en los dos repositorios. Agregar un campo no cambia `schemaVersion`; quitar, renombrar o cambiar el tipo de uno sí (`PUBLIC_CONTENT_SCHEMA_VERSION`), y la landing rechaza una versión que no conoce. Hay tests que fijan las claves exactas de cada objeto.
 - **Comportamiento nuevo, test nuevo.** Escriba primero el test que falla, después el código.
 

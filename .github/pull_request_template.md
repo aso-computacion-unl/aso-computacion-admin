@@ -19,7 +19,7 @@
 - [ ] Toda server action nueva llama a `requireSession()` (o `requireRole("ADMIN")` si es solo para admins) primero, y tiene su test sin sesión y de rol
 - [ ] No agrega datos de contacto a la directiva
 - [ ] Si cambia `/api/public/content`, hay un PR coordinado en `aso-computacion-landing`
-- [ ] Si agrega una migración, es nueva (no edita una existente) y lo anoté para aplicarla en producción
+- [ ] Si agrega una migración, es nueva (no edita una existente), va sola en este PR (solo `prisma/migrations/`) y el código que la usa espera a que se aplique en producción
 - [ ] No incluye secretos, archivos `.env` ni datos personales
 - [ ] Actualicé el README o `docs/DEPLOY.md` si cambié cómo se usa o se despliega algo
 

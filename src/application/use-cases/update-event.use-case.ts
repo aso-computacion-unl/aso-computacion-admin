@@ -3,6 +3,7 @@ import type { UpdateEventInput } from "@/domain/event";
 import type { EventResult } from "../dto/event-result.dto";
 import { toEventResult } from "../mappers/event-result.mapper";
 import type { EventRepository } from "../ports/event-repository.port";
+import { withSlugIssue } from "./merge-slug-issue";
 import { resolveEventSlug } from "./resolve-event-slug";
 import { NotFoundError } from "./use-case-error";
 import type { Updated } from "./updated-result";
@@ -20,10 +21,13 @@ export class UpdateEventUseCase {
     }
 
     // The slug only changes when the caller asks for it; the title alone never rewrites a public URL.
-    if (updates.slug !== undefined && updates.slug !== event.props.slug) {
-      await resolveEventSlug(this.events, event.props.title, updates.slug, id);
-    }
+    const slugChanges = updates.slug !== undefined && updates.slug !== event.props.slug;
+    const updated = await withSlugIssue(
+      async () => (slugChanges ? resolveEventSlug(this.events, event.props.title, updates.slug, id) : undefined),
+      undefined,
+      () => event.update(updates),
+    );
 
-    return { ...toEventResult(await this.events.update(event.update(updates))), wasPublished: event.props.isPublished };
+    return { ...toEventResult(await this.events.update(updated)), wasPublished: event.props.isPublished };
   }
 }

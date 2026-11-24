@@ -5,7 +5,7 @@ import { eventSchedule } from "./event-schedule";
 
 type RegistrationFields = Pick<EventResult, "slug" | "date" | "datePrecision" | "hora" | "lugar"> & Partial<Pick<EventResult, "registrationMode" | "registrationCapacity" | "registrationDeadline">>;
 
-/** The page where a UNL-account registration happens: on this admin, at its own `/inscripciones/<slug>` route. */
+/** The page where registration happens, for both modes: on this admin, at its own `/inscripciones/<slug>` route. */
 export function registrationPageUrl(slug: string, adminOrigin: string | undefined): string | null {
   return adminOrigin ? `${adminOrigin}/inscripciones/${slug}` : null;
 }
@@ -26,7 +26,9 @@ export function calendarFileUrl(slug: string, adminOrigin: string | undefined): 
 export function toPublicEventExtras(event: RegistrationFields, adminOrigin: string | undefined): Pick<PublicEvent, "registration" | "calendarUrl" | "structuredData"> {
   const mode = event.registrationMode ?? "none";
   const schedule = eventSchedule(event.date, event.datePrecision, event.hora);
-  const url = mode === "unl" ? registrationPageUrl(event.slug, adminOrigin) : null;
+  const pageUrl = mode === "none" ? null : registrationPageUrl(event.slug, adminOrigin);
+  // `registration.url` stays `unl` only: a non-null value there is how a consumer tells a UNL sign-in apart.
+  const url = mode === "unl" ? pageUrl : null;
 
   return {
     registration:
@@ -40,6 +42,6 @@ export function toPublicEventExtras(event: RegistrationFields, adminOrigin: stri
             endpoint: mode === "open" ? registrationEndpointUrl(event.slug, adminOrigin) : null,
           },
     calendarUrl: schedule ? calendarFileUrl(event.slug, adminOrigin) : null,
-    structuredData: schedule && { startDate: schedule.startLocal, endDate: schedule.endLocal, location: event.lugar, registrationUrl: url },
+    structuredData: schedule && { startDate: schedule.startLocal, endDate: schedule.endLocal, location: event.lugar, registrationUrl: pageUrl },
   };
 }

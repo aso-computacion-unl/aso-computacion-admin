@@ -71,7 +71,7 @@ test("an event with the open form: the settings stick, the public API and the ca
 
   expect(body.schemaVersion).toBe(1);
   expect(event).toMatchObject({ slug, title, date: "2099-11-28", hora: "09:00 - 11:00", lugar: "Laboratorio 2", registration: { mode: "open", capacity: 2, deadline: null } });
-  expect(event.structuredData).toEqual({ startDate: "2099-11-28T09:00:00-05:00", endDate: "2099-11-28T11:00:00-05:00", location: "Laboratorio 2", registrationUrl: null });
+  expect(event.structuredData).toEqual({ startDate: "2099-11-28T09:00:00-05:00", endDate: "2099-11-28T11:00:00-05:00", location: "Laboratorio 2", registrationUrl: expect.stringMatching(new RegExp(`/inscripciones/${slug}$`)) });
 
   // The calendar file is public and holds the event only.
   const calendar = await request.get(`/api/public/events/${slug}/calendar.ics`);

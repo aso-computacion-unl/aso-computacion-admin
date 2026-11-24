@@ -104,9 +104,11 @@ describe("public API: event registration, calendar and structured data (additive
     });
   });
 
-  it("gives the structured data the landing needs for a schema.org Event, with the registration link only when this admin hosts it", () => {
+  it("gives the structured data the landing needs for a schema.org Event, with the registration page for both registration modes", () => {
     expect(event().structuredData).toEqual({ startDate: "2026-11-28T09:00:00-05:00", endDate: "2026-11-28T17:00:00-05:00", location: "Lab 2", registrationUrl: null });
     expect(event({ registrationMode: "unl" }).structuredData?.registrationUrl).toBe(`${ORIGIN}/inscripciones/hackaton`);
+    expect(event({ registrationMode: "open" }).structuredData?.registrationUrl).toBe(`${ORIGIN}/inscripciones/hackaton`);
+    expect(event({ registrationMode: "open" }).registration?.url).toBeNull();
     expect(event({ hora: null, lugar: null }).structuredData).toEqual({ startDate: "2026-11-28", endDate: null, location: null, registrationUrl: null });
   });
 

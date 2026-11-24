@@ -61,15 +61,24 @@ El orden es siempre el mismo, sea cual sea su rol:
    Si cambió algo visual, revíselo con `npm run dev` en celular (390 px) y escritorio.
 6. **Abra el PR** contra `main`, complete la plantilla y enlace el issue (`Closes #12`).
 7. **Revisión.** Responda los comentarios con commits nuevos en la misma rama; no reescriba la historia de una rama que ya está en revisión.
-8. **Merge.** Quien aprueba (o quien abrió el PR, una vez aprobado) hace el merge y borra la rama.
+8. **Merge.** Una vez aprobado y con la CI en verde, quien abrió el PR (o quien lo aprobó) hace el merge con **Squash and merge**; GitHub borra la rama sola.
 
 ### Reglas de la rama `main`
 
-`main` es lo que está desplegado. Está protegida:
+`main` es lo que está desplegado: cada merge se publica en Vercel y, si trae una migración, se aplica en producción. GitHub la protege con dos **rulesets** (*Settings → Rules → Rulesets*). Un ruleset es un conjunto de reglas con nombre que GitHub aplica a una rama; cada uno tiene su propia lista de *bypass*, es decir, quién puede saltarse **todas** sus reglas. Por eso las reglas están separadas en dos: lo que nadie se salta y lo que solo el mantenedor puede saltarse.
 
-- Nadie empuja directo a `main`: todo cambio entra por un Pull Request.
-- Cada PR necesita **1 aprobación** de otra persona. GitHub le pide la revisión al mantenedor de forma automática (`.github/CODEOWNERS`).
-- No se permite `force push` ni borrar `main`.
+| Ruleset | Reglas | Quién puede saltarlo |
+|---|---|---|
+| `main: checks` | La CI pasa en verde (`checks`, `integration`, `e2e`); no se permite `force push` ni borrar `main` | Nadie |
+| `main: review` | Todo cambio entra por un Pull Request, con **1 aprobación del code owner** (`.github/CODEOWNERS`); un push nuevo descarta la aprobación anterior y las conversaciones tienen que quedar resueltas | Solo el administrador de la organización |
+
+En la práctica hay dos perfiles:
+
+- **Colaboradores** (estudiantes con permiso de escritura): trabajan en ramas de este repositorio (no hace falta un fork) y siguen el flujo de arriba. Cada PR necesita la aprobación del mantenedor, que GitHub le pide sola, y la CI en verde.
+- **Mantenedor** (el administrador de la organización): también entra siempre por PR y con la CI en verde, pero puede mergear sin aprobación de otra persona (`gh pr merge --squash --admin`), porque hoy no hay un segundo revisor. Antes de hacerlo, el cambio pasa una verificación independiente y, si toca datos, seguridad, contratos públicos o la entrega (migraciones, workflows, dependencias), una revisión de código aparte. Ni el mantenedor puede mergear con la CI en rojo.
+
+Además:
+
 - La CI (GitHub Actions) tiene que pasar en verde para mergear. Corre tres jobs en cada PR: `checks` (auditoría de dependencias de producción con `npm audit`, que falla con avisos altos o críticos; lint; typecheck; tests unitarios con umbral de cobertura; build), `integration` (tests con Postgres) y `e2e` (Playwright contra el build, con Postgres). No usa secretos. SonarCloud analiza además cada PR (la configuración está en `.sonarcloud.properties`), y el workflow `Docs` construye el portal de documentación.
 - Dependabot abre PRs semanales: las actualizaciones menores y de parche llegan agrupadas; las mayores, por separado.
   Las menores y de parche se aprueban y se mergean solas cuando pasan los checks obligatorios

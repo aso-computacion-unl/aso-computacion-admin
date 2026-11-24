@@ -86,7 +86,7 @@ Las variables de entorno están explicadas en la [referencia técnica](docs/REFE
 
 ## Cómo colaborar
 
-El contenido se edita desde el panel, sin tocar el código. Los cambios de código entran por Pull Request contra `main`, con una aprobación y la CI en verde. Los errores y las ideas se reportan abriendo un issue.
+El contenido se edita desde el panel, sin tocar el código. Los cambios de código entran por Pull Request contra `main`, con la aprobación del mantenedor y la CI en verde (ver [las reglas de `main`](CONTRIBUTING.md#reglas-de-la-rama-main)). Los errores y las ideas se reportan abriendo un issue.
 
 La guía completa está en [CONTRIBUTING.md](CONTRIBUTING.md): cómo preparar el entorno local, el flujo de trabajo y una guía para cada rol (backend, frontend y QA). Las vulnerabilidades se reportan en privado, como indica [SECURITY.md](SECURITY.md).
 

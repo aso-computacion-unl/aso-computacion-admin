@@ -116,7 +116,7 @@ The landing carries no Turnstile key and no CORS setting. Rotating `ADMIN_PASSWO
 
 ## CI and quality gates
 
-Both repositories run GitHub Actions on every pull request and on `main`, with no secrets. In the admin, `main` is protected by a GitHub ruleset (changes enter by pull request with one approval); the landing requires its `checks` job. Those settings live in GitHub, not in the repository, so this document cannot prove them.
+Both repositories run GitHub Actions on every pull request and on `main`, with no secrets. In the admin, `main` is protected by two GitHub rulesets: `main: checks` (required CI checks, no force push or deletion, no bypass) and `main: review` (pull request with the code owner's approval, squash only; the organization admin may bypass it), see `CONTRIBUTING.md`; the landing requires its `checks` job. Those settings live in GitHub, not in the repository, so this document cannot prove them.
 
 | | Admin (`.github/workflows/ci.yml`) | Landing (`.github/workflows/ci.yml`) |
 |---|---|---|

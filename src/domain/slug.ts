@@ -1,4 +1,5 @@
-import { ValidationError } from "./domain-error";
+import { collectValidation, ValidationError } from "./domain-error";
+import { requiredText } from "./text";
 
 export const SLUG_MAX_LENGTH = 80;
 
@@ -44,4 +45,19 @@ export function assertSlug(slug: string): string {
   }
 
   return slug;
+}
+
+/**
+ * The title and the slug of an item, checked together: an explicit slug is
+ * checked alongside the title, and one derived from the title is checked only
+ * once the title itself is valid, so a bad title never reports a slug issue.
+ */
+export function titleAndSlug(title: string, slug: string | undefined, titleMaxLength: number): { title: string; slug: string } {
+  return collectValidation(
+    {
+      title: () => requiredText("title", title, titleMaxLength),
+      slug: () => (slug === undefined ? undefined : assertSlug(slug)),
+    },
+    (checked) => ({ title: checked.title, slug: checked.slug ?? assertSlug(slugify(checked.title)) }),
+  );
 }

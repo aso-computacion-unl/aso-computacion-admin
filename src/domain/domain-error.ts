@@ -15,55 +15,70 @@ export interface ValidationIssue {
   readonly message: string;
 }
 
+type ValidationIssues = readonly [ValidationIssue, ...ValidationIssue[]];
+
 /**
  * Raised when an entity invariant is violated. Carries the offending field
  * name so upper layers can map it to a precise error response. `issues` lists
  * every rule that failed in the same save; `field` and `message` are the first.
  */
 export class ValidationError extends DomainError {
-  readonly issues: readonly [ValidationIssue, ...ValidationIssue[]];
+  readonly field: string;
+  readonly issues: ValidationIssues;
 
-  constructor(
-    public readonly field: string,
-    message: string,
-  ) {
-    super(message);
+  constructor(field: string, message: string);
+  /** Several failed rules, in the order they were checked; use `fromIssues`. */
+  constructor(issues: ValidationIssues);
+  constructor(...args: [field: string, message: string] | [issues: ValidationIssues]) {
+    const issues: ValidationIssues = args.length === 2 ? [{ field: args[0], message: args[1] }] : args[0];
+    const [first] = issues;
+
+    super(first.message);
     this.name = "ValidationError";
-    this.issues = [{ field, message }];
+    this.field = first.field;
+    this.issues = issues;
   }
 
   /** One error for several failed rules, in the order they were checked. */
-  static fromIssues(issues: readonly [ValidationIssue, ...ValidationIssue[]]): ValidationError {
-    const [first] = issues;
-    const error = new ValidationError(first.field, first.message);
-
-    return Object.assign(error, { issues: [...issues] });
+  static fromIssues([first, ...rest]: ValidationIssues): ValidationError {
+    return new ValidationError([first, ...rest]);
   }
 }
 
+/** What each check returned, keyed like the checks themselves. */
+export type CheckedValues<C> = { readonly [K in keyof C]: C[K] extends () => infer U ? U : never };
+
 /**
- * Runs independent checks and throws once with every `ValidationError` they
- * raised. `check` returns the checked value, or `undefined` after a failure;
- * the result of `run` is only returned when no check failed.
+ * Runs independent checks, in their key order, and throws once with every
+ * `ValidationError` they raised: a single failure is rethrown as is (its class
+ * and stack kept), several become one aggregate. `assemble` only runs, and only
+ * reads the checked values, when every check passed. Any other error is
+ * rethrown at once.
  */
-export function collectValidation<T>(run: (check: <U>(validate: () => U) => U) => T): T {
-  const issues: ValidationIssue[] = [];
-  const check = <U>(validate: () => U): U => {
+export function collectValidation<C extends Record<string, () => unknown>, T>(
+  checks: C,
+  assemble: (values: CheckedValues<C>) => T,
+): T {
+  const values: Record<string, unknown> = {};
+  const failures: ValidationError[] = [];
+
+  for (const [key, validate] of Object.entries(checks)) {
     try {
-      return validate();
+      values[key] = validate();
     } catch (error) {
       if (!(error instanceof ValidationError)) throw error;
-      issues.push(...error.issues);
-
-      return undefined as U;
+      failures.push(error);
     }
-  };
-  const result = run(check);
-  const [first, ...rest] = issues;
+  }
 
-  if (first) throw ValidationError.fromIssues([first, ...rest]);
+  const [first, ...rest] = failures;
 
-  return result;
+  if (!first) return assemble(values as CheckedValues<C>);
+  if (rest.length === 0) throw first;
+
+  const [head, ...tail] = first.issues;
+
+  throw ValidationError.fromIssues([head, ...tail, ...rest.flatMap((failure) => failure.issues)]);
 }
 
 /** Raised when an uploaded image is not a supported format (JPEG, PNG, WebP). */

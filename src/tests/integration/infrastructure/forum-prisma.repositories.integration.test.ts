@@ -172,21 +172,6 @@ describe("ForumPostPrismaRepository (integration)", () => {
     expect(await posts.findThread("t1")).toMatchObject({ thread: { id: "t1", hiddenAt: T0 }, authorName: "Ana", replyCount: 0 });
   });
 
-  it("lists visible threads by latest activity, paginated, with the total", async () => {
-    await seed();
-    for (const [id, offset] of [["a", 1], ["b", 3], ["c", 2]] as const) {
-      await posts.create(makeForumThread({ id, categoryId: "c1", authorId: "ana", createdAt: later(offset), lastActivityAt: later(offset) }));
-    }
-    await posts.create(makeForumThread({ id: "h", categoryId: "c1", authorId: "ana", hiddenAt: T0, lastActivityAt: later(99) }));
-
-    const first = await posts.listThreads("c1", { offset: 0, limit: 2 });
-    const second = await posts.listThreads("c1", { offset: 2, limit: 2 });
-
-    expect(first.items.map((row) => row.thread.id)).toEqual(["b", "c"]);
-    expect(second.items.map((row) => row.thread.id)).toEqual(["a"]);
-    expect([first.total, second.total]).toEqual([3, 3]);
-  });
-
   it("lists the feed per state across categories, counts both states, leaves hidden threads out and can narrow to one category", async () => {
     await seed();
     await categories.create(makeForumCategory({ id: "c2", slug: "materias", sortOrder: 2 }));

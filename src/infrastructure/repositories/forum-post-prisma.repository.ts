@@ -50,17 +50,6 @@ export class ForumPostPrismaRepository implements ForumPostRepository {
     return row && { thread: toThread(row), authorName: row.author.displayName, replyCount: row._count.replies };
   }
 
-  async listThreads(categoryId: string, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; total: number }> {
-    const where = { categoryId, hiddenAt: null };
-    const [rows, total] = await prisma.$transaction([
-      // id breaks the last tie so the order is stable between reads.
-      prisma.forumThread.findMany({ where, orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }], skip: page.offset, take: page.limit, include: WITH_AUTHOR_NAME }),
-      prisma.forumThread.count({ where }),
-    ]);
-
-    return { items: rows.map((row) => ({ thread: toThread(row), authorName: row.author.displayName, replyCount: row._count.replies })), total };
-  }
-
   async listFeed(scope: { categoryId?: string; state: ForumThreadState }, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; counts: Record<ForumThreadState, number> }> {
     const base = { hiddenAt: null, ...(scope.categoryId === undefined ? {} : { categoryId: scope.categoryId }) };
     // A thread is solved while it has a best answer: setting and clearing the mark is what moves it between tabs.

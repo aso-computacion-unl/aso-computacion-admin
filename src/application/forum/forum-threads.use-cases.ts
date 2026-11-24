@@ -11,7 +11,7 @@ import {
   type ForumThread,
 } from "@/domain/forum";
 
-import type { ForumReplyResult, ForumThreadListItemResult, ForumThreadResult } from "../dto/forum-result.dto";
+import type { ForumReplyResult, ForumThreadResult } from "../dto/forum-result.dto";
 import type { ForumCategoryRepository, ForumEditOutcome, ForumMemberRepository, ForumPostRepository, ForumReplyRow, ForumThreadRow } from "../ports/forum.ports";
 import { ForbiddenError, NotFoundError } from "../use-cases/use-case-error";
 import type { PostingThrottle } from "./posting-throttle";
@@ -94,54 +94,6 @@ function throwUnlessEdited(outcome: ForumEditOutcome): void {
 
   if (outcome === "not-found") {
     throw new NotFoundError(THREAD_NOT_FOUND);
-  }
-}
-
-export interface ForumThreadsPage {
-  category: { id: string; slug: string; name: string; description: string | null };
-  items: ForumThreadListItemResult[];
-  total: number;
-  page: number;
-  pageCount: number;
-}
-
-export class ListForumThreadsUseCase {
-  constructor(
-    private readonly categories: ForumCategoryRepository,
-    private readonly posts: ForumPostRepository,
-  ) {}
-
-  async execute(input: { categorySlug: string; page: number; viewerId: string }): Promise<ForumThreadsPage> {
-    const category = await this.categories.findBySlug(input.categorySlug);
-
-    if (!category) {
-      throw new NotFoundError("Forum category not found");
-    }
-
-    const requested = Number.isInteger(input.page) && input.page >= 1 ? input.page : 1;
-    const first = await this.posts.listThreads(category.id, { offset: (requested - 1) * FORUM_THREADS_PAGE_SIZE, limit: FORUM_THREADS_PAGE_SIZE });
-    const pageCount = Math.max(1, Math.ceil(first.total / FORUM_THREADS_PAGE_SIZE));
-    const page = Math.min(requested, pageCount);
-    // A page past the end (a stale link, an edited URL) shows the last page, not an empty one.
-    const { items, total } = page === requested ? first : await this.posts.listThreads(category.id, { offset: (page - 1) * FORUM_THREADS_PAGE_SIZE, limit: FORUM_THREADS_PAGE_SIZE });
-
-    return {
-      category: { id: category.id, slug: category.slug, name: category.name, description: category.description },
-      items: items.map(({ thread, authorName, replyCount }) => ({
-        id: thread.id,
-        title: thread.title,
-        authorName,
-        createdAt: thread.createdAt,
-        lastActivityAt: thread.lastActivityAt,
-        replyCount,
-        locked: thread.lockedAt !== null,
-        hasBestAnswer: thread.bestReplyId !== null,
-        mine: thread.authorId === input.viewerId,
-      })),
-      total,
-      page,
-      pageCount,
-    };
   }
 }
 

@@ -10,7 +10,6 @@ import {
   EditForumReplyUseCase,
   EditForumThreadUseCase,
   GetForumThreadUseCase,
-  ListForumThreadsUseCase,
   ReplyToForumThreadUseCase,
 } from "./forum-threads.use-cases";
 import {
@@ -49,7 +48,6 @@ export function buildForumServices({ members, sessions, categories, posts, moder
     createCategory: new CreateForumCategoryUseCase(categories, now),
     updateCategory: new UpdateForumCategoryUseCase(categories, now),
     deleteCategory: new DeleteForumCategoryUseCase(categories),
-    listThreads: new ListForumThreadsUseCase(categories, posts),
     listFeed: new ListForumFeedUseCase(categories, posts),
     getThread: new GetForumThreadUseCase(categories, posts),
     createThread: new CreateForumThreadUseCase(members, categories, posts, throttle, now),

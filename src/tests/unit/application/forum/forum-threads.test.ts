@@ -5,9 +5,7 @@ import {
   CreateForumThreadUseCase,
   EditForumReplyUseCase,
   EditForumThreadUseCase,
-  FORUM_THREADS_PAGE_SIZE,
   GetForumThreadUseCase,
-  ListForumThreadsUseCase,
   ReplyToForumThreadUseCase,
 } from "@/application/forum/forum-threads.use-cases";
 import { ForbiddenError, NotFoundError } from "@/application/use-cases/use-case-error";
@@ -311,41 +309,6 @@ describe("editing your own posts", () => {
 describe("reading", () => {
   beforeEach(() => {
     store.categories.set("c2", makeForumCategory({ id: "c2", slug: "eventos", name: "Eventos", sortOrder: 2 }));
-  });
-
-  it("lists a category's visible threads, newest activity first, without author ids and marking the viewer's own", async () => {
-    store.threads.set("a", makeForumThread({ id: "a", categoryId: "c1", authorId: "m1", title: "Viejo", lastActivityAt: new Date("2026-10-01T00:00:00Z") }));
-    store.threads.set("b", makeForumThread({ id: "b", categoryId: "c1", authorId: "m2", title: "Nuevo", lastActivityAt: new Date("2026-10-05T00:00:00Z"), lockedAt: NOW, bestReplyId: "r9" }));
-    store.threads.set("h", makeForumThread({ id: "h", categoryId: "c1", authorId: "m2", title: "Oculto", hiddenAt: NOW }));
-    store.threads.set("x", makeForumThread({ id: "x", categoryId: "c2", title: "Otra categoría" }));
-    store.replies.set("r1", makeForumReply({ id: "r1", threadId: "b", authorId: "m1" }));
-    store.replies.set("r2", makeForumReply({ id: "r2", threadId: "b", authorId: "m1", hiddenAt: NOW }));
-
-    const page = await new ListForumThreadsUseCase(categories, posts).execute({ categorySlug: "programacion", page: 1, viewerId: "m1" });
-
-    expect(page.category).toMatchObject({ slug: "programacion", name: "Programación" });
-    expect(page.items.map((item) => [item.title, item.mine, item.replyCount, item.locked, item.hasBestAnswer, item.authorName])).toEqual([
-      ["Nuevo", false, 1, true, true, "Beto"],
-      ["Viejo", true, 0, false, false, "Ana"],
-    ]);
-    expect(page).toMatchObject({ total: 2, page: 1, pageCount: 1 });
-    expect(JSON.stringify(page)).not.toMatch(/unl\.edu\.ec|"authorId"|googleSub|"email"/);
-  });
-
-  it("paginates and keeps a page past the end within range", async () => {
-    for (let index = 0; index < FORUM_THREADS_PAGE_SIZE + 1; index++) {
-      store.threads.set(`t${index}`, makeForumThread({ id: `t${index}`, categoryId: "c1", lastActivityAt: new Date(NOW.getTime() - index * 1000) }));
-    }
-    const list = new ListForumThreadsUseCase(categories, posts);
-
-    const first = await list.execute({ categorySlug: "programacion", page: 1, viewerId: "m1" });
-    const past = await list.execute({ categorySlug: "programacion", page: 99, viewerId: "m1" });
-    const garbage = await list.execute({ categorySlug: "programacion", page: Number.NaN, viewerId: "m1" });
-
-    expect([first.items.length, first.pageCount]).toEqual([FORUM_THREADS_PAGE_SIZE, 2]);
-    expect([past.page, past.items.length]).toEqual([2, 1]);
-    expect(garbage.page).toBe(1);
-    await expect(list.execute({ categorySlug: "nope", page: 1, viewerId: "m1" })).rejects.toThrow(NotFoundError);
   });
 
   it("shows a thread with its replies oldest first, marking the best one and the viewer's own", async () => {

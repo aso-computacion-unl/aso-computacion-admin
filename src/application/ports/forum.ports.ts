@@ -79,8 +79,6 @@ export interface ForumPostRepository {
   create(thread: ForumThread): Promise<void>;
   /** Hidden threads included: whether a student may see one is the use case's decision. */
   findThread(id: string): Promise<ForumThreadRow | null>;
-  /** Not hidden, most recent activity first. */
-  listThreads(categoryId: string, page: { offset: number; limit: number }): Promise<{ items: ForumThreadRow[]; total: number }>;
   /**
    * Not hidden threads of one category, or of every category when `categoryId` is omitted, in the given state,
    * most recent activity first. `counts` are the visible threads of the same scope in each state, whichever is listed.

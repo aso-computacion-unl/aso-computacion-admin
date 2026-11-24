@@ -248,15 +248,6 @@ export class InMemoryForumPostRepository implements ForumPostRepository {
     return thread ? this.row(thread, await this.nameOf(thread.authorId)) : null;
   }
 
-  async listThreads(categoryId: string, page: { offset: number; limit: number }) {
-    const visible = [...this.store.threads.values()]
-      .filter((thread) => thread.categoryId === categoryId && !thread.hiddenAt)
-      .sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
-    const items = await Promise.all(visible.slice(page.offset, page.offset + page.limit).map(async (thread) => this.row(thread, await this.nameOf(thread.authorId))));
-
-    return { items, total: visible.length };
-  }
-
   async listFeed(scope: { categoryId?: string; state: ForumThreadState }, page: { offset: number; limit: number }) {
     const inScope = [...this.store.threads.values()].filter((thread) => !thread.hiddenAt && (scope.categoryId === undefined || thread.categoryId === scope.categoryId));
     const solved = inScope.filter((thread) => thread.bestReplyId !== null);

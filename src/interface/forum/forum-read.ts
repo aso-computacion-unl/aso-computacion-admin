@@ -20,12 +20,6 @@ export async function getForumCategories(returnTo?: string) {
   return getForumServices().listCategories.execute();
 }
 
-/** One page of a category's visible threads, newest activity first. `page` out of range is clamped. */
-export async function getForumThreads(categorySlug: string, page: number, returnTo?: string) {
-  const member = await requireForumPageMember(returnTo);
-  return getForumServices().listThreads.execute({ categorySlug, page, viewerId: member.memberId });
-}
-
 /** One page of the home list: the open or solved threads of every category, or of one. `page` out of range is clamped. */
 export async function getForumFeed(options: { categorySlug?: string; state: ThreadFilter; page: number }, returnTo?: string) {
   const member = await requireForumPageMember(returnTo);

@@ -18,7 +18,7 @@ import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
 import { FORUM_COOKIE_NAME } from "@/infrastructure/forum/forum-session-jwt";
 import { FORUM_SESSION_EXPIRED_RESULT } from "@/interface/forum/forum-action-result";
 import * as posting from "@/interface/forum/forum-posting";
-import { getForumCategories, getForumThread, getForumThreads } from "@/interface/forum/forum-read";
+import { getForumCategories, getForumFeed, getForumThread } from "@/interface/forum/forum-read";
 import { makeForumCategory, makeForumReply, makeForumThread } from "@/tests/fakes/in-memory-forum";
 import { signInAs } from "@/tests/support/test-auth";
 import { signInToForumAs, testForum } from "@/tests/support/test-forum";
@@ -184,7 +184,7 @@ describe("forum reads", () => {
       jar(cookies);
 
       await expect(getForumCategories()).rejects.toThrow("REDIRECT");
-      await expect(getForumThreads("programacion", 1)).rejects.toThrow("REDIRECT");
+      await expect(getForumFeed({ categorySlug: "programacion", state: "open", page: 1 })).rejects.toThrow("REDIRECT");
       await expect(getForumThread("t1")).rejects.toThrow("REDIRECT");
     }
 
@@ -197,7 +197,7 @@ describe("forum reads", () => {
     await expect(getForumCategories("/foro/c/programacion/nuevo")).rejects.toThrow("REDIRECT");
     expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%2Fnuevo");
 
-    await expect(getForumThreads("programacion", 2, "/foro/c/programacion?pagina=2")).rejects.toThrow("REDIRECT");
+    await expect(getForumFeed({ categorySlug: "programacion", state: "open", page: 2 }, "/foro/c/programacion?pagina=2")).rejects.toThrow("REDIRECT");
     expect(redirectMock).toHaveBeenLastCalledWith("/foro?next=%2Fforo%2Fc%2Fprogramacion%3Fpagina%3D2");
   });
 
@@ -206,7 +206,7 @@ describe("forum reads", () => {
     jar({ [FORUM_COOKIE_NAME]: cookie });
 
     const categories = await getForumCategories();
-    const page = await getForumThreads("programacion", 1);
+    const page = await getForumFeed({ categorySlug: "programacion", state: "open", page: 1 });
     const view = await getForumThread("t1");
 
     expect(categories.map((category) => [category.slug, category.threadCount])).toEqual([["programacion", 1]]);

@@ -34,7 +34,8 @@ type Token =
   | { kind: "literal" };
 
 const IDENTIFIER_START = /[\p{ID_Start}$_#\\]/u;
-const IDENTIFIER_PART = /[\p{ID_Continue}$\u200c\u200d\\]/u;
+// ZWNJ and ZWJ stay outside the class: next to each other inside it they read as one joined sequence.
+const IDENTIFIER_PART = /^(?:[\p{ID_Continue}$\\]|\u200c|\u200d)$/u;
 const NUMBER = /^(?:0[xXbBoO][\da-fA-F_]+n?|(?:\d[\d_]*\.?[\d_]*|\.\d[\d_]*)(?:[eE][+-]?\d+)?n?)/;
 const SINGLE_ESCAPES: Record<string, string> = { b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", v: "\v", "0": "\0" };
 
@@ -42,7 +43,7 @@ function decodeEscape(source: string, index: number): { text: string; next: numb
   const char = source.charAt(index);
 
   if (char === "x") {
-    return { text: String.fromCharCode(parseInt(source.slice(index + 1, index + 3), 16)), next: index + 3 };
+    return { text: String.fromCharCode(Number.parseInt(source.slice(index + 1, index + 3), 16)), next: index + 3 };
   }
 
   if (char === "u") {
@@ -53,11 +54,11 @@ function decodeEscape(source: string, index: number): { text: string; next: numb
         return { text: "", next: source.length };
       }
 
-      const codePoint = parseInt(source.slice(index + 2, end), 16);
+      const codePoint = Number.parseInt(source.slice(index + 2, end), 16);
       return { text: Number.isNaN(codePoint) ? "" : String.fromCodePoint(codePoint), next: end + 1 };
     }
 
-    return { text: String.fromCharCode(parseInt(source.slice(index + 1, index + 5), 16)), next: index + 5 };
+    return { text: String.fromCharCode(Number.parseInt(source.slice(index + 1, index + 5), 16)), next: index + 5 };
   }
 
   if (char === "\r" && source.charAt(index + 1) === "\n") {

@@ -19,7 +19,11 @@ export interface SinkMessage {
   raw: string;
 }
 
-const address = (argument: string) => /<([^>]*)>/.exec(argument)?.[1] ?? argument.trim();
+const address = (argument: string) => {
+  const start = argument.indexOf("<");
+  const end = start < 0 ? -1 : argument.indexOf(">", start + 1);
+  return end < 0 ? argument.trim() : argument.slice(start + 1, end);
+};
 
 function handleConnection(socket: Socket, save: (message: SinkMessage) => void) {
   let buffer = "";

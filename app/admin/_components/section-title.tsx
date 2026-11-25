@@ -14,6 +14,10 @@ interface SectionTitleProps extends ComponentProps<"h2"> {
 }
 
 /** The one level-2 heading of the admin, so a section looks the same on every screen. */
-export function SectionTitle({ variant = "section", className, ...props }: SectionTitleProps) {
-  return <h2 className={cn(VARIANTS[variant], className)} {...props} />;
+export function SectionTitle({ variant = "section", className, children, ...props }: SectionTitleProps) {
+  return (
+    <h2 className={cn(VARIANTS[variant], className)} {...props}>
+      {children}
+    </h2>
+  );
 }

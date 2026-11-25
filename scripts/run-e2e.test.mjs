@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -103,6 +104,51 @@ test("preflight leaves signed-in UNL configuration optional locally", () => {
   assert.deepEqual(runPreflight({}), invalidDatabaseResult);
   assert.deepEqual(runPreflight({ CI: "false" }), invalidDatabaseResult);
   assert.equal(buildAppEnvironment({}, DATABASE_URL).FORUM_SESSION_SECRET, "");
+});
+
+test("the sink reads the envelope address between the first < and the next >, and keeps the whole argument without a >", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "e2e-sink-test-"));
+  const sink = await startSmtpSink({ directory, port: 0 });
+
+  try {
+    const session = [
+      "EHLO test",
+      "MAIL FROM:<ana@example.org> SIZE=10",
+      "RCPT TO:<uno@example.org>",
+      "RCPT TO:<dos@example.org> ORCPT=rfc822;dos>tres",
+      "RCPT TO:<>",
+      "RCPT TO:<a<b@example.org>",
+      "RCPT TO:<sin-cierre@example.org NOTIFY=NEVER",
+      "DATA",
+      "Subject: x",
+      "",
+      "cuerpo",
+      ".",
+      "QUIT",
+    ];
+    const replies = await new Promise((resolve, reject) => {
+      let received = "";
+      const socket = connect(sink.port, "127.0.0.1", () => socket.write(`${session.join("\r\n")}\r\n`));
+
+      socket.setEncoding("utf8");
+      socket.on("data", (chunk) => (received += chunk));
+      socket.on("error", reject);
+      socket.on("close", () => resolve(received));
+    });
+    const files = readdirSync(directory).filter((name) => name.endsWith(".json"));
+
+    assert.match(replies, /250 OK queued\r\n221 Bye\r\n$/);
+    assert.equal(files.length, 1);
+
+    const message = JSON.parse(readFileSync(join(directory, files[0]), "utf8"));
+
+    assert.equal(message.from, "ana@example.org");
+    assert.deepEqual(message.to, ["uno@example.org", "dos@example.org", "", "a<b@example.org", "TO:<sin-cierre@example.org NOTIFY=NEVER"]);
+    assert.equal(message.raw, "Subject: x\r\n\r\ncuerpo");
+  } finally {
+    await sink.close();
+    rmSync(directory, { force: true, recursive: true });
+  }
 });
 
 test("the sink keeps what nodemailer sends it, and a spec reads the confirmation link from the text", async () => {

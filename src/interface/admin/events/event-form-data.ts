@@ -8,6 +8,7 @@ import {
 } from "@/domain/event";
 
 import { publicationWindowFields } from "../publication-window-fields";
+import { parseRegistrationFormData } from "./registration-form-fields";
 
 const shortText = (message: string) => z.string().trim().max(EVENT_SHORT_TEXT_MAX_LENGTH, message);
 const checkbox = z.string().transform((value) => value === "on" || value === "true");
@@ -59,9 +60,34 @@ const eventFormSchema = z.object({
 /** Keys read only when the form sent them: an absent window end means "leave it as it is", a blank one clears it. */
 const OPTIONAL_KEYS = new Set(["publishAt", "unpublishAt"]);
 
+/** The kind a new event is created as: an announcement unless the form sent `eventKind=registration`. */
+export const EVENT_KIND_REGISTRATION = "registration";
+
+/** «Evento con inscripción» needs a way to sign up: `none` would make it an announcement. */
+const registrationKindSchema = z.object({
+  registrationMode: z.enum(["unl", "open"], { error: "Elija una forma de inscripción de la lista." }),
+});
+
+/**
+ * Reads the create form: the event fields and, only for «Evento con inscripción», its registration settings. An
+ * announcement ignores any registration key the post carries.
+ */
+export function parseCreateEventFormData(formData: FormData) {
+  const event = parseEventFormData(formData);
+
+  if (formData.get("eventKind") !== EVENT_KIND_REGISTRATION) {
+    return event;
+  }
+
+  const settings = parseRegistrationFormData(formData);
+  const { registrationMode } = registrationKindSchema.parse({ registrationMode: settings.registrationMode });
+
+  return { ...event, ...settings, registrationMode };
+}
+
 /**
  * Reads the event form. Blank optional fields stay as "" and the domain turns them into null. Only the keys of the
- * schema are read: the registration settings, set only from Inscripciones (S3), never come through here.
+ * schema are read: an event save never changes the registration settings.
  */
 export function parseEventFormData(formData: FormData) {
   const raw = Object.fromEntries(

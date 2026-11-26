@@ -102,7 +102,27 @@ describe("events server actions", () => {
       expect(redirectMock).toHaveBeenCalledWith("/admin/events/new-id/edit?creado=1#fotos");
     });
 
-    it("never sets a registration (S3): a crafted create carrying its settings creates the event without them", async () => {
+    it("creates an event with registration (event-kinds S2): «Evento con inscripción» sends its settings", async () => {
+      useCases.create.execute.mockResolvedValue({ id: "new-id" });
+
+      await expect(
+        actions.createEvent(null, form({ title: "Taller", eventKind: "registration", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" })),
+      ).rejects.toThrow("REDIRECT");
+
+      expect(useCases.create.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Taller", registrationMode: "open", registrationCapacity: 30, registrationDeadline: new Date("2026-11-27T23:00:00.000Z") }),
+      );
+    });
+
+    it.each([[{}], [{ registrationMode: "none" }]])("refuses «Evento con inscripción» without a way to sign up (%o) and creates nothing", async (mode) => {
+      const result = await actions.createEvent(null, form({ title: "Taller", eventKind: "registration", ...mode }));
+
+      expect(result).toEqual({ fieldErrors: { registrationMode: "Elija una forma de inscripción de la lista." } });
+      expect(useCases.create.execute).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("an announcement (no «Evento con inscripción») never sets a registration, even when the post carries its settings", async () => {
       useCases.create.execute.mockResolvedValue({ id: "new-id" });
 
       await expect(actions.createEvent(null, form({ title: "Taller", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" }))).rejects.toThrow("REDIRECT");

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { toEventResult } from "@/application/mappers/event-result.mapper";
 
 import { EMPTY_EVENT_FORM_VALUES, eventToFormValues, formValuesToFormData } from "@/interface/admin/events/event-form-values";
-import { parseEventFormData } from "@/interface/admin/events/event-form-data";
+import { parseCreateEventFormData, parseEventFormData } from "@/interface/admin/events/event-form-data";
 import { storedEvent } from "@/tests/support/test-event-registration";
 
 describe("event form values", () => {
@@ -36,6 +36,10 @@ describe("event form values", () => {
     });
 
     expect(values).toEqual({
+      eventKind: "announcement",
+      registrationMode: "unl",
+      registrationCapacity: "",
+      registrationDeadline: "",
       slug: "hackaton",
       title: "Hackatón",
       description: "",
@@ -56,15 +60,19 @@ describe("event form values", () => {
     });
   });
 
-  it("has no registration settings (S3): the event form never shows or sends them, only Inscripciones does", () => {
+  it("an existing event's form never sends a kind or registration settings, even when the event has registration", () => {
     const values = eventToFormValues(toEventResult(storedEvent({ title: "Taller", date: "2099-11-28", registrationMode: "open", registrationCapacity: 40 })));
-    const keys = ["registrationMode", "registrationCapacity", "registrationDeadline"];
 
-    for (const key of keys) {
-      expect(values).not.toHaveProperty(key);
-      expect(EMPTY_EVENT_FORM_VALUES).not.toHaveProperty(key);
+    for (const key of ["eventKind", "registrationMode", "registrationCapacity", "registrationDeadline"]) {
       expect(formValuesToFormData(values).has(key)).toBe(false);
+      expect(formValuesToFormData(EMPTY_EVENT_FORM_VALUES).has(key)).toBe(false);
     }
+  });
+
+  it("sends the kind and its settings only for «Evento con inscripción», and the create parser reads them", () => {
+    const values = { ...EMPTY_EVENT_FORM_VALUES, title: "Taller", eventKind: "registration" as const, registrationMode: "open" as const, registrationCapacity: "40" };
+
+    expect(parseCreateEventFormData(formValuesToFormData(values))).toMatchObject({ title: "Taller", registrationMode: "open", registrationCapacity: 40, registrationDeadline: null });
   });
 
   it("round-trips through FormData and the server-side parser without losing a field", () => {

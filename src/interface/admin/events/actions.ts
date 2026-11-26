@@ -12,7 +12,7 @@ import { mapActionError, type ActionResult } from "../action-result";
 import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { createdEventPath } from "./created-flag";
-import { parseEventFormData } from "./event-form-data";
+import { parseCreateEventFormData, parseEventFormData } from "./event-form-data";
 import { getEventUseCases } from "./events-container";
 
 // Every action starts with the session guard, before it reads any input or touches a use case (a
@@ -28,7 +28,7 @@ export async function createEvent(_prevState: ActionResult | null, formData: For
 
   try {
     const actor = await requireSession();
-    ({ id, isPublished } = await getEventUseCases().create.execute(parseEventFormData(formData)));
+    ({ id, isPublished } = await getEventUseCases().create.execute(parseCreateEventFormData(formData)));
     await recordAudit(actor, { action: "event.create", entityType: "event", entityId: id, summary: "Evento creado" });
   } catch (error) {
     return mapActionError(error);

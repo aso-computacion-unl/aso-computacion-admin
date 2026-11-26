@@ -146,8 +146,61 @@ describe("the event editor's date type", () => {
   });
 });
 
+const kind = (host: HTMLElement, value: "announcement" | "registration") => host.querySelector<HTMLInputElement>(`input[name="eventKind"][value="${value}"]`);
+
+describe("the kind of a new event (event-kinds S1-S3)", () => {
+  it("offers «Evento» and «Evento con inscripción», «Evento» chosen, with no registration fields", async () => {
+    const host = await mountForm();
+
+    expect(kind(host, "announcement")?.closest("label")?.textContent).toBe("Evento");
+    expect(kind(host, "registration")?.closest("label")?.textContent).toBe("Evento con inscripción");
+    expect(kind(host, "announcement")?.checked).toBe(true);
+    expect(labelled(host, "Cupos")).toBeUndefined();
+    expect(host.querySelector('input[name="registrationMode"]')).toBeNull();
+  });
+
+  it("«Evento con inscripción» asks how people sign up and sends the kind with its settings", async () => {
+    const action = vi.fn(ok);
+    const host = await mountForm(action);
+
+    await click(kind(host, "registration")!);
+    await typeInto(field(host, "Título"), "Taller");
+    await click(host.querySelector<HTMLInputElement>('input[name="registrationMode"][value="open"]')!);
+    await typeInto(field(host, "Cupos"), "30");
+    await typeInto(field(host, "Cierre"), "2099-11-27T18:00");
+    await submit(host);
+    await settle();
+
+    expect(Object.fromEntries(["eventKind", "registrationMode", "registrationCapacity", "registrationDeadline"].map((key) => [key, sent(action).get(key)]))).toEqual({
+      eventKind: "registration",
+      registrationMode: "open",
+      registrationCapacity: "30",
+      registrationDeadline: "2099-11-27T18:00",
+    });
+    expect(switchNamed(host, "Tiene inscripción")).toBeUndefined();
+  });
+
+  it("shows a refused cierre on Cierre, which the new event form then has", async () => {
+    const host = await mountForm(async () => mapActionError(new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE)));
+
+    await click(kind(host, "registration")!);
+    await typeInto(field(host, "Título"), "Taller");
+    await submit(host);
+    await settle();
+
+    expect(field(host, "Cierre").getAttribute("aria-invalid")).toBe("true");
+    expect(field(host, "Fecha").getAttribute("aria-invalid")).not.toBe("true");
+  });
+
+  it("is not offered when editing an event", async () => {
+    const host = await mount(createElement(ToastProvider, null, createElement(EventForm, { action: ok, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, title: "Taller", slug: "taller" } })));
+
+    expect(host.querySelector('input[name="eventKind"]')).toBeNull();
+  });
+});
+
 describe("the event editor and the registration (S3)", () => {
-  it("has no registration section: no switch, mode, Cupos or Cierre, and a save sends no registration setting", async () => {
+  it("an announcement has no registration section: no switch, mode, Cupos or Cierre, and a save sends no registration setting", async () => {
     const action = vi.fn(ok);
     const host = await mountForm(action);
 
@@ -160,7 +213,7 @@ describe("the event editor and the registration (S3)", () => {
     await submit(host);
     await settle();
 
-    for (const key of ["registrationMode", "registrationCapacity", "registrationDeadline", "confirmRegistrationChange"]) {
+    for (const key of ["eventKind", "registrationMode", "registrationCapacity", "registrationDeadline", "confirmRegistrationChange"]) {
       expect(sent(action).has(key)).toBe(false);
     }
   });

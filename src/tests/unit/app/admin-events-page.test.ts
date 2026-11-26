@@ -10,7 +10,7 @@ vi.mock("@/interface/admin/bulk/actions", () => ({ bulkSetPublished: vi.fn(), bu
 
 import AdminEventsPage from "../../../../app/admin/events/page";
 
-const event = (index: number, overrides: { date?: string | null; isPublished?: boolean; title?: string } = {}) => ({
+const event = (index: number, overrides: { date?: string | null; isPublished?: boolean; title?: string; registrationMode?: string } = {}) => ({
   id: `event-${index}`,
   title: overrides.title ?? `Evento ${index}`,
   date: overrides.date === undefined ? "2020-03-01" : overrides.date,
@@ -21,6 +21,7 @@ const event = (index: number, overrides: { date?: string | null; isPublished?: b
   isPublished: overrides.isPublished ?? true,
   updatedAt: new Date("2020-03-02T12:00:00Z"),
   photoCount: 0,
+  registrationMode: overrides.registrationMode ?? "none",
   publishFrom: null,
   publishUntil: null,
 });
@@ -158,6 +159,20 @@ describe("the Próximos / Pasados tabs", () => {
     expect(html).toContain("que coincidan con «nada»");
     expect(html).toContain('href="/admin/events?vista=pasados&amp;estado=publicados">Quitar la búsqueda</a>');
     expect(html).not.toMatch(/href="[^"]*\?[^"]*\?/);
+  });
+
+  it("tags only the events with registration «Con inscripción» (event-kinds S5), in the same list", async () => {
+    listMock.mockResolvedValue([
+      event(1, { title: "Fiesta", date: "2999-01-01" }),
+      event(2, { title: "Taller UNL", date: "2999-01-02", registrationMode: "unl" }),
+      event(3, { title: "Charla abierta", date: "2999-01-03", registrationMode: "open" }),
+    ]);
+    const html = await render();
+    const row = (title: string) => html.slice(html.indexOf(`>${title}</a>`), html.indexOf("</li>", html.indexOf(`>${title}</a>`)));
+
+    expect(row("Fiesta")).not.toContain("Con inscripción");
+    expect(row("Taller UNL")).toContain("Con inscripción");
+    expect(row("Charla abierta")).toContain("Con inscripción");
   });
 
   it("says when a tab is empty and points to the other one", async () => {

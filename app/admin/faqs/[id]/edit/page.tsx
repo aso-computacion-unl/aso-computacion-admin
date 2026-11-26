@@ -4,7 +4,7 @@ import { updateFaq } from "@/interface/admin/faqs/actions";
 import { getAdminFaq } from "@/interface/admin/faqs/faqs-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormLayout, Panel } from "../../../_components/form-layout";
+import { FormLayout } from "../../../_components/form-layout";
 import { FaqForm } from "../../_components/faq-form";
 
 export const dynamic = "force-dynamic";
@@ -25,15 +25,14 @@ export default async function EditFaqPage({ params }: EditFaqPageProps) {
       backLabel="Volver a preguntas"
       title={faq.question}
       status={recordStatus(faq.isPublished, "f")}
+      wide
     >
-      <Panel>
-        <FaqForm
-          action={updateFaq.bind(null, id)}
-          autosave
-          submitLabel="Guardar cambios"
-          initialValues={{ question: faq.question, answer: faq.answer, command: faq.command ?? "", isPublished: faq.isPublished }}
-        />
-      </Panel>
+      <FaqForm
+        action={updateFaq.bind(null, id)}
+        autosave
+        submitLabel="Guardar cambios"
+        initialValues={{ question: faq.question, answer: faq.answer, command: faq.command ?? "", isPublished: faq.isPublished }}
+      />
     </FormLayout>
   );
 }

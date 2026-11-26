@@ -10,12 +10,12 @@ async function openDisclosure(page: Page, text: string) {
   await expect(details).toHaveAttribute("open", "");
 }
 
-/** The event and FAQ editors keep their secondary fields in a closed "Más opciones": open it before filling one. */
+/** The editors keep their secondary fields in a closed "Más opciones": open it before filling one. */
 export async function openMoreOptions(page: Page) {
   await openDisclosure(page, "Más opciones");
 }
 
-/** The event editor keeps «Publicar el» and «Retirar el» in its publish panel, under a closed «Programar publicación y retiro». */
+/** The event and news editors keep «Publicar el» and «Retirar el» in their publish panel, under a closed «Programar publicación y retiro». */
 export async function openSchedule(page: Page) {
   await openDisclosure(page, "Programar publicación y retiro");
 }

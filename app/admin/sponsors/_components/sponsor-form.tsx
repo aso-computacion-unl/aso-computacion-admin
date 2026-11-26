@@ -8,6 +8,7 @@ import { SwitchField } from "@/components/ui/switch";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { SPONSOR_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
+import { EditorGroup, SPAN } from "../../_components/editor-split";
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
@@ -44,20 +45,20 @@ export function SponsorForm({ action, submitLabel, initialValues = EMPTY_SPONSOR
   const logo = logoUrl ? { url: logoUrl } : null;
 
   return (
-    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        <Field label="Nombre" count={{ length: values.name.length, max: 60 }} error={errors.name}>
+    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-6">
+      <EditorGroup title="Aliado" purpose="Cómo aparece en la sección Aliados">
+        <Field label="Nombre" count={{ length: values.name.length, max: 60 }} error={errors.name} className={SPAN.text}>
           {(control) => <Input {...control} {...bind("name")} required maxLength={60} />}
         </Field>
-        <Field label="Enlace (opcional)" help="Empieza con https://. Vacío: el logo sin enlace." count={{ length: values.url.length, max: 300 }} error={errors.url}>
+        <Field label="Enlace (opcional)" help="Empieza con https://. Vacío: el logo sin enlace." count={{ length: values.url.length, max: 300 }} error={errors.url} className={SPAN.text}>
           {(control) => <Input {...control} {...bind("url")} type="url" inputMode="url" maxLength={300} />}
         </Field>
-      </div>
-      {hasLogo ? (
-        <Field label="Descripción del logo" help="Para quien no ve el logo." count={{ length: values.logoAlt.length, max: 200 }} error={errors.logoAlt}>
-          {(control) => <Input {...control} {...bind("logoAlt")} required maxLength={200} />}
-        </Field>
-      ) : null}
+        {hasLogo ? (
+          <Field label="Descripción del logo" help="Para quien no ve el logo." count={{ length: values.logoAlt.length, max: 200 }} error={errors.logoAlt} className={SPAN.row}>
+            {(control) => <Input {...control} {...bind("logoAlt")} required maxLength={200} />}
+          </Field>
+        ) : null}
+      </EditorGroup>
       <div className="grid gap-1">
         <SwitchField
           label="Publicado"

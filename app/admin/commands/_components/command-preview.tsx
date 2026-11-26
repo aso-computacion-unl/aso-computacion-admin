@@ -1,3 +1,4 @@
+import { CardPreview } from "../../_components/editor-split";
 import { Changed, SiteSection } from "../../_components/publish-preview";
 import type { PublishField } from "../../_components/publish-diff";
 import type { CommandFormValues } from "./command-form";
@@ -39,5 +40,19 @@ export function CommandPreview({ values, changed }: CommandPreviewProps) {
         </p>
       ) : null}
     </>
+  );
+}
+
+/** The compact card of the publish panel: where the terminal cuts the answer, and the help line, while it is typed. */
+export function CommandCardPreview({ values }: { values: CommandFormValues }) {
+  const command = values.command.trim();
+  const description = values.description.trim();
+
+  return (
+    <CardPreview label="Así se verá en la terminal del sitio" section="Terminal">
+      <p className="font-mono text-sm text-sky wrap-anywhere">❯ {command || "…"}</p>
+      {values.output.trim() ? <p className="line-clamp-4 font-mono text-[0.8125rem] whitespace-pre-wrap wrap-anywhere">{values.output}</p> : null}
+      {command && description ? <p className="font-mono text-[0.8125rem] text-mist wrap-anywhere">En la ayuda: {command} — {description}</p> : null}
+    </CardPreview>
   );
 }

@@ -1,5 +1,6 @@
 import { socialPlatformLabel } from "@/interface/admin/socials/platform-labels";
 
+import { CardPreview } from "../../_components/editor-split";
 import { Changed, SiteSection } from "../../_components/publish-preview";
 import type { PublishField } from "../../_components/publish-diff";
 import type { SocialFormValues } from "./social-form";
@@ -59,5 +60,15 @@ export function SocialPreview({ values, changed }: SocialPreviewProps) {
         ) : null}
       </div>
     </>
+  );
+}
+
+/** The compact card of the publish panel, while it is typed. Not named after its section: «Red» is a field's label. */
+export function SocialCardPreview({ values }: { values: SocialFormValues }) {
+  return (
+    <CardPreview label="Así se verá en el sitio" section="Redes">
+      <b className="leading-[1.3] wrap-anywhere">{values.label || "Sin nombre"}</b>
+      {values.handle.trim() ? <p className="font-mono text-sm text-mist wrap-anywhere">{values.handle}</p> : null}
+    </CardPreview>
   );
 }

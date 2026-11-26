@@ -1,6 +1,6 @@
 import { createCommand } from "@/interface/admin/commands/actions";
 
-import { FormLayout, Panel } from "../../_components/form-layout";
+import { FormLayout } from "../../_components/form-layout";
 import { CommandForm } from "../_components/command-form";
 
 export default function NewCommandPage() {
@@ -10,11 +10,9 @@ export default function NewCommandPage() {
       backLabel="Volver a comandos"
       title="Nuevo comando"
       status="sin guardar"
-      description="Se agrega al final de la lista; luego puede moverlo."
+      wide
     >
-      <Panel>
-        <CommandForm action={createCommand} submitLabel="Crear comando" />
-      </Panel>
+      <CommandForm action={createCommand} submitLabel="Crear comando" note="Se agrega al final de la lista; luego puede moverlo." />
     </FormLayout>
   );
 }

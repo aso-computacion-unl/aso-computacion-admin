@@ -38,7 +38,11 @@ const mountForm = (action: Action = ok, initial: Partial<NewsFormValues> = {}, p
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
-const moreOptions = (host: HTMLElement) => host.querySelector("details")!;
+const disclosure = (host: HTMLElement, summary: string) => [...host.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === summary)!;
+const moreOptions = (host: HTMLElement) => disclosure(host, "Más opciones");
+const schedule = (host: HTMLElement) => disclosure(host, "Programar publicación y retiro");
+const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="publish-side"]')!;
+const card = (host: HTMLElement) => host.querySelector('[aria-label="Así se verá en Novedades"]')!.textContent;
 const primary = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 const dialog = () => document.body.querySelector<HTMLElement>('[role="dialog"]');
 const inDialog = (name: string) => [...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === name)!;
@@ -48,18 +52,19 @@ const changes = () => [...dialog()!.querySelectorAll("[data-slot='publish-change
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === name)!;
 
 const OUTSIDE = ["Título", "Resumen", "Texto"];
-const INSIDE = ["Fecha de publicación", "Identificador (slug)", "Publicar el", "Retirar el"];
+const INSIDE = ["Fecha de publicación", "Identificador (slug)"];
+const SCHEDULED = ["Publicar el", "Retirar el"];
 
 describe("the news editor's \"Más opciones\"", () => {
-  it("shows Título, Resumen and Texto, with date, slug and schedule in one closed disclosure and no helper paragraphs", async () => {
+  it("shows Título, Resumen and Texto, with date and slug in one closed disclosure and no helper paragraphs", async () => {
     const host = await mountForm();
     const details = moreOptions(host);
 
-    expect(host.querySelectorAll("details")).toHaveLength(1);
-    expect(details.querySelector("summary")?.textContent).toBe("Más opciones");
+    expect(host.querySelectorAll("details")).toHaveLength(2);
     expect(details.open).toBe(false);
     for (const label of OUTSIDE) expect(details.contains(field(host, label)), label).toBe(false);
     for (const label of INSIDE) expect(details.contains(field(host, label)), label).toBe(true);
+    for (const label of SCHEDULED) expect(details.contains(field(host, label)), label).toBe(false);
     expect(host.querySelectorAll("small")).toHaveLength(0);
     expect(host.textContent).not.toContain("Hasta 120 caracteres");
     expect(host.textContent).not.toContain("Déjela vacía");
@@ -120,6 +125,71 @@ describe("the news editor's \"Más opciones\"", () => {
 
     const withCover = await mountForm(ok, { coverAlt: "Aula llena" }, { cover: COVER });
     expect(field(withCover, "Descripción de la foto de portada").value).toBe("Aula llena");
+  });
+});
+
+describe("the news editor's publish panel", () => {
+  it("holds the preview, Publicada, «Programar publicación y retiro» with both dates, and the one primary button", async () => {
+    const host = await mountForm();
+    const side = publication(host);
+
+    expect(side.querySelector("h2")?.textContent).toBe("Publicación");
+    expect(side.contains(host.querySelector('[aria-label="Así se verá en Novedades"]'))).toBe(true);
+    expect(side.contains(switchNamed(host, "Publicada"))).toBe(true);
+    expect(side.contains(schedule(host))).toBe(true);
+    expect(schedule(host).open).toBe(false);
+    for (const label of SCHEDULED) expect(schedule(host).contains(field(host, label)), label).toBe(true);
+    expect(side.contains(primary(host))).toBe(true);
+    expect(host.querySelectorAll('button[type="submit"]')).toHaveLength(1);
+  });
+
+  it("keeps the content in a «Contenido» group beside it", async () => {
+    const host = await mountForm();
+    const group = [...host.querySelectorAll("section")].find((section) => section.querySelector("h2")?.textContent === "Contenido")!;
+
+    expect(group.textContent).toContain("Lo que el público lee");
+    for (const label of OUTSIDE) expect(group.contains(field(host, label)), label).toBe(true);
+    expect(publication(host).contains(group)).toBe(false);
+  });
+
+  it("moves Publicada up under the title on a phone, as the one switch of the form (S1)", async () => {
+    const host = await mountForm();
+    const state = host.querySelector<HTMLElement>('[data-slot="publish-state"]')!;
+
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(1);
+    expect(state.contains(switchNamed(host, "Publicada"))).toBe(true);
+    expect(state.className).toContain("order-first");
+    expect(state.className).toContain("lg:order-2");
+  });
+
+  it("previews the item as Novedades lists it while it is typed, with today for a blank date", async () => {
+    const host = await mountForm(ok, { publishedAt: "" });
+
+    expect(card(host)).toBe("Novedades · HoyBecas 2026Se abren las becas.");
+
+    await typeInto(field(host, "Título"), "Becas 2027");
+    await click(moreOptions(host).querySelector("summary")!);
+    await typeInto(field(host, "Fecha de publicación"), "2026-11-05");
+
+    expect(card(host)).toBe("Novedades · 5 nov 2026Becas 2027Se abren las becas.");
+  });
+
+  it("says where the cover is added only on a new item", async () => {
+    const note = "La foto de portada se agrega después de crear la noticia.";
+
+    expect(publication(await mountForm(ok, { ...EMPTY_NEWS_FORM_VALUES }, { submitLabel: "Crear noticia", isEditing: false })).textContent).toContain(note);
+    expect((await mountForm()).textContent).not.toContain(note);
+  });
+
+  it("opens «Programar publicación y retiro» when the server refuses a date inside it, and leaves «Más opciones» closed", async () => {
+    const host = await mountForm(async () => ({ fieldErrors: { publishAt: "Elija una fecha futura." } }), { isPublished: false });
+
+    await click(primary(host));
+    await settle();
+
+    expect(schedule(host).open).toBe(true);
+    expect(schedule(host).textContent).toContain("Elija una fecha futura.");
+    expect(moreOptions(host).open).toBe(false);
   });
 });
 

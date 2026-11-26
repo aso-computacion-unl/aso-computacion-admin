@@ -34,8 +34,8 @@ const LOGO = "https://res.cloudinary.com/demo/image/upload/v1/acme.png";
 
 const wrap = (form: ReturnType<typeof createElement>) => createElement(ToastProvider, null, form);
 
-const mountCommand = (action: Action = ok, initial: Partial<CommandFormValues> = {}, submitLabel = "Guardar cambios") =>
-  mount(wrap(createElement(CommandForm, { action, submitLabel, initialValues: { ...COMMAND, ...initial } })));
+const mountCommand = (action: Action = ok, initial: Partial<CommandFormValues> = {}, submitLabel = "Guardar cambios", note?: string) =>
+  mount(wrap(createElement(CommandForm, { action, submitLabel, note, initialValues: { ...COMMAND, ...initial } })));
 
 const mountSponsor = (action: Action = ok, initial: Partial<SponsorFormValues> = {}, props: { submitLabel?: string; hasLogo?: boolean; logoUrl?: string | null } = {}) =>
   mount(
@@ -50,8 +50,8 @@ const mountSponsor = (action: Action = ok, initial: Partial<SponsorFormValues> =
     ),
   );
 
-const mountSocial = (action: Action = ok, initial: Partial<SocialFormValues> = {}, submitLabel = "Guardar cambios") =>
-  mount(wrap(createElement(SocialForm, { action, submitLabel, initialValues: { ...SOCIAL, ...initial } })));
+const mountSocial = (action: Action = ok, initial: Partial<SocialFormValues> = {}, submitLabel = "Guardar cambios", note?: string) =>
+  mount(wrap(createElement(SocialForm, { action, submitLabel, note, initialValues: { ...SOCIAL, ...initial } })));
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
@@ -64,18 +64,43 @@ const changes = () => [...dialog()!.querySelectorAll("[data-slot='publish-change
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent?.startsWith(name))!;
 const counters = (host: HTMLElement) => host.textContent!.match(/\d+ \/ \d+/g) ?? [];
 const helpOf = (host: HTMLElement, text: string) => host.querySelector(`[id="${labelled(host, text)!.htmlFor}"]`)!.closest("div")!.querySelector<HTMLElement>('[id$="-help"]');
+const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="publish-side"]');
+const stateRow = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="publish-state"]')!;
+const group = (host: HTMLElement, title: string) => [...host.querySelectorAll("section")].find((section) => section.querySelector("h2")?.textContent === title);
 const moreOptions = (host: HTMLElement) => [...host.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === "Más opciones")!;
 
 describe("the command editor", () => {
-  it("has no helper paragraphs, no drafts note and no preview panel in the page", async () => {
+  it("has no helper paragraphs and no drafts note", async () => {
     const host = await mountCommand();
 
     expect(host.querySelectorAll("small")).toHaveLength(0);
     expect(host.textContent).not.toContain("Hasta 600 caracteres");
     expect(host.textContent).not.toContain("Los borradores no salen");
     expect(host.textContent).not.toContain("Vista previa");
-    expect(host.textContent).not.toContain("En la ayuda");
-    expect(host.textContent).not.toContain("❯");
+  });
+
+  it("lays out the content in a «Contenido» group and Publicado, the terminal preview and the one button in the publish panel", async () => {
+    const host = await mountCommand(ok, {}, "Crear comando", "Se agrega al final de la lista; luego puede moverlo.");
+    const content = group(host, "Contenido")!;
+
+    for (const label of ["Comando", "Descripción", "Respuesta"]) expect(content.contains(field(host, label)), label).toBe(true);
+    expect(publication(host)!.contains(switchNamed(host, "Publicado"))).toBe(true);
+    expect(publication(host)!.contains(primary(host))).toBe(true);
+    expect(publication(host)!.textContent).toContain("Se agrega al final de la lista; luego puede moverlo.");
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(1);
+    expect(stateRow(host).contains(switchNamed(host, "Publicado"))).toBe(true);
+    expect(stateRow(host).className).toContain("order-first");
+  });
+
+  it("previews the terminal and the help line in the panel while it is typed", async () => {
+    const host = await mountCommand();
+    const card = () => host.querySelector('[aria-label="Así se verá en la terminal del sitio"]')!.textContent;
+
+    expect(card()).toBe("Terminal❯ ayudaEscriba un comandoEn la ayuda: ayuda — Lista los comandos");
+
+    await typeInto(field(host, "Respuesta"), "Use ayuda");
+
+    expect(card()).toBe("Terminal❯ ayudaUse ayudaEn la ayuda: ayuda — Lista los comandos");
   });
 
   it("keeps a short help for the command behind its \"?\"", async () => {
@@ -168,6 +193,16 @@ describe("the sponsor editor", () => {
     expect(host.textContent).not.toContain("Hasta 60 caracteres");
     expect(host.textContent).not.toContain("Obligatoria, para accesibilidad");
     expect(host.textContent).not.toContain("Los borradores no salen");
+  });
+
+  it("stays one column under an «Aliado» group heading, with no publish panel (S5)", async () => {
+    const host = await mountSponsor();
+    const sponsor = group(host, "Aliado")!;
+
+    expect(sponsor.textContent).toContain("Cómo aparece en la sección Aliados");
+    for (const label of ["Nombre", "Enlace (opcional)", "Descripción del logo"]) expect(sponsor.contains(field(host, label)), label).toBe(true);
+    expect(sponsor.contains(switchNamed(host, "Publicado"))).toBe(false);
+    expect(publication(host)).toBeNull();
   });
 
   it("still says why a sponsor without a logo cannot be published", async () => {
@@ -267,6 +302,30 @@ describe("the social link editor", () => {
     expect(host.querySelectorAll("small")).toHaveLength(0);
     expect(host.textContent).not.toContain("Hasta 40 caracteres");
     expect(host.textContent).not.toContain("Los borradores no salen");
+  });
+
+  it("lays out the content in a «Contenido» group and Publicada, the preview and the one button in the publish panel", async () => {
+    const host = await mountSocial(ok, {}, "Agregar red", "Se agrega al final de la lista; luego puede moverla.");
+    const content = group(host, "Contenido")!;
+
+    for (const label of ["Red", "Nombre", "Usuario", "Enlace"]) expect(content.contains(field(host, label)), label).toBe(true);
+    expect(publication(host)!.contains(switchNamed(host, "Publicada"))).toBe(true);
+    expect(publication(host)!.contains(primary(host))).toBe(true);
+    expect(publication(host)!.textContent).toContain("Se agrega al final de la lista; luego puede moverla.");
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(1);
+    expect(stateRow(host).contains(switchNamed(host, "Publicada"))).toBe(true);
+    expect(stateRow(host).className).toContain("order-first");
+  });
+
+  it("previews the link in the panel while it is typed", async () => {
+    const host = await mountSocial();
+    const card = () => host.querySelector('[aria-label="Así se verá en el sitio"]')!.textContent;
+
+    expect(card()).toBe("RedesInstagram@aso");
+
+    await typeInto(field(host, "Usuario"), "@aso_computacion");
+
+    expect(card()).toBe("RedesInstagram@aso_computacion");
   });
 
   it("keeps the note and the short description in \"Más opciones\", closed", async () => {

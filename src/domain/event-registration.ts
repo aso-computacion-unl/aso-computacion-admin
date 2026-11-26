@@ -58,6 +58,7 @@ export function assertRegistrationSettings(
 
 export const PAST_EVENT_REGISTRATION_MESSAGE = "registration cannot be opened or changed for an event that already happened";
 export const REGISTRATION_ALREADY_SET_MESSAGE = "registration is already set up for this event: change it instead of opening it";
+export const REGISTRATION_NOT_SET_MESSAGE = "this event takes no registration: open one instead of changing it";
 export const DEADLINE_AFTER_EVENT_MESSAGE = "registrationDeadline must be on or before the event's last day (Ecuador time)";
 
 /** The admin form shows a deadline to the minute, so seconds a stored one carries are not a change. */

@@ -1,5 +1,5 @@
 import type { EventDatePrecision } from "@/domain/event";
-import { PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE, type EventRegistrationMode } from "@/domain/event-registration";
+import { PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE, REGISTRATION_NOT_SET_MESSAGE, type EventRegistrationMode } from "@/domain/event-registration";
 import { isEventOver } from "@/domain/event-registration-retention";
 import { ValidationError } from "@/domain/domain-error";
 
@@ -81,11 +81,18 @@ export class OpenEventRegistrationUseCase {
   }
 }
 
-/** Changes or turns off the registration of an event; the entity refuses what S4 refuses. */
+/**
+ * Changes or turns off the registration of an event that has one, as stored; opening one is `OpenEventRegistrationUseCase`
+ * with its own checks. The entity refuses what S4 refuses.
+ */
 export class ChangeEventRegistrationUseCase {
   constructor(private readonly events: EventRepository) {}
 
   async execute(command: EventRegistrationCommand): Promise<EventResult> {
-    return saveSettings(this.events, command);
+    return saveSettings(this.events, command, (event) => {
+      if (event.registrationMode === "none") {
+        throw new ValidationError("registrationMode", REGISTRATION_NOT_SET_MESSAGE);
+      }
+    });
   }
 }

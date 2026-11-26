@@ -85,15 +85,19 @@ test("R8: create a registration for an upcoming draft from Inscripciones, see it
   await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
   expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationCapacity).toBe(30);
 
-  // Turn it off: nobody is registered, so nothing is asked.
+  // Turn it off: nobody is registered, so nothing is asked; the panel, which the event leaves, confirms it.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
   await expect(page.getByLabel("Cupos")).toHaveCount(0);
   await page.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/registrations$/);
+  await expect(page.getByText("Inscripción desactivada.")).toBeVisible();
   expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationMode).toBe("none");
-
-  await page.goto("/admin/registrations");
   await expect(page.getByRole("link", { name: new RegExp(title) })).toHaveCount(0);
+
+  // Editing never opens a registration: the edit screen of an event without one leads to «Crear inscripción».
+  await page.goto(`/admin/registrations/${id}/edit`);
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations/new\\?evento=${id}$`));
+  await expect(page.getByRole("button", { name: "Crear inscripción" })).toBeVisible();
 });
 
 test("R8 / S4: a past event is not offered, and an event whose day passed while its form was open is refused on save", async ({ page }) => {

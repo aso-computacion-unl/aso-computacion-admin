@@ -4,6 +4,7 @@ import type { RegistrationCandidate } from "@/application";
 import { Button } from "@/components/ui/button";
 import { openEventRegistration } from "@/interface/admin/event-registrations/actions";
 import { getAdminRegistrationCandidates } from "@/interface/admin/event-registrations/registration-candidates-admin-read";
+import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 
 import { EmptyState } from "../../_components/empty-state";
@@ -16,6 +17,7 @@ import { RegistrationForm } from "../_components/registration-form";
 export const dynamic = "force-dynamic";
 
 const NEW_PATH = "/admin/registrations/new";
+const NO_REGISTRATION = { registrationMode: "none", registrationCapacity: "", registrationDeadline: "" } as const;
 
 function CandidateList({ candidates }: { candidates: RegistrationCandidate[] }) {
   return (
@@ -52,13 +54,18 @@ export default async function NewRegistrationPage({ searchParams }: { searchPara
   const chosen = typeof evento === "string" ? candidates.find((event) => event.id === evento) : undefined;
 
   if (chosen) {
+    // People registered under a registration that was turned off are still there: reopening asks first (D14).
+    const registeredCount = (await getAdminEvent(chosen.id))?.registeredCount ?? 0;
+
     return (
       <FormLayout backHref={NEW_PATH} backLabel="Elegir otro evento" title="Crear inscripción" status="sin guardar">
         <RegistrationEventSummary event={chosen} />
         <Panel aria-label="Inscripción">
           <RegistrationForm
             action={openEventRegistration.bind(null, chosen.id)}
-            initialValues={{ registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" }}
+            initialValues={{ ...NO_REGISTRATION, registrationMode: "unl" }}
+            storedValues={NO_REGISTRATION}
+            registeredCount={registeredCount}
             submitLabel="Crear inscripción"
           />
         </Panel>

@@ -16,8 +16,8 @@ type Action = (previous: ActionResult | null, formData: FormData) => Promise<Act
 
 const ok: Action = async () => ({ success: true });
 const OPEN: RegistrationFormValues = { registrationMode: "open", registrationCapacity: "30", registrationDeadline: "" };
-const mountForm = (action: Action, initialValues: RegistrationFormValues = OPEN, registeredCount = 0) =>
-  mount(createElement(ToastProvider, null, createElement(RegistrationForm, { action, initialValues, registeredCount, submitLabel: "Guardar cambios" })));
+const mountForm = (action: Action, initialValues: RegistrationFormValues = OPEN, registeredCount = 0, storedValues?: RegistrationFormValues) =>
+  mount(createElement(ToastProvider, null, createElement(RegistrationForm, { action, initialValues, storedValues, registeredCount, submitLabel: "Guardar cambios" })));
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
@@ -85,6 +85,22 @@ describe("RegistrationForm", () => {
     expect(sent(action)).toMatchObject({ registrationMode: "unl", confirmRegistrationChange: "on" });
   });
 
+  it("D14: on create, judges the change against the event's stored settings: reopening with people still registered asks first", async () => {
+    const action = vi.fn(ok);
+    const host = await mountForm(action, { registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" }, 3, { registrationMode: "none", registrationCapacity: "", registrationDeadline: "" });
+
+    await save(host);
+    await settle();
+
+    expect(dialog(host)!.textContent).toContain("Este evento ya tiene 3 inscritos.");
+    expect(action).not.toHaveBeenCalled();
+
+    await click(button(host, "Guardar el cambio"));
+    await settle();
+
+    expect(sent(action)).toMatchObject({ registrationMode: "unl", confirmRegistrationChange: "on" });
+  });
+
   it("D14: asks nothing while nobody is registered", async () => {
     const action = vi.fn(ok);
     const host = await mountForm(action, OPEN, 0);
@@ -100,7 +116,7 @@ describe("RegistrationForm", () => {
 
 describe("RegistrationSavedArrival", () => {
   it("confirms the save once and drops the flag from the URL, keeping the event selected", async () => {
-    const host = await mount(createElement(ToastProvider, null, createElement(RegistrationSavedArrival, { eventId: "e1" })));
+    const host = await mount(createElement(ToastProvider, null, createElement(RegistrationSavedArrival, { message: "Inscripción creada.", path: "/admin/registrations?evento=e1" })));
     await settle();
 
     expect(host.textContent).toContain("Inscripción creada.");

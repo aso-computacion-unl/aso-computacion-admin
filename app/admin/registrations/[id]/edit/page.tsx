@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { updateEventRegistration } from "@/interface/admin/event-registrations/actions";
 import { registrationsPanelPath } from "@/interface/admin/event-registrations/saved-flag";
@@ -17,6 +17,8 @@ export default async function EditRegistrationPage({ params }: { params: Promise
   const event = await getAdminEvent(id);
 
   if (!event) notFound();
+  // Editing never opens a registration: an event without one goes to «Crear inscripción», which checks that it may.
+  if (event.registrationMode === "none") redirect(`/admin/registrations/new?evento=${encodeURIComponent(id)}`);
 
   return (
     <FormLayout backHref={registrationsPanelPath(id)} backLabel="Volver a inscripciones" title="Configurar inscripción" status={event.title}>

@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../../../../app/admin/registrations/_components/registration-saved-arrival", async () => {
   const { createElement } = await import("react");
 
-  return { RegistrationSavedArrival: ({ eventId }: { eventId: string }) => createElement("span", { "data-arrival": eventId }) };
+  return { RegistrationSavedArrival: ({ message, path }: { message: string; path: string }) => createElement("span", { "data-arrival": `${message} ${path}` }) };
 });
 
 import RegistrationsPage, { dynamic } from "../../../../app/admin/registrations/page";
@@ -188,8 +188,15 @@ describe("the registrations screen: which event is selected", () => {
   it("confirms a registration just created only when the flag says so", async () => {
     const evento = await addTestEvent({ title: "Taller", date: "2099-12-01" });
 
-    expect(await render(evento.id, "1")).toContain(`data-arrival="${evento.id}"`);
+    expect(await render(evento.id, "1")).toContain(`data-arrival="Inscripción creada. /admin/registrations?evento=${evento.id}"`);
     expect(await render(evento.id)).not.toContain("data-arrival");
+  });
+
+  it("confirms a registration just turned off, whose event is no longer in the list", async () => {
+    await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    expect(await render(undefined, "desactivada")).toContain('data-arrival="Inscripción desactivada. /admin/registrations"');
+    expect(await render(undefined, "otra")).not.toContain("data-arrival");
   });
 
   it("on a phone shows the list first, and the people with a way back once an event is chosen", async () => {

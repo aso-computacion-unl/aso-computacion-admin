@@ -9,12 +9,19 @@ vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: ev
 vi.mock("@/interface/admin/event-registrations/actions", () => ({ openEventRegistration: vi.fn(), updateEventRegistration: vi.fn() }));
 // The form has its own tests; here it shows what the page hands it.
 vi.mock("../../../../app/admin/registrations/_components/registration-form", () => ({
-  RegistrationForm: ({ initialValues, registeredCount, submitLabel }: Record<string, unknown>) =>
-    createElement("form", { "data-initial": JSON.stringify(initialValues), "data-registered": String(registeredCount ?? 0) }, submitLabel as string),
+  RegistrationForm: ({ initialValues, storedValues, registeredCount, submitLabel }: Record<string, unknown>) =>
+    createElement(
+      "form",
+      { "data-initial": JSON.stringify(initialValues), "data-stored": JSON.stringify(storedValues ?? null), "data-registered": String(registeredCount ?? 0) },
+      submitLabel as string,
+    ),
 }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
+  },
+  redirect: (path: string) => {
+    throw new Error(`REDIRECT ${path}`);
   },
 }));
 
@@ -31,7 +38,7 @@ const renderEdit = async () => renderToStaticMarkup(await EditRegistrationPage({
 
 beforeEach(() => {
   candidatesMock.mockReset().mockResolvedValue(CANDIDATES);
-  eventMock.mockReset();
+  eventMock.mockReset().mockResolvedValue({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null, registeredCount: 0 });
 });
 
 describe("creating a registration: picking the event", () => {
@@ -80,6 +87,16 @@ describe("creating a registration: the settings of the picked event", () => {
     expect(html).toContain('href="/admin/registrations/new"');
   });
 
+  it("D14: hands the form the event's stored settings (none) and the people still registered from an earlier registration", async () => {
+    eventMock.mockResolvedValue({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null, registeredCount: 3 });
+
+    const html = await renderNew("e1");
+
+    expect(eventMock).toHaveBeenCalledWith("e1");
+    expect(html).toContain('data-registered="3"');
+    expect(html).toContain('data-stored="{&quot;registrationMode&quot;:&quot;none&quot;,&quot;registrationCapacity&quot;:&quot;&quot;,&quot;registrationDeadline&quot;:&quot;&quot;}"');
+  });
+
   it("marks a draft, which shows its registration on the site only once published", async () => {
     const html = await renderNew("e2");
 
@@ -104,6 +121,12 @@ describe("editing a registration", () => {
     expect(html).toContain('data-initial="{&quot;registrationMode&quot;:&quot;open&quot;,&quot;registrationCapacity&quot;:&quot;40&quot;,&quot;registrationDeadline&quot;:&quot;2099-11-27T18:00&quot;}"');
     expect(html).toContain('data-registered="7"');
     expect(html).toContain(">Guardar cambios</form>");
+  });
+
+  it("sends an event without registration to «Crear inscripción»: editing never opens one", async () => {
+    eventMock.mockResolvedValue({ ...event, registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+
+    await expect(renderEdit()).rejects.toThrow("REDIRECT /admin/registrations/new?evento=e1");
   });
 
   it("is a 404 for an unknown event", async () => {

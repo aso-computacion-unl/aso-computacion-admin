@@ -4,7 +4,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { getAdminEventRegistrations } from "@/interface/admin/event-registrations/registrations-admin-read";
 import { getAdminRegistrationOverview } from "@/interface/admin/event-registrations/registrations-overview-admin-read";
-import { SAVED_FLAG } from "@/interface/admin/event-registrations/saved-flag";
+import { REGISTRATIONS_PATH, registrationsPanelPath, SAVED_FLAG, TURNED_OFF } from "@/interface/admin/event-registrations/saved-flag";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,12 @@ export default async function RegistrationsPage({ searchParams }: RegistrationsP
   const chosen = typeof evento === "string" ? rows.find((row) => row.id === evento) : undefined;
   const selected = chosen ?? defaultEvent(upcoming, past);
   const page = selected ? await getAdminEventRegistrations(selected.id) : null;
+  const arrival =
+    saved === "1" && chosen
+      ? { message: "Inscripción creada.", path: registrationsPanelPath(chosen.id) }
+      : saved === TURNED_OFF
+        ? { message: "Inscripción desactivada.", path: REGISTRATIONS_PATH }
+        : null;
 
   return (
     <PageFrame>
@@ -52,7 +58,7 @@ export default async function RegistrationsPage({ searchParams }: RegistrationsP
           </Button>
         }
       />
-      {chosen && saved === "1" ? <RegistrationSavedArrival eventId={chosen.id} /> : null}
+      {arrival ? <RegistrationSavedArrival {...arrival} /> : null}
 
       {rows.length === 0 ? (
         <EmptyState

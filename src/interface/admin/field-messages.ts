@@ -1,5 +1,5 @@
 import { MAX_ACTIVE_EVENT_PHOTOS } from "@/domain/event-photo";
-import { DEADLINE_AFTER_EVENT_MESSAGE, PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE } from "@/domain/event-registration";
+import { DEADLINE_AFTER_EVENT_MESSAGE, PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE, REGISTRATION_NOT_SET_MESSAGE } from "@/domain/event-registration";
 
 /*
  * The Spanish text of every field a form can get wrong. Pure data with no server imports: the server
@@ -59,6 +59,7 @@ export const RULE_MESSAGES: Record<string, string> = {
   [PAST_EVENT_REGISTRATION_MESSAGE]: "El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar.",
   [DEADLINE_AFTER_EVENT_MESSAGE]: "El cierre de la inscripción no puede ser posterior al día del evento.",
   [REGISTRATION_ALREADY_SET_MESSAGE]: "Este evento ya tiene inscripción. Cámbiela desde «Configurar inscripción».",
+  [REGISTRATION_NOT_SET_MESSAGE]: "Este evento no tiene inscripción. Créela desde «Crear inscripción».",
 };
 
 const FALLBACK_FIELD_MESSAGE = "El valor no es válido.";

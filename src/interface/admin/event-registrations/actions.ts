@@ -12,7 +12,7 @@ import { mapActionError, type ActionResult } from "../action-result";
 import { getEventUseCases } from "../events/events-container";
 import { isRegistrationChangeConfirmed, unconfirmedRegistrationChange } from "../events/registration-change-guard";
 import { parseRegistrationFormData } from "../events/registration-form-fields";
-import { savedRegistrationPath } from "./saved-flag";
+import { savedRegistrationPath, turnedOffRegistrationPath } from "./saved-flag";
 
 // Registrations are personal data: looking is editor-level (the page), deleting is ADMIN only. The guard is the
 // first statement; the audit entry names the event only, never the person, and is written after the delete.
@@ -32,14 +32,24 @@ function refresh(eventId: string, isPublished: boolean) {
   revalidatePath(eventEditPath(eventId));
 }
 
-/** Turns on the registration of an upcoming event without one (S1), then shows it in the panel. */
+/**
+ * Turns on the registration of an upcoming event without one (S1), then shows it in the panel. People may still be
+ * registered from a registration that was turned off: reopening it changes their mode, so it needs the confirmation (D14).
+ */
 export async function openEventRegistration(eventId: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
 
   try {
     const actor = await requireSession();
     id = String(eventId);
-    const saved = await getEventUseCases().openRegistration.execute({ eventId: id, ...parseRegistrationFormData(formData) });
+    const settings = parseRegistrationFormData(formData);
+    const unconfirmed = await unconfirmedRegistrationChange(id, settings, isRegistrationChangeConfirmed(formData));
+
+    if (unconfirmed) {
+      return { error: unconfirmed };
+    }
+
+    const saved = await getEventUseCases().openRegistration.execute({ eventId: id, ...settings });
     await recordAudit(actor, { action: "event.registration_open", entityType: "event", entityId: id, summary: "Inscripción creada en un evento" });
     refresh(id, saved.isPublished);
   } catch (error) {
@@ -49,7 +59,10 @@ export async function openEventRegistration(eventId: string, _prevState: ActionR
   redirect(savedRegistrationPath(id));
 }
 
-/** Changes or turns off the registration of an event; a change that affects registered people needs the confirmation (D14). */
+/**
+ * Changes or turns off the registration of an event; a change that affects registered people needs the confirmation (D14).
+ * Turned off, the event leaves the panel and its edit screen only leads to «Crear inscripción», so the save lands on the panel.
+ */
 export async function updateEventRegistration(eventId: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     const actor = await requireSession();
@@ -64,10 +77,15 @@ export async function updateEventRegistration(eventId: string, _prevState: Actio
     const saved = await getEventUseCases().changeRegistration.execute({ eventId: id, ...settings });
     await recordAudit(actor, { action: "event.registration_update", entityType: "event", entityId: id, summary: "Inscripción de un evento editada" });
     refresh(id, saved.isPublished);
-    return { success: true };
+
+    if (saved.registrationMode !== "none") {
+      return { success: true };
+    }
   } catch (error) {
     return mapActionError(error);
   }
+
+  redirect(turnedOffRegistrationPath);
 }
 
 export async function deleteEventRegistration(eventId: string, registrationId: string): Promise<ActionResult> {

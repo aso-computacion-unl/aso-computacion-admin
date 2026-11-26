@@ -26,6 +26,8 @@ export interface RegistrationFormValues {
 interface RegistrationFormProps {
   action: RegistrationFormAction;
   initialValues: RegistrationFormValues;
+  /** What the event has stored, when the form starts from something else (create: the event has none). D14 compares with it. */
+  storedValues?: RegistrationFormValues;
   submitLabel: string;
   /** People registered and confirmed in this event: changing its mode, or its seats below this number, asks first (D14). */
   registeredCount?: number;
@@ -38,7 +40,7 @@ const REGISTRATION_CHANGE_CONFIRMED_FIELD = "confirmRegistrationChange";
  * The registration of one event, set from the Inscripciones area: mode, seats and deadline, nothing else of the event.
  * Saved by its button only (no autosave). A change that affects people already registered asks first, as in R8/D14.
  */
-export function RegistrationForm({ action, initialValues, submitLabel, registeredCount = 0 }: RegistrationFormProps) {
+export function RegistrationForm({ action, initialValues, storedValues, submitLabel, registeredCount = 0 }: RegistrationFormProps) {
   // The change the admin accepted in the question, by its `key`: only that exact change travels with the confirmation.
   const confirmedChange = useRef<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function RegistrationForm({ action, initialValues, submitLabel, registere
       return formData;
     },
   });
-  const change = registrationChangeOfForm(registeredCount, stored, values);
+  const change = registrationChangeOfForm(registeredCount, storedValues ?? stored, values);
 
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     if (change.warning && confirmedChange.current !== change.key) {

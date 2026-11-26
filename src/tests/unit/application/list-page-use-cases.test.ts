@@ -1,50 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { ListEventsUseCase } from "@/application/use-cases/list-events.use-case";
 import { ListNewsItemsUseCase } from "@/application/use-cases/list-news-items.use-case";
 import { ListOrderedContentPageUseCase } from "@/application/use-cases/ordered-content.use-cases";
 import { toFaqResult } from "@/application/mappers/faq-result.mapper";
-import { Event, EventPhoto, Faq, NewsItem } from "@/domain";
-import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
-import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
+import { Faq, NewsItem } from "@/domain";
 import { InMemoryNewsRepository } from "@/tests/fakes/in-memory-news.repository";
 import { InMemoryOrderedRepository } from "@/tests/fakes/in-memory-ordered-repository";
 
 const PAGE_OF_TWO = { page: 1, pageSize: 2 };
-
-describe("ListEventsUseCase.executePage", () => {
-  let events: InMemoryEventRepository;
-  let photos: InMemoryEventPhotoRepository;
-
-  beforeEach(() => {
-    photos = new InMemoryEventPhotoRepository();
-    events = new InMemoryEventRepository(photos);
-  });
-
-  it("returns the window with the photo count of each event on it and the totals of the whole match", async () => {
-    const newest = await events.create(Event.create({ title: "Taller de Git", date: "2026-06-01" }));
-    await events.create(Event.create({ title: "Taller de Docker", date: "2026-05-01" }));
-    await events.create(Event.create({ title: "Charla", date: "2026-04-01" }));
-    await photos.add(EventPhoto.create({ eventId: newest.props.id, url: "https://x.test/a.jpg", publicId: "a", width: 1200, height: 800, alt: "a", sortOrder: 0 }), 12);
-
-    const page = await new ListEventsUseCase(events, photos).executePage({ search: "taller" }, PAGE_OF_TWO);
-
-    expect(page).toMatchObject({ total: 2, page: 1, pageCount: 1 });
-    expect(page.items.map((event) => [event.title, event.photoCount])).toEqual([
-      ["Taller de Git", 1],
-      ["Taller de Docker", 0],
-    ]);
-  });
-
-  it("composes the status filter with the search", async () => {
-    await events.create(Event.create({ title: "Taller publicado", isPublished: true }));
-    await events.create(Event.create({ title: "Taller borrador" }));
-
-    const page = await new ListEventsUseCase(events, photos).executePage({ search: "taller", status: "draft" }, PAGE_OF_TWO);
-
-    expect(page.items.map((event) => event.title)).toEqual(["Taller borrador"]);
-  });
-});
 
 describe("ListNewsItemsUseCase.executePage", () => {
   it("returns results in the admin shape with the page position", async () => {

@@ -1,4 +1,4 @@
-interface TimelineEvent {
+export interface TimelineEvent {
   /** YYYY-MM-DD */
   date: string | null;
   /** Month-only dates order, and count as past or upcoming, as the first of their month (the landing's rule). */
@@ -10,7 +10,7 @@ interface TimelineEvent {
 export interface EventGroups<E extends TimelineEvent> {
   /** Unpublished, most recently edited first: the branch that has not been merged. */
   drafts: E[];
-  /** Published, today or later. Farthest first, so the next one sits right above HEAD. */
+  /** Published, today or later. Soonest first: what happens next leads. */
   upcoming: E[];
   /** Published, earlier than today or undated. Most recent first, undated last. */
   past: E[];
@@ -45,11 +45,13 @@ export function groupEvents<E extends TimelineEvent>(events: readonly E[], today
 
   return {
     drafts,
-    upcoming: published.filter((event) => {
-      const date = effectiveDate(event);
+    upcoming: published
+      .filter((event) => {
+        const date = effectiveDate(event);
 
-      return date !== null && date >= today;
-    }),
+        return date !== null && date >= today;
+      })
+      .reverse(),
     past: published.filter((event) => {
       const date = effectiveDate(event);
 

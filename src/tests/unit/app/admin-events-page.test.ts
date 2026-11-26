@@ -127,6 +127,39 @@ describe("the Próximos / Pasados tabs", () => {
     expect(pasados).not.toContain("Taller futuro");
   });
 
+  it("lists the soonest upcoming event first, right after the drafts", async () => {
+    const soon = event(102, { title: "Taller pronto", date: "2998-01-01" });
+    listMock.mockResolvedValue([upcoming, draft, soon]);
+    const html = await render();
+
+    expect(html.indexOf("Borrador nuevo")).toBeLessThan(html.indexOf("Taller pronto"));
+    expect(html.indexOf("Taller pronto")).toBeLessThan(html.indexOf("Taller futuro"));
+  });
+
+  it("says there are no upcoming events only when the whole tab has none, not when they are on a later page", async () => {
+    const drafts = Array.from({ length: 25 }, (_, index) => event(200 + index, { title: `Borrador ${index}`, isPublished: false }));
+    const noUpcoming = "Sin eventos próximos. Publique un borrador para verlo aquí.";
+
+    listMock.mockResolvedValue([...drafts, upcoming]);
+    expect(await render()).not.toContain(noUpcoming);
+    const second = await render({ pagina: "2" });
+    expect(second).toContain("Taller futuro");
+    expect(second).not.toContain(noUpcoming);
+
+    listMock.mockResolvedValue(drafts);
+    expect(await render()).not.toContain(noUpcoming);
+    expect(await render({ pagina: "2" })).toContain(noUpcoming);
+  });
+
+  it("keeps the tab in the links of the no-results message, merged into one query", async () => {
+    listMock.mockResolvedValue([]);
+    const html = await render({ vista: "pasados", q: "nada", estado: "publicados" });
+
+    expect(html).toContain("que coincidan con «nada»");
+    expect(html).toContain('href="/admin/events?vista=pasados&amp;estado=publicados">Quitar la búsqueda</a>');
+    expect(html).not.toMatch(/href="[^"]*\?[^"]*\?/);
+  });
+
   it("says when a tab is empty and points to the other one", async () => {
     listMock.mockResolvedValue(pastEvents);
     const proximos = await render();

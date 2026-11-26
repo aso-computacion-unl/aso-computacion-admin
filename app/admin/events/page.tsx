@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { EventListItemResult } from "@/application";
-import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
+import { todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
 import { eventViewPage, eventViewPath, eventViews, parseEventView, type EventView } from "@/interface/admin/events/event-views";
 import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { windowBadge } from "@/interface/admin/publication-window-badge";
@@ -105,7 +105,7 @@ interface EventsTimelineProps {
   drafts: EventListItemResult[];
   upcoming: EventListItemResult[];
   past: EventListItemResult[];
-  /** False when only drafts are listed: the main line has nothing to show then. */
+  /** False when the page has no upcoming events to show and no «Sin eventos próximos» to say. */
   showMainLine: boolean;
 }
 
@@ -153,7 +153,7 @@ function EventsTimeline({ view, drafts, upcoming, past, showMainLine }: EventsTi
       {showMainLine ? (
         <div className="tl-trunk">
           <section aria-labelledby="h-upcoming">
-            <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren." />
+            <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren; el más cercano primero." />
             {upcoming.length > 0 ? (
               <ol className="tl-list">
                 {upcoming.map((event) => (
@@ -196,13 +196,16 @@ export default async function AdminEventsPage({
   // The tabs split by date, which only `groupEvents` decides: the whole filtered list is read, split, then paged per tab.
   const [events, counts] = await Promise.all([getAdminEvents(listCriteria(filter, search)), getAdminEventCounts()]);
   const today = todayInLoja(new Date());
-  const views = eventViews(groupEvents(events, today));
+  const views = eventViews(events, today);
   const page = await eventViewPage(views[view], requestedPage);
-  const { drafts, upcoming, past } = groupEvents(page.items, today);
+  const onPage = new Set(page.items);
+  const drafts = views.drafts.filter((event) => onPage.has(event));
+  const upcoming = views.upcoming.filter((event) => onPage.has(event));
   const path = eventViewPath(LIST_PATH, view);
   const otherView = view === "pasados" ? "proximos" : "pasados";
-  // Drafts have their own branch; with only drafts asked for, the main line has nothing to show.
-  const showMainLine = filter !== "borradores";
+  // Drafts have their own branch; with only drafts asked for, the main line has nothing to show. Otherwise it shows on a
+  // page with upcoming events or, when the whole tab has none, after the last drafts, to say so.
+  const showMainLine = filter !== "borradores" && (upcoming.length > 0 || (views.upcoming.length === 0 && page.page === page.pageCount));
   const total = counts.published + counts.draft;
   const tools = showListTools(total, { search, filter });
 
@@ -244,7 +247,7 @@ export default async function AdminEventsPage({
             <ViewEmpty view={view} href={listHref(eventViewPath(LIST_PATH, otherView), { filter, search })} />
           ) : (
             <BulkSelection kind="event" enabled={tools} items={page.items.map((event) => ({ id: event.id, label: event.title }))}>
-              <EventsTimeline view={view} drafts={drafts} upcoming={upcoming} past={past} showMainLine={showMainLine} />
+              <EventsTimeline view={view} drafts={drafts} upcoming={upcoming} past={page.items} showMainLine={showMainLine} />
               {tools ? null : <AddRow href="/admin/events/new">Agregar evento</AddRow>}
             </BulkSelection>
           )}

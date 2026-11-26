@@ -57,9 +57,7 @@ export interface HomeAgenda {
  * coming up. The module counts live in the sidebar, so the home does not repeat them as its headline.
  */
 export function buildHomeAgenda({ events, news, openReports, now }: { events: readonly AgendaEvent[]; news: readonly AgendaNewsItem[]; openReports: number | null; now: Date }): HomeAgenda {
-  const groups = groupEvents(events, todayInLoja(now));
-  // groupEvents orders the upcoming ones newest first, like the list; the home wants the soonest first.
-  const upcoming = [...groups.upcoming].reverse();
+  const { upcoming } = groupEvents(events, todayInLoja(now));
   const scheduled = (item: { publishAt: Date | null }) => item.publishAt !== null && item.publishAt.getTime() > now.getTime();
   const drafts = [
     ...events.filter((item) => !item.isPublished).map((item) => ({ item, kind: "Evento" as const, href: `/admin/events/${item.id}/edit` })),

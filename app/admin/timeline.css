@@ -150,32 +150,4 @@
 		border-radius: 4px;
 		background: var(--color-navy-lift);
 	}
-
-	/* HEAD: today, between what comes and what has passed. */
-	.tl-head {
-		--node: 20px;
-		position: relative;
-		display: grid;
-		grid-template-columns: var(--lane) minmax(0, 1fr);
-		align-items: center;
-		min-height: 3.25rem;
-		margin-top: 0.5rem;
-	}
-
-	@media (min-width: 48rem) {
-		.tl-head {
-			--node: 24px;
-		}
-	}
-
-	.tl-head .tl-node {
-		top: 50%;
-		translate: 0 -50%;
-		background: var(--color-foreground);
-		box-shadow: 0 0 0 2px var(--color-sky);
-	}
-
-	.tl-head .tl-link {
-		top: 50%;
-	}
 }

@@ -1,6 +1,7 @@
 import { fetchPage, type Page } from "@/application";
 
 import { PAGE_SIZE } from "../list-params";
+import { groupEvents, type TimelineEvent } from "./event-timeline";
 
 /** Values of the events list's `?vista=` param: the two tabs. */
 export const EVENT_VIEWS = ["proximos", "pasados"] as const;
@@ -17,12 +18,22 @@ export function eventViewPath(path: string, view: EventView): string {
   return view === "proximos" ? path : `${path}?vista=${view}`;
 }
 
-/**
- * The rows of each tab, from `groupEvents` (the one place that tells past from upcoming): Próximos holds the drafts
- * (work in progress, whatever their date) and then the upcoming ones; Pasados the past and the undated ones.
- */
-export function eventViews<E>(groups: { drafts: readonly E[]; upcoming: readonly E[]; past: readonly E[] }): Record<EventView, E[]> {
-  return { proximos: [...groups.drafts, ...groups.upcoming], pasados: [...groups.past] };
+export interface EventViews<E> {
+  /** Unpublished, most recently edited first. */
+  drafts: E[];
+  /** Published, today or later, soonest first: page 1 shows what happens next. */
+  upcoming: E[];
+  /** Próximos: the drafts (work in progress, whatever their date), then the upcoming ones. */
+  proximos: E[];
+  /** Pasados: published before today, most recent first, the undated ones last. */
+  pasados: E[];
+}
+
+/** The rows of each tab, split once by `groupEvents` (the one place that tells past from upcoming). */
+export function eventViews<E extends TimelineEvent>(events: readonly E[], today: string): EventViews<E> {
+  const { drafts, upcoming, past } = groupEvents(events, today);
+
+  return { drafts, upcoming, proximos: [...drafts, ...upcoming], pasados: past };
 }
 
 /** One page of a tab's rows, with the same page size and clamping as every admin list. */

@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma, type Event as PrismaEvent } from "@/generated/prisma/client";
 
 import type { EventRepository } from "@/application/ports/event-repository.port";
-import { fetchPage, type ListCriteria, type Page, type PageRequest, type PublicationCounts } from "@/application/ports/list-criteria";
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
@@ -77,16 +77,6 @@ export class EventPrismaRepository
     const records = await prisma.event.findMany({ where: publicationWhere(criteria, SEARCH_FIELDS), orderBy: LIST_ORDER });
 
     return records.map(toDomain);
-  }
-
-  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Event>> {
-    const where = publicationWhere(criteria, SEARCH_FIELDS);
-
-    return fetchPage(
-      request,
-      () => prisma.event.count({ where }),
-      async (take, skip) => (await prisma.event.findMany({ where, orderBy: LIST_ORDER, take, skip })).map(toDomain),
-    );
   }
 
   async update(event: Event): Promise<Event> {

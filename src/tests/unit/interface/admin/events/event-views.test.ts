@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { groupEvents } from "@/interface/admin/events/event-timeline";
 import { eventViewPage, eventViewPath, eventViews, parseEventView } from "@/interface/admin/events/event-views";
 import { PAGE_SIZE } from "@/interface/admin/list-params";
 
@@ -31,23 +30,28 @@ describe("eventViewPath", () => {
 
 describe("eventViews", () => {
   const today = "2026-10-22";
+  const views = eventViews(
+    [
+      item("past-old", "2025-01-01", true),
+      item("draft-old", "2020-01-01", false, "2026-09-01T00:00:00Z"),
+      item("far", "2027-06-01", true),
+      item("undated", null, true),
+      item("today", today, true),
+      item("draft-new", null, false, "2026-10-20T00:00:00Z"),
+      item("past-recent", "2026-10-01", true),
+      item("next", "2026-12-01", true),
+    ],
+    today,
+  );
 
-  it("puts drafts first, then the upcoming ones, in Próximos; the past and the undated ones in Pasados", () => {
-    const groups = groupEvents(
-      [
-        item("past", "2026-10-01", true),
-        item("draft-old", "2020-01-01", false),
-        item("today", today, true),
-        item("undated", null, true),
-        item("next", "2026-12-01", true),
-      ],
-      today,
-    );
+  it("orders Próximos as the drafts (last edited first), then the upcoming ones soonest first", () => {
+    expect(ids(views.drafts)).toEqual(["draft-new", "draft-old"]);
+    expect(ids(views.upcoming)).toEqual(["today", "next", "far"]);
+    expect(ids(views.proximos)).toEqual(["draft-new", "draft-old", "today", "next", "far"]);
+  });
 
-    const views = eventViews(groups);
-
-    expect(ids(views.proximos)).toEqual(["draft-old", "next", "today"]);
-    expect(ids(views.pasados)).toEqual(["past", "undated"]);
+  it("orders Pasados most recent first, the undated ones last", () => {
+    expect(ids(views.pasados)).toEqual(["past-recent", "past-old", "undated"]);
   });
 });
 

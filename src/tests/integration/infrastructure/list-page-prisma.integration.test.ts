@@ -30,7 +30,10 @@ async function walk<E extends { props: { id: string } }>(repository: PageableRep
   return pages;
 }
 
-describe("events: search and pages (integration)", () => {
+describe("events: search (integration)", () => {
+  // The admin events list reads the whole filtered list and pages each tab itself, so events have no listPage.
+  const idsOfList = (list: Event[]) => list.map((event) => event.props.id);
+
   it("matches title, description, place and commit message regardless of case, and nothing else", async () => {
     const byTitle = await events.create(Event.create({ title: "Taller de Git" }));
     const byDescription = await events.create(Event.create({ title: "A", description: "Aprenda GIT desde cero" }));
@@ -38,10 +41,10 @@ describe("events: search and pages (integration)", () => {
     const byCommit = await events.create(Event.create({ title: "C", commitMessage: "feat: git rebase" }));
     await events.create(Event.create({ title: "Charla de Docker" }));
 
-    const page = await events.listPage({ search: "git" }, FULL_PAGE);
+    const list = await events.list({ search: "git" });
 
-    expect(new Set(idsOf(page))).toEqual(new Set([byTitle, byDescription, byPlace, byCommit].map((event) => event.props.id)));
-    expect(page.total).toBe(4);
+    expect(new Set(idsOfList(list))).toEqual(new Set([byTitle, byDescription, byPlace, byCommit].map((event) => event.props.id)));
+    expect(list).toHaveLength(4);
   });
 
   it("treats %, _ and a backslash as plain characters", async () => {
@@ -50,9 +53,9 @@ describe("events: search and pages (integration)", () => {
     await events.create(Event.create({ title: "Sin símbolos" }));
     await events.create(Event.create({ title: "gitXhooks" }));
 
-    expect(idsOf(await events.listPage({ search: "%" }, FULL_PAGE))).toEqual([percent.props.id]);
-    expect(idsOf(await events.listPage({ search: "git_hooks" }, FULL_PAGE))).toEqual([underscore.props.id]);
-    expect(idsOf(await events.listPage({ search: "\\" }, FULL_PAGE))).toEqual([]);
+    expect(idsOfList(await events.list({ search: "%" }))).toEqual([percent.props.id]);
+    expect(idsOfList(await events.list({ search: "git_hooks" }))).toEqual([underscore.props.id]);
+    expect(idsOfList(await events.list({ search: "\\" }))).toEqual([]);
   });
 
   it("composes search with the status filter and never shows trashed rows", async () => {
@@ -61,41 +64,9 @@ describe("events: search and pages (integration)", () => {
     const trashed = await events.create(Event.create({ title: "Taller en la papelera" }));
     await events.trash(trashed.props.id);
 
-    expect(idsOf(await events.listPage({ search: "taller", status: "published" }, FULL_PAGE))).toEqual([published.props.id]);
-    expect(idsOf(await events.listPage({ search: "taller", status: "draft" }, FULL_PAGE))).toEqual([draft.props.id]);
-    expect((await events.listPage({ search: "taller" }, FULL_PAGE)).total).toBe(2);
-  });
-
-  it("pages in a stable order: every row exactly once, even when dates and creation times are equal", async () => {
-    const created = await Promise.all(Array.from({ length: 11 }, (_, index) => events.create(Event.create({ title: `Evento ${index}`, date: "2026-05-01" }))));
-
-    const pages = await walk(events);
-    const seen = pages.flatMap((page) => idsOf(page));
-
-    expect(pages.map((page) => page.items.length)).toEqual([4, 4, 3]);
-    expect(pages.every((page) => page.total === 11 && page.pageCount === 3)).toBe(true);
-    expect(new Set(seen).size).toBe(11);
-    expect(new Set(seen)).toEqual(new Set(created.map((event) => event.props.id)));
-    expect(idsOf(await events.listPage({}, { page: 2, pageSize: 4 }))).toEqual(idsOf(pages[1]!));
-  });
-
-  it("lists in the same order as list(), so a page is a window of the whole list", async () => {
-    await events.create(Event.create({ title: "Viejo", date: "2025-01-10" }));
-    await events.create(Event.create({ title: "Próximo", date: "2026-12-01" }));
-    await events.create(Event.create({ title: "Sin fecha" }));
-
-    const whole = (await events.list()).map((event) => event.props.id);
-
-    expect((await walk(events, {}, 2)).flatMap((page) => idsOf(page))).toEqual(whole);
-  });
-
-  it("clamps a page past the end to the last one", async () => {
-    await Promise.all(Array.from({ length: 5 }, (_, index) => events.create(Event.create({ title: `Evento ${index}` }))));
-
-    const page = await events.listPage({}, { page: 40, pageSize: 4 });
-
-    expect(page).toMatchObject({ page: 2, pageCount: 2, total: 5 });
-    expect(page.items).toHaveLength(1);
+    expect(idsOfList(await events.list({ search: "taller", status: "published" }))).toEqual([published.props.id]);
+    expect(idsOfList(await events.list({ search: "taller", status: "draft" }))).toEqual([draft.props.id]);
+    expect(await events.list({ search: "taller" })).toHaveLength(2);
   });
 });
 

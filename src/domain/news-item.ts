@@ -138,6 +138,8 @@ export class NewsItem {
   update({ coverAlt, ...updates }: UpdateNewsItemInput): NewsItem {
     const { cover } = this.props;
 
+    // Nothing to check about the alt text when none was sent, or when a blank one was sent for an item without a
+    // cover: there is no alt to clear. Only a non-blank alt without a cover breaks a rule.
     if (coverAlt === undefined || (!cover && coverAlt.trim() === "")) {
       return this.with(updates);
     }

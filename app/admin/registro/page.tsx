@@ -33,7 +33,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
         description="Quién cambió qué y cuándo. Solo guarda nombres e identificadores: nunca el contenido de los textos ni contraseñas."
       />
 
-      {/* The log fills; the filter, the decision of the screen, lives in a 22rem panel that stays in sight (below on a phone). */}
+      {/* The log fills; the filter, the decision of the screen, lives in a 22rem panel that stays in sight (above the log on a phone). */}
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid min-w-0 content-start gap-10">
           {items.length === 0 ? (
@@ -100,7 +100,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
           ) : null}
         </div>
 
-        <aside aria-labelledby="filter-title" className="grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+        <aside aria-labelledby="filter-title" className="grid gap-4 rounded bg-card p-4 max-lg:order-first md:p-5 lg:sticky lg:top-22">
           <SectionTitle id="filter-title">Filtrar</SectionTitle>
             <form method="get" action="/admin/registro" className="grid gap-4" aria-label="Filtrar el registro">
               <div className="grid gap-1.5">

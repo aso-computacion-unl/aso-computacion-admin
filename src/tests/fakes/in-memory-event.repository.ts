@@ -1,12 +1,12 @@
 import type { EventRepository } from "@/application/ports/event-repository.port";
-import type { ListCriteria, Page, PageRequest, PublicationCounts } from "@/application/ports/list-criteria";
+import type { ListCriteria, PublicationCounts } from "@/application/ports/list-criteria";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
 import type { TrashedItem } from "@/application/ports/trashable-repository.port";
 import { ValidationError } from "@/domain/domain-error";
 import type { Event } from "@/domain/event";
 
 import type { InMemoryEventPhotoRepository } from "./in-memory-event-photo.repository";
-import { matchesSearch, pageOf } from "./in-memory-page";
+import { matchesSearch } from "./in-memory-page";
 import { InMemoryTrash } from "./in-memory-trash";
 
 /** Deterministic in-memory `EventRepository`; `list()` mirrors the Prisma ordering (date desc, nulls last, then newest). */
@@ -58,10 +58,6 @@ export class InMemoryEventRepository implements EventRepository {
         }
         return b.props.createdAt.getTime() - a.props.createdAt.getTime() || a.props.id.localeCompare(b.props.id);
       });
-  }
-
-  async listPage(criteria: ListCriteria, request: PageRequest): Promise<Page<Event>> {
-    return pageOf(await this.list(criteria), request);
   }
 
   async update(event: Event): Promise<Event> {

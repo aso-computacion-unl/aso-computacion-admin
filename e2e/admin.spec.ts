@@ -109,17 +109,19 @@ test("a published event moved to the trash leaves the public API, undo brings it
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
   expect(await publicTitles()).toContain(title);
 
-  // Move to the trash: gone from the public content at once, and the toast offers to undo.
-  await page.goto("/admin/events");
+  // Move to the trash: gone from the public content at once, and the toast offers to undo. Published and undated, the
+  // event is in the Pasados tab.
+  await page.goto("/admin/events?vista=pasados");
   await page.getByRole("button", { name: `Mover a la papelera: ${title}` }).click();
   await page.getByRole("button", { name: "Sí, mover" }).click();
   await expect(page.getByRole("status").getByText("Movido a la papelera")).toBeVisible();
   await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
   expect(await publicTitles()).not.toContain(title);
 
-  // Undo restores it, but as a draft: still not public.
+  // Undo restores it, but as a draft: still not public, and a draft is listed under Próximos.
   await page.getByRole("button", { name: "Deshacer" }).click();
   await expect(page.getByRole("status").getByText("Restaurado como borrador.")).toBeVisible();
+  await page.goto("/admin/events");
   await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
   expect(await publicTitles()).not.toContain(title);
 
@@ -339,9 +341,9 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await openMoreOptions(page);
   await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
 
-  // Published but not open yet: not public, and the list says why.
+  // Published but not open yet: not public, and the list says why. Undated, it is in the Pasados tab.
   expect(await publicTitles()).not.toContain(scheduled);
-  await page.goto("/admin/events");
+  await page.goto("/admin/events?vista=pasados");
   const row = page.getByRole("listitem").filter({ hasText: scheduled });
   await expect(row.getByText("Programado", { exact: true })).toBeVisible();
   await expect(row.getByText(/Se publica el 1 ene 2999/)).toBeVisible();
@@ -369,7 +371,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
 
   expect(await publicTitles()).not.toContain(expired);
-  await page.goto("/admin/events");
+  await page.goto("/admin/events?vista=pasados");
   await expect(page.getByRole("listitem").filter({ hasText: expired }).getByText("Vencido", { exact: true })).toBeVisible();
 });
 

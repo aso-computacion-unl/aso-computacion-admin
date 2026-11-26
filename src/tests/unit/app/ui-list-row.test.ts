@@ -6,7 +6,7 @@ const reads = vi.hoisted(() => ({
   faqsPage: vi.fn(),
   faqsCounts: vi.fn(),
   board: vi.fn(),
-  eventsPage: vi.fn(),
+  events: vi.fn(),
   eventsCounts: vi.fn(),
   newsPage: vi.fn(),
   newsCounts: vi.fn(),
@@ -15,7 +15,7 @@ const actions = vi.hoisted(() => (...names: string[]) => Object.fromEntries(name
 
 vi.mock("@/interface/admin/faqs/faqs-admin-read", () => ({ getAdminFaqsPage: reads.faqsPage, getAdminFaqsCounts: reads.faqsCounts }));
 vi.mock("@/interface/admin/board/board-members-admin-read", () => ({ getAdminBoardMembers: reads.board }));
-vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEventsPage: reads.eventsPage, getAdminEventCounts: reads.eventsCounts }));
+vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvents: reads.events, getAdminEventCounts: reads.eventsCounts }));
 vi.mock("@/interface/admin/news/news-admin-read", () => ({ getAdminNewsPage: reads.newsPage, getAdminNewsCounts: reads.newsCounts }));
 vi.mock("@/interface/admin/faqs/actions", () => actions("trashFaq", "moveFaq", "setFaqPublished"));
 vi.mock("@/interface/admin/board/actions", () => actions("trashBoardMember", "moveBoardMember", "setBoardMemberPublished"));
@@ -143,7 +143,7 @@ describe("a short list", () => {
   });
 
   it("applies to the events timeline", async () => {
-    reads.eventsPage.mockResolvedValue(pageOf([event(1), event(2)]));
+    reads.events.mockResolvedValue([event(1), event(2)]);
     reads.eventsCounts.mockResolvedValue(counts(2));
 
     const html = renderToStaticMarkup(await AdminEventsPage(params()));

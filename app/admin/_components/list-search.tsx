@@ -6,7 +6,10 @@ import { listHref, SEARCH_MAX_LENGTH } from "@/interface/admin/list-params";
 import type { StatusFilter } from "@/interface/admin/status-filter";
 
 interface ListSearchProps {
-  /** The list's own path: the form is a plain GET to it, so a search is a URL anyone can share and it works without scripts. */
+  /**
+   * The list's own path: the form is a plain GET to it, so a search is a URL anyone can share and it works without
+   * scripts. Params it carries (the events tab, `?vista=`) are sent along as hidden fields.
+   */
   path: string;
   filter: StatusFilter;
   search: string;
@@ -15,10 +18,15 @@ interface ListSearchProps {
 }
 
 export function ListSearch({ path, filter, search, label }: ListSearchProps) {
-  const inputId = `search-${path.split("/").pop()}`;
+  // A GET form drops the query of its action, so the params of the path travel as hidden fields.
+  const [action = path, fixed = ""] = path.split("?");
+  const inputId = `search-${action.split("/").pop()}`;
 
   return (
-    <form role="search" method="get" action={path} className="mt-5 flex flex-wrap items-center gap-2">
+    <form role="search" method="get" action={action} className="mt-5 flex flex-wrap items-center gap-2">
+      {[...new URLSearchParams(fixed)].map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       {filter === "todos" ? null : <input type="hidden" name="estado" value={filter} />}
       <label htmlFor={inputId} className="sr-only">
         Buscar en {label}

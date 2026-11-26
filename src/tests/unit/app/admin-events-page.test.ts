@@ -1,43 +1,48 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pageMock, countsMock } = vi.hoisted(() => ({ pageMock: vi.fn(), countsMock: vi.fn() }));
+const { listMock, countsMock } = vi.hoisted(() => ({ listMock: vi.fn(), countsMock: vi.fn() }));
 
-vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEventsPage: pageMock, getAdminEventCounts: countsMock }));
+vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvents: listMock, getAdminEventCounts: countsMock }));
 vi.mock("@/interface/admin/events/actions", () => ({ trashEvent: vi.fn(), setEventPublished: vi.fn() }));
 vi.mock("@/interface/admin/trash/actions", () => ({ restoreTrashed: vi.fn() }));
 vi.mock("@/interface/admin/bulk/actions", () => ({ bulkSetPublished: vi.fn(), bulkTrash: vi.fn() }));
 
 import AdminEventsPage from "../../../../app/admin/events/page";
 
-const event = (index: number) => ({
+const event = (index: number, overrides: { date?: string | null; isPublished?: boolean; title?: string } = {}) => ({
   id: `event-${index}`,
-  title: `Evento ${index}`,
-  date: "2020-03-01",
+  title: overrides.title ?? `Evento ${index}`,
+  date: overrides.date === undefined ? "2020-03-01" : overrides.date,
   datePrecision: "day",
   type: "taller",
   commitMessage: null,
   description: null,
-  isPublished: true,
+  isPublished: overrides.isPublished ?? true,
   updatedAt: new Date("2020-03-02T12:00:00Z"),
   photoCount: 0,
   publishFrom: null,
   publishUntil: null,
 });
 
-const render = async () => renderToStaticMarkup(await AdminEventsPage({ searchParams: Promise.resolve({}) }));
+const render = async (searchParams: Record<string, string> = {}) =>
+  renderToStaticMarkup(await AdminEventsPage({ searchParams: Promise.resolve(searchParams) }));
+
+const pastEvents = Array.from({ length: 12 }, (_, index) => event(index));
+const draft = event(100, { title: "Borrador nuevo", isPublished: false });
+const upcoming = event(101, { title: "Taller futuro", date: "2999-01-01" });
 
 beforeEach(() => {
-  pageMock.mockReset();
+  listMock.mockReset();
   countsMock.mockReset();
   // More than a handful of rows, so the search and the bulk tools are on.
-  pageMock.mockResolvedValue({ items: Array.from({ length: 12 }, (_, index) => event(index)), page: 1, pageCount: 1, total: 12 });
-  countsMock.mockResolvedValue({ published: 12, draft: 0 });
+  listMock.mockResolvedValue([...pastEvents, draft, upcoming]);
+  countsMock.mockResolvedValue({ published: 13, draft: 1 });
 });
 
 describe("the events list", () => {
   it("has no selection bar before anything is selected", async () => {
-    const html = await render();
+    const html = await render({ vista: "pasados" });
 
     expect(html).not.toContain("Nada seleccionado");
     expect(html).not.toContain("Acciones en lote");
@@ -58,8 +63,114 @@ describe("the events list", () => {
   });
 
   it("shows the legend below the list, not above it", async () => {
-    const html = await render();
+    const html = await render({ vista: "pasados" });
 
     expect(html.indexOf('aria-label="Cómo leer la línea"')).toBeGreaterThan(html.lastIndexOf("Evento 11"));
+  });
+});
+
+describe("the Próximos / Pasados tabs", () => {
+  it("opens on Próximos: drafts first, then the upcoming ones, and nothing past", async () => {
+    const html = await render();
+
+    expect(html).toContain("Borrador nuevo");
+    expect(html).toContain("Taller futuro");
+    expect(html.indexOf("Borrador nuevo")).toBeLessThan(html.indexOf("Taller futuro"));
+    expect(html).not.toContain("Evento 0");
+  });
+
+  it("shows only the past events under ?vista=pasados", async () => {
+    const html = await render({ vista: "pasados" });
+
+    expect(html).toContain("Evento 0");
+    expect(html).not.toContain("Borrador nuevo");
+    expect(html).not.toContain("Taller futuro");
+  });
+
+  it("has no «Hoy» line any more", async () => {
+    for (const vista of ["proximos", "pasados"]) {
+      const html = await render({ vista });
+
+      expect(html).not.toContain('role="separator"');
+      expect(html).not.toContain("HEAD → main");
+    }
+  });
+
+  it("marks the current tab, says how many each holds, and keeps the search and filter but not the page", async () => {
+    const html = await render({ vista: "pasados", q: "Evento", estado: "publicados", pagina: "1" });
+    const nav = html.slice(html.indexOf('<nav aria-label="Vista de eventos"'), html.indexOf("</nav>", html.indexOf('<nav aria-label="Vista de eventos"')));
+
+    expect(nav).toMatch(/<a[^>]*href="\/admin\/events\?estado=publicados&amp;q=Evento"[^>]*>Próximos<span[^>]*>2<\/span><\/a>/);
+    expect(nav).toMatch(/<a aria-current="page"[^>]*href="\/admin\/events\?vista=pasados&amp;estado=publicados&amp;q=Evento"[^>]*>Pasados<span[^>]*>12<\/span><\/a>/);
+    expect(nav.match(/aria-current/g) ?? []).toHaveLength(1);
+  });
+
+  it("keeps the tab in the status filter, the search form and the pager", async () => {
+    listMock.mockResolvedValue(Array.from({ length: 25 }, (_, index) => event(index)));
+    const html = await render({ vista: "pasados" });
+
+    expect(html).toContain('href="/admin/events?vista=pasados&amp;estado=borradores"');
+    expect(html).toContain('type="hidden" name="vista" value="pasados"');
+    expect(html).toContain('href="/admin/events?vista=pasados&amp;pagina=2"');
+    expect(html).toContain("Mostrando 1–20 de 25.");
+  });
+
+  it("pages each tab on its own rows", async () => {
+    listMock.mockResolvedValue([...Array.from({ length: 25 }, (_, index) => event(index)), upcoming]);
+
+    const proximos = await render();
+    const pasados = await render({ vista: "pasados", pagina: "2" });
+
+    expect(proximos).toContain("Taller futuro");
+    expect(proximos).not.toContain('rel="next"');
+    expect(pasados).toContain("Mostrando 21–25 de 25.");
+    expect(pasados).not.toContain("Taller futuro");
+  });
+
+  it("lists the soonest upcoming event first, right after the drafts", async () => {
+    const soon = event(102, { title: "Taller pronto", date: "2998-01-01" });
+    listMock.mockResolvedValue([upcoming, draft, soon]);
+    const html = await render();
+
+    expect(html.indexOf("Borrador nuevo")).toBeLessThan(html.indexOf("Taller pronto"));
+    expect(html.indexOf("Taller pronto")).toBeLessThan(html.indexOf("Taller futuro"));
+  });
+
+  it("says there are no upcoming events only when the whole tab has none, not when they are on a later page", async () => {
+    const drafts = Array.from({ length: 25 }, (_, index) => event(200 + index, { title: `Borrador ${index}`, isPublished: false }));
+    const noUpcoming = "Sin eventos próximos. Publique un borrador para verlo aquí.";
+
+    listMock.mockResolvedValue([...drafts, upcoming]);
+    expect(await render()).not.toContain(noUpcoming);
+    const second = await render({ pagina: "2" });
+    expect(second).toContain("Taller futuro");
+    expect(second).not.toContain(noUpcoming);
+
+    listMock.mockResolvedValue(drafts);
+    expect(await render()).not.toContain(noUpcoming);
+    expect(await render({ pagina: "2" })).toContain(noUpcoming);
+  });
+
+  it("keeps the tab in the links of the no-results message, merged into one query", async () => {
+    listMock.mockResolvedValue([]);
+    const html = await render({ vista: "pasados", q: "nada", estado: "publicados" });
+
+    expect(html).toContain("que coincidan con «nada»");
+    expect(html).toContain('href="/admin/events?vista=pasados&amp;estado=publicados">Quitar la búsqueda</a>');
+    expect(html).not.toMatch(/href="[^"]*\?[^"]*\?/);
+  });
+
+  it("says when a tab is empty and points to the other one", async () => {
+    listMock.mockResolvedValue(pastEvents);
+    const proximos = await render();
+
+    expect(proximos).toContain("No hay eventos próximos ni borradores.");
+    expect(proximos).toContain('href="/admin/events?vista=pasados"');
+
+    listMock.mockResolvedValue([draft, upcoming]);
+    const pasados = await render({ vista: "pasados" });
+
+    expect(pasados).toContain("Todavía no hay eventos pasados.");
+    expect(pasados).not.toContain("Borrador nuevo");
   });
 });

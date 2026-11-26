@@ -83,6 +83,13 @@ describe("listHref", () => {
   it("encodes the search text", () => {
     expect(listHref("/admin/faqs", { search: "a&b=c d" })).toBe("/admin/faqs?q=a%26b%3Dc+d");
   });
+
+  it("keeps the params the path already carries, such as the events tab", () => {
+    expect(listHref("/admin/events?vista=pasados", {})).toBe("/admin/events?vista=pasados");
+    expect(listHref("/admin/events?vista=pasados", { filter: "publicados", search: "git", page: 2 })).toBe(
+      "/admin/events?vista=pasados&estado=publicados&q=git&pagina=2",
+    );
+  });
 });
 
 describe("page size", () => {

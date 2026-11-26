@@ -46,11 +46,11 @@ describe("groupEvents", () => {
       today,
     );
 
-    expect(ids(grouped.upcoming)).toEqual(["tomorrow", "today"]);
+    expect(ids(grouped.upcoming)).toEqual(["today", "tomorrow"]);
     expect(ids(grouped.past)).toEqual(["yesterday"]);
   });
 
-  it("orders both groups newest date first, so the nearest events sit next to HEAD", () => {
+  it("orders the upcoming ones soonest first and the past ones most recent first", () => {
     const grouped = groupEvents(
       [
         item("p1", "2026-01-10", true),
@@ -61,7 +61,7 @@ describe("groupEvents", () => {
       today,
     );
 
-    expect(ids(grouped.upcoming)).toEqual(["u1", "u2"]);
+    expect(ids(grouped.upcoming)).toEqual(["u2", "u1"]);
     expect(ids(grouped.past)).toEqual(["p2", "p1"]);
   });
 

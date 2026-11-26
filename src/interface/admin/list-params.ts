@@ -53,17 +53,21 @@ interface ListHrefParts {
   page?: number;
 }
 
-/** The URL of a list view. Defaults are left out, so the plain list has one URL and every view is shareable. */
+/**
+ * The URL of a list view. Defaults are left out, so the plain list has one URL and every view is shareable. Params the
+ * path already carries (the events tab, `?vista=`) come first and are kept.
+ */
 export function listHref(path: string, { filter = "todos", search = "", page = 1 }: ListHrefParts): string {
-  const [, query = ""] = filterHref(path, filter).split("?");
-  const params = new URLSearchParams(query);
+  const [base = path, fixed = ""] = path.split("?");
+  const [, query = ""] = filterHref(base, filter).split("?");
+  const params = new URLSearchParams([fixed, query].filter((part) => part !== "").join("&"));
 
   if (search !== "") params.set("q", search);
   if (page > 1) params.set("pagina", String(page));
 
   const text = params.toString();
 
-  return text === "" ? path : `${path}?${text}`;
+  return text === "" ? base : `${base}?${text}`;
 }
 
 /** What the repository is asked for: the status filter and the search, each only when set. */

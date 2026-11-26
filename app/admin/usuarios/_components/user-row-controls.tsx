@@ -58,6 +58,7 @@ export function UserActiveControl({ id, name, active }: { id: string; name: stri
         warning={`«${name}» ya no podrá entrar y se cerrarán todas sus sesiones.`}
         note="Podrá volver a activarlo cuando quiera."
         triggerLabel="Desactivar"
+        triggerClassName="sm:min-w-32"
         confirmLabel="Sí, desactivar"
         successMessage="Usuario desactivado."
         action={() => setUserActive(id, false)}
@@ -67,7 +68,7 @@ export function UserActiveControl({ id, name, active }: { id: string; name: stri
 
   return (
     <>
-      <Button variant="line" size="sm" busy={pending} aria-label={`Reactivar: ${name}`} aria-disabled={pending || undefined} onClick={() => !pending && run(() => setUserActive(id, true), undefined, "Usuario reactivado.")}>
+      <Button variant="line" size="sm" className="sm:min-w-32" busy={pending} aria-label={`Reactivar: ${name}`} aria-disabled={pending || undefined} onClick={() => !pending && run(() => setUserActive(id, true), undefined, "Usuario reactivado.")}>
         <Icon name="undo" className="size-4" />
         Reactivar
       </Button>

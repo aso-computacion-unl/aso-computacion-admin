@@ -98,27 +98,30 @@ export function ReportActions({ report }: { report: Pick<ForumReportItemResult, 
   const error = result?.error ?? result?.fieldErrors?.note ?? result?.fieldErrors?.outcome;
 
   return (
-    <div className="grid gap-5">
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Decidir">
+    <div className="grid gap-4">
+      {/* Ocultar (or Mostrar) is the one primary and fills the panel; Ignorar and Suspender… hug their text below it. */}
+      <div className="grid gap-2" role="group" aria-label="Decidir">
         <StepButton
           variant="primary"
           label={target.hidden ? "Mostrar" : "Ocultar"}
           run={() => hideAction(!target.hidden)}
           done={target.hidden ? "Publicación visible de nuevo." : "Publicación oculta para los estudiantes."}
         />
-        <Button variant="line" aria-disabled={pending || undefined} onClick={() => close("DISMISSED", "Reporte descartado.")}>
-          Ignorar
-        </Button>
-        {target.authorSuspended ? (
-          <StepButton label="Reactivar la cuenta" run={() => setForumMemberSuspended(target.authorId, false)} done="Cuenta reactivada." />
-        ) : (
-          <SuspendButton memberId={target.authorId} name={target.authorName} />
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="line" aria-disabled={pending || undefined} onClick={() => close("DISMISSED", "Reporte descartado.")}>
+            Ignorar
+          </Button>
+          {target.authorSuspended ? (
+            <StepButton label="Reactivar la cuenta" run={() => setForumMemberSuspended(target.authorId, false)} done="Cuenta reactivada." />
+          ) : (
+            <SuspendButton memberId={target.authorId} name={target.authorName} />
+          )}
+        </div>
       </div>
 
-      <form className="grid gap-3 border-t border-dashed border-sky/50 pt-4" onSubmit={(event) => event.preventDefault()}>
+      <form className="grid gap-4 border-t border-dashed border-sky/50 pt-4" onSubmit={(event) => event.preventDefault()}>
         <Field label="Nota (opcional)" hint="Queda en el historial del reporte. Hasta 500 caracteres.">
-          {(control) => <Textarea {...control} rows={2} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />}
+          {(control) => <Textarea {...control} rows={3} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />}
         </Field>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="line" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => close("RESOLVED", "Reporte resuelto.")}>

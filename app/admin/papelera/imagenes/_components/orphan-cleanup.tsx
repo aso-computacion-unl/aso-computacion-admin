@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { selectAll, settle, toggle } from "@/interface/admin/bulk/bulk-selection";
@@ -10,6 +10,7 @@ import { deleteInBatches } from "@/interface/admin/media/orphan-batches";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
+import { SectionTitle } from "../../../_components/section-title";
 import { useToast } from "../../../_components/toast";
 
 export interface OrphanItem {
@@ -26,9 +27,10 @@ export interface OrphanItem {
 /**
  * The second half of the cleanup: the images the dry run found, each with a checkbox (the ones
  * uploaded in the last 24 hours have none). Nothing is destroyed until the person has chosen
- * images and confirmed; what could not be deleted stays selected with its reason.
+ * images and confirmed; what could not be deleted stays selected with its reason. The images fill the
+ * frame; the selection, the deletion and the store's `pager` live in a 22rem side panel (below on a phone).
  */
-export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
+export function OrphanCleanup({ items, pager }: { items: readonly OrphanItem[]; pager: ReactNode }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -59,104 +61,116 @@ export function OrphanCleanup({ items }: { items: readonly OrphanItem[] }) {
     });
   }
 
-  if (shown.length === 0) return <p className="mt-6 text-mist">No hay imágenes sin uso en esta página.</p>;
+  if (shown.length === 0) {
+    return (
+      <div className="mt-6 grid gap-4">
+        <p className="text-mist">No hay imágenes sin uso en esta página.</p>
+        {pager}
+      </div>
+    );
+  }
 
   return (
-    <section aria-label="Imágenes sin uso" className="mt-6 grid gap-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded bg-card p-3 md:px-4">
-        <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            disabled={pending || deletable.length === 0}
-            onChange={() => setSelected(selectAll(deletable, !allSelected))}
-            className="size-5 cursor-pointer accent-action"
-          />
-          Seleccionar todas las que se pueden eliminar
-        </label>
-        <p role="status" className="font-mono text-[0.8125rem] text-mist">
-          {selected.size === 0 ? "Nada seleccionado" : pluralize(selected.size, "seleccionada", "seleccionadas")}
-        </p>
+    <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <section aria-label="Imágenes sin uso" className="min-w-0">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4">
+          {shown.map((item) => (
+            <li key={item.publicId} className="grid content-start gap-3 rounded bg-card p-4">
+              {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumbnailUrl(item.url, 240, 160)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                width={240}
+                height={160}
+                className="aspect-3/2 w-full rounded-xs bg-muted object-cover"
+              />
+              <div className="grid gap-1">
+                <p className="font-mono text-xs break-all text-mist">{item.publicId}</p>
+                <p className="font-mono text-xs text-mist">
+                  {item.width}×{item.height} · {formatBytes(item.bytes)} · {item.uploaded}
+                </p>
+              </div>
+              {item.deletable ? (
+                <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(item.publicId)}
+                    disabled={pending}
+                    onChange={() => setSelected((previous) => toggle(previous, item.publicId))}
+                    aria-label={`Seleccionar: ${item.publicId}`}
+                    className="size-5 cursor-pointer accent-action"
+                  />
+                  Eliminar
+                </label>
+              ) : (
+                <p className="text-sm text-mist">Subida hace menos de 24 horas: puede estar en uso todavía.</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <aside aria-labelledby="selection-title" className="grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+        <SectionTitle id="selection-title">Selección</SectionTitle>
+        <div className="grid gap-2">
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              disabled={pending || deletable.length === 0}
+              onChange={() => setSelected(selectAll(deletable, !allSelected))}
+              className="size-5 shrink-0 cursor-pointer accent-action"
+            />
+            Seleccionar todas las que se pueden eliminar
+          </label>
+          <p role="status" className="font-mono text-[0.8125rem] text-mist">
+            {selected.size === 0 ? "Nada seleccionado" : pluralize(selected.size, "seleccionada", "seleccionadas")}
+          </p>
+        </div>
         {selected.size > 0 && !confirming ? (
-          <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
+          <Button variant="danger" className="w-full" onClick={() => setConfirming(true)}>
             Eliminar las seleccionadas
           </Button>
         ) : null}
-      </div>
-
-      {confirming ? (
-        <div role="group" aria-label="Confirmar: eliminar imágenes" className="grid gap-3 rounded bg-muted p-3 text-sm">
-          <p>
-            ¿Eliminar {pluralize(selected.size, "imagen", "imágenes")} para siempre? Los archivos se borran del almacén y esto no se puede deshacer. Antes de borrar cada una se
-            vuelve a comprobar que nada la use.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run()}>
-              Sí, eliminar definitivamente
-            </Button>
-            <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>
-              No, conservar
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {problem ? (
-        <p role="alert" className="text-sm font-semibold text-error">
-          {problem}
-        </p>
-      ) : null}
-      {failures.length > 0 ? (
-        <div role="alert" className="grid gap-1.5 text-sm">
-          <p className="font-semibold text-error">{failures.length === 1 ? "1 imagen no se eliminó:" : `${failures.length} imágenes no se eliminaron:`}</p>
-          <ul className="grid gap-1 pl-4">
-            {failures.map((failure) => (
-              <li key={failure.id} className="list-disc wrap-anywhere">
-                {failure.id}: {failure.error}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {shown.map((item) => (
-          <li key={item.publicId} className="grid content-start gap-3 rounded bg-card p-4">
-            {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbnailUrl(item.url, 240, 160)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width={240}
-              height={160}
-              className="aspect-3/2 w-full rounded-xs bg-muted object-cover"
-            />
-            <div className="grid gap-1">
-              <p className="font-mono text-xs break-all text-mist">{item.publicId}</p>
-              <p className="font-mono text-xs text-mist">
-                {item.width}×{item.height} · {formatBytes(item.bytes)} · {item.uploaded}
-              </p>
+        {confirming ? (
+          <div role="group" aria-label="Confirmar: eliminar imágenes" className="grid gap-3 rounded bg-muted p-3 text-sm">
+            <p>
+              ¿Eliminar {pluralize(selected.size, "imagen", "imágenes")} para siempre? Los archivos se borran del almacén y esto no se puede deshacer. Antes de borrar cada una se
+              vuelve a comprobar que nada la use.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="danger" size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run()}>
+                Sí, eliminar definitivamente
+              </Button>
+              <Button variant="line" size="sm" aria-disabled={pending || undefined} onClick={() => !pending && setConfirming(false)} autoFocus>
+                No, conservar
+              </Button>
             </div>
-            {item.deletable ? (
-              <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
-                <input
-                  type="checkbox"
-                  checked={selected.has(item.publicId)}
-                  disabled={pending}
-                  onChange={() => setSelected((previous) => toggle(previous, item.publicId))}
-                  aria-label={`Seleccionar: ${item.publicId}`}
-                  className="size-5 cursor-pointer accent-action"
-                />
-                Eliminar
-              </label>
-            ) : (
-              <p className="text-sm text-mist">Subida hace menos de 24 horas: puede estar en uso todavía.</p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+          </div>
+        ) : null}
+
+        {problem ? (
+          <p role="alert" className="text-sm font-semibold text-error">
+            {problem}
+          </p>
+        ) : null}
+        {failures.length > 0 ? (
+          <div role="alert" className="grid gap-1.5 text-sm">
+            <p className="font-semibold text-error">{failures.length === 1 ? "1 imagen no se eliminó:" : `${failures.length} imágenes no se eliminaron:`}</p>
+            <ul className="grid gap-1 pl-4">
+              {failures.map((failure) => (
+                <li key={failure.id} className="list-disc wrap-anywhere">
+                  {failure.id}: {failure.error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="border-t border-border pt-4">{pager}</div>
+      </aside>
+    </div>
   );
 }

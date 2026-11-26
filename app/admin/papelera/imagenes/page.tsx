@@ -12,7 +12,7 @@ import { OrphanCleanup } from "./_components/orphan-cleanup";
 export const dynamic = "force-dynamic";
 
 const STEP_CLASSES =
-  "inline-flex min-h-11 items-center rounded border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground";
+  "inline-flex min-h-11 items-center justify-center rounded border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground";
 
 export default async function AdminImageCleanupPage({ searchParams }: { searchParams: Promise<{ despues?: string | string[] }> }) {
   const cursor = parseMediaCursor((await searchParams).despues);
@@ -37,35 +37,35 @@ export default async function AdminImageCleanupPage({ searchParams }: { searchPa
       {scan.status === "unavailable" ? <EmptyState icon="image">El almacén de imágenes no está configurado en este entorno.</EmptyState> : null}
       {scan.status === "error" ? <EmptyState icon="image">No se pudo consultar el almacén de imágenes. Intente nuevamente en unos minutos.</EmptyState> : null}
       {scan.status === "ok" ? (
-        <>
-          {/* Keyed by the page: a new page starts with a clean selection. */}
-          <OrphanCleanup
-            key={cursor ?? "first"}
-            items={scan.orphans.map((orphan) => ({
-              publicId: orphan.publicId,
-              url: orphan.url,
-              width: orphan.width,
-              height: orphan.height,
-              bytes: orphan.bytes,
-              uploaded: orphan.createdAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "medium" }),
-              deletable: orphan.deletable,
-            }))}
-          />
-          <nav aria-label="Paginación" className="mt-6 flex flex-wrap items-center gap-4 text-sm text-mist">
-            {cursor ? (
-              <Link href="/admin/papelera/imagenes" className={STEP_CLASSES}>
-                Volver al principio
-              </Link>
-            ) : null}
-            {scan.nextCursor ? (
-              <Link href={`/admin/papelera/imagenes?despues=${encodeURIComponent(scan.nextCursor)}`} rel="next" className={STEP_CLASSES}>
-                Revisar la página siguiente
-              </Link>
-            ) : (
-              <p role="status">Se revisó todo el almacén.</p>
-            )}
-          </nav>
-        </>
+        // Keyed by the page: a new page starts with a clean selection. The store's pager sits in the selection panel, next to the decision.
+        <OrphanCleanup
+          key={cursor ?? "first"}
+          items={scan.orphans.map((orphan) => ({
+            publicId: orphan.publicId,
+            url: orphan.url,
+            width: orphan.width,
+            height: orphan.height,
+            bytes: orphan.bytes,
+            uploaded: orphan.createdAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "medium" }),
+            deletable: orphan.deletable,
+          }))}
+          pager={
+            <nav aria-label="Paginación" className="grid gap-2 text-sm text-mist">
+              {cursor ? (
+                <Link href="/admin/papelera/imagenes" className={STEP_CLASSES}>
+                  Volver al principio
+                </Link>
+              ) : null}
+              {scan.nextCursor ? (
+                <Link href={`/admin/papelera/imagenes?despues=${encodeURIComponent(scan.nextCursor)}`} rel="next" className={STEP_CLASSES}>
+                  Revisar la página siguiente
+                </Link>
+              ) : (
+                <p role="status">Se revisó todo el almacén.</p>
+              )}
+            </nav>
+          }
+        />
       ) : null}
     </div>
   );

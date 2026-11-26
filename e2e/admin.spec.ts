@@ -47,7 +47,6 @@ test("the home greets, says what waits and offers '+ Crear' with the three thing
   // The old module grid is gone: the four areas are the way around.
   await expect(page.getByText("Contenido del sitio")).toHaveCount(0);
 
-  await page.locator("summary", { hasText: "Crear" }).click();
   await expect(page.getByRole("link", { name: "Evento", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Novedad", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Pregunta", exact: true }).click();

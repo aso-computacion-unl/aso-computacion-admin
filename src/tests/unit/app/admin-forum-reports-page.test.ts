@@ -124,6 +124,19 @@ describe("the forum report queue page", () => {
     expect(html).not.toContain("Reactivar");
   });
 
+  it("reads the report on the left and decides in a «Decidir» side panel after it", async () => {
+    testForum.store.reports.set("p1", makeForumReport({ id: "p1", reporterId: "m2", threadId: "t1", reason: "Es spam" }));
+
+    const html = await render();
+    const panel = html.match(/<aside aria-labelledby="decide-title"[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+    expect(panel).toMatch(/<h2[^>]*>Decidir<\/h2>/);
+    expect(panel).toContain("Ocultar");
+    expect(panel).toContain("Marcar como resuelto");
+    expect(panel).not.toContain("Es spam");
+    expect(html.indexOf("Es spam")).toBeLessThan(html.indexOf("<aside"));
+  });
+
   it("offers to show, reopen and reactivate, and stamps each state, when the post is hidden, the thread locked and the author suspended", async () => {
     testForum.members.members.set("m2", makeForumMember({ id: "m2", displayName: "Beto", email: "beto@unl.edu.ec", googleSub: "s2", status: "SUSPENDED", suspendedAt: new Date() }));
     testForum.store.threads.set("t1", makeForumThread({ id: "t1", authorId: "m1", lockedAt: new Date() }));

@@ -289,4 +289,20 @@ describe("registration dates", () => {
       expect((error as ValidationError).issues.map(({ field }) => field)).toEqual(["title", "registrationMode"]);
     }
   });
+
+  describe("moving the date of an event that takes registration", () => {
+    // Deadline 2026-11-26 18:00 in Ecuador.
+    const deadline = new Date("2026-11-26T23:00:00.000Z");
+    const withDeadline = () => build({ date: "2026-11-28", registrationMode: "open", registrationDeadline: deadline });
+
+    it("refuses a stored deadline after the new event day", () => {
+      expect(() => withDeadline().update({ date: "2026-11-25" })).toThrow(expect.objectContaining({ field: "registrationDeadline" }));
+      expect(() => withDeadline().update({ date: "2026-11-25", title: "Otro título" })).toThrow(expect.objectContaining({ field: "registrationDeadline" }));
+    });
+
+    it("keeps a later date, and a date moved while registration is switched off", () => {
+      expect(withDeadline().update({ date: "2026-12-05" }).props.date).toBe("2026-12-05");
+      expect(withDeadline().update({ date: "2026-11-25", registrationMode: "none" }).props).toMatchObject({ date: "2026-11-25", registrationMode: "none" });
+    });
+  });
 });

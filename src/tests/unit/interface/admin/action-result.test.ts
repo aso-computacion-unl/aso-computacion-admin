@@ -75,6 +75,8 @@ describe("mapActionError", () => {
       },
     });
     expect(mapActionError(new ValidationError("registrationMode", "invalid")).fieldErrors?.registrationMode).toBe("Elija una forma de inscripción de la lista.");
+    expect(mapActionError(new ValidationError("registrationMode", "constructor")).fieldErrors?.registrationMode).toBe("Elija una forma de inscripción de la lista.");
+    expect(mapActionError(new ValidationError("title", "toString")).fieldErrors?.title).toMatch(/120 caracteres/);
   });
 
   it("maps a single domain rejection to exactly its one field and catalogued text", () => {

@@ -59,33 +59,44 @@ export function assertRegistrationSettings(
 export const PAST_EVENT_REGISTRATION_MESSAGE = "registration cannot be opened or changed for an event that already happened";
 export const DEADLINE_AFTER_EVENT_MESSAGE = "registrationDeadline must be on or before the event's last day (Ecuador time)";
 
-function sameSettings(a: RegistrationSettings, b: RegistrationSettings): boolean {
-  return a.mode === b.mode && a.capacity === b.capacity && a.deadline?.getTime() === b.deadline?.getTime();
+/** The admin form shows a deadline to the minute, so seconds a stored one carries are not a change. */
+function deadlineMinute(deadline: Date | null): number | null {
+  return deadline === null ? null : Math.floor(deadline.getTime() / 60_000);
 }
 
+function sameSettings(a: RegistrationSettings, b: RegistrationSettings): boolean {
+  return a.mode === b.mode && a.capacity === b.capacity && deadlineMinute(a.deadline) === deadlineMinute(b.deadline);
+}
+
+interface DatedEvent {
+  readonly date: string | null;
+  readonly datePrecision: "day" | "month";
+}
+
+/** What was saved before this save: its registration and its date. */
+export interface SavedRegistration extends RegistrationSettings, DatedEvent {}
+
 /**
- * The date rules of a registration that is being opened or changed (`previous` is what was saved; on create, no
- * registration): refused once the event's last day is before today in Ecuador, and its deadline may not fall after
- * that day. Settings left as they were, or turned off, are never refused, so a past event keeps saving its other
- * fields. Without a date nothing says when the event happens, so neither rule applies.
+ * The date rules of a registration (`previous` is what was saved; on create, no registration and no date). Opening
+ * or changing the settings is refused once the event's last day is before today in Ecuador; moving the date alone
+ * does not open or change anything. Whenever the settings or the event's last day change, the deadline may not fall
+ * after that day. Settings left as they were, or turned off, on an event left on its day, are never refused, so a
+ * past event keeps saving its other fields. Without a date nothing says when the event happens, so neither rule applies.
  */
-export function assertRegistrationDates(
-  settings: RegistrationSettings,
-  event: { date: string | null; datePrecision: "day" | "month" },
-  previous: RegistrationSettings,
-  now: Date,
-): void {
-  if (settings.mode === "none" || event.date === null || sameSettings(settings, previous)) {
+export function assertRegistrationDates(settings: RegistrationSettings, event: DatedEvent, previous: SavedRegistration, now: Date): void {
+  if (settings.mode === "none" || event.date === null) {
     return;
   }
 
   const lastDay = eventLastDay(event.date, event.datePrecision);
+  const settingsChanged = !sameSettings(settings, previous);
+  const dayMoved = previous.date === null || eventLastDay(previous.date, previous.datePrecision) !== lastDay;
 
-  if (lastDay < todayInEcuador(now)) {
+  if (settingsChanged && lastDay < todayInEcuador(now)) {
     throw new ValidationError("registrationMode", PAST_EVENT_REGISTRATION_MESSAGE);
   }
 
-  if (settings.deadline !== null && formatEcuadorDateTime(settings.deadline).slice(0, 10) > lastDay) {
+  if ((settingsChanged || dayMoved) && settings.deadline !== null && formatEcuadorDateTime(settings.deadline).slice(0, 10) > lastDay) {
     throw new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE);
   }
 }

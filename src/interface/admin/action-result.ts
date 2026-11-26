@@ -124,7 +124,7 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
     const fieldErrors: Record<string, string> = {};
 
     for (const { field, message } of error.issues) {
-      if (!(field in fieldErrors)) fieldErrors[field] = RULE_MESSAGES[message] ?? fieldMessage(field, fieldMessages);
+      if (!(field in fieldErrors)) fieldErrors[field] = Object.hasOwn(RULE_MESSAGES, message) ? RULE_MESSAGES[message]! : fieldMessage(field, fieldMessages);
     }
 
     return { fieldErrors };

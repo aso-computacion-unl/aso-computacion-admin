@@ -1,5 +1,5 @@
 import { collectValidation, ValidationError } from "./domain-error";
-import { assertRegistrationDates, assertRegistrationSettings, type EventRegistrationMode, type RegistrationSettings } from "./event-registration";
+import { assertRegistrationDates, assertRegistrationSettings, type EventRegistrationMode, type SavedRegistration } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
 import { titleAndSlug } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
@@ -157,7 +157,7 @@ function validateLink(url: string | null | undefined, label: string | null | und
   return { linkUrl, linkLabel };
 }
 
-const NO_REGISTRATION: RegistrationSettings = { mode: "none", capacity: null, deadline: null };
+const NOTHING_SAVED: SavedRegistration = { mode: "none", capacity: null, deadline: null, date: null, datePrecision: "day" };
 
 /** The event's date as saved, or `null` when it is invalid: the date check reports that, not the registration one. */
 function checkedDate(fields: Partial<EventFields>) {
@@ -169,7 +169,7 @@ function checkedDate(fields: Partial<EventFields>) {
   }
 }
 
-function registrationFields(fields: Partial<EventFields>, previous: RegistrationSettings, now: Date) {
+function registrationFields(fields: Partial<EventFields>, previous: SavedRegistration, now: Date) {
   const settings = assertRegistrationSettings(fields.registrationMode, fields.registrationCapacity, fields.registrationDeadline);
   const date = checkedDate(fields);
 
@@ -184,7 +184,7 @@ function registrationFields(fields: Partial<EventFields>, previous: Registration
 function build(
   base: Pick<EventProps, "id" | "createdAt" | "updatedAt">,
   fields: Partial<EventFields> & Pick<EventFields, "title">,
-  previousRegistration: RegistrationSettings = NO_REGISTRATION,
+  previous: SavedRegistration = NOTHING_SAVED,
 ): EventProps {
   return collectValidation(
     {
@@ -201,7 +201,7 @@ function build(
       highlights: () => validateHighlights(fields.highlights),
       publication: () => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
       // `updatedAt` is the instant of this save.
-      registration: () => registrationFields(fields, previousRegistration, base.updatedAt),
+      registration: () => registrationFields(fields, previous, base.updatedAt),
     },
     (checked) => ({
       ...base,
@@ -247,7 +247,13 @@ export class Event {
       build(
         { id: current.id, createdAt: current.createdAt, updatedAt: new Date() },
         { ...current, ...definedUpdates },
-        { mode: current.registrationMode, capacity: current.registrationCapacity, deadline: current.registrationDeadline },
+        {
+          mode: current.registrationMode,
+          capacity: current.registrationCapacity,
+          deadline: current.registrationDeadline,
+          date: current.date,
+          datePrecision: current.datePrecision,
+        },
       ),
     );
   }

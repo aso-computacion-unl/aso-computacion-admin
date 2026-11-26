@@ -128,7 +128,8 @@ export function EventCardPreview({ values, withRegistration }: { values: EventFo
       <span className="font-mono text-[0.8125rem] tracking-[0.04em] text-sky uppercase">{when}</span>
       <b className="mt-1 block leading-[1.3] wrap-anywhere">{values.title || "Sin título"}</b>
       {facts ? <p className="mt-1 text-sm text-mist wrap-anywhere">{facts}</p> : null}
-      {registration ? <span className="mt-2 inline-block rounded-full bg-tint-blue px-2 py-0.5 text-xs font-semibold text-on-tint-blue">{registration}</span> : null}
+      {/* A 10px radius: a pill on one line (20px tall), a rounded box when a long cierre wraps it on a phone or in the side panel. */}
+      {registration ? <span className="mt-2 inline-block rounded-[0.625rem] bg-tint-blue px-2 py-0.5 text-xs font-semibold text-on-tint-blue">{registration}</span> : null}
     </div>
   );
 }

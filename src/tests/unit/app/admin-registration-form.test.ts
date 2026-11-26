@@ -12,6 +12,8 @@ import { RegistrationSavedArrival } from "../../../../app/admin/registrations/_c
 import type { ActionResult } from "@/interface/admin/action-result";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
+import { controlsPerLabel } from "./one-control-per-label";
+
 type Action = (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
 const ok: Action = async () => ({ success: true });
@@ -57,6 +59,36 @@ describe("RegistrationForm", () => {
     await settle();
 
     expect(sent(action).registrationMode).toBe("none");
+  });
+
+  it("comes back on with the mode the event had before it was turned off", async () => {
+    const host = await mountForm(vi.fn(ok), { registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" });
+
+    await click(radio(host, "open"));
+    await click(registrationSwitch(host));
+
+    expect(labelled(host, "Cupos")).toBeUndefined();
+
+    await click(registrationSwitch(host));
+
+    expect(radio(host, "open").checked).toBe(true);
+  });
+
+  it("starts on, with the stored mode and seats, for an event that takes registrations", async () => {
+    const host = await mountForm(vi.fn(ok));
+
+    expect(registrationSwitch(host).checked).toBe(true);
+    expect(radio(host, "open").checked).toBe(true);
+    expect([...host.querySelectorAll<HTMLInputElement>('input[name="registrationMode"]')].map((input) => input.value)).toEqual(["unl", "open"]);
+    expect(field(host, "Cupos").value).toBe("30");
+    expect(labelled(host, "Cierre")).toBeDefined();
+  });
+
+  it("names one control per label, so the help toggles of Cupos and Cierre do not answer to their field's name", async () => {
+    const perLabel = controlsPerLabel(await mountForm(vi.fn(ok)));
+
+    for (const text of ["Cupos", "Cierre"]) expect(perLabel.get(text)?.size, text).toBe(1);
+    for (const [text, controls] of perLabel) expect(controls.size, text).toBe(1);
   });
 
   it("shows a refused field under it, in the admin's words", async () => {

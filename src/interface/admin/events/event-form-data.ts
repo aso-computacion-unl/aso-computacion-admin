@@ -8,7 +8,6 @@ import {
 } from "@/domain/event";
 
 import { publicationWindowFields } from "../publication-window-fields";
-import { registrationFormFields } from "./registration-form-fields";
 
 const shortText = (message: string) => z.string().trim().max(EVENT_SHORT_TEXT_MAX_LENGTH, message);
 const checkbox = z.string().transform((value) => value === "on" || value === "true");
@@ -55,13 +54,15 @@ const eventFormSchema = z.object({
   ),
   isPublished: checkbox,
   ...publicationWindowFields,
-  ...registrationFormFields,
 });
 
-/** Keys read only when the form sent them: an absent window or registration setting means "leave it as it is", a blank one clears it. */
-const OPTIONAL_KEYS = new Set(["publishAt", "unpublishAt", "registrationMode", "registrationCapacity", "registrationDeadline"]);
+/** Keys read only when the form sent them: an absent window end means "leave it as it is", a blank one clears it. */
+const OPTIONAL_KEYS = new Set(["publishAt", "unpublishAt"]);
 
-/** Reads the event form. Blank optional fields stay as "" and the domain turns them into null. */
+/**
+ * Reads the event form. Blank optional fields stay as "" and the domain turns them into null. Only the keys of the
+ * schema are read: the registration settings, set only from Inscripciones (S3), never come through here.
+ */
 export function parseEventFormData(formData: FormData) {
   const raw = Object.fromEntries(
     Object.keys(eventFormSchema.shape)

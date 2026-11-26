@@ -53,10 +53,18 @@ describe("event form values", () => {
       isPublished: true,
       publishAt: "",
       unpublishAt: "",
-      registrationMode: "none",
-      registrationCapacity: "",
-      registrationDeadline: "",
     });
+  });
+
+  it("has no registration settings (S3): the event form never shows or sends them, only Inscripciones does", () => {
+    const values = eventToFormValues(toEventResult(storedEvent({ title: "Taller", date: "2099-11-28", registrationMode: "open", registrationCapacity: 40 })));
+    const keys = ["registrationMode", "registrationCapacity", "registrationDeadline"];
+
+    for (const key of keys) {
+      expect(values).not.toHaveProperty(key);
+      expect(EMPTY_EVENT_FORM_VALUES).not.toHaveProperty(key);
+      expect(formValuesToFormData(values).has(key)).toBe(false);
+    }
   });
 
   it("round-trips through FormData and the server-side parser without losing a field", () => {

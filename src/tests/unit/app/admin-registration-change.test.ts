@@ -3,13 +3,12 @@ import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "../../../../app/admin/_components/toast";
-import { EventForm } from "../../../../app/admin/events/_components/event-form";
+import { RegistrationForm, type RegistrationFormValues } from "../../../../app/admin/registrations/_components/registration-form";
 import type { ActionResult } from "@/interface/admin/action-result";
-import { EMPTY_EVENT_FORM_VALUES, type EventFormValues } from "@/interface/admin/events/event-form-values";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
 /*
- * D14 (R8): in the event form, changing the registration mode, or lowering the seats below the people already
+ * D14 (R8): in «Configurar inscripción», changing the registration mode, or lowering the seats below the people already
  * registered, asks "Este evento ya tiene N inscritos…" before saving and states the consequence. Nothing is sent
  * until the admin confirms, and the confirmation travels as a flag the server requires.
  */
@@ -20,12 +19,12 @@ afterEach(async () => {
 type Action = (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
 const ok: Action = async () => ({ success: true });
-const EDITING: Partial<EventFormValues> = { title: "Taller de Git", slug: "taller-de-git", registrationMode: "open", registrationCapacity: "30" };
-const mountForm = (action: Action, registeredCount: number, initial: Partial<EventFormValues> = EDITING) =>
-  mount(createElement(ToastProvider, null, createElement(EventForm, { action, submitLabel: "Guardar cambios", registeredCount, initialValues: { ...EMPTY_EVENT_FORM_VALUES, ...EDITING, ...initial } })));
+const STORED: RegistrationFormValues = { registrationMode: "open", registrationCapacity: "30", registrationDeadline: "" };
+const mountForm = (action: Action, registeredCount: number) =>
+  mount(createElement(ToastProvider, null, createElement(RegistrationForm, { action, submitLabel: "Guardar cambios", registeredCount, initialValues: STORED })));
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
-const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
+const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
 const radio = (host: HTMLElement, value: string) => host.querySelector<HTMLInputElement>(`input[name="registrationMode"][value="${value}"]`)!;
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === name)!;
 const save = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
@@ -78,12 +77,12 @@ describe("asking before a change that affects the people already registered (D14
     expect(radio(host, "unl").checked).toBe(true);
 
     await click(radio(host, "open"));
-    await typeInto(field(host, "Título"), "Taller de Git 2");
+    await typeInto(field(host, "Cierre"), "2099-11-27T18:00");
     await save(host);
     await settle();
 
     expect(action).toHaveBeenCalledTimes(1);
-    expect(sent(action).get("title")).toBe("Taller de Git 2");
+    expect(sent(action).get("registrationDeadline")).toBe("2099-11-27T18:00");
     expect(sent(action).has("confirmRegistrationChange")).toBe(false);
   });
 
@@ -135,7 +134,7 @@ describe("asking before a change that affects the people already registered (D14
 
   it.each([
     ["nobody is registered yet", 0, async (host: HTMLElement) => click(radio(host, "unl"))],
-    ["only another field changes", 12, async (host: HTMLElement) => typeInto(field(host, "Título"), "Otro título")],
+    ["only the deadline changes", 12, async (host: HTMLElement) => typeInto(field(host, "Cierre"), "2099-11-27T18:00")],
     ["the seats go up", 12, async (host: HTMLElement) => typeInto(field(host, "Cupos"), "40")],
     ["the limit is lifted", 12, async (host: HTMLElement) => typeInto(field(host, "Cupos"), "")],
   ])("saves at once, without a flag, when %s", async (_label, registered, edit) => {
@@ -159,7 +158,7 @@ describe("asking before a change that affects the people already registered (D14
     await save(host);
     await click(button(host, "Guardar el cambio"));
     await settle();
-    await typeInto(field(host, "Título"), "Taller de Git v2");
+    await typeInto(field(host, "Cierre"), "2099-11-27T18:00");
     await save(host);
     await settle();
 

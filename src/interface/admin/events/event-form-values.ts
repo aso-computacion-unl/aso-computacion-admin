@@ -1,6 +1,5 @@
 import type { EventResult } from "@/application";
 import type { EventDatePrecision } from "@/domain/event";
-import type { EventRegistrationMode } from "@/domain/event-registration";
 
 import { windowEndToFormValue } from "../publication-window-fields";
 
@@ -8,7 +7,7 @@ import { windowEndToFormValue } from "../publication-window-fields";
  * Editable text state of the event form. The form keeps these values in
  * React state and submits them by hand: React 19 empties uncontrolled fields
  * after a `<form action>` settles, which would wipe everything the owner
- * typed when a save fails.
+ * typed when a save fails. The registration settings are not here: only Inscripciones sets them (S3).
  */
 export interface EventFormValues {
   title: string;
@@ -32,11 +31,6 @@ export interface EventFormValues {
   publishAt: string;
   /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no end. */
   unpublishAt: string;
-  registrationMode: EventRegistrationMode;
-  /** Seats as typed; blank is unlimited. */
-  registrationCapacity: string;
-  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank for no deadline. */
-  registrationDeadline: string;
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
@@ -57,9 +51,6 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   isPublished: false,
   publishAt: "",
   unpublishAt: "",
-  registrationMode: "none",
-  registrationCapacity: "",
-  registrationDeadline: "",
 };
 
 export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | "updatedAt">): EventFormValues {
@@ -81,9 +72,6 @@ export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | 
     isPublished: event.isPublished,
     publishAt: windowEndToFormValue(event.publishAt),
     unpublishAt: windowEndToFormValue(event.unpublishAt),
-    registrationMode: event.registrationMode,
-    registrationCapacity: event.registrationCapacity === null ? "" : String(event.registrationCapacity),
-    registrationDeadline: windowEndToFormValue(event.registrationDeadline),
   };
 }
 

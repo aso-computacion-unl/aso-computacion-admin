@@ -33,8 +33,8 @@ const capacity = z
     return seats;
   });
 
-/** Entries the event form spreads into its schema. All three are read only when the form sent them. */
-export const registrationFormFields = {
+/** The three settings of the registration form. Each is read only when the form sent it. */
+const registrationFormFields = {
   registrationMode: z.enum(EVENT_REGISTRATION_MODES, { error: "Elija una forma de inscripción de la lista." }).optional(),
   registrationCapacity: capacity,
   registrationDeadline: windowEnd("registrationDeadline"),

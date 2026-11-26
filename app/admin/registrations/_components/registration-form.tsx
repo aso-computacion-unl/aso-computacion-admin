@@ -9,8 +9,8 @@ import { registrationChangeKey, registrationChangeOfForm } from "@/interface/adm
 
 import { ActionBar, FormFeedback } from "../../_components/form-parts";
 import { useControlledForm } from "../../_components/use-controlled-form";
-import { RegistrationChangeDialog } from "../../events/_components/registration-change-dialog";
-import { RegistrationFields } from "../../events/_components/registration-fields";
+import { RegistrationChangeDialog } from "./registration-change-dialog";
+import { RegistrationFields } from "./registration-fields";
 
 type RegistrationFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 

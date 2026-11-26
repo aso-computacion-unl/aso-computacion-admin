@@ -79,6 +79,8 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
         />
       </div>
       <Panel id="inscripciones" aria-label="Inscripción" className={`${anchor} grid gap-3`}>
+        {/* S2: the kind is fixed at creation, so it is shown, never edited; read from the stored mode, not the form values. */}
+        <p className="text-sm">Tipo de evento: {takesRegistrations ? "Evento con inscripción" : "Evento"}</p>
         <p className="text-sm wrap-anywhere">{registrationSummary(event)}</p>
         {takesRegistrations ? (
           <div className="flex flex-wrap gap-2">

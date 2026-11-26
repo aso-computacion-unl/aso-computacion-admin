@@ -57,8 +57,23 @@ export function assertRegistrationSettings(
 }
 
 export const PAST_EVENT_REGISTRATION_MESSAGE = "registration cannot be opened or changed for an event that already happened";
-export const REGISTRATION_ALREADY_SET_MESSAGE = "registration is already set up for this event: change it instead of opening it";
-export const REGISTRATION_NOT_SET_MESSAGE = "this event takes no registration: open one instead of changing it";
+export const REGISTRATION_NOT_SET_MESSAGE = "this event takes no registration: only an event created with one has it";
+export const EVENT_KIND_FIXED_MESSAGE = "the event kind is fixed at creation: an announcement never takes a registration, and a registration is only closed, never removed";
+
+/**
+ * The event's kind (an announcement, `none`, or an event with registration, `unl` or `open`) is chosen when it is
+ * created and never changes (event-kinds S2, S6); switching between `unl` and `open` keeps the kind. A value that is
+ * not a mode is left for the settings check to refuse.
+ */
+export function assertEventKindKept(current: EventRegistrationMode, next: string | undefined): void {
+  if (next === undefined || !(EVENT_REGISTRATION_MODES as readonly string[]).includes(next)) {
+    return;
+  }
+
+  if ((current === "none") !== (next === "none")) {
+    throw new ValidationError("registrationMode", EVENT_KIND_FIXED_MESSAGE);
+  }
+}
 export const DEADLINE_AFTER_EVENT_MESSAGE = "registrationDeadline must be on or before the event's last day (Ecuador time)";
 
 /** The admin form shows a deadline to the minute, so seconds a stored one carries are not a change. */

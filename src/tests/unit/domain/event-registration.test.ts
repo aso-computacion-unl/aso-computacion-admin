@@ -50,12 +50,11 @@ describe("registration settings", () => {
     expect(assertRegistrationSettings("none", 40, new Date(NOW))).toEqual({ mode: "none", capacity: null, deadline: null });
   });
 
-  it("survives an update that leaves the registration fields alone, and one that clears them", () => {
+  it("survives an update that leaves the registration fields alone, and one that clears its seats", () => {
     const event = Event.create({ title: "Taller", registrationMode: "open", registrationCapacity: 10 });
 
     expect(event.update({ title: "Taller 2" }).props).toMatchObject({ registrationMode: "open", registrationCapacity: 10 });
     expect(event.update({ registrationCapacity: null }).props.registrationCapacity).toBeNull();
-    expect(event.update({ registrationMode: "none" }).props).toMatchObject({ registrationMode: "none", registrationCapacity: null });
   });
 });
 

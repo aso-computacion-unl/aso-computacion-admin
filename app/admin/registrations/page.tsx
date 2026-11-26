@@ -4,7 +4,7 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { getAdminEventRegistrations } from "@/interface/admin/event-registrations/registrations-admin-read";
 import { getAdminRegistrationOverview } from "@/interface/admin/event-registrations/registrations-overview-admin-read";
-import { REGISTRATIONS_PATH, registrationsPanelPath, SAVED_FLAG, TURNED_OFF } from "@/interface/admin/event-registrations/saved-flag";
+import { registrationsPanelPath, SAVED_FLAG } from "@/interface/admin/event-registrations/saved-flag";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
@@ -38,11 +38,7 @@ export default async function RegistrationsPage({ searchParams }: RegistrationsP
   const selected = chosen ?? defaultEvent(upcoming, past);
   const page = selected ? await getAdminEventRegistrations(selected.id) : null;
   const arrival =
-    saved === "1" && chosen
-      ? { message: "Inscripción creada.", path: registrationsPanelPath(chosen.id) }
-      : saved === TURNED_OFF
-        ? { message: "Inscripción desactivada.", path: REGISTRATIONS_PATH }
-        : null;
+    saved === "1" && chosen ? { message: "Inscripción creada.", path: registrationsPanelPath(chosen.id) } : null;
 
   return (
     <PageFrame>

@@ -35,6 +35,7 @@ vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: 
 
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import { NotFoundError } from "@/application";
+import { CreateEventUseCase } from "@/application/use-cases/create-event.use-case";
 import { UpdateEventUseCase } from "@/application/use-cases/update-event.use-case";
 import { Event } from "@/domain/event";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
@@ -130,6 +131,20 @@ describe("events server actions", () => {
 
       expect(Object.keys(result.fieldErrors ?? {})).toEqual([fieldName]);
       expect(useCases.create.execute).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("reports a well-formed cierre the domain refuses (after the event day, S4) on that field, in Spanish, and creates nothing", async () => {
+      const events = new InMemoryEventRepository();
+      useCases.create.execute.mockImplementation((command) => new CreateEventUseCase(events).execute(command));
+
+      const result = await actions.createEvent(
+        null,
+        form({ title: "Taller", date: "2099-11-28", eventKind: "registration", registrationMode: "open", registrationDeadline: "2099-11-29T18:00" }),
+      );
+
+      expect(result).toEqual({ fieldErrors: { registrationDeadline: "El cierre de la inscripción no puede ser posterior al día del evento." } });
+      expect(await events.list()).toEqual([]);
       expect(redirectMock).not.toHaveBeenCalled();
     });
 

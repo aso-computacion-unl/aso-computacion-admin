@@ -6,7 +6,8 @@ const { eventMock } = vi.hoisted(() => ({ eventMock: vi.fn() }));
 
 vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: eventMock }));
 vi.mock("@/interface/admin/events/actions", () => ({ updateEvent: vi.fn() }));
-vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({}) }));
+// The real form values carry a placeholder kind ("announcement") that is never the stored one (R2-001).
+vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({ eventKind: "announcement" }) }));
 // The form and the gallery have their own tests; here they only stand in for their sections.
 vi.mock("../../../../app/admin/events/_components/event-form", () => ({
   EventForm: ({ registrationHref }: { registrationHref?: string }) => createElement("form", { "data-registration-href": registrationHref }, "event form"),
@@ -96,6 +97,19 @@ describe("the event edit page", () => {
     expect(block).toMatch(/Inscripción: Formulario abierto · 40 cupos · cierra 27 nov 2099/);
     expect(links(block)).toEqual(["Gestionar inscripción → /admin/registrations/e1/edit", "Ver inscripciones → /admin/events/e1/registrations"]);
     expect(block).not.toContain("<input");
+  });
+
+  it("shows the kind read-only, from the stored registration and not the form's placeholder (event-kinds S2)", async () => {
+    eventMock.mockResolvedValue(event());
+    expect(panel(await render())).toMatch(/<p[^>]*>Tipo de evento: Evento<\/p>/);
+
+    for (const registrationMode of ["unl", "open"]) {
+      eventMock.mockResolvedValue(event({ registrationMode }));
+      const html = await render();
+
+      expect(panel(html)).toMatch(/<p[^>]*>Tipo de evento: Evento con inscripción<\/p>/);
+      expect(html).not.toContain('name="eventKind"');
+    }
   });
 
   it("tells the form where the registration is changed, so a date refused for the cierre can point there", async () => {

@@ -18,13 +18,12 @@ type Action = (previous: ActionResult | null, formData: FormData) => Promise<Act
 
 const ok: Action = async () => ({ success: true });
 const OPEN: RegistrationFormValues = { registrationMode: "open", registrationCapacity: "30", registrationDeadline: "" };
-const mountForm = (action: Action, initialValues: RegistrationFormValues = OPEN, registeredCount = 0, storedValues?: RegistrationFormValues) =>
-  mount(createElement(ToastProvider, null, createElement(RegistrationForm, { action, initialValues, storedValues, registeredCount, submitLabel: "Guardar cambios" })));
+const mountForm = (action: Action, initialValues: RegistrationFormValues = OPEN, registeredCount = 0) =>
+  mount(createElement(ToastProvider, null, createElement(RegistrationForm, { action, initialValues, registeredCount, submitLabel: "Guardar cambios" })));
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
 const radio = (host: HTMLElement, value: string) => host.querySelector<HTMLInputElement>(`input[name="registrationMode"][value="${value}"]`)!;
-const registrationSwitch = (host: HTMLElement) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === "Tiene inscripción")!;
 const save = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
 const dialog = (host: HTMLElement) => host.querySelector<HTMLElement>('[role="alertdialog"]');
 const button = (host: HTMLElement, text: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === text)!;
@@ -50,34 +49,23 @@ describe("RegistrationForm", () => {
     expect(sent(action)).toEqual({ registrationMode: "open", registrationCapacity: "45", registrationDeadline: "" });
   });
 
-  it("turns the registration off with the switch", async () => {
+  it("never turns the registration off (event-kinds S6): no «Tiene inscripción» switch, and no `none` is ever sent", async () => {
     const action = vi.fn(ok);
-    const host = await mountForm(action);
+    const host = await mountForm(action, { registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" });
 
-    await click(registrationSwitch(host));
+    expect(host.querySelector('[role="switch"]')).toBeNull();
+    expect(host.textContent).not.toContain("Tiene inscripción");
+
+    await click(radio(host, "open"));
     await save(host);
     await settle();
 
-    expect(sent(action).registrationMode).toBe("none");
+    expect(sent(action).registrationMode).toBe("open");
   });
 
-  it("comes back on with the mode the event had before it was turned off", async () => {
-    const host = await mountForm(vi.fn(ok), { registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" });
-
-    await click(radio(host, "open"));
-    await click(registrationSwitch(host));
-
-    expect(labelled(host, "Cupos")).toBeUndefined();
-
-    await click(registrationSwitch(host));
-
-    expect(radio(host, "open").checked).toBe(true);
-  });
-
-  it("starts on, with the stored mode and seats, for an event that takes registrations", async () => {
+  it("starts with the stored mode and seats", async () => {
     const host = await mountForm(vi.fn(ok));
 
-    expect(registrationSwitch(host).checked).toBe(true);
     expect(radio(host, "open").checked).toBe(true);
     expect([...host.querySelectorAll<HTMLInputElement>('input[name="registrationMode"]')].map((input) => input.value)).toEqual(["unl", "open"]);
     expect(field(host, "Cupos").value).toBe("30");
@@ -92,12 +80,12 @@ describe("RegistrationForm", () => {
   });
 
   it("shows a refused field under it, in the admin's words", async () => {
-    const host = await mountForm(async () => ({ fieldErrors: { registrationMode: "El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar." } }));
+    const host = await mountForm(async () => ({ fieldErrors: { registrationMode: "El evento ya pasó: su inscripción ya no se puede cambiar." } }));
 
     await save(host);
     await settle();
 
-    expect(host.textContent).toContain("El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar.");
+    expect(host.textContent).toContain("El evento ya pasó: su inscripción ya no se puede cambiar.");
   });
 
   it("D14: asks before changing the mode of an event with registered people, and sends the confirmation once accepted", async () => {
@@ -109,22 +97,6 @@ describe("RegistrationForm", () => {
     await settle();
 
     expect(dialog(host)!.textContent).toContain("Este evento ya tiene 12 inscritos.");
-    expect(action).not.toHaveBeenCalled();
-
-    await click(button(host, "Guardar el cambio"));
-    await settle();
-
-    expect(sent(action)).toMatchObject({ registrationMode: "unl", confirmRegistrationChange: "on" });
-  });
-
-  it("D14: on create, judges the change against the event's stored settings: reopening with people still registered asks first", async () => {
-    const action = vi.fn(ok);
-    const host = await mountForm(action, { registrationMode: "unl", registrationCapacity: "", registrationDeadline: "" }, 3, { registrationMode: "none", registrationCapacity: "", registrationDeadline: "" });
-
-    await save(host);
-    await settle();
-
-    expect(dialog(host)!.textContent).toContain("Este evento ya tiene 3 inscritos.");
     expect(action).not.toHaveBeenCalled();
 
     await click(button(host, "Guardar el cambio"));

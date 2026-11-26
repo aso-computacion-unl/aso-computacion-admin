@@ -26,7 +26,6 @@ const mountForm = (action: Action, registeredCount: number) =>
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
 const radio = (host: HTMLElement, value: string) => host.querySelector<HTMLInputElement>(`input[name="registrationMode"][value="${value}"]`)!;
-const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === name)!;
 const save = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
 const dialog = (host: HTMLElement) => host.querySelector<HTMLElement>('[role="alertdialog"]');
 const button = (host: HTMLElement, text: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === text)!;
@@ -107,19 +106,6 @@ describe("asking before a change that affects the people already registered (D14
     expect(dialog(host)).toBeNull();
     expect(action).toHaveBeenCalledTimes(1);
     expect(sent(action).has("confirmRegistrationChange")).toBe(false);
-  });
-
-  it("asks when registration is switched off, naming what happens to the registered people", async () => {
-    const action = vi.fn(ok);
-    const host = await mountForm(action, 3);
-
-    await click(switchNamed(host, "Tiene inscripción"));
-    await save(host);
-    await settle();
-
-    expect(dialog(host)!.textContent).toContain("Este evento ya tiene 3 inscritos.");
-    expect(dialog(host)!.textContent).toMatch(/Si quita la inscripción/);
-    expect(action).not.toHaveBeenCalled();
   });
 
   it("uses the singular for one registered person", async () => {

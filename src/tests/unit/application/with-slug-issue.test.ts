@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { withSlugChangeIssue, withSlugIssue } from "@/application/use-cases/with-slug-issue";
 import { ValidationError } from "@/domain";
@@ -30,6 +30,20 @@ describe("withSlugIssue (create) precedence", () => {
         },
       ),
     ).rejects.toThrow(TypeError);
+  });
+
+  it("builds with the explicit slug the caller asked for when it is taken", async () => {
+    const build = vi.fn((slug: string | undefined) => {
+      throw new ValidationError("title", `title is required (slug ${slug})`);
+    });
+
+    await expect(withSlugIssue(() => Promise.reject(taken()), "semana-de-la-computacion", build)).rejects.toMatchObject({
+      issues: [
+        { field: "slug", message: "slug is already used by another event" },
+        { field: "title", message: "title is required (slug semana-de-la-computacion)" },
+      ],
+    });
+    expect(build).toHaveBeenCalledExactlyOnceWith("semana-de-la-computacion");
   });
 
   it("a single failure on either side is the original error object", async () => {

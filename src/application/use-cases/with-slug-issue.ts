@@ -25,9 +25,7 @@ async function combineSlugIssue<S, T>(resolveSlug: () => Promise<S>, slugIfTaken
     if (!taken) throw error;
     if (!(error instanceof ValidationError)) throw taken;
 
-    const [head, ...tail] = taken.issues;
-
-    throw ValidationError.fromIssues([head, ...tail, ...error.issues]);
+    throw ValidationError.fromIssues([...taken.issues, ...error.issues]);
   }
 
   if (taken) throw taken;

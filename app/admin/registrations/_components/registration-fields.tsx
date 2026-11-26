@@ -13,6 +13,8 @@ interface RegistrationFieldsProps {
   capacity: Bound;
   deadline: Bound;
   errors: Record<string, string | undefined>;
+  /** The mode group's legend; the event editor names it under its own «Inscripción» heading. */
+  legend?: string;
 }
 
 const MODE_OPTIONS = [
@@ -21,12 +23,12 @@ const MODE_OPTIONS = [
 ] as const satisfies readonly { value: EventRegistrationMode; label: string }[];
 
 /** How people sign up, with an optional seat limit and deadline (Ecuador time): the settings of an event with registration. */
-export function RegistrationSettingsFields({ id, mode, onModeChange, capacity, deadline, errors }: RegistrationFieldsProps & { id?: string }) {
+export function RegistrationSettingsFields({ id, mode, onModeChange, capacity, deadline, errors, legend = "Inscripción" }: RegistrationFieldsProps & { id?: string }) {
   return (
     <div id={id} className="grid min-w-0 gap-x-4 gap-y-5 @xl:col-span-2 @xl:grid-cols-2">
       <div className="grid min-w-0 content-start gap-1.5 @xl:col-span-2">
         <Segmented
-          legend="Inscripción"
+          legend={legend}
           name="registrationMode"
           value={mode}
           options={MODE_OPTIONS}

@@ -24,26 +24,33 @@ const mountForm = (action: Action = ok, initial: Partial<EventFormValues> = {}) 
 
 const labelled = (host: HTMLElement, text: string) => [...host.querySelectorAll("label")].find((label) => label.textContent === text);
 const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[id="${labelled(host, text)!.htmlFor}"]`)!;
-const moreOptions = (host: HTMLElement) => host.querySelector("details")!;
+const disclosure = (host: HTMLElement, summary: string) => [...host.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === summary)!;
+const moreOptions = (host: HTMLElement) => disclosure(host, "Más opciones");
+const schedule = (host: HTMLElement) => disclosure(host, "Programar publicación y retiro");
+const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[aria-label="Publicación"]')!;
 const submit = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
 const sent = (action: ReturnType<typeof vi.fn>) => action.mock.calls.at(-1)![1] as FormData;
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === name)!;
 
-const OUTSIDE = ["Título", "Descripción"];
-const INSIDE = ["Mensaje de commit", "Hora", "Lugar", "Para quién", "Enlace", "Texto del enlace", "Puntos destacados", "Publicar el", "Retirar el", "Identificador (slug)"];
+const OUTSIDE = ["Título", "Descripción", "Hora", "Lugar"];
+const INSIDE = ["Mensaje de commit", "Para quién", "Enlace", "Texto del enlace", "Puntos destacados", "Identificador (slug)"];
+const SCHEDULED = ["Publicar el", "Retirar el"];
 
 describe("the event editor's \"Más opciones\"", () => {
   it("shows only what the event needs to exist, with everything else in one closed disclosure and no helper paragraphs", async () => {
     const host = await mountForm();
     const details = moreOptions(host);
 
-    expect(host.querySelectorAll("details")).toHaveLength(1);
-    expect(details.querySelector("summary")?.textContent).toBe("Más opciones");
+    expect(host.querySelectorAll("details")).toHaveLength(2);
     expect(details.open).toBe(false);
+    expect(schedule(host).open).toBe(false);
     for (const text of OUTSIDE) expect(details.contains(field(host, text)), text).toBe(false);
     for (const text of INSIDE) expect(details.contains(field(host, text)), text).toBe(true);
-    expect(details.contains(switchNamed(host, "Destacado"))).toBe(true);
-    expect(details.contains(switchNamed(host, "Publicado"))).toBe(false);
+    for (const text of SCHEDULED) expect(schedule(host).contains(field(host, text)), text).toBe(true);
+    for (const name of ["Publicado", "Destacado"]) {
+      expect(publication(host).contains(switchNamed(host, name)), name).toBe(true);
+      expect(details.contains(switchNamed(host, name)) || schedule(host).contains(switchNamed(host, name)), name).toBe(false);
+    }
     expect(host.querySelector('input[name="datePrecision"]')).not.toBeNull();
     expect(host.querySelector('input[name="type"]')).not.toBeNull();
     expect(host.querySelectorAll("small")).toHaveLength(0);
@@ -70,7 +77,7 @@ describe("the event editor's \"Más opciones\"", () => {
   });
 
   it("opens when the server refuses a field inside it, and stays closed when the error is outside", async () => {
-    const inside = await mountForm(async () => ({ fieldErrors: { lugar: "Use hasta 80 caracteres." } }));
+    const inside = await mountForm(async () => ({ fieldErrors: { para: "Use hasta 80 caracteres." } }));
 
     await typeInto(field(inside, "Título"), "Taller");
     await submit(inside);
@@ -89,6 +96,18 @@ describe("the event editor's \"Más opciones\"", () => {
     expect(outside.textContent).toContain("Use hasta 600 caracteres.");
   });
 
+  it("opens «Programar publicación y retiro» when the server refuses a date inside it, and leaves «Más opciones» closed", async () => {
+    const host = await mountForm(async () => ({ fieldErrors: { publishAt: "Elija una fecha futura." } }));
+
+    await typeInto(field(host, "Título"), "Taller");
+    await submit(host);
+    await settle();
+
+    expect(schedule(host).open).toBe(true);
+    expect(schedule(host).textContent).toContain("Elija una fecha futura.");
+    expect(moreOptions(host).open).toBe(false);
+  });
+
   it("explains a field behind a small \"?\" instead of a paragraph", async () => {
     const host = await mountForm();
     const help = field(host, "Identificador (slug)").closest("div")!.querySelector<HTMLButtonElement>("button[aria-controls]")!;
@@ -100,6 +119,27 @@ describe("the event editor's \"Más opciones\"", () => {
 
     expect(help.getAttribute("aria-expanded")).toBe("true");
     expect(document.getElementById(help.getAttribute("aria-controls")!)?.hidden).toBe(false);
+  });
+});
+
+describe("the publish panel of the event editor", () => {
+  it("previews the event as the timeline shows it while it is typed", async () => {
+    const host = await mountForm(ok, { type: "taller", date: "2026-12-12" });
+    const preview = () => host.querySelector('[aria-label="Así se verá en la línea de tiempo"]')!.textContent;
+
+    expect(preview()).toContain("Sin título");
+
+    await typeInto(field(host, "Título"), "Taller de Git");
+    await typeInto(field(host, "Hora"), "15:00 – 17:00");
+    await typeInto(field(host, "Lugar"), "Lab 2");
+
+    expect(preview()).toBe("Taller · 12 dic 2026Taller de Git15:00 – 17:00 · Lab 2");
+  });
+
+  it("adds the registration of a new event with registration, its cierre read as written", async () => {
+    const host = await mountForm(ok, { eventKind: "registration", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-12-10T23:59" });
+
+    expect(host.querySelector('[aria-label="Así se verá en la línea de tiempo"]')!.textContent).toContain("Formulario abierto · 30 cupos · cierra 10 dic 2026, 23:59");
   });
 });
 

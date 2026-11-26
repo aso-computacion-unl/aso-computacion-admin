@@ -4,10 +4,11 @@ import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import type { EventListItemResult } from "@/application";
 import { groupEvents, todayInLoja, formatEventDate } from "@/interface/admin/events/event-timeline";
-import { getAdminEventCounts, getAdminEventsPage } from "@/interface/admin/events/events-admin-read";
+import { eventViewPage, eventViewPath, eventViews, parseEventView, type EventView } from "@/interface/admin/events/event-views";
+import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
 import { windowBadge } from "@/interface/admin/publication-window-badge";
 import { pluralize } from "@/interface/admin/publication-summary";
-import { listCriteria, parseListParams, showListTools } from "@/interface/admin/list-params";
+import { listCriteria, listHref, parseListParams, showListTools } from "@/interface/admin/list-params";
 import { parseStatusFilter } from "@/interface/admin/status-filter";
 
 import { EmptyState } from "../_components/empty-state";
@@ -23,6 +24,7 @@ import { Pager } from "../_components/pager";
 import { FilterEmpty, StatusFilter } from "../_components/status-filter";
 import { EventDeleteButton } from "./_components/event-delete-button";
 import { EventPublishedToggle } from "./_components/event-published-toggle";
+import { EventViewTabs } from "./_components/event-view-tabs";
 
 // Reads mutable data on every request.
 export const dynamic = "force-dynamic";
@@ -99,92 +101,106 @@ function Legend() {
 }
 
 interface EventsTimelineProps {
+  view: EventView;
   drafts: EventListItemResult[];
   upcoming: EventListItemResult[];
   past: EventListItemResult[];
-  today: string;
   /** False when only drafts are listed: the main line has nothing to show then. */
   showMainLine: boolean;
 }
 
-function EventsTimeline({ drafts, upcoming, past, today, showMainLine }: EventsTimelineProps) {
-  return (
-    <>
+/** Próximos: the drafts' branch, then the upcoming ones on the main line. Pasados: the main line of what already happened. */
+function EventsTimeline({ view, drafts, upcoming, past, showMainLine }: EventsTimelineProps) {
+  if (view === "pasados") {
+    return (
       <div className="tl mt-6">
-        {drafts.length > 0 ? (
-          <>
-            <section className="tl-drafts" aria-labelledby="h-drafts">
-              <GroupTitle id="h-drafts" title="Borradores" hint="Rama aparte. Al publicar, el evento se une a la línea principal." />
+        <div className="tl-trunk">
+          <section aria-labelledby="h-past">
+            <GroupTitle id="h-past" title="Pasados" hint="Publicados, del más reciente al más antiguo. Los que no tienen fecha van al final." />
+            <ol className="tl-list">
+              {past.map((event) => (
+                <EventCommit key={event.id} event={event} />
+              ))}
+            </ol>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tl mt-6">
+      {drafts.length > 0 ? (
+        <>
+          <section className="tl-drafts" aria-labelledby="h-drafts">
+            <GroupTitle id="h-drafts" title="Borradores" hint="Rama aparte. Al publicar, el evento se une a la línea principal." />
+            <ol className="tl-list">
+              {drafts.map((event) => (
+                <EventCommit key={event.id} event={event} />
+              ))}
+            </ol>
+          </section>
+          {showMainLine ? (
+            <div className="tl-bend" aria-hidden="true">
+              <svg viewBox="0 0 56 40" preserveAspectRatio="none">
+                <path d="M14 0C14 22 42 18 42 40" vectorEffect="non-scaling-stroke" />
+              </svg>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {showMainLine ? (
+        <div className="tl-trunk">
+          <section aria-labelledby="h-upcoming">
+            <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren." />
+            {upcoming.length > 0 ? (
               <ol className="tl-list">
-                {drafts.map((event) => (
-                  <EventCommit key={event.id} event={event} />
+                {upcoming.map((event) => (
+                  <EventCommit key={event.id} event={event} when="next" />
                 ))}
               </ol>
-            </section>
-            {showMainLine ? (
-              <div className="tl-bend" aria-hidden="true">
-                <svg viewBox="0 0 56 40" preserveAspectRatio="none">
-                  <path d="M14 0C14 22 42 18 42 40" vectorEffect="non-scaling-stroke" />
-                </svg>
-              </div>
-            ) : null}
-          </>
-        ) : null}
+            ) : (
+              <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos próximos. Publique un borrador para verlo aquí.</p>
+            )}
+          </section>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
-        {showMainLine ? (
-          <div className="tl-trunk">
-            <section aria-labelledby="h-upcoming">
-              <GroupTitle id="h-upcoming" title="Próximos" hint="Publicados, todavía no ocurren." />
-              {upcoming.length > 0 ? (
-                <ol className="tl-list">
-                  {upcoming.map((event) => (
-                    <EventCommit key={event.id} event={event} when="next" />
-                  ))}
-                </ol>
-              ) : (
-                <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos próximos. Publique un borrador para verlo aquí.</p>
-              )}
-            </section>
-
-            <div className="tl-head" role="separator" aria-label={`Hoy, ${formatEventDate(today)}`}>
-              <span className="tl-node" aria-hidden="true" />
-              <span className="tl-link" aria-hidden="true" />
-              <p className="relative z-1 col-start-2 flex flex-wrap items-baseline gap-x-3.5 gap-y-1 rounded bg-muted px-4 py-2.5 text-[0.9375rem]">
-                <span className="font-mono text-[0.8125rem] font-semibold text-sky">HEAD → main</span>
-                <strong>Hoy · {formatEventDate(today)}</strong>
-                <span className="text-sm text-mist">Arriba lo que viene; abajo lo que ya pasó.</span>
-              </p>
-            </div>
-
-            <section aria-labelledby="h-past">
-              <GroupTitle id="h-past" title="Pasados" hint="Publicados, del más reciente al más antiguo." />
-              {past.length > 0 ? (
-                <ol className="tl-list">
-                  {past.map((event) => (
-                    <EventCommit key={event.id} event={event} />
-                  ))}
-                </ol>
-              ) : (
-                <p className="ml-(--lane) py-2 pb-3 text-mist">Sin eventos pasados todavía.</p>
-              )}
-            </section>
-          </div>
-        ) : null}
-      </div>
-    </>
+/** A tab with nothing to show while the other one has rows: say so and point there. */
+function ViewEmpty({ view, href }: { view: EventView; href: string }) {
+  return (
+    <p role="status" className="mt-8 max-w-xl text-mist">
+      {view === "pasados" ? "Todavía no hay eventos pasados." : "No hay eventos próximos ni borradores."}{" "}
+      <Link href={href} className="rounded-xs text-foreground underline underline-offset-4">
+        {view === "pasados" ? "Ver los próximos" : "Ver los pasados"}
+      </Link>
+    </p>
   );
 }
 
 const LIST_PATH = "/admin/events";
 
-export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ estado?: string | string[]; q?: string | string[]; pagina?: string | string[] }> }) {
+export default async function AdminEventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ estado?: string | string[]; q?: string | string[]; pagina?: string | string[]; vista?: string | string[] }>;
+}) {
   const params = await searchParams;
   const filter = parseStatusFilter(params.estado);
+  const view = parseEventView(params.vista);
   const { search, page: requestedPage } = parseListParams(params);
-  const [page, counts] = await Promise.all([getAdminEventsPage(listCriteria(filter, search), requestedPage), getAdminEventCounts()]);
-  const events = page.items;
+  // The tabs split by date, which only `groupEvents` decides: the whole filtered list is read, split, then paged per tab.
+  const [events, counts] = await Promise.all([getAdminEvents(listCriteria(filter, search)), getAdminEventCounts()]);
   const today = todayInLoja(new Date());
-  const { drafts, upcoming, past } = groupEvents(events, today);
+  const views = eventViews(groupEvents(events, today));
+  const page = await eventViewPage(views[view], requestedPage);
+  const { drafts, upcoming, past } = groupEvents(page.items, today);
+  const path = eventViewPath(LIST_PATH, view);
+  const otherView = view === "pasados" ? "proximos" : "pasados";
   // Drafts have their own branch; with only drafts asked for, the main line has nothing to show.
   const showMainLine = filter !== "borradores";
   const total = counts.published + counts.draft;
@@ -214,21 +230,26 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
         </EmptyState>
       ) : (
         <>
-          {/* Tabs and search share one row; the wrapper owns the top margin both bring along. */}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [&>*]:mt-0!">
-            <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
-            {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="eventos" /> : null}
+          <div className="mt-5">
+            <EventViewTabs path={LIST_PATH} current={view} counts={{ proximos: views.proximos.length, pasados: views.pasados.length }} filter={filter} search={search} />
+          </div>
+          {/* Status tabs and search share one row; the wrapper owns the top margin both bring along. */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [&>*]:mt-0!">
+            <StatusFilter path={path} current={filter} counts={counts} search={search} />
+            {tools ? <ListSearch path={path} filter={filter} search={search} label="eventos" /> : null}
           </div>
           {events.length === 0 ? (
-            <FilterEmpty path={LIST_PATH} filter={filter} noun="eventos" search={search} />
+            <FilterEmpty path={path} filter={filter} noun="eventos" search={search} />
+          ) : page.items.length === 0 ? (
+            <ViewEmpty view={view} href={listHref(eventViewPath(LIST_PATH, otherView), { filter, search })} />
           ) : (
-            <BulkSelection kind="event" enabled={tools} items={events.map((event) => ({ id: event.id, label: event.title }))}>
-              <EventsTimeline drafts={drafts} upcoming={upcoming} past={past} today={today} showMainLine={showMainLine} />
+            <BulkSelection kind="event" enabled={tools} items={page.items.map((event) => ({ id: event.id, label: event.title }))}>
+              <EventsTimeline view={view} drafts={drafts} upcoming={upcoming} past={past} showMainLine={showMainLine} />
               {tools ? null : <AddRow href="/admin/events/new">Agregar evento</AddRow>}
             </BulkSelection>
           )}
-          <Pager path={LIST_PATH} filter={filter} search={search} page={page} />
-          {events.length > 0 ? (
+          <Pager path={path} filter={filter} search={search} page={page} />
+          {page.items.length > 0 ? (
             <div className="mt-6">
               <Legend />
             </div>

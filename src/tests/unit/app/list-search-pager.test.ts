@@ -57,6 +57,15 @@ describe("ListSearch", () => {
     expect(html).toContain('href="/admin/news?estado=borradores"');
   });
 
+  it("keeps the params the path carries (the events tab) as hidden fields, and submits to the bare path", () => {
+    const html = search({ path: "/admin/events?vista=pasados", search: "git", label: "eventos" });
+
+    expect(html).toContain('action="/admin/events"');
+    expect(html).toContain('type="hidden" name="vista" value="pasados"');
+    expect(html).toContain('id="search-events"');
+    expect(html).toContain('href="/admin/events?vista=pasados"');
+  });
+
   it("has no hidden filter and no clear link on the plain list", () => {
     const html = search();
 

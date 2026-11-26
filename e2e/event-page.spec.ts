@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
+import { createRegistration } from "./registration";
 import { openForm } from "./support/turnstile";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
@@ -16,9 +17,7 @@ async function logInAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
-const MODE_LABELS: Record<Exclude<Mode, "none">, string> = { unl: "Cuenta UNL", open: "Formulario abierto" };
-
-/** Creates a published event through the admin form; returns its id and public slug. The browser stays signed in as admin. */
+/** Creates a published event through the admin form, and its registration in Inscripciones; returns its id and public slug. The browser stays signed in as admin. */
 async function createEvent(page: Page, title: string, { mode, date = "2099-11-28", capacity }: { mode: Mode; date?: string; capacity?: number }) {
   // Wait for the form to hydrate: a switch clicked before that is reset when React takes the form over.
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
@@ -28,20 +27,17 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
 
-  if (mode !== "none") {
-    await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-    await page.getByRole("radio", { name: MODE_LABELS[mode] }).check();
-  }
-
-  if (capacity !== undefined) await page.getByLabel("Cupos").fill(String(capacity));
-
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/);
 
-  return { id: /\/admin\/events\/([^/]+)\/edit(?:#fotos)?$/.exec(page.url())![1]!, slug: title.toLowerCase().replaceAll(" ", "-") };
+  const id = /\/admin\/events\/([^/]+)\/edit(?:#fotos)?$/.exec(page.url())![1]!;
+
+  if (mode !== "none") await createRegistration(page, id, { mode, capacity });
+
+  return { id, slug: title.toLowerCase().replaceAll(" ", "-") };
 }
 
 /** From here on the browser is a visitor: no admin cookie, no forum cookie. */

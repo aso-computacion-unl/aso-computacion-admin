@@ -26,8 +26,15 @@ export function RegistrationsEmptyState({ eventId, slug, mode, isPublished, admi
 
   if (mode === "none") {
     return (
-      <EmptyState icon="board" action={editLink}>
-        Este evento no pide inscripción. Elija una forma de inscripción en el evento si desea recibir inscritos.
+      <EmptyState
+        icon="board"
+        action={
+          <Link href={`/admin/registrations/new?evento=${encodeURIComponent(eventId)}`} className="font-semibold underline underline-offset-4">
+            Crear inscripción
+          </Link>
+        }
+      >
+        Este evento no pide inscripción. Créela desde Inscripciones si desea recibir inscritos.
       </EmptyState>
     );
   }

@@ -33,14 +33,18 @@ async function expectSaveBarInReach(page: Page, submitLabel: RegExp) {
 async function expectFitsAPhone(page: Page, { submitLabel, segmented }: { submitLabel: RegExp; segmented: string[] }) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
-  // The content first, then «Publicación»: the panel starts below the content. Both read in one go, so a scroll between them cannot skew it.
-  const contentFirst = await page.evaluate(() => {
+  // Publicado/Destacado first, under the title and in the first screen; then the content; then «Publicación» (preview
+  // and schedule). All read in one go, so a scroll between them cannot skew it.
+  const order = await page.evaluate(() => {
     const content = document.querySelector("form > section")!.getBoundingClientRect();
-    const panel = document.querySelector('form section[aria-label="Publicación"]')!.getBoundingClientRect();
+    const state = document.querySelector('[data-slot="publish-state"]')!.getBoundingClientRect();
+    const panel = document.querySelector('[data-slot="publish-side"] section')!.getBoundingClientRect();
 
-    return panel.top >= content.bottom;
+    return { stateFirst: state.bottom <= content.top, stateInView: state.bottom + window.scrollY <= window.innerHeight, panelLast: panel.top >= content.bottom };
   });
-  expect(contentFirst).toBe(true);
+  expect(order).toEqual({ stateFirst: true, stateInView: true, panelLast: true });
+  await expect(page.locator('[data-slot="publish-state"]').getByRole("switch", { name: /Publicado/ })).toBeVisible();
+  await expect(page.locator('[data-slot="publish-state"]').getByRole("switch", { name: /Destacado/ })).toBeVisible();
 
   // Every segmented control keeps its cells inside the content panel, and each label inside its cell, at least 44 px tall.
   for (const legend of segmented) {

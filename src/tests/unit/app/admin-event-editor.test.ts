@@ -27,7 +27,7 @@ const field = (host: HTMLElement, text: string) => host.querySelector<HTMLInputE
 const disclosure = (host: HTMLElement, summary: string) => [...host.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === summary)!;
 const moreOptions = (host: HTMLElement) => disclosure(host, "Más opciones");
 const schedule = (host: HTMLElement) => disclosure(host, "Programar publicación y retiro");
-const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[aria-label="Publicación"]')!;
+const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="publish-side"]')!;
 const submit = (host: HTMLElement) => click(host.querySelector('button[type="submit"]')!);
 const sent = (action: ReturnType<typeof vi.fn>) => action.mock.calls.at(-1)![1] as FormData;
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent === name)!;

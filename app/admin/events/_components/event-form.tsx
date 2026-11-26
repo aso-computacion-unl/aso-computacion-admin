@@ -155,6 +155,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   const scheduleInvalid = SCHEDULE_FIELDS.some((name) => errors[name]);
+  const publishHeadingId = useId();
 
   // Two zones: what the public reads on the left, what decides the publication (preview, state, schedule and the one
   // primary button) in a 22rem panel on the right that stays in view. On a phone the panel follows the content and
@@ -289,23 +290,36 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         </div>
       </Panel>
 
-      <div className="contents lg:sticky lg:top-22 lg:block">
-        <Panel aria-label="Publicación" className="grid gap-4 lg:rounded-b-none">
-          <h2 className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded">Publicación</h2>
-          <EventCardPreview values={values} withRegistration={withRegistration} />
-          <hr className="border-0 border-t border-border" />
-          <SwitchField label="Publicado" {...toggle("isPublished")} />
-          <SwitchField label="Destacado" {...toggle("featured")} />
-          <MoreOptions summary="Programar publicación y retiro" invalid={scheduleInvalid}>
-            <Field label="Publicar el" help="Hora de Ecuador. Vacío: sale de inmediato." error={errors.publishAt}>
-              {(control) => <Input {...control} {...bind("publishAt")} type="datetime-local" />}
-            </Field>
-            <Field label="Retirar el" help="Hora de Ecuador. Vacío: no se retira." error={errors.unpublishAt}>
-              {(control) => <Input {...control} {...bind("unpublishAt")} type="datetime-local" />}
-            </Field>
-          </MoreOptions>
-          {isEditing ? null : <p className="text-[0.8125rem] text-mist">Las fotos se agregan después de crear el evento.</p>}
-        </Panel>
+      {/* The side column: one card on lg+ (Publicación, then the state, then the schedule). On a phone every wrapper
+          dissolves (`contents`): the state row moves up under the title (S1), the rest is a card after the content,
+          and the save bar sticks along the whole form. One control per field, only its place changes. */}
+      <div data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block">
+        <div className="contents @container lg:grid lg:gap-4 lg:rounded-t lg:bg-card lg:p-5">
+          <section aria-labelledby={publishHeadingId} className="@container grid gap-4 rounded bg-card p-4 md:p-5 lg:contents">
+            <h2 id={publishHeadingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded lg:order-1">
+              Publicación
+            </h2>
+            <div className="min-w-0 lg:order-1">
+              <EventCardPreview values={values} withRegistration={withRegistration} />
+            </div>
+            <hr className="border-0 border-t border-border lg:order-1" />
+            <div className="min-w-0 lg:order-3">
+              <MoreOptions summary="Programar publicación y retiro" invalid={scheduleInvalid}>
+                <Field label="Publicar el" help="Hora de Ecuador. Vacío: sale de inmediato." error={errors.publishAt}>
+                  {(control) => <Input {...control} {...bind("publishAt")} type="datetime-local" />}
+                </Field>
+                <Field label="Retirar el" help="Hora de Ecuador. Vacío: no se retira." error={errors.unpublishAt}>
+                  {(control) => <Input {...control} {...bind("unpublishAt")} type="datetime-local" />}
+                </Field>
+              </MoreOptions>
+            </div>
+            {isEditing ? null : <p className="text-[0.8125rem] text-mist lg:order-3">Las fotos se agregan después de crear el evento.</p>}
+          </section>
+          <div data-slot="publish-state" className="order-first grid rounded bg-card px-4 py-1 sm:grid-cols-2 sm:gap-x-4 md:px-5 lg:order-2 lg:grid-cols-1 lg:rounded-none lg:bg-transparent lg:p-0">
+            <SwitchField label="Publicado" {...toggle("isPublished")} />
+            <SwitchField label="Destacado" {...toggle("featured")} />
+          </div>
+        </div>
         <ActionBar
           className="mx-0 mt-0 rounded md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none"
           status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}

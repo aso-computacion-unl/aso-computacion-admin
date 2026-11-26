@@ -3,7 +3,7 @@ import { REMINDER_SHARE_OF_DAILY_MAIL } from "@/domain/registration-reminder";
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { PUBLISHED_TEXT } from "./publish";
+import { publish } from "./publish";
 import { confirmationLink, receivedMail, waitForMail } from "./support/mail-sink";
 import { openForm } from "./support/turnstile";
 
@@ -13,7 +13,7 @@ import { openForm } from "./support/turnstile";
  *   D9  (R4, R5)  registering again while pending: only the latest confirmation link works.
  *   D11 (R5)      the confirm page of an event that no longer takes registrations says so, not a 404.
  *   D12 (R4, R6)  reminders keep 30 % of the day's mail for confirmations, which may use all that is left.
- *   D14 (R8)      the event form asks before a change that affects the people already registered.
+ *   D14 (R8)      «Configurar inscripción» asks before a change that affects the people already registered.
  * D12's reminders half is a unit test (the cron needs CRON_SECRET, which `npm run e2e` blanks): what shows here is that
  * a confirmation still goes out after the reminders took their share, and stops only when the whole cap is spent.
  *
@@ -306,7 +306,7 @@ test.describe("D12 (R4): the reserve for confirmation emails", () => {
   });
 });
 
-test.describe("D14 (R8): the event form asks before a change that affects the people already registered", () => {
+test.describe("D14 (R8): «Configurar inscripción» asks before a change that affects the people already registered", () => {
   /** An event with three confirmed registrations and two pending ones (which hold no seat and are not counted). */
   async function seedWithPeople(name: string, overrides: Partial<Prisma.EventUncheckedCreateInput> = {}) {
     const event = await seedEvent(name, { registrationCapacity: 30, ...overrides });
@@ -327,11 +327,12 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
   }
 
   const openEditor = async (page: Page, event: Seeded) => {
-    await page.goto(`/admin/events/${event.id}/edit`, { waitUntil: "networkidle" });
-    await expect(page.getByLabel("Título")).toHaveValue(event.title);
+    await page.goto(`/admin/registrations/${event.id}/edit`, { waitUntil: "networkidle" });
+    await expect(page.getByRole("radio", { name: "Formulario abierto" })).toBeChecked();
   };
   const question = (page: Page) => page.getByRole("alertdialog");
-  const preview = (page: Page) => page.getByRole("dialog", { name: "Así queda" });
+  const save = (page: Page) => page.getByRole("button", { name: "Guardar cambios" }).click();
+  const saved = (page: Page) => expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
 
   test("changing the mode asks 'Este evento ya tiene 3 inscritos…', states the consequence, stores nothing until confirmed, and keeps every registration", async ({ page }) => {
     const event = await seedWithPeople("modo");
@@ -340,12 +341,11 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
     await logInAsAdmin(page);
     await openEditor(page, event);
     await page.getByRole("radio", { name: "Cuenta UNL" }).check();
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    await save(page);
 
     await expect(question(page)).toBeVisible();
     await expect(question(page)).toContainText("Este evento ya tiene 3 inscritos.");
     await expect(question(page)).toContainText("conservan su cupo");
-    await expect(preview(page)).toHaveCount(0);
     expect((await eventRow(event)).registrationMode).toBe("open");
 
     // Keep editing: still nothing stored, the edit is still in the form.
@@ -354,12 +354,10 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
     await expect(page.getByRole("radio", { name: "Cuenta UNL" })).toBeChecked();
     expect((await eventRow(event)).registrationMode).toBe("open");
 
-    // Accept: the publish preview follows, and the save goes through.
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    // Accept: the save goes through.
+    await save(page);
     await question(page).getByRole("button", { name: "Guardar el cambio" }).click();
-    await expect(preview(page)).toBeVisible();
-    await preview(page).getByRole("button", { name: "Sí, publicar" }).click();
-    await expect(page.getByText(PUBLISHED_TEXT).first()).toBeVisible();
+    await saved(page);
 
     expect((await eventRow(event)).registrationMode).toBe("unl");
     expect(await registrations(event)).toEqual(people);
@@ -372,7 +370,7 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
     await logInAsAdmin(page);
     await openEditor(page, event);
     await page.getByLabel("Cupos").fill("2");
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    await save(page);
 
     await expect(question(page)).toContainText("Este evento ya tiene 3 inscritos.");
     await expect(question(page)).toContainText("2 cupos");
@@ -380,18 +378,15 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
     expect((await eventRow(event)).registrationCapacity).toBe(30);
 
     await question(page).getByRole("button", { name: "Guardar el cambio" }).click();
-    await preview(page).getByRole("button", { name: "Sí, publicar" }).click();
-    await expect(page.getByText(PUBLISHED_TEXT).first()).toBeVisible();
+    await saved(page);
     expect((await eventRow(event)).registrationCapacity).toBe(2);
     expect(await registrations(event)).toEqual(people);
 
-    // Seats equal to the registered people are not below them: no question, straight to the preview.
+    // Seats equal to the registered people are not below them: no question, saved at once.
     await page.getByLabel("Cupos").fill("3");
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
-    await expect(preview(page)).toBeVisible();
+    await save(page);
+    await expect.poll(async () => (await eventRow(event)).registrationCapacity).toBe(3);
     await expect(question(page)).toHaveCount(0);
-    await preview(page).getByRole("button", { name: "Seguir editando" }).click();
-    expect((await eventRow(event)).registrationCapacity).toBe(2);
   });
 
   test("an event nobody has confirmed yet saves a mode change without asking: pending registrations do not count", async ({ page }) => {
@@ -401,32 +396,54 @@ test.describe("D14 (R8): the event form asks before a change that affects the pe
     await logInAsAdmin(page);
     await openEditor(page, event);
     await page.getByRole("radio", { name: "Cuenta UNL" }).check();
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    await save(page);
 
+    await saved(page);
     await expect(question(page)).toHaveCount(0);
-    await preview(page).getByRole("button", { name: "Sí, publicar" }).click();
-    await expect(page.getByText(PUBLISHED_TEXT).first()).toBeVisible();
     expect((await eventRow(event)).registrationMode).toBe("unl");
   });
 
-  test("the server does not take the change without the confirmation: a draft that saves by itself is refused with the question's words and stores nothing, and the button then asks", async ({ page }) => {
-    const event = await seedWithPeople("borrador", { isPublished: false });
+  test("the server does not take the change without the confirmation: people confirmed after the form opened make it refuse with the question's words and store nothing, and the reopened form then asks", async ({ page }) => {
+    const event = await seedEvent("tarde", { registrationCapacity: 30 });
 
     await logInAsAdmin(page);
     await openEditor(page, event);
+    // Three people confirm while the form is open: the form, which saw nobody, sends the change without the confirmation.
+    await prisma.eventRegistration.createMany({
+      data: ["a", "b", "c"].map((suffix) => ({ id: `${event.id}-${suffix}`, eventId: event.id, mode: "open" as const, name: `Persona ${suffix}`, email: `${suffix}@example.com`, institution: "UNL", confirmedAt: new Date() })),
+    });
     await page.getByLabel("Cupos").fill("1");
+    await save(page);
 
-    // The autosave sends the edit without the confirmation: the server refuses it.
-    await expect(page.locator('[data-slot="autosave-status"]')).toContainText("Este evento ya tiene 3 inscritos.", { timeout: 15_000 });
+    await expect(page.locator('[data-slot="form-feedback"]')).toContainText("Este evento ya tiene 3 inscritos.");
     expect((await eventRow(event)).registrationCapacity).toBe(30);
 
-    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    // Reopened (the edit undone first, so leaving asks nothing), the form knows the three people and asks.
+    await page.getByLabel("Cupos").fill("30");
+    await openEditor(page, event);
+    await page.getByLabel("Cupos").fill("1");
+    await save(page);
     await expect(question(page)).toContainText("Este evento ya tiene 3 inscritos.");
     expect((await eventRow(event)).registrationCapacity).toBe(30);
 
     await question(page).getByRole("button", { name: "Guardar el cambio" }).click();
-    await expect(question(page)).toHaveCount(0);
-    await expect.poll(async () => (await eventRow(event)).registrationCapacity).toBe(1);
-    expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(5);
+    await saved(page);
+    expect((await eventRow(event)).registrationCapacity).toBe(1);
+    expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(3);
   });
+});
+
+test("S4 (S3): moving the event's date before its registration's cierre is refused on the date, pointing to Inscripciones, and stores nothing", async ({ page }) => {
+  const event = await seedEvent("cierre", { registrationDeadline: new Date("2099-11-27T23:00:00.000Z") });
+
+  await logInAsAdmin(page);
+  await page.goto(`/admin/events/${event.id}/edit`, { waitUntil: "networkidle" });
+  await page.getByLabel("Fecha", { exact: true }).fill("2099-11-20");
+  await publish(page);
+
+  const date = page.getByLabel("Fecha", { exact: true });
+  await expect(date).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("El cierre de la inscripción no puede ser posterior al día del evento. Elija otra fecha o mueva el cierre en Inscripciones.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Datos del evento" }).getByRole("link", { name: "Gestionar inscripción" })).toHaveAttribute("href", `/admin/registrations/${event.id}/edit`);
+  expect((await eventRow(event)).date).toEqual(new Date("2099-11-28"));
 });

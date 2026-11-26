@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type ComponentProps, type FormEvent } from "react";
+import Link from "next/link";
+import type { ComponentProps, FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { fieldClasses } from "@/components/ui/field-styles";
@@ -15,15 +16,12 @@ import {
   formValuesToFormData,
   type EventFormValues,
 } from "@/interface/admin/events/event-form-values";
-import { registrationChangeKey, registrationChangeOfForm } from "@/interface/admin/events/registration-change";
 
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { EVENT_PUBLISH_FIELDS, EventPreview } from "./event-preview";
-import { RegistrationChangeDialog } from "./registration-change-dialog";
-import { RegistrationFields } from "./registration-fields";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
@@ -33,12 +31,9 @@ interface EventFormProps {
   initialValues?: EventFormValues;
   /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
   autosave?: boolean;
-  /** People registered and confirmed in this event: changing its mode, or its seats below this number, asks first (D14). */
-  registeredCount?: number;
+  /** Where the event's registration is changed (Inscripciones), when it has one: a refused date points there. */
+  registrationHref?: string;
 }
-
-/** The field the server requires for a change that affects the registered people. Same name as the server's. */
-const REGISTRATION_CHANGE_CONFIRMED_FIELD = "confirmRegistrationChange";
 
 const TYPE_OPTIONS = [
   { value: "taller", label: "Taller" },
@@ -87,44 +82,18 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * everything the owner typed (React 19 resets uncontrolled fields after a
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
-export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registeredCount = 0 }: EventFormProps) {
-  // The change the admin accepted in the question, by its `key`: only that exact change travels with the confirmation.
-  const confirmedChange = useRef<string | null>(null);
-  // The key of the change the question is open for; a different change (or none) shows no question.
-  const [asking, setAsking] = useState<string | null>(null);
+export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registrationHref }: EventFormProps) {
   const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, {
-    serialize: (current) => {
-      const formData = formValuesToFormData(current);
-
-      if (confirmedChange.current !== null && confirmedChange.current === registrationChangeKey(current)) {
-        formData.set(REGISTRATION_CHANGE_CONFIRMED_FIELD, "on");
-      }
-
-      return formData;
-    },
+    serialize: formValuesToFormData,
     autosave,
   });
-  const change = registrationChangeOfForm(registeredCount, stored, values);
   // A published event asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
   const isEditing = initialValues.slug !== "";
 
-  /** D14: a save that changes what the registered people signed up for asks first; once accepted it goes on as any save. */
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
-    if (change.warning && confirmedChange.current !== change.key) {
-      if (review(event)) setAsking(change.key);
-
-      return;
-    }
-
     return publishing ? publish.ask(event) : handleSubmit(event);
-  }
-
-  function confirmChange() {
-    confirmedChange.current = change.key;
-    setAsking(null);
-    formRef.current?.requestSubmit();
   }
 
   function setDatePrecision(datePrecision: string) {
@@ -136,6 +105,10 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
     });
   }
 
+  // S3/S4: a date before the registration's cierre is refused on `registrationDeadline`, which this form does not have
+  // (the cierre is set in Inscripciones), so the refusal is shown on the date that caused it.
+  const deadlineError = errors.registrationDeadline;
+  const dateError = errors.date ?? (deadlineError ? `${deadlineError} Elija otra fecha o mueva el cierre en Inscripciones.` : undefined);
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
@@ -157,26 +130,33 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
           />
           {errors.datePrecision ? <FieldError id="datePrecision-error" announce={false}>{errors.datePrecision}</FieldError> : null}
         </div>
-        <Field label={values.datePrecision === "month" ? "Mes" : "Fecha"} error={errors.date}>
-          {(control) =>
-            values.datePrecision === "month" ? (
-              <Input
-                {...control}
-                name="date"
-                type="month"
-                value={values.date.length === 10 ? values.date.slice(0, 7) : values.date}
-                onChange={(event) =>
-                  setValues((previous) => ({
-                    ...previous,
-                    date: MONTH_INPUT_PATTERN.test(event.target.value) ? `${event.target.value}-01` : event.target.value,
-                  }))
-                }
-              />
-            ) : (
-              <Input {...control} {...bind("date")} type="date" />
-            )
-          }
-        </Field>
+        <div className="grid min-w-0 content-start gap-1.5">
+          <Field label={values.datePrecision === "month" ? "Mes" : "Fecha"} error={dateError}>
+            {(control) =>
+              values.datePrecision === "month" ? (
+                <Input
+                  {...control}
+                  name="date"
+                  type="month"
+                  value={values.date.length === 10 ? values.date.slice(0, 7) : values.date}
+                  onChange={(event) =>
+                    setValues((previous) => ({
+                      ...previous,
+                      date: MONTH_INPUT_PATTERN.test(event.target.value) ? `${event.target.value}-01` : event.target.value,
+                    }))
+                  }
+                />
+              ) : (
+                <Input {...control} {...bind("date")} type="date" />
+              )
+            }
+          </Field>
+          {deadlineError && registrationHref ? (
+            <Link href={registrationHref} className="justify-self-start text-sm font-semibold underline underline-offset-4">
+              Gestionar inscripción
+            </Link>
+          ) : null}
+        </div>
         <div className="grid min-w-0 content-start gap-1.5 @xl:col-span-2">
           <Segmented
             legend="Tipo"
@@ -193,13 +173,6 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
           {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
         </Field>
         {isEditing ? null : <p className="text-sm text-mist @xl:col-span-2">Las fotos se agregan después de crear el evento.</p>}
-        <RegistrationFields
-          mode={values.registrationMode}
-          onModeChange={(registrationMode) => setValues((previous) => ({ ...previous, registrationMode }))}
-          capacity={bind("registrationCapacity")}
-          deadline={bind("registrationDeadline")}
-          errors={errors}
-        />
         <SwitchField label="Publicado" {...toggle("isPublished")} className="@xl:col-span-2" />
         <div className="grid min-w-0 @xl:col-span-2">
           <MoreOptions invalid={moreOptionsInvalid}>
@@ -243,7 +216,6 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         </div>
       </div>
 
-      {asking === change.key && change.warning ? <RegistrationChangeDialog warning={change.warning} onConfirm={confirmChange} onKeepEditing={() => setAsking(null)} /> : null}
       <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}

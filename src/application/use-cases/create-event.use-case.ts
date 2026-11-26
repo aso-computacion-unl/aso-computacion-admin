@@ -6,7 +6,11 @@ import type { EventRepository } from "../ports/event-repository.port";
 import { withSlugIssue } from "./with-slug-issue";
 import { resolveEventSlug } from "./resolve-event-slug";
 
-export type CreateEventCommand = CreateEventInput;
+/** The registration settings: only the Inscripciones use cases set them (S3), never an event save. */
+export type EventRegistrationField = "registrationMode" | "registrationCapacity" | "registrationDeadline";
+
+/** A new event starts without registration. */
+export type CreateEventCommand = Omit<CreateEventInput, EventRegistrationField>;
 
 export class CreateEventUseCase {
   constructor(private readonly events: EventRepository) {}

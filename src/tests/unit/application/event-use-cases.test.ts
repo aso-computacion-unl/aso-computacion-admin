@@ -7,6 +7,7 @@ import { ListEventsUseCase } from "@/application/use-cases/list-events.use-case"
 import { SetEventPublishedUseCase } from "@/application/use-cases/set-event-published.use-case";
 import { UpdateEventUseCase } from "@/application/use-cases/update-event.use-case";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { Event } from "@/domain/event";
 import { EventPhoto } from "@/domain/event-photo";
 import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
@@ -44,26 +45,20 @@ describe("event use cases", () => {
     });
   });
 
-  describe("registration settings", () => {
-    const DEADLINE = new Date("2026-11-27T23:00:00.000Z");
+  describe("registration settings (S3: set only from Inscripciones)", () => {
+    const DEADLINE = new Date("2099-11-27T23:00:00.000Z");
 
-    it("are stored on create, kept by unrelated updates and publishing, and changed or cleared on update", async () => {
-      const created = await new CreateEventUseCase(events).execute({ title: "Taller", registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
-      const update = new UpdateEventUseCase(events);
-
-      expect(created).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
-      expect(await new SetEventPublishedUseCase(events).execute({ id: created.id, isPublished: true })).toMatchObject({ registrationMode: "open", registrationCapacity: 30 });
-      expect(await update.execute({ id: created.id, title: "Taller 2" })).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
-      expect(await update.execute({ id: created.id, registrationMode: "unl", registrationCapacity: null })).toMatchObject({ registrationMode: "unl", registrationCapacity: null, registrationDeadline: DEADLINE });
-      expect(await update.execute({ id: created.id, registrationMode: "none" })).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    it("a new event starts without registration", async () => {
+      expect(await new CreateEventUseCase(events).execute({ title: "Taller" })).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
     });
 
-    it("refuse an unknown mode or a bad capacity and keep what was stored", async () => {
-      const created = await new CreateEventUseCase(events).execute({ title: "Taller", registrationMode: "open", registrationCapacity: 30 });
+    it("are kept by every event save and by publishing", async () => {
+      const stored = Event.create({ title: "Taller", date: "2099-11-28", registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+      const kept = { registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE };
+      await events.create(stored);
 
-      await expect(new UpdateEventUseCase(events).execute({ id: created.id, registrationMode: "both" })).rejects.toThrow(expect.objectContaining({ field: "registrationMode" }));
-      await expect(new UpdateEventUseCase(events).execute({ id: created.id, registrationCapacity: 0 })).rejects.toThrow(expect.objectContaining({ field: "registrationCapacity" }));
-      expect((await events.getById(created.id))?.props).toMatchObject({ registrationMode: "open", registrationCapacity: 30 });
+      expect(await new UpdateEventUseCase(events).execute({ id: stored.props.id, title: "Taller 2", isPublished: false })).toMatchObject(kept);
+      expect(await new SetEventPublishedUseCase(events).execute({ id: stored.props.id, isPublished: true })).toMatchObject(kept);
     });
   });
 

@@ -53,7 +53,7 @@ export function registrationChangeText(words: RegistrationChangeWords): string {
   return [title, ...consequences, "Confirme el cambio para guardarlo."].join(" ");
 }
 
-/** The registration fields of the event form, as the text the admin typed. */
+/** The registration fields of the Inscripciones form, as the text the admin typed. */
 interface FormRegistration {
   registrationMode: EventRegistrationMode;
   registrationCapacity: string;

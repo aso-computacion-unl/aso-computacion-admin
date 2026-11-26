@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
+import { createRegistration } from "./registration";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 // Signed cookie value of an editor session that scripts/run-e2e.mjs planted in the database.
@@ -24,7 +25,7 @@ async function actAsEditor(context: BrowserContext) {
   await context.addCookies([{ name: "admin_session", value: EDITOR_SESSION, url: BASE_URL }]);
 }
 
-/** Creates a published event with the open registration form and two seats; returns its id and public slug. */
+/** Creates a published event, then its open registration form with two seats in Inscripciones; returns its id and public slug. */
 async function createRegistrableEvent(page: Page, title: string) {
   // Wait for the form to hydrate: a switch clicked before that is reset when React takes the form over.
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
@@ -33,9 +34,6 @@ async function createRegistrableEvent(page: Page, title: string) {
   await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
-  await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-  await page.getByRole("radio", { name: "Formulario abierto" }).check();
-  await page.getByLabel("Cupos").fill("2");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
@@ -44,6 +42,8 @@ async function createRegistrableEvent(page: Page, title: string) {
 
   const id = /\/admin\/events\/([^/]+)\/edit(?:[?#].*)?$/.exec(page.url())![1]!;
   const slug = title.toLowerCase().replaceAll(" ", "-");
+
+  await createRegistration(page, id, { mode: "open", capacity: 2 });
 
   return { id, slug };
 }
@@ -59,11 +59,13 @@ test("an event with the open form: the settings stick, the public API and the ca
   await logInAsAdmin(page);
   const { id, slug } = await createRegistrableEvent(page, title);
 
-  // The settings were saved: the form shows them again, and the editor links to the registrations.
-  await page.reload();
-  await expect(page.getByRole("radio", { name: "Formulario abierto" })).toBeChecked();
-  await expect(page.getByLabel("Cupos")).toHaveValue("2");
-  await expect(page.getByRole("link", { name: "Ver inscripciones" })).toHaveAttribute("href", `/admin/events/${id}/registrations`);
+  // The settings were saved: the event's editor shows them read-only, with the ways to change them and to the registrations.
+  await page.goto(`/admin/events/${id}/edit`);
+  const registration = page.getByRole("region", { name: "Inscripción", exact: true });
+  await expect(registration).toContainText("Inscripción: Formulario abierto · 2 cupos");
+  await expect(registration.getByRole("link", { name: "Gestionar inscripción" })).toHaveAttribute("href", `/admin/registrations/${id}/edit`);
+  await expect(registration.getByRole("link", { name: "Ver inscripciones" })).toHaveAttribute("href", `/admin/events/${id}/registrations`);
+  await expect(page.getByLabel("Cupos")).toHaveCount(0);
 
   // The public API adds the registration; everything it already had is still there.
   const body = await (await request.get("/api/public/content")).json();

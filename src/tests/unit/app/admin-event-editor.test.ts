@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { EventForm } from "../../../../app/admin/events/_components/event-form";
-import type { ActionResult } from "@/interface/admin/action-result";
+import { ValidationError } from "@/domain/domain-error";
+import { DEADLINE_AFTER_EVENT_MESSAGE } from "@/domain/event-registration";
+import { mapActionError, type ActionResult } from "@/interface/admin/action-result";
 import { EMPTY_EVENT_FORM_VALUES, type EventFormValues } from "@/interface/admin/events/event-form-values";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
@@ -104,12 +106,9 @@ describe("the event editor's \"Más opciones\"", () => {
 describe("the labels of the event editor", () => {
   it("name one control each, so no \"?\" help toggle answers to the name of its field", async () => {
     const host = await mountForm();
-
-    await click(switchNamed(host, "Tiene inscripción"));
-
     const perLabel = controlsPerLabel(host);
 
-    for (const text of ["Publicar el", "Identificador (slug)", "Cupos", "Puntos destacados"]) expect(perLabel.get(text)?.size, text).toBe(1);
+    for (const text of ["Publicar el", "Identificador (slug)", "Puntos destacados"]) expect(perLabel.get(text)?.size, text).toBe(1);
     for (const [text, controls] of perLabel) expect(controls.size, text).toBe(1);
   });
 
@@ -147,12 +146,12 @@ describe("the event editor's date type", () => {
   });
 });
 
-describe("the event editor's registration switch", () => {
-  it("is off by default: no fields, and the event is saved with mode none", async () => {
+describe("the event editor and the registration (S3)", () => {
+  it("has no registration section: no switch, mode, Cupos or Cierre, and a save sends no registration setting", async () => {
     const action = vi.fn(ok);
     const host = await mountForm(action);
 
-    expect(switchNamed(host, "Tiene inscripción").checked).toBe(false);
+    expect(switchNamed(host, "Tiene inscripción")).toBeUndefined();
     expect(labelled(host, "Cupos")).toBeUndefined();
     expect(labelled(host, "Cierre")).toBeUndefined();
     expect(host.querySelector('input[name="registrationMode"]')).toBeNull();
@@ -161,54 +160,42 @@ describe("the event editor's registration switch", () => {
     await submit(host);
     await settle();
 
-    expect(sent(action).get("registrationMode")).toBe("none");
+    for (const key of ["registrationMode", "registrationCapacity", "registrationDeadline", "confirmRegistrationChange"]) {
+      expect(sent(action).has(key)).toBe(false);
+    }
   });
+});
 
-  it("reveals the mode, Cupos and Cierre when it is on, and goes back to mode none when it is turned off", async () => {
-    const action = vi.fn(ok);
-    const host = await mountForm(action);
+describe("a date before the registration's cierre (S3, S4)", () => {
+  const refused: Action = async () => mapActionError(new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE));
+  const mountEditing = (registrationHref?: string) =>
+    mount(createElement(ToastProvider, null, createElement(EventForm, { action: refused, submitLabel: "Guardar cambios", registrationHref, initialValues: { ...EMPTY_EVENT_FORM_VALUES, title: "Taller", slug: "taller", date: "2099-11-28" } })));
 
-    await typeInto(field(host, "Título"), "Taller");
-    await click(switchNamed(host, "Tiene inscripción"));
+  it("shows the refusal on the date, which this form has, with the way to move the cierre in Inscripciones", async () => {
+    const host = await mountEditing("/admin/registrations/e1/edit");
 
-    expect(labelled(host, "Cupos")).toBeDefined();
-    expect(labelled(host, "Cierre")).toBeDefined();
-    expect([...host.querySelectorAll<HTMLInputElement>('input[name="registrationMode"]')].map((radio) => radio.value)).toEqual(["unl", "open"]);
-    expect(host.querySelector<HTMLInputElement>('input[name="registrationMode"][value="unl"]')!.checked).toBe(true);
-
-    await click(host.querySelector('input[name="registrationMode"][value="open"]')!);
-    await typeInto(field(host, "Cupos"), "30");
+    await typeInto(field(host, "Fecha"), "2099-11-20");
     await submit(host);
     await settle();
 
-    expect(sent(action).get("registrationMode")).toBe("open");
-    expect(sent(action).get("registrationCapacity")).toBe("30");
+    const date = field(host, "Fecha");
+    const describedBy = date.getAttribute("aria-describedby")!.split(" ").map((id) => document.getElementById(id)?.textContent).join(" ");
 
-    await click(switchNamed(host, "Tiene inscripción"));
+    expect(date.getAttribute("aria-invalid")).toBe("true");
+    expect(describedBy).toContain("El cierre de la inscripción no puede ser posterior al día del evento.");
+    expect(describedBy).toContain("Inscripciones");
+    expect(host.querySelector<HTMLAnchorElement>('a[href="/admin/registrations/e1/edit"]')?.textContent).toBe("Gestionar inscripción");
+  });
+
+  it("still shows it on the date without a link when the page gives none", async () => {
+    const host = await mountEditing();
+
     await submit(host);
     await settle();
 
-    expect(labelled(host, "Cupos")).toBeUndefined();
-    expect(sent(action).get("registrationMode")).toBe("none");
-  });
-
-  it("comes back on with the mode the event had before it was turned off", async () => {
-    const host = await mountForm();
-
-    await click(switchNamed(host, "Tiene inscripción"));
-    await click(host.querySelector('input[name="registrationMode"][value="open"]')!);
-    await click(switchNamed(host, "Tiene inscripción"));
-    await click(switchNamed(host, "Tiene inscripción"));
-
-    expect(host.querySelector<HTMLInputElement>('input[name="registrationMode"][value="open"]')!.checked).toBe(true);
-  });
-
-  it("starts on, with the stored mode, for an event that takes registrations", async () => {
-    const host = await mountForm(ok, { slug: "taller", registrationMode: "open", registrationCapacity: "40" });
-
-    expect(switchNamed(host, "Tiene inscripción").checked).toBe(true);
-    expect(host.querySelector<HTMLInputElement>('input[name="registrationMode"][value="open"]')!.checked).toBe(true);
-    expect(field(host, "Cupos").value).toBe("40");
+    expect(field(host, "Fecha").getAttribute("aria-invalid")).toBe("true");
+    expect(host.textContent).toContain("El cierre de la inscripción no puede ser posterior al día del evento.");
+    expect(host.querySelector('a[href^="/admin/registrations"]')).toBeNull();
   });
 });
 

@@ -6,9 +6,11 @@ import type { EventRepository } from "../ports/event-repository.port";
 import { withSlugChangeIssue } from "./with-slug-issue";
 import { resolveEventSlug } from "./resolve-event-slug";
 import { NotFoundError } from "./use-case-error";
+import type { EventRegistrationField } from "./create-event.use-case";
 import type { Updated } from "./updated-result";
 
-export type UpdateEventCommand = UpdateEventInput & { id: string };
+/** Saving an event never changes its registration (S3): the settings are not part of the command. */
+export type UpdateEventCommand = Omit<UpdateEventInput, EventRegistrationField> & { id: string };
 
 export class UpdateEventUseCase {
   constructor(private readonly events: EventRepository) {}

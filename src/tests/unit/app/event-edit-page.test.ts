@@ -8,7 +8,9 @@ vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: ev
 vi.mock("@/interface/admin/events/actions", () => ({ updateEvent: vi.fn() }));
 vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({}) }));
 // The form and the gallery have their own tests; here they only stand in for their sections.
-vi.mock("../../../../app/admin/events/_components/event-form", () => ({ EventForm: () => createElement("form", null, "event form") }));
+vi.mock("../../../../app/admin/events/_components/event-form", () => ({
+  EventForm: ({ registrationHref }: { registrationHref?: string }) => createElement("form", { "data-registration-href": registrationHref }, "event form"),
+}));
 vi.mock("../../../../app/admin/events/_components/photo-gallery", () => ({ PhotoGallery: () => createElement("section", null, "photo gallery") }));
 vi.mock("../../../../app/admin/events/_components/event-created-arrival", () => ({ EventCreatedArrival: () => createElement("div", { "data-testid": "created-arrival" }) }));
 vi.mock("next/navigation", () => ({
@@ -20,7 +22,20 @@ vi.mock("next/navigation", () => ({
 import { SectionJumps } from "../../../../app/admin/_components/section-jumps";
 import EditEventPage from "../../../../app/admin/events/[id]/edit/page";
 
-const event = (over: Record<string, unknown> = {}) => ({ title: "Taller de Git", slug: "taller", isPublished: true, registrationMode: "none", photos: [{ id: "p1" }, { id: "p2" }], ...over });
+const event = (over: Record<string, unknown> = {}) => ({
+  title: "Taller de Git",
+  slug: "taller",
+  isPublished: true,
+  date: "2099-11-28",
+  datePrecision: "day",
+  registrationMode: "none",
+  registrationCapacity: null,
+  registrationDeadline: null,
+  photos: [{ id: "p1" }, { id: "p2" }],
+  ...over,
+});
+const panel = (html: string) => /<section[^>]*id="inscripciones"[^>]*>(.*?)<\/section>/.exec(html)?.[1] ?? "";
+const links = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g)].map(([, href, text]) => `${text} → ${href}`);
 const render = async (searchParams: Record<string, string | string[]> = {}) =>
   renderToStaticMarkup(await EditEventPage({ params: Promise.resolve({ id: "e1" }), searchParams: Promise.resolve(searchParams) }));
 
@@ -71,6 +86,48 @@ describe("the event edit page", () => {
 
     expect(html).toContain('href="#inscripciones"');
     expect(html).toContain('id="inscripciones"');
+  });
+
+  it("shows the registration read-only (S3), with «Gestionar inscripción» and the registrants", async () => {
+    eventMock.mockResolvedValue(event({ registrationMode: "open", registrationCapacity: 40, registrationDeadline: new Date("2099-11-27T23:00:00.000Z") }));
+
+    const block = panel(await render());
+
+    expect(block).toMatch(/Inscripción: Formulario abierto · 40 cupos · cierra 27 nov 2099/);
+    expect(links(block)).toEqual(["Gestionar inscripción → /admin/registrations/e1/edit", "Ver inscripciones → /admin/events/e1/registrations"]);
+    expect(block).not.toContain("<input");
+  });
+
+  it("tells the form where the registration is changed, so a date refused for the cierre can point there", async () => {
+    eventMock.mockResolvedValue(event({ registrationMode: "open" }));
+    expect(await render()).toContain('data-registration-href="/admin/registrations/e1/edit"');
+
+    eventMock.mockResolvedValue(event());
+    expect(await render()).not.toContain("data-registration-href");
+  });
+
+  it("says a registration without seats or deadline has no limit and closes with the event", async () => {
+    eventMock.mockResolvedValue(event({ registrationMode: "unl" }));
+
+    expect(panel(await render())).toMatch(/Inscripción: Cuenta UNL · sin límite de cupos(?!.*cierra)/);
+  });
+
+  it("offers «Crear inscripción» in Inscripciones for an upcoming event without registration", async () => {
+    eventMock.mockResolvedValue(event());
+
+    const block = panel(await render());
+
+    expect(block).toContain("Sin inscripción");
+    expect(links(block)).toEqual(["Crear inscripción → /admin/registrations/new?evento=e1"]);
+  });
+
+  it("offers no registration link for a past event without one", async () => {
+    eventMock.mockResolvedValue(event({ date: "2020-01-15" }));
+
+    const block = panel(await render());
+
+    expect(block).toContain("Sin inscripción");
+    expect(links(block)).toEqual([]);
   });
 
   it("welcomes a just-created event (?creado=1) with the arrival, and a plain visit without it", async () => {

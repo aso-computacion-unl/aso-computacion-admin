@@ -21,8 +21,7 @@ const PUBLISHED: Partial<EventFormValues> = {
   slug: "hackathon",
   date: "2026-11-21",
   isPublished: true,
-  registrationMode: "unl",
-  registrationCapacity: "60",
+  description: "Un día de código",
 };
 const mountEvent = (action: Action = ok, initial: Partial<EventFormValues> = PUBLISHED) =>
   mount(createElement(ToastProvider, null, createElement(EventForm, { action, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, ...initial } })));
@@ -99,13 +98,13 @@ describe("publishing an event", () => {
     const action = vi.fn(ok);
     const host = await mountEvent(action);
 
-    await typeInto(field(host, "Cupos"), "80");
+    await typeInto(field(host, "Descripción"), "Dos días de código");
     primary(host).focus();
     await click(primary(host));
     await click(inDialog("Seguir editando"));
 
     expect(dialog()).toBeNull();
-    expect(field(host, "Cupos").value).toBe("80");
+    expect(field(host, "Descripción").value).toBe("Dos días de código");
     expect(document.activeElement).toBe(primary(host));
     expect(action).not.toHaveBeenCalled();
   });
@@ -133,20 +132,20 @@ describe("publishing an event", () => {
   it("shows Después (the form) and Antes (the stored row) with a real radio pair, and lists what changed", async () => {
     const host = await mountEvent();
 
-    await typeInto(field(host, "Cupos"), "80");
+    await typeInto(field(host, "Descripción"), "Dos días de código");
     await click(primary(host));
 
     expect(version("after").checked).toBe(true);
     expect(version("before").type).toBe("radio");
-    expect(site()).toContain("80");
-    expect(changes()).toEqual(["Cupos: 60 → 80"]);
+    expect(site()).toContain("Dos días de código");
+    expect(changes()).toEqual(["Descripción: Un día de código → Dos días de código"]);
     expect(dialog()!.querySelectorAll("mark").length).toBeGreaterThan(0);
 
     await click(version("before"));
 
     expect(version("before").checked).toBe(true);
-    expect(site()).toContain("60");
-    expect(site()).not.toContain("80");
+    expect(site()).toContain("Un día de código");
+    expect(site()).not.toContain("Dos días de código");
     expect(dialog()!.querySelectorAll("mark")).toHaveLength(0);
   });
 
@@ -189,7 +188,7 @@ describe("publishing an event", () => {
     const action = vi.fn(ok);
     const host = await mountEvent(action);
 
-    await typeInto(field(host, "Cupos"), "80");
+    await typeInto(field(host, "Descripción"), "Dos días de código");
     await click(primary(host));
 
     const confirm = inDialog("Sí, publicar");
@@ -199,20 +198,20 @@ describe("publishing an event", () => {
     await settle();
 
     expect(action).toHaveBeenCalledTimes(1);
-    expect((action.mock.calls[0]![1] as FormData).get("registrationCapacity")).toBe("80");
+    expect((action.mock.calls[0]![1] as FormData).get("description")).toBe("Dos días de código");
     expect(dialog()).toBeNull();
     expect(host.textContent).toContain("Publicado. El sitio se actualiza en un minuto.");
   });
 
   it("closes when the server refuses, so the errors are in sight", async () => {
-    const host = await mountEvent(async () => ({ fieldErrors: { registrationCapacity: "Use un número entero." } }));
+    const host = await mountEvent(async () => ({ fieldErrors: { description: "La descripción admite hasta 600 caracteres." } }));
 
     await click(primary(host));
     await click(inDialog("Sí, publicar"));
     await settle();
 
     expect(dialog()).toBeNull();
-    expect(host.textContent).toContain("Use un número entero.");
+    expect(host.textContent).toContain("La descripción admite hasta 600 caracteres.");
   });
 });
 

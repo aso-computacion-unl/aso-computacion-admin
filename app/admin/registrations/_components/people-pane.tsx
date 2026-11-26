@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { RegistrationOverviewRow } from "@/application";
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { isEventOver } from "@/domain/event-registration-retention";
 import type { getAdminEventRegistrations } from "@/interface/admin/event-registrations/registrations-admin-read";
 
 import { Panel } from "../../_components/form-layout";
@@ -95,7 +96,7 @@ export function PeoplePane({ row, page }: { row: RegistrationOverviewRow; page: 
       <p className="text-sm text-mist">Datos personales: úselos solo para organizar el evento.{canManage ? "" : " Solo un administrador puede exportar o eliminar."}</p>
 
       {registrations.length === 0 ? (
-        <RegistrationsEmptyState eventId={event.id} slug={event.slug} mode={event.registrationMode} isPublished={event.isPublished} adminOrigin={adminOrigin} />
+        <RegistrationsEmptyState eventId={event.id} slug={event.slug} mode={event.registrationMode} isPublished={event.isPublished} isOver={isEventOver(row, new Date())} adminOrigin={adminOrigin} />
       ) : (
         <PeopleTable eventId={event.id} title={row.title} registrations={registrations} canManage={canManage} />
       )}

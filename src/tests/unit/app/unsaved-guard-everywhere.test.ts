@@ -38,7 +38,7 @@ vi.mock("../../../../app/_components/brand-mark", () => ({ BrandIsotype: () => n
 import { AppTopBar } from "../../../../app/_components/app-top-bar";
 import { IdentityChip } from "../../../../app/_components/identity-chip";
 import { Field } from "../../../../app/admin/_components/form-parts";
-import { GuardedLink } from "../../../../app/admin/_components/unsaved-changes";
+import { GuardedForm, GuardedLink } from "../../../../app/admin/_components/unsaved-changes";
 import { AUTOSAVE_DELAY_MS, useControlledForm } from "../../../../app/admin/_components/use-controlled-form";
 import AdminLayout from "../../../../app/admin/layout";
 import type { ActionResult } from "@/interface/admin/action-result";
@@ -101,6 +101,8 @@ function PageContent({ action = ok, autosave = false, extra }: { action?: Action
     createElement("a", { href: `${window.location.pathname}#respuesta` }, "Ir a la respuesta, con la ruta"),
     createElement("a", { href: "https://example.org/guia" }, "Guía externa"),
     createElement("a", { href: "mailto:directiva@example.org" }, "Escribir"),
+    createElement("a", { href: "#" }, "Arriba"),
+    createElement("a", { href: "tel:+543424000000" }, "Llamar"),
     createElement("a", { href: "/admin/faqs/2/edit" }, createElement("span", null, "Otra pregunta")),
     createElement(GuardedLink, { href: "/admin/faqs" }, "Volver, por el guardia"),
     extra,
@@ -375,6 +377,8 @@ describe("a link inside a page's own content", () => {
     ["a jump on this page written with its path", "Ir a la respuesta, con la ruta", `${window.location.pathname}#respuesta`],
     ["another site", "Guía externa", "https://example.org/guia"],
     ["a mail link", "Escribir", "mailto:directiva@example.org"],
+    ["a bare # (the top of this page)", "Arriba", "#"],
+    ["a phone link", "Llamar", "tel:+543424000000"],
   ])("does not ask for %s: this page stays or the browser handles it", async (_name, text, href) => {
     const host = await mountAdmin();
 
@@ -418,5 +422,39 @@ describe("a link inside a page's own content", () => {
 
     expect(dialog()).toBeNull();
     expect(visits).toEqual(["/admin/registrations?evento=1"]);
+  });
+});
+
+describe("a GuardedForm's own onSubmit", () => {
+  function SendForm({ onSubmit, action }: { onSubmit: () => void; action: (formData: FormData) => Promise<void> }) {
+    return createElement(GuardedForm, { onSubmit, action }, createElement("button", { type: "submit" }, "Enviar aparte"));
+  }
+
+  const send = (host: HTMLElement) => [...host.querySelectorAll("button")].find((button) => button.textContent === "Enviar aparte")!;
+
+  it("runs once, when 'Salir sin guardar' sends the form, and not when the question opens", async () => {
+    const onSubmit = vi.fn();
+    const action = vi.fn(async () => {});
+    const host = await mountAdmin({ extra: createElement(SendForm, { onSubmit, action }) });
+
+    await makeDirty(host);
+    await click(send(host));
+    expect(dialog()).not.toBeNull();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await click(dialogButton("Salir sin guardar"));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs once, without asking, while nothing has changed", async () => {
+    const onSubmit = vi.fn();
+    const action = vi.fn(async () => {});
+    const host = await mountAdmin({ extra: createElement(SendForm, { onSubmit, action }) });
+
+    await click(send(host));
+    expect(dialog()).toBeNull();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(1);
   });
 });

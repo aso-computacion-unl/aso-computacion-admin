@@ -1,5 +1,5 @@
 import { collectValidation, ValidationError } from "./domain-error";
-import { assertRegistrationSettings, type EventRegistrationMode } from "./event-registration";
+import { assertRegistrationDates, assertRegistrationSettings, type EventRegistrationMode, type SavedRegistration } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
 import { titleAndSlug } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
@@ -157,20 +157,34 @@ function validateLink(url: string | null | undefined, label: string | null | und
   return { linkUrl, linkLabel };
 }
 
-function registrationFields(fields: Partial<EventFields>) {
-  const { mode, capacity, deadline } = assertRegistrationSettings(
-    fields.registrationMode,
-    fields.registrationCapacity,
-    fields.registrationDeadline,
-  );
+const NOTHING_SAVED: SavedRegistration = { mode: "none", capacity: null, deadline: null, date: null, datePrecision: "day" };
 
-  return { registrationMode: mode, registrationCapacity: capacity, registrationDeadline: deadline };
+/** The event's date as saved, or `null` when it is invalid: the date check reports that, not the registration one. */
+function checkedDate(fields: Partial<EventFields>) {
+  try {
+    return normaliseDate(validateDate(fields.date), validateDatePrecision(fields.datePrecision));
+  } catch (error) {
+    if (error instanceof ValidationError) return null;
+    throw error;
+  }
+}
+
+function registrationFields(fields: Partial<EventFields>, previous: SavedRegistration, now: Date) {
+  const settings = assertRegistrationSettings(fields.registrationMode, fields.registrationCapacity, fields.registrationDeadline);
+  const date = checkedDate(fields);
+
+  if (date) {
+    assertRegistrationDates(settings, date, previous, now);
+  }
+
+  return { registrationMode: settings.mode, registrationCapacity: settings.capacity, registrationDeadline: settings.deadline };
 }
 
 /** Every independent rule is checked, so one save reports all of them; the slug derived from a bad title is not. */
 function build(
   base: Pick<EventProps, "id" | "createdAt" | "updatedAt">,
   fields: Partial<EventFields> & Pick<EventFields, "title">,
+  previous: SavedRegistration = NOTHING_SAVED,
 ): EventProps {
   return collectValidation(
     {
@@ -186,7 +200,8 @@ function build(
       link: () => validateLink(fields.linkUrl, fields.linkLabel),
       highlights: () => validateHighlights(fields.highlights),
       publication: () => assertPublicationWindow(fields.publishAt ?? null, fields.unpublishAt ?? null),
-      registration: () => registrationFields(fields),
+      // `updatedAt` is the instant of this save.
+      registration: () => registrationFields(fields, previous, base.updatedAt),
     },
     (checked) => ({
       ...base,
@@ -232,6 +247,13 @@ export class Event {
       build(
         { id: current.id, createdAt: current.createdAt, updatedAt: new Date() },
         { ...current, ...definedUpdates },
+        {
+          mode: current.registrationMode,
+          capacity: current.registrationCapacity,
+          deadline: current.registrationDeadline,
+          date: current.date,
+          datePrecision: current.datePrecision,
+        },
       ),
     );
   }

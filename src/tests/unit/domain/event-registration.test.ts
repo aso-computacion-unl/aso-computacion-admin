@@ -9,11 +9,12 @@ import {
   registrationState,
   type RegistrationContext,
 } from "@/domain/event-registration";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 const NOW = new Date("2026-11-20T15:00:00.000Z"); // 10:00 in Ecuador, 2026-11-20
 
 function eventWith(overrides: Partial<CreateEventInput> = {}) {
-  return Event.create({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides }).props;
+  return storedEvent({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides }).props;
 }
 
 function context(overrides: Partial<RegistrationContext> = {}): RegistrationContext {

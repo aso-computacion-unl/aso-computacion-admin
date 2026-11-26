@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { ImageTooLargeError, ValidationError } from "@/domain";
+import { DEADLINE_AFTER_EVENT_MESSAGE, PAST_EVENT_REGISTRATION_MESSAGE } from "@/domain/event-registration";
 import { mapActionError, resultText } from "@/interface/admin/action-result";
 
 describe("resultText", () => {
@@ -59,6 +60,23 @@ describe("mapActionError", () => {
       },
     });
     expect(mapActionError(ValidationError.fromIssues([{ field: "title", message: "x" }]), { title: "Hasta 60 caracteres." })).toEqual({ fieldErrors: { title: "Hasta 60 caracteres." } });
+  });
+
+  it("explains the registration date rules with their own text, not the field's", () => {
+    const error = ValidationError.fromIssues([
+      { field: "registrationMode", message: PAST_EVENT_REGISTRATION_MESSAGE },
+      { field: "registrationDeadline", message: DEADLINE_AFTER_EVENT_MESSAGE },
+    ]);
+
+    expect(mapActionError(error)).toEqual({
+      fieldErrors: {
+        registrationMode: "El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar.",
+        registrationDeadline: "El cierre de la inscripción no puede ser posterior al día del evento.",
+      },
+    });
+    expect(mapActionError(new ValidationError("registrationMode", "invalid")).fieldErrors?.registrationMode).toBe("Elija una forma de inscripción de la lista.");
+    expect(mapActionError(new ValidationError("registrationMode", "constructor")).fieldErrors?.registrationMode).toBe("Elija una forma de inscripción de la lista.");
+    expect(mapActionError(new ValidationError("title", "toString")).fieldErrors?.title).toMatch(/120 caracteres/);
   });
 
   it("maps a single domain rejection to exactly its one field and catalogued text", () => {

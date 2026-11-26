@@ -6,11 +6,12 @@ import {
   CancelUnlRegistrationUseCase,
 } from "@/application/event-registration/cancel-registration.use-cases";
 import { RegisterWithOpenFormUseCase, RegisterWithUnlAccountUseCase } from "@/application/event-registration/event-registration.use-cases";
-import { Event, type CreateEventInput } from "@/domain/event";
+import { type CreateEventInput } from "@/domain/event";
 import { ForumMemberSuspendedError } from "@/domain/forum";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryForumMemberRepository, makeForumMember } from "@/tests/fakes/in-memory-forum";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 /*
  * D7 (R2, R4, R6): a registered person says they cannot attend and the registration is deleted, which frees the seat.
@@ -24,7 +25,7 @@ let registrations: InMemoryEventRegistrationRepository;
 let members: InMemoryForumMemberRepository;
 
 async function addEvent(overrides: Partial<CreateEventInput> = {}) {
-  const event = Event.create({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
+  const event = storedEvent({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
 
   await events.create(event);
 
@@ -172,7 +173,7 @@ describe("cancelling with the link of an email", () => {
   });
 
   it("still cancels after the admin switched the event to another mode (the people registered the old way keep their say)", async () => {
-    const event = await addEvent({ registrationCapacity: 2 });
+    const event = await addEvent({ registrationCapacity: 2, date: "2099-11-28" });
     const ana = await openPerson();
     const live = (await events.getById(event.id))!;
 

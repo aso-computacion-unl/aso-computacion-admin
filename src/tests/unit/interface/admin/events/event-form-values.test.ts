@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { toEventResult } from "@/application/mappers/event-result.mapper";
 
 import { EMPTY_EVENT_FORM_VALUES, eventToFormValues, formValuesToFormData } from "@/interface/admin/events/event-form-values";
 import { parseEventFormData } from "@/interface/admin/events/event-form-data";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 describe("event form values", () => {
   it("starts empty and unpublished", () => {
@@ -96,5 +99,18 @@ describe("event form values", () => {
 
     expect(data.get("title")).toBe(typed.title);
     expect(data.get("linkUrl")).toBe("http://nope");
+  });
+
+  it("saves a title change of a past event whose stored deadline carries seconds the form cannot show", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-20T15:00:00.000Z"), toFake: ["Date"] });
+
+    try {
+      const event = storedEvent({ title: "Taller", date: "2026-11-10", registrationMode: "open", registrationCapacity: 10, registrationDeadline: new Date("2026-11-09T18:30:12.345Z") });
+      const values = { ...eventToFormValues(toEventResult(event)), title: "Taller pasado" };
+
+      expect(event.update(parseEventFormData(formValuesToFormData(values))).props.title).toBe("Taller pasado");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

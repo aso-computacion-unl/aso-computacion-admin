@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { BudgetedMailSender } from "@/application/mail/budgeted-mail-sender";
 import { SendRegistrationRemindersUseCase } from "@/application/event-registration/send-registration-reminders.use-case";
-import { Event } from "@/domain/event";
 import { REMINDER_SHARE_OF_DAILY_MAIL, reminderMailAllowance } from "@/domain/registration-reminder";
 import { reminderEmail } from "@/interface/event-registration/registration-emails";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryMailBudget, RecordingMailTransport } from "@/tests/fakes/in-memory-mail";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 /*
  * D12 (R4, R6): reminders may use at most about 70 % of the day's mail cap (rounded down); the rest stays for
@@ -45,7 +45,7 @@ beforeEach(async () => {
   budget = new InMemoryMailBudget();
   transport = new RecordingMailTransport();
 
-  const event = Event.create({ title: "Taller", date: "2026-11-22", isPublished: true, registrationMode: "open", hora: "09:00", lugar: "Lab 2" });
+  const event = storedEvent({ title: "Taller", date: "2026-11-22", isPublished: true, registrationMode: "open", hora: "09:00", lugar: "Lab 2" });
 
   await events.create(event);
   eventId = event.props.id;

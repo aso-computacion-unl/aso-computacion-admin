@@ -190,7 +190,10 @@ test("a full or closed open event hides the form and says why", async ({ page })
   try {
     await logInAsAdmin(page);
     const full = await createEvent(page, `E2E lleno ${stamp}`, { mode: "open", capacity: 1 });
-    const closed = await createEvent(page, `E2E cerrado ${stamp}`, { mode: "open", date: "2020-01-15" });
+    const closed = await createEvent(page, `E2E cerrado ${stamp}`, { mode: "open" });
+
+    // A past event cannot open registration: its day passes after it was set up.
+    await prisma.event.update({ where: { id: closed.id }, data: { date: new Date("2020-01-15") } });
 
     await prisma.eventRegistration.create({ data: { id: `e2e-full-${stamp}`, eventId: full.id, mode: "open", name: "Eva Mora", email: "eva@example.com", institution: "UNL", career: "Computación", semester: 3, confirmedAt: new Date() } });
     await leave(page);

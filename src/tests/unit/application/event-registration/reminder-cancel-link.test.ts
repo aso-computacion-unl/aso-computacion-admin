@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { SendRegistrationRemindersUseCase, type ReminderMessageBuilder } from "@/application/event-registration/send-registration-reminders.use-case";
 import { BudgetedMailSender } from "@/application/mail/budgeted-mail-sender";
-import { Event } from "@/domain/event";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryMailBudget, RecordingMailTransport } from "@/tests/fakes/in-memory-mail";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 /*
  * D7 (R6): the reminder carries a link that cancels THAT person's registration, so the message is built per person.
@@ -25,7 +25,7 @@ beforeEach(() => {
 const run = (build: ReminderMessageBuilder) => new SendRegistrationRemindersUseCase(events, registrations, new BudgetedMailSender(transport, new InMemoryMailBudget(), 400), build).execute({ now: NOW });
 
 async function seedPeople(...ids: string[]) {
-  const event = Event.create({ title: "Taller de Git", date: "2026-11-22", isPublished: true, registrationMode: "open" });
+  const event = storedEvent({ title: "Taller de Git", date: "2026-11-22", isPublished: true, registrationMode: "open" });
 
   await events.create(event);
 

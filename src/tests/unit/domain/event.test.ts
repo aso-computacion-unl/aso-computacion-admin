@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ValidationError } from "@/domain";
 import { Event, type CreateEventInput } from "@/domain/event";
@@ -205,5 +205,104 @@ describe("Event.update", () => {
 
     expect(event.update({ isPublished: true }).props.isPublished).toBe(true);
     expect(event.update({ isPublished: true }).update({ isPublished: false }).props.isPublished).toBe(false);
+  });
+});
+
+describe("registration dates", () => {
+  // 10:00 in Ecuador, 2026-11-20: the 19th has passed, the 20th is today.
+  const NOW = new Date("2026-11-20T15:00:00.000Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** An event saved with registration before its day passed. */
+  function pastWithRegistration(): Event {
+    return Event.reconstitute({
+      ...build({ date: "2026-11-25", registrationMode: "open", registrationCapacity: 10 }).props,
+      date: "2026-11-19",
+    });
+  }
+
+  it("refuses opening registration for an event that already happened", () => {
+    expect(() => build({ date: "2026-11-19", registrationMode: "open" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
+    expect(() => build({ date: "2026-11-19" }).update({ registrationMode: "unl" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
+  });
+
+  it("refuses changing the capacity or the deadline of a past event's registration", () => {
+    expect(() => pastWithRegistration().update({ registrationCapacity: 20 })).toThrow(expect.objectContaining({ field: "registrationMode" }));
+    expect(() => pastWithRegistration().update({ registrationDeadline: new Date("2026-11-18T20:00:00.000Z") })).toThrow(
+      expect.objectContaining({ field: "registrationMode" }),
+    );
+    expect(() => pastWithRegistration().update({ registrationMode: "unl" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
+  });
+
+  it("keeps saving other fields of a past event whose registration is unchanged", () => {
+    const updated = pastWithRegistration().update({ title: "Taller pasado", registrationMode: "open", registrationCapacity: 10 });
+
+    expect(updated.props).toMatchObject({ title: "Taller pasado", registrationMode: "open", registrationCapacity: 10 });
+  });
+
+  it("lets a past event turn its registration off", () => {
+    expect(pastWithRegistration().update({ registrationMode: "none" }).props).toMatchObject({ registrationMode: "none", registrationCapacity: null });
+  });
+
+  it("refuses a deadline after the event's day, in Ecuador time, and allows one on the day", () => {
+    expect(() => build({ date: "2026-11-28", registrationMode: "open", registrationDeadline: new Date("2026-11-29T05:00:00.000Z") })).toThrow(
+      expect.objectContaining({ field: "registrationDeadline" }),
+    );
+    expect(build({ date: "2026-11-28", registrationMode: "open", registrationDeadline: new Date("2026-11-29T04:59:00.000Z") }).props.registrationDeadline).toEqual(
+      new Date("2026-11-29T04:59:00.000Z"),
+    );
+  });
+
+  it("leaves upcoming and same-day events free to open and change registration", () => {
+    const upcoming = build({ date: "2026-11-28", registrationMode: "unl", registrationCapacity: 40 });
+
+    expect(upcoming.update({ registrationCapacity: 50 }).props.registrationCapacity).toBe(50);
+    expect(build({ date: "2026-11-20", registrationMode: "open" }).props.registrationMode).toBe("open");
+  });
+
+  it("reads a month-only date as its whole month, and never dates an event without a date", () => {
+    expect(() => build({ date: "2026-10-01", datePrecision: "month", registrationMode: "open" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
+    expect(build({ date: "2026-11-01", datePrecision: "month", registrationMode: "open", registrationDeadline: new Date("2026-12-01T04:59:00.000Z") }).props.registrationMode).toBe(
+      "open",
+    );
+    expect(() => build({ date: "2026-11-01", datePrecision: "month", registrationMode: "open", registrationDeadline: new Date("2026-12-01T05:00:00.000Z") })).toThrow(
+      expect.objectContaining({ field: "registrationDeadline" }),
+    );
+    expect(build({ registrationMode: "open", registrationDeadline: new Date("2030-01-01T00:00:00.000Z") }).props.registrationMode).toBe("open");
+  });
+
+  it("reports the date rule together with the other rules of the same save", () => {
+    const attempt = () => build({ title: " ", date: "2026-11-19", registrationMode: "open" });
+
+    expect(attempt).toThrow(ValidationError);
+
+    try {
+      attempt();
+    } catch (error) {
+      expect((error as ValidationError).issues.map(({ field }) => field)).toEqual(["title", "registrationMode"]);
+    }
+  });
+
+  describe("moving the date of an event that takes registration", () => {
+    // Deadline 2026-11-26 18:00 in Ecuador.
+    const deadline = new Date("2026-11-26T23:00:00.000Z");
+    const withDeadline = () => build({ date: "2026-11-28", registrationMode: "open", registrationDeadline: deadline });
+
+    it("refuses a stored deadline after the new event day", () => {
+      expect(() => withDeadline().update({ date: "2026-11-25" })).toThrow(expect.objectContaining({ field: "registrationDeadline" }));
+      expect(() => withDeadline().update({ date: "2026-11-25", title: "Otro título" })).toThrow(expect.objectContaining({ field: "registrationDeadline" }));
+    });
+
+    it("keeps a later date, and a date moved while registration is switched off", () => {
+      expect(withDeadline().update({ date: "2026-12-05" }).props.date).toBe("2026-12-05");
+      expect(withDeadline().update({ date: "2026-11-25", registrationMode: "none" }).props).toMatchObject({ date: "2026-11-25", registrationMode: "none" });
+    });
   });
 });

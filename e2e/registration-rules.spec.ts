@@ -3,6 +3,7 @@ import { REMINDER_SHARE_OF_DAILY_MAIL } from "@/domain/registration-reminder";
 import { createPrismaClient } from "@/infrastructure/prisma/create-client";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
+import { publish } from "./publish";
 import { confirmationLink, receivedMail, waitForMail } from "./support/mail-sink";
 import { openForm } from "./support/turnstile";
 
@@ -430,4 +431,19 @@ test.describe("D14 (R8): «Configurar inscripción» asks before a change that a
     expect((await eventRow(event)).registrationCapacity).toBe(1);
     expect(await prisma.eventRegistration.count({ where: { eventId: event.id } })).toBe(3);
   });
+});
+
+test("S4 (S3): moving the event's date before its registration's cierre is refused on the date, pointing to Inscripciones, and stores nothing", async ({ page }) => {
+  const event = await seedEvent("cierre", { registrationDeadline: new Date("2099-11-27T23:00:00.000Z") });
+
+  await logInAsAdmin(page);
+  await page.goto(`/admin/events/${event.id}/edit`, { waitUntil: "networkidle" });
+  await page.getByLabel("Fecha", { exact: true }).fill("2099-11-20");
+  await publish(page);
+
+  const date = page.getByLabel("Fecha", { exact: true });
+  await expect(date).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("El cierre de la inscripción no puede ser posterior al día del evento. Elija otra fecha o mueva el cierre en Inscripciones.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Datos del evento" }).getByRole("link", { name: "Gestionar inscripción" })).toHaveAttribute("href", `/admin/registrations/${event.id}/edit`);
+  expect((await eventRow(event)).date).toEqual(new Date("2099-11-28"));
 });

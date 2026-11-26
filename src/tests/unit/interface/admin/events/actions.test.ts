@@ -35,6 +35,9 @@ vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: 
 
 import { ImageTooSmallError, ValidationError } from "@/domain";
 import { NotFoundError } from "@/application";
+import { UpdateEventUseCase } from "@/application/use-cases/update-event.use-case";
+import { Event } from "@/domain/event";
+import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import * as actions from "@/interface/admin/events/actions";
 
 function form(fields: Record<string, string>): FormData {
@@ -186,6 +189,18 @@ describe("events server actions", () => {
       expect(sent).not.toHaveProperty("confirmRegistrationChange");
       expect(useCases.get.execute).not.toHaveBeenCalled();
       expect(useCases.registeredCount).not.toHaveBeenCalled();
+    });
+
+    it("refuses a date before the stored registration cierre (S4) on that setting, in Spanish, and keeps the event as stored", async () => {
+      const events = new InMemoryEventRepository();
+      const stored = Event.create({ title: "Taller", date: "2099-11-28", registrationMode: "open", registrationDeadline: new Date("2099-11-27T23:00:00.000Z") });
+      await events.create(stored);
+      useCases.update.execute.mockImplementation((command) => new UpdateEventUseCase(events).execute(command));
+
+      const result = await actions.updateEvent(stored.props.id, null, form({ title: "Taller", date: "2099-11-20" }));
+
+      expect(result).toEqual({ fieldErrors: { registrationDeadline: "El cierre de la inscripción no puede ser posterior al día del evento." } });
+      expect((await events.getById(stored.props.id))?.props.date).toBe("2099-11-28");
     });
 
     it("maps NotFoundError to a Spanish message", async () => {

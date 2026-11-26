@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { EventForm } from "../../../../app/admin/events/_components/event-form";
-import type { ActionResult } from "@/interface/admin/action-result";
+import { ValidationError } from "@/domain/domain-error";
+import { DEADLINE_AFTER_EVENT_MESSAGE } from "@/domain/event-registration";
+import { mapActionError, type ActionResult } from "@/interface/admin/action-result";
 import { EMPTY_EVENT_FORM_VALUES, type EventFormValues } from "@/interface/admin/events/event-form-values";
 import { click, mount, settle, typeInto, unmountAll } from "@/tests/support/dom";
 
@@ -161,6 +163,39 @@ describe("the event editor and the registration (S3)", () => {
     for (const key of ["registrationMode", "registrationCapacity", "registrationDeadline", "confirmRegistrationChange"]) {
       expect(sent(action).has(key)).toBe(false);
     }
+  });
+});
+
+describe("a date before the registration's cierre (S3, S4)", () => {
+  const refused: Action = async () => mapActionError(new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE));
+  const mountEditing = (registrationHref?: string) =>
+    mount(createElement(ToastProvider, null, createElement(EventForm, { action: refused, submitLabel: "Guardar cambios", registrationHref, initialValues: { ...EMPTY_EVENT_FORM_VALUES, title: "Taller", slug: "taller", date: "2099-11-28" } })));
+
+  it("shows the refusal on the date, which this form has, with the way to move the cierre in Inscripciones", async () => {
+    const host = await mountEditing("/admin/registrations/e1/edit");
+
+    await typeInto(field(host, "Fecha"), "2099-11-20");
+    await submit(host);
+    await settle();
+
+    const date = field(host, "Fecha");
+    const describedBy = date.getAttribute("aria-describedby")!.split(" ").map((id) => document.getElementById(id)?.textContent).join(" ");
+
+    expect(date.getAttribute("aria-invalid")).toBe("true");
+    expect(describedBy).toContain("El cierre de la inscripción no puede ser posterior al día del evento.");
+    expect(describedBy).toContain("Inscripciones");
+    expect(host.querySelector<HTMLAnchorElement>('a[href="/admin/registrations/e1/edit"]')?.textContent).toBe("Gestionar inscripción");
+  });
+
+  it("still shows it on the date without a link when the page gives none", async () => {
+    const host = await mountEditing();
+
+    await submit(host);
+    await settle();
+
+    expect(field(host, "Fecha").getAttribute("aria-invalid")).toBe("true");
+    expect(host.textContent).toContain("El cierre de la inscripción no puede ser posterior al día del evento.");
+    expect(host.querySelector('a[href^="/admin/registrations"]')).toBeNull();
   });
 });
 

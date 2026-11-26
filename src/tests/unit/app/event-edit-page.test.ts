@@ -8,7 +8,9 @@ vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: ev
 vi.mock("@/interface/admin/events/actions", () => ({ updateEvent: vi.fn() }));
 vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({}) }));
 // The form and the gallery have their own tests; here they only stand in for their sections.
-vi.mock("../../../../app/admin/events/_components/event-form", () => ({ EventForm: () => createElement("form", null, "event form") }));
+vi.mock("../../../../app/admin/events/_components/event-form", () => ({
+  EventForm: ({ registrationHref }: { registrationHref?: string }) => createElement("form", { "data-registration-href": registrationHref }, "event form"),
+}));
 vi.mock("../../../../app/admin/events/_components/photo-gallery", () => ({ PhotoGallery: () => createElement("section", null, "photo gallery") }));
 vi.mock("../../../../app/admin/events/_components/event-created-arrival", () => ({ EventCreatedArrival: () => createElement("div", { "data-testid": "created-arrival" }) }));
 vi.mock("next/navigation", () => ({
@@ -94,6 +96,14 @@ describe("the event edit page", () => {
     expect(block).toMatch(/Inscripción: Formulario abierto · 40 cupos · cierra 27 nov 2099/);
     expect(links(block)).toEqual(["Gestionar inscripción → /admin/registrations/e1/edit", "Ver inscripciones → /admin/events/e1/registrations"]);
     expect(block).not.toContain("<input");
+  });
+
+  it("tells the form where the registration is changed, so a date refused for the cierre can point there", async () => {
+    eventMock.mockResolvedValue(event({ registrationMode: "open" }));
+    expect(await render()).toContain('data-registration-href="/admin/registrations/e1/edit"');
+
+    eventMock.mockResolvedValue(event());
+    expect(await render()).not.toContain("data-registration-href");
   });
 
   it("says a registration without seats or deadline has no limit and closes with the event", async () => {

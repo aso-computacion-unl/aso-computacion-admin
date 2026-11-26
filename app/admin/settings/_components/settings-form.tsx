@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useReducer, useRef, type FormEvent } from "react";
+import { startTransition, useActionState, useEffect, useId, useReducer, useRef, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,10 @@ import {
   type SettingsValues,
 } from "@/interface/admin/settings/settings-editor-state";
 
+import { EditorGroup, SPAN } from "../../_components/editor-split";
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
 import { FormColumns, Panel } from "../../_components/form-layout";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, SiteSection, usePublishFlow } from "../../_components/publish-preview";
 import { collectFieldErrors, useFocusFirstInvalid, useUnsavedChangesGuard } from "../../_components/use-controlled-form";
 import { SETTINGS_PUBLISH_FIELDS, SettingsPreview } from "./settings-preview";
 import { SettingsReadView } from "./settings-read-view";
@@ -26,6 +27,9 @@ import { SettingsReadView } from "./settings-read-view";
 export type SettingsFormValues = SettingsValues;
 
 export const EMPTY_SETTINGS_FORM_VALUES: SettingsFormValues = { tagline: "", description: "", about: "" };
+
+/** The live preview beside the fields marks nothing: the changes are marked in the confirm dialog. */
+const NOTHING_CHANGED: ReadonlySet<string> = new Set();
 
 interface SettingsFormProps {
   action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
@@ -36,6 +40,8 @@ interface SettingsFormProps {
  * Shows the saved texts and opens the fields only on "Editar". The draft lives here (not in the fields);
  * the form is submitted by hand through `startTransition`, so a failed save keeps what was typed. The texts
  * are always live: "Publicar" checks the fields and asks with the preview, "Sí, publicar" sends them.
+ * Editing, the texts sit on the left and a live «Dónde se ve» panel on the right, with Publicar and Cancelar
+ * joined under it (no Publicado or schedule: nothing here is ever a draft).
  */
 export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUES }: SettingsFormProps) {
   const [state, dispatch] = useReducer(settingsEditorReducer, initialValues, createSettingsEditorState);
@@ -53,6 +59,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const previousMode = useRef(state.mode);
   const formRef = useRef<HTMLFormElement>(null);
+  const sideHeadingId = useId();
 
   useFocusFirstInvalid(state.result, formRef);
 
@@ -97,36 +104,25 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
     };
   }
 
-  return (
-    <FormColumns>
-      <Panel aria-label="Textos del sitio">
-        {editing ? (
-          <form ref={formRef} onSubmit={publish.ask} noValidate className="grid gap-5">
-            <Field label="Lema" count={{ length: state.draft.tagline.length, max: 120 }} error={errors.tagline}>
-              {(control) => <Input {...control} {...field("tagline")} ref={firstFieldRef} required maxLength={120} />}
-            </Field>
-            <Field label="Descripción" count={{ length: state.draft.description.length, max: 300 }} error={errors.description}>
-              {(control) => <Textarea {...control} {...field("description")} rows={3} required maxLength={300} />}
-            </Field>
-            <Field label="Acerca de" count={{ length: state.draft.about.length, max: 600 }} error={errors.about}>
-              {(control) => <Textarea {...control} {...field("about")} rows={8} required maxLength={600} />}
-            </Field>
-            <ActionBar status={<FormFeedback state={state.result} />}>
-              <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-                {isPending ? "Guardando…" : "Publicar"}
-              </Button>
-              <Button
-                type="button"
-                variant="line"
-                aria-disabled={isPending || undefined}
-                onClick={() => !isPending && dispatch({ type: "cancel" })}
-                className="min-h-12"
-              >
-                Cancelar
-              </Button>
-            </ActionBar>
-          </form>
-        ) : (
+  const dialog = publish.open ? (
+    <PublishPreview
+      before={onSite ? state.saved : null}
+      after={state.draft}
+      fields={SETTINGS_PUBLISH_FIELDS}
+      render={(shown, changed) => (
+        <>
+          <SiteSection number="01">Textos del sitio</SiteSection>
+          <SettingsPreview values={shown} changed={changed} />
+        </>
+      )}
+      {...publish.dialog}
+    />
+  ) : null;
+
+  if (!editing) {
+    return (
+      <FormColumns>
+        <Panel aria-label="Textos del sitio">
           <div className="grid gap-5">
             <SettingsReadView values={state.saved} />
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -137,17 +133,70 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
               </Button>
             </div>
           </div>
-        )}
+        </Panel>
+        {dialog}
+      </FormColumns>
+    );
+  }
+
+  // Two zones, as in the event editor: the texts on the 12-column grid on the left, «Dónde se ve» in a 22rem column
+  // on the right that stays in view. On a phone the side wrapper dissolves (`contents`): the preview follows the
+  // fields and the bar with Publicar and Cancelar sticks along the whole form.
+  return (
+    <form
+      ref={formRef}
+      onSubmit={publish.ask}
+      noValidate
+      aria-label="Textos del sitio"
+      className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]"
+    >
+      <Panel>
+        <EditorGroup title="Textos del sitio" purpose="Siempre publicados: no tienen borrador">
+          <Field label="Lema" count={{ length: state.draft.tagline.length, max: 120 }} error={errors.tagline} className={SPAN.text}>
+            {(control) => <Input {...control} {...field("tagline")} ref={firstFieldRef} required maxLength={120} />}
+          </Field>
+          <Field label="Descripción" count={{ length: state.draft.description.length, max: 300 }} error={errors.description} className={SPAN.row}>
+            {(control) => <Textarea {...control} {...field("description")} rows={3} required maxLength={300} />}
+          </Field>
+          <Field label="Acerca de" count={{ length: state.draft.about.length, max: 600 }} error={errors.about} className={SPAN.row}>
+            {(control) => <Textarea {...control} {...field("about")} rows={8} required maxLength={600} />}
+          </Field>
+        </EditorGroup>
       </Panel>
-      {publish.open ? (
-        <PublishPreview
-          before={onSite ? state.saved : null}
-          after={state.draft}
-          fields={SETTINGS_PUBLISH_FIELDS}
-          render={(shown, changed) => <SettingsPreview values={shown} changed={changed} />}
-          {...publish.dialog}
-        />
-      ) : null}
-    </FormColumns>
+
+      <aside aria-labelledby={sideHeadingId} data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block">
+        <div className="grid min-w-0 gap-4 rounded bg-card p-4 md:p-5 lg:rounded-b-none">
+          <h2 id={sideHeadingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded">
+            Dónde se ve
+          </h2>
+          <div className="grid min-w-0 gap-1.5">
+            <div role="group" aria-label="Así se verán en el sitio" className="min-w-0">
+              <SettingsPreview values={state.draft} changed={NOTHING_CHANGED} clamp />
+            </div>
+            <p className="font-mono text-xs text-mist">Lema: pestaña · Descripción: portada y buscadores · Acerca de: sección Nosotros</p>
+          </div>
+          <hr className="border-0 border-t border-border" />
+          <p className="text-[0.8125rem] leading-[1.4] text-mist">Estos textos están siempre en el sitio. «Publicar» muestra los cambios marcados y pide confirmación.</p>
+        </div>
+        <ActionBar
+          className="mx-0 mt-0 rounded md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none"
+          status={<FormFeedback state={state.result} />}
+        >
+          <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:flex-1">
+            {isPending ? "Guardando…" : "Publicar"}
+          </Button>
+          <Button
+            type="button"
+            variant="line"
+            aria-disabled={isPending || undefined}
+            onClick={() => !isPending && dispatch({ type: "cancel" })}
+            className="min-h-12 lg:flex-1"
+          >
+            Cancelar
+          </Button>
+        </ActionBar>
+      </aside>
+      {dialog}
+    </form>
   );
 }

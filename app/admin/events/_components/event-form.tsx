@@ -34,6 +34,8 @@ interface EventFormProps {
   autosave?: boolean;
   /** Where the event's registration is changed (Inscripciones), when it has one: a refused date points there. */
   registrationHref?: string;
+  /** A new event whose kind is already chosen (Inscripciones creates only events with registration): no kind selector. */
+  fixedKind?: "registration";
 }
 
 const TYPE_OPTIONS = [
@@ -88,8 +90,8 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * everything the owner typed (React 19 resets uncontrolled fields after a
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
-export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registrationHref }: EventFormProps) {
-  const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, {
+export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registrationHref, fixedKind }: EventFormProps) {
+  const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, fixedKind ? { ...initialValues, eventKind: fixedKind } : initialValues, {
     serialize: formValuesToFormData,
     autosave,
   });
@@ -111,17 +113,18 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
     });
   }
 
-  // A new «Evento con inscripción» has the cierre here. Otherwise a date before the registration's cierre is refused on
-  // `registrationDeadline`, which this form does not have (it is set in Inscripciones), so it shows on the date.
+  // A new «Evento con inscripción» has the cierre here; a new announcement sends none, so a cierre refused before the
+  // kind switched is not its own. Editing, a date before the registration's cierre is refused on `registrationDeadline`,
+  // which this form does not have (it is set in Inscripciones), so it shows on the date.
   const withRegistration = !isEditing && values.eventKind === "registration";
-  const deadlineError = withRegistration ? undefined : errors.registrationDeadline;
+  const deadlineError = isEditing ? errors.registrationDeadline : undefined;
   const dateError = errors.date ?? (deadlineError ? `${deadlineError} Elija otra fecha o mueva el cierre en Inscripciones.` : undefined);
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
     <form ref={formRef} onSubmit={handleFormSubmit} noValidate>
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        {isEditing ? null : (
+        {isEditing || fixedKind ? null : (
           <Segmented
             legend="Tipo de evento"
             name="eventKind"

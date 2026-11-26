@@ -6,8 +6,6 @@ import {
   DeactivateEventPhotoUseCase,
   GetEventUseCase,
   ListEventsUseCase,
-  ListRegistrationCandidatesUseCase,
-  OpenEventRegistrationUseCase,
   ReorderEventPhotosUseCase,
   SetEventPublishedUseCase,
   UpdateEventPhotoAltUseCase,
@@ -34,9 +32,7 @@ function createEventUseCases() {
     create: new CreateEventUseCase(events),
     update: new UpdateEventUseCase(events),
     setPublished: new SetEventPublishedUseCase(events),
-    /** Registration settings from the Inscripciones area: the events it can open, opening one, changing or turning it off. */
-    registrationCandidates: new ListRegistrationCandidatesUseCase(events),
-    openRegistration: new OpenEventRegistrationUseCase(events),
+    /** Registration settings from the Inscripciones area: changing or turning it off. */
     changeRegistration: new ChangeEventRegistrationUseCase(events),
     trash: new TrashContentUseCase(events, "Event not found"),
     attachPhoto: new AttachEventPhotoUseCase(events, photos, new UploadImageUseCase(storage), storage),

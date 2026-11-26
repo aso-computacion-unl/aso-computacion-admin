@@ -10,8 +10,6 @@ interface RegistrationsEmptyStateProps {
   slug: string;
   mode: "none" | "unl" | "open";
   isPublished: boolean;
-  /** The event already happened (`isEventOver`): a registration can no longer be created for it. */
-  isOver: boolean;
   /** The public origin of this admin; undefined while `AUTH_URL` is not configured. */
   adminOrigin: string | undefined;
 }
@@ -19,32 +17,18 @@ interface RegistrationsEmptyStateProps {
 const EMPTY = "Todavía no hay inscripciones.";
 
 /** Why the list is empty depends on how the event takes registration; the action is the one next step for that case. */
-export function RegistrationsEmptyState({ eventId, slug, mode, isPublished, isOver, adminOrigin }: RegistrationsEmptyStateProps) {
+export function RegistrationsEmptyState({ eventId, slug, mode, isPublished, adminOrigin }: RegistrationsEmptyStateProps) {
   const editLink = (
     <Link href={`/admin/events/${eventId}/edit`} className="font-semibold underline underline-offset-4">
       Editar el evento
     </Link>
   );
 
-  if (mode === "none" && isOver) {
+  // An announcement never takes registration (event-kinds S1).
+  if (mode === "none") {
     return (
       <EmptyState icon="board">
         Este evento no pide inscripción.
-      </EmptyState>
-    );
-  }
-
-  if (mode === "none") {
-    return (
-      <EmptyState
-        icon="board"
-        action={
-          <Link href={`/admin/registrations/new?evento=${encodeURIComponent(eventId)}`} className="font-semibold underline underline-offset-4">
-            Crear inscripción
-          </Link>
-        }
-      >
-        Este evento no pide inscripción. Créela desde Inscripciones si desea recibir inscritos.
       </EmptyState>
     );
   }

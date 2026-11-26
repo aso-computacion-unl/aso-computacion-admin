@@ -9,12 +9,15 @@ type Role = "ADMIN" | "EDITOR";
 /**
  * The authorization and audit policy of every server action, in one place. EDITOR: create, edit,
  * publish, reorder, trash and restore content. ADMIN only: settings, permanent deletion, users,
- * other people's sessions and the audit log. `audit` is the entry the action writes on success.
+ * other people's sessions and the audit log. `audit` is the entry the action writes on success, or its entries
+ * newest first when it writes more than one.
  * A new action fails its suite until it has a row here.
  */
-export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: string }>> = {
+export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: string | string[] }>> = {
   "src/interface/admin/events/actions.ts": {
     createEvent: { role: "EDITOR", audit: "event.create" },
+    // Always an event with registration: its creation and its registration, as a creation from Eventos with that kind.
+    createEventWithRegistration: { role: "EDITOR", audit: ["event.registration_open", "event.create"] },
     updateEvent: { role: "EDITOR", audit: "event.update" },
     setEventPublished: { role: "EDITOR", audit: "event.publish" },
     trashEvent: { role: "EDITOR", audit: "event.trash" },
@@ -27,7 +30,6 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     // Registrations hold personal data: editors may look, only an ADMIN may delete one.
     deleteEventRegistration: { role: "ADMIN", audit: "event.registration_delete" },
     // Setting up a registration is editing the event: any signed-in user, like `updateEvent`.
-    openEventRegistration: { role: "EDITOR", audit: "event.registration_open" },
     updateEventRegistration: { role: "EDITOR", audit: "event.registration_update" },
   },
   "src/interface/admin/news/actions.ts": {
@@ -191,14 +193,14 @@ export function registerPolicyCases(suite: PolicySuite): void {
 
   describe.each(names)("%s", (name) => {
     const call = () => suite.actionCalls[name]!();
-    const expectedAudit = policy[name]?.audit;
+    const expectedAudit = [policy[name]?.audit ?? []].flat();
 
     it("records its audit entry for an ADMIN, attributed to them", async () => {
       cookieJar(suite.cookiesMock, await signInAs("ADMIN"));
 
       await outcomeOf(call);
 
-      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.actorKind, entry.actorUserId])).toEqual([[expectedAudit, "user", "test-admin"]]);
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.actorKind, entry.actorUserId])).toEqual(expectedAudit.map((action) => [action, "user", "test-admin"]));
     });
   });
 
@@ -211,7 +213,7 @@ export function registerPolicyCases(suite: PolicySuite): void {
       const result = await outcomeOf(call);
 
       expect(result).not.toEqual({ error: FORBIDDEN_MESSAGE });
-      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.actorUserId])).toEqual([[policy[name]?.audit, "test-editor"]]);
+      expect(testAuth.audit.entries.map((entry) => [entry.action, entry.actorUserId])).toEqual([policy[name]?.audit ?? []].flat().map((action) => [action, "test-editor"]));
     });
   });
 

@@ -30,7 +30,7 @@ vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: getEventUseCasesMock }));
 
 import { AUTH_COOKIE_NAME } from "@/infrastructure/auth/session-jwt";
-import { signInAs } from "@/tests/support/test-auth";
+import { signInAs, testAuth } from "@/tests/support/test-auth";
 import * as actions from "@/interface/admin/events/actions";
 import { registerPolicyCases } from "@/tests/support/action-policy";
 import { expectGuardFirstInEveryAction } from "@/tests/support/guard-first";
@@ -40,6 +40,12 @@ const SESSION_EXPIRED = { error: "Su sesión expiró. Inicie sesión de nuevo." 
 function eventForm(): FormData {
   const form = new FormData();
   form.set("title", "Hackatón 24h");
+  return form;
+}
+
+function registrationEventForm(): FormData {
+  const form = eventForm();
+  form.set("registrationMode", "open");
   return form;
 }
 
@@ -53,6 +59,7 @@ function photoForm(): FormData {
 // One entry per exported action: the test below fails when an action is added without a case here.
 const ACTION_CALLS: Record<string, () => Promise<unknown>> = {
   createEvent: () => actions.createEvent(null, eventForm()),
+  createEventWithRegistration: () => actions.createEventWithRegistration(null, registrationEventForm()),
   updateEvent: () => actions.updateEvent("event-1", null, eventForm()),
   setEventPublished: () => actions.setEventPublished("event-1", true),
   trashEvent: () => actions.trashEvent("event-1"),
@@ -119,6 +126,31 @@ describe("events server actions require an admin session (L9)", () => {
 
   it("the guard is the first statement of every action", () => {
     expect(expectGuardFirstInEveryAction("src/interface/admin/events/actions.ts").sort()).toEqual(Object.keys(ACTION_CALLS).sort());
+  });
+
+  it("audits a creation with registration as two entries on the new event: created, then its registration (event-kinds R1-001)", async () => {
+    cookieJar(await signInAs("EDITOR"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const withKind = registrationEventForm();
+    withKind.set("eventKind", "registration");
+    const summaries = () => testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.summary]);
+    // Newest first, as the log lists them.
+    const expected = [
+      ["event.registration_open", "event", "event-1", "Inscripción creada en un evento"],
+      ["event.create", "event", "event-1", "Evento creado"],
+    ];
+
+    testAuth.audit.entries.length = 0;
+    await expect(actions.createEvent(null, withKind)).rejects.toThrow("REDIRECT");
+    expect(summaries()).toEqual(expected);
+
+    testAuth.audit.entries.length = 0;
+    await expect(actions.createEventWithRegistration(null, registrationEventForm())).rejects.toThrow("REDIRECT");
+    expect(summaries()).toEqual(expected);
+
+    testAuth.audit.entries.length = 0;
+    await expect(actions.createEvent(null, eventForm())).rejects.toThrow("REDIRECT");
+    expect(summaries()).toEqual([["event.create", "event", "event-1", "Evento creado"]]);
   });
 
   describe("role matrix and audit", () => {

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
-import { createRegistration } from "./registration";
+import { chooseRegistration } from "./registration";
 import { openForm } from "./support/turnstile";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
@@ -17,12 +17,13 @@ async function logInAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
-/** Creates a published event through the admin form, and its registration in Inscripciones; returns its id and public slug. The browser stays signed in as admin. */
+/** Creates a published event through the admin form, as «Evento con inscripción» unless `mode` is "none"; returns its id and public slug. The browser stays signed in as admin. */
 async function createEvent(page: Page, title: string, { mode, date = "2099-11-28", capacity }: { mode: Mode; date?: string; capacity?: number }) {
   // Wait for the form to hydrate: a switch clicked before that is reset when React takes the form over.
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
   await page.getByLabel("Título").fill(title);
   await page.getByLabel("Fecha", { exact: true }).fill(date);
+  if (mode !== "none") await chooseRegistration(page, { mode, capacity });
   await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
@@ -34,8 +35,6 @@ async function createEvent(page: Page, title: string, { mode, date = "2099-11-28
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit#fotos$/);
 
   const id = /\/admin\/events\/([^/]+)\/edit(?:#fotos)?$/.exec(page.url())![1]!;
-
-  if (mode !== "none") await createRegistration(page, id, { mode, capacity });
 
   return { id, slug: title.toLowerCase().replaceAll(" ", "-") };
 }

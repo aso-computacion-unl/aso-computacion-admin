@@ -70,12 +70,13 @@ const registrationKindSchema = z.object({
 
 /**
  * Reads the create form: the event fields and, only for «Evento con inscripción», its registration settings. An
- * announcement ignores any registration key the post carries.
+ * announcement ignores any registration key the post carries. `withRegistration` is the kind the post names, unless the
+ * caller fixes it (Inscripciones only creates events with registration).
  */
-export function parseCreateEventFormData(formData: FormData) {
+export function parseCreateEventFormData(formData: FormData, withRegistration = formData.get("eventKind") === EVENT_KIND_REGISTRATION) {
   const event = parseEventFormData(formData);
 
-  if (formData.get("eventKind") !== EVENT_KIND_REGISTRATION) {
+  if (!withRegistration) {
     return event;
   }
 

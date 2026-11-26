@@ -122,7 +122,18 @@ describe("events server actions", () => {
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
-    it("an announcement (no «Evento con inscripción») never sets a registration, even when the post carries its settings", async () => {
+    it.each([
+      ["registrationCapacity", { registrationCapacity: "0" }],
+      ["registrationDeadline", { registrationDeadline: "27/11/2026" }],
+    ])("reports a refused %s of «Evento con inscripción» on its field and creates nothing", async (fieldName, setting) => {
+      const result = await actions.createEvent(null, form({ title: "Taller", eventKind: "registration", registrationMode: "open", ...setting }));
+
+      expect(Object.keys(result.fieldErrors ?? {})).toEqual([fieldName]);
+      expect(useCases.create.execute).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+  it("an announcement (no «Evento con inscripción») never sets a registration, even when the post carries its settings", async () => {
       useCases.create.execute.mockResolvedValue({ id: "new-id" });
 
       await expect(actions.createEvent(null, form({ title: "Taller", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" }))).rejects.toThrow("REDIRECT");
@@ -180,6 +191,48 @@ describe("events server actions", () => {
       expect(log).toHaveBeenCalled();
     });
   });
+
+  describe("createEventWithRegistration (event-kinds S3, S4)", () => {
+    it("creates a new event with registration even when the post names no kind, and lands on its registrations panel, flagged as saved", async () => {
+      useCases.create.execute.mockResolvedValue({ id: "new-id", isPublished: false });
+
+      await expect(
+        actions.createEventWithRegistration(null, form({ title: "Taller", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" })),
+      ).rejects.toThrow("REDIRECT");
+
+      expect(useCases.create.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Taller", registrationMode: "open", registrationCapacity: 30, registrationDeadline: new Date("2026-11-27T23:00:00.000Z") }),
+      );
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events");
+      expect(revalidatePathMock).toHaveBeenCalledWith("/admin/registrations");
+      expect(redirectMock).toHaveBeenCalledWith("/admin/registrations?evento=new-id&guardada=1");
+    });
+
+    it("refuses without a session before reading the post: nothing is created", async () => {
+      requireSessionMock.mockRejectedValueOnce(new Error("no session"));
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      const result = await actions.createEventWithRegistration(null, form({ title: "Taller", registrationMode: "open" }));
+
+      expect(result.error).toBeTruthy();
+      expect(useCases.create.execute).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["registrationMode", { eventKind: "announcement" }],
+      ["registrationMode", { registrationMode: "none" }],
+      ["registrationCapacity", { registrationMode: "unl", registrationCapacity: "0" }],
+      ["registrationDeadline", { registrationMode: "unl", registrationDeadline: "mañana" }],
+    ])("refuses an invalid registration on %s (%o) and creates nothing", async (fieldName, fields) => {
+      const result = await actions.createEventWithRegistration(null, form({ title: "Taller", ...fields }));
+
+      expect(Object.keys(result.fieldErrors ?? {})).toEqual([fieldName]);
+      expect(useCases.create.execute).not.toHaveBeenCalled();
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    });
 
   describe("updateEvent", () => {
     it("updates by id with the parsed fields and revalidates the list and the edit page", async () => {

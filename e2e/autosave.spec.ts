@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
+import { chooseRegistration } from "./registration";
 
 /*
  * S6: an unpublished draft that is being edited saves by itself once the typing stops ("Guardado");
@@ -119,11 +120,12 @@ test("the rail asks before it leaves unsaved changes, and leaves only on 'Salir 
 test("a link inside a page's own content asks before it leaves unsaved changes, and leaves only on 'Salir sin guardar'", async ({ page }) => {
   await logInAsAdmin(page);
 
-  // A published upcoming event without registration: its edit page links to «Crear inscripción» from its own content, and
+  // A published event with registration: its edit page links to «Gestionar inscripción» from its own content, and
   // a published item never autosaves, so the change stays unsaved.
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
   await page.getByLabel("Título").fill(`E2E enlace ${STAMP}`);
   await page.getByLabel("Fecha", { exact: true }).fill("2099-11-28");
+  await chooseRegistration(page, { mode: "open" });
   await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
@@ -134,7 +136,7 @@ test("a link inside a page's own content asks before it leaves unsaved changes, 
 
   await page.getByLabel("Título").fill(`E2E enlace ${STAMP} sin guardar`);
 
-  const link = page.getByRole("link", { name: "Crear inscripción" });
+  const link = page.getByRole("link", { name: "Gestionar inscripción" });
   const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
 
   await link.click();
@@ -149,7 +151,7 @@ test("a link inside a page's own content asks before it leaves unsaved changes, 
 
   await link.click();
   await question.getByRole("button", { name: "Salir sin guardar" }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/registrations/new\\?evento=${id}$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations/${id}/edit$`));
 });
 
 test.describe("on a phone", () => {

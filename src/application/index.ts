@@ -214,12 +214,8 @@ export { ListEventSeatsUseCase } from "./event-registration/list-event-seats.use
 export type { EventSeats } from "./event-registration/list-event-seats.use-case";
 export { ListRegistrationOverviewUseCase } from "./event-registration/list-registration-overview.use-case";
 export type { RegistrationOverview, RegistrationOverviewRow } from "./event-registration/list-registration-overview.use-case";
-export {
-  ChangeEventRegistrationUseCase,
-  ListRegistrationCandidatesUseCase,
-  OpenEventRegistrationUseCase,
-} from "./event-registration/event-registration-settings.use-cases";
-export type { EventRegistrationCommand, RegistrationCandidate } from "./event-registration/event-registration-settings.use-cases";
+export { ChangeEventRegistrationUseCase } from "./event-registration/event-registration-settings.use-cases";
+export type { EventRegistrationCommand } from "./event-registration/event-registration-settings.use-cases";
 export { buildEventRegistrationServices } from "./event-registration/event-registration-services";
 export type { EventRegistrationServices } from "./event-registration/event-registration-services";
 export { GetPublicEventUseCase } from "./use-cases/get-public-event.use-case";

@@ -192,6 +192,36 @@ describe("the kind of a new event (event-kinds S1-S3)", () => {
     expect(field(host, "Fecha").getAttribute("aria-invalid")).not.toBe("true");
   });
 
+  it("switching to «Evento» drops a cierre refused for «Evento con inscripción»: it never shows on Fecha (R3-002)", async () => {
+    const host = await mountForm(async () => mapActionError(new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE)));
+
+    await click(kind(host, "registration")!);
+    await typeInto(field(host, "Título"), "Taller");
+    await submit(host);
+    await settle();
+    await click(kind(host, "announcement")!);
+
+    expect(field(host, "Fecha").getAttribute("aria-invalid")).not.toBe("true");
+    expect(host.textContent).not.toContain(DEADLINE_AFTER_EVENT_MESSAGE);
+  });
+
+  it("fixed to «Evento con inscripción» (Inscripciones, S3-S4): no kind to choose, the registration fields shown and sent with the kind", async () => {
+    const action = vi.fn(ok);
+    const host = await mount(createElement(ToastProvider, null, createElement(EventForm, { action, submitLabel: "Crear inscripción", fixedKind: "registration" })));
+
+    expect(host.querySelector('input[name="eventKind"]')).toBeNull();
+    expect(labelled(host, "Cupos")).toBeDefined();
+
+    await typeInto(field(host, "Título"), "Taller");
+    await typeInto(field(host, "Cupos"), "30");
+    await submit(host);
+    await settle();
+
+    expect(sent(action).get("eventKind")).toBe("registration");
+    expect(sent(action).get("registrationMode")).toBe("unl");
+    expect(sent(action).get("registrationCapacity")).toBe("30");
+  });
+
   it("is not offered when editing an event", async () => {
     const host = await mount(createElement(ToastProvider, null, createElement(EventForm, { action: ok, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, title: "Taller", slug: "taller" } })));
 

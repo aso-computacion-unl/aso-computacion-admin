@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { RegistrationCandidate } from "@/application";
+import type { EventResult } from "@/application";
 import { formatEventDate } from "@/interface/admin/events/event-timeline";
 
 import { Panel } from "../../_components/form-layout";
@@ -10,7 +10,7 @@ import { Stamp } from "../../_components/timeline-parts";
  * The event a registration belongs to, read-only: its title, date and place come from the event (S1), so they are
  * changed by editing the event, never typed again here.
  */
-export function RegistrationEventSummary({ event }: { event: RegistrationCandidate }) {
+export function RegistrationEventSummary({ event }: { event: Pick<EventResult, "id" | "title" | "date" | "datePrecision" | "lugar" | "isPublished"> }) {
   return (
     <Panel aria-label="Evento" className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">

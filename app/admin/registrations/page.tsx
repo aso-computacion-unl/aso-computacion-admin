@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { getAdminEventRegistrations } from "@/interface/admin/event-registrations/registrations-admin-read";
 import { getAdminRegistrationOverview } from "@/interface/admin/event-registrations/registrations-overview-admin-read";
+import { SAVED_FLAG } from "@/interface/admin/event-registrations/saved-flag";
 import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
@@ -12,15 +14,22 @@ import { PageHeader } from "../_components/page-header";
 import { EventList } from "./_components/event-list";
 import { PeoplePane } from "./_components/people-pane";
 import { defaultEvent } from "./_components/registration-format";
+import { RegistrationSavedArrival } from "./_components/registration-saved-arrival";
 
 // Counts and personal data that change with every registration: never prerendered.
 export const dynamic = "force-dynamic";
 
+const NEW_PATH = "/admin/registrations/new";
+
 // Below `xl` the two panes are two screens: the events first, the people once one is chosen.
 const ONLY_ON_WIDE = "max-xl:hidden";
 
-export default async function RegistrationsPage({ searchParams }: { searchParams: Promise<{ evento?: string | string[] }> }) {
-  const { evento } = await searchParams;
+interface RegistrationsPageProps {
+  searchParams: Promise<{ evento?: string | string[]; [SAVED_FLAG]?: string | string[] }>;
+}
+
+export default async function RegistrationsPage({ searchParams }: RegistrationsPageProps) {
+  const { evento, [SAVED_FLAG]: saved } = await searchParams;
   const { upcoming, past } = await getAdminRegistrationOverview();
   const rows = [...upcoming, ...past];
   const registered = rows.reduce((total, row) => total + row.registered, 0);
@@ -31,18 +40,30 @@ export default async function RegistrationsPage({ searchParams }: { searchParams
 
   return (
     <PageFrame>
-      <PageHeader title="Inscripciones" status={`${pluralize(rows.length, "evento", "eventos")} · ${pluralize(registered, "inscrito", "inscritos")}`} />
+      <PageHeader
+        title="Inscripciones"
+        status={`${pluralize(rows.length, "evento", "eventos")} · ${pluralize(registered, "inscrito", "inscritos")}`}
+        action={
+          <Button asChild>
+            <Link href={NEW_PATH}>
+              <Icon name="plus" />
+              Crear inscripción
+            </Link>
+          </Button>
+        }
+      />
+      {chosen && saved === "1" ? <RegistrationSavedArrival eventId={chosen.id} /> : null}
 
       {rows.length === 0 ? (
         <EmptyState
           icon="events"
           action={
             <Button asChild variant="line">
-              <Link href="/admin/events">Ir a los eventos</Link>
+              <Link href={NEW_PATH}>Crear inscripción</Link>
             </Button>
           }
         >
-          Ningún evento pide inscripción todavía. Elija una forma de inscripción al editar un evento.
+          Ningún evento pide inscripción todavía. Cree una eligiendo un evento próximo.
         </EmptyState>
       ) : (
         <div className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:items-start">

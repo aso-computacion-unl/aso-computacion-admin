@@ -213,7 +213,8 @@ A published event has one registration mode: `none`, `unl` (students, with their
 
 ### R8. An admin sets up registration on an event
 
-- **Entry**: the event form, "Tiene inscripción" switch, "Cuenta UNL" / "Formulario abierto", "Cupos" (1-5000, empty = no limit), "Cierre" (Ecuador time, empty = when the day passes).
+- **Entry**: Inscripciones (`/admin/registrations`), «+ Crear inscripción» (also on the empty panel): pick an upcoming event without registration, published or draft (each shows its date, place and «Borrador» for a draft; none: "No hay eventos próximos sin inscripción." with «Crear un evento»), then set "Cuenta UNL" / "Formulario abierto", "Cupos" (1-5000, empty = no limit), "Cierre" (Ecuador time, empty = when the day passes). The event's title, date and place are shown read-only with «Editar el evento»: they come from the event, never typed again. «Crear inscripción» saves and shows the event selected in the panel with "Inscripción creada.". A past event is not offered, and one that already has registration, is over or does not exist is refused by the server too. A draft's registration shows on the site once the event is published.
+- **Changing it**: still from the event form's "Tiene inscripción" section; both save the same settings with the same rules.
 - **Where people register**: both modes on `/inscripciones/<slug>`, which is also listed at `/inscripciones` (R3) while it is open; the admin copies that link from R9.
 - **Errors**: "Elija una forma de inscripción de la lista.", "Indique un número entero de 1 a 5000.", "Indique una fecha y hora válidas."
 - **Dates (S4)**: opening or changing the registration of an event whose day has passed in Ecuador is refused: "El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar." A "Cierre" after the event's day is refused, also when the event's date is moved before a stored "Cierre": "El cierre de la inscripción no puede ser posterior al día del evento." Both are shown with the other errors of the same save. Saving other fields of a past event with its registration unchanged, or switching registration off, still works.
@@ -222,7 +223,7 @@ A published event has one registration mode: `none`, `unl` (students, with their
 ### R9. Staff see, delete and export registrations
 
 - **Actor**: editor and admin see; only admin deletes and exports. **Entry**: `/admin/registrations?evento=<id>` (`/admin/events/<id>/registrations` redirects there).
-- **Sees**: upcoming and past events on the left, the registrants table on the right; empty: "Ningún evento pide inscripción todavía…".
+- **Sees**: «+ Crear inscripción» (R8), upcoming and past events on the left, the registrants table on the right with «Editar evento»; empty: "Ningún evento pide inscripción todavía. Cree una eligiendo un evento próximo." with «Crear inscripción».
 - **Delete**: "Se borrarán los datos de X y se liberará su cupo." / "Esta acción no se puede deshacer." Audited without the name.
 - **Export CSV**: spreadsheet-safe, audited with the count only. Editor → 403.
 - **Empty states per event**: no registration, not published, and UNL or open: the copyable link `/inscripciones/<slug>` with "Copiar link" (D15; without `AUTH_URL` it shows the path and names the missing setting). The open-form text no longer points to the landing card.
@@ -271,7 +272,7 @@ Taken with the product owner on 2026-11-09. The journeys above describe today's 
 | D11 | R5 | Clear message | **Built** (`e2e/registration-rules.spec.ts`). The confirm page of an event no longer open says "Este evento ya no recibe inscripciones" instead of a 404 |
 | D12 | R4, R6 | Reserve budget for confirmations | **Built** (`src/tests/unit/application/event-registration/reminder-budget-share.test.ts`, `e2e/registration-rules.spec.ts` for the confirmation side). Reminders use at most 70 % of the daily email cap (rounded down, mail already sent that day counts); the rest stays for confirmation emails, which may use the whole remaining cap |
 | D13 | R6 | No reminder | People who register less than a day before get no reminder (unchanged) |
-| D14 | R8 | Warn and confirm | **Built** (`e2e/registration-rules.spec.ts`). Changing the mode or lowering seats below the registered (confirmed) count asks "Este evento ya tiene N inscritos…" before saving and states the consequence; the server refuses the save without the confirmation |
+| D14 | R8 | Warn and confirm | **Built** (`e2e/registration-rules.spec.ts`). Changing the mode or lowering seats below the registered (confirmed) count asks "Este evento ya tiene N inscritos…" before saving and states the consequence; the server refuses the save without the confirmation. |
 | D15 | R9 | Copyable link | **Built** (`e2e/audit-registration.spec.ts`). Open events show the copyable `/inscripciones/<slug>` link in the admin, like UNL |
 
 Found while mapping coverage:

@@ -1,14 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { cookiesMock, getServicesMock, revalidatePathMock, remove } = vi.hoisted(() => {
+const { cookiesMock, getServicesMock, getEventUseCasesMock, revalidatePathMock, redirectMock, remove } = vi.hoisted(() => {
   const remove = { execute: vi.fn(async () => undefined) };
+  const saved = () => ({ execute: vi.fn(async () => ({ id: "event-1", isPublished: false })) });
+  const eventUseCases = { openRegistration: saved() };
 
-  return { cookiesMock: vi.fn(), getServicesMock: vi.fn(() => ({ remove })), revalidatePathMock: vi.fn(), remove };
+  return {
+    cookiesMock: vi.fn(),
+    getServicesMock: vi.fn(() => ({ remove })),
+    getEventUseCasesMock: vi.fn(() => eventUseCases),
+    revalidatePathMock: vi.fn(),
+    redirectMock: vi.fn(() => {
+      throw new Error("REDIRECT");
+    }),
+    remove,
+  };
 });
 
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/interface/public/event-registration-container", () => ({ getEventRegistrationServices: getServicesMock }));
+vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: getEventUseCasesMock }));
 
 import { NotFoundError } from "@/application";
 import * as actions from "@/interface/admin/event-registrations/actions";
@@ -19,12 +32,23 @@ import { signInAs, testAuth } from "@/tests/support/test-auth";
 const SUITE = {
   actionsPath: "src/interface/admin/event-registrations/actions.ts",
   actions,
-  actionCalls: { deleteEventRegistration: () => actions.deleteEventRegistration("event-1", "registration-1") },
+  actionCalls: {
+    deleteEventRegistration: () => actions.deleteEventRegistration("event-1", "registration-1"),
+    openEventRegistration: () => actions.openEventRegistration("event-1", null, registrationForm()),
+  },
   cookiesMock,
-  untouchedMocks: [getServicesMock, revalidatePathMock],
+  untouchedMocks: [getServicesMock, getEventUseCasesMock, revalidatePathMock, redirectMock],
 };
 
-describe("event registration server actions require a session and an ADMIN", () => {
+function registrationForm(): FormData {
+  const form = new FormData();
+  form.set("registrationMode", "open");
+  form.set("registrationCapacity", "");
+  form.set("registrationDeadline", "");
+  return form;
+}
+
+describe("event registration server actions require a session; deleting takes an ADMIN", () => {
   registerAdminActionAuthCases(SUITE);
   registerPolicyCases(SUITE);
 
@@ -46,5 +70,15 @@ describe("event registration server actions require a session and an ADMIN", () 
 
     expect(await actions.deleteEventRegistration("event-1", "gone")).toEqual({ error: "No se encontró la inscripción." });
     expect(testAuth.audit.entries).toEqual([]);
+  });
+
+  it("audits opening a registration on the event, like an event edit", async () => {
+    cookieJar(cookiesMock, await signInAs("EDITOR"));
+
+    await expect(actions.openEventRegistration("event-1", null, registrationForm())).rejects.toThrow("REDIRECT");
+
+    expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.summary])).toEqual([
+      ["event.registration_open", "event", "event-1", "Inscripción creada en un evento"],
+    ]);
   });
 });

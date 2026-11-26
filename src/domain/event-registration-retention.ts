@@ -32,6 +32,11 @@ export function eventLastDay(date: string, precision: "day" | "month"): string {
   return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 }
 
+/** The event's last possible day is before today in Ecuador. Without a date nothing says it happened, so it is never over. */
+export function isEventOver(event: RetainedEvent, now: Date): boolean {
+  return event.date !== null && eventLastDay(event.date, event.datePrecision) < todayInEcuador(now);
+}
+
 /**
  * The instant from which the registrations of an event are deleted: 90 full days after its last day ends
  * (midnight Ecuador), inclusive. `null` when the event has no date, because nothing says when it ended.

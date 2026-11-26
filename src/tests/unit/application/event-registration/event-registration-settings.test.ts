@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { NotFoundError } from "@/application";
-import { ListRegistrationCandidatesUseCase, OpenEventRegistrationUseCase } from "@/application/event-registration/event-registration-settings.use-cases";
+import {
+  ChangeEventRegistrationUseCase,
+  ListRegistrationCandidatesUseCase,
+  OpenEventRegistrationUseCase,
+} from "@/application/event-registration/event-registration-settings.use-cases";
 import { type CreateEventInput } from "@/domain/event";
 import { PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE } from "@/domain/event-registration";
 import { ValidationError } from "@/domain";
@@ -109,5 +113,38 @@ describe("OpenEventRegistrationUseCase", () => {
     const event = await addEvent("Taller", { date: "2099-11-28" });
 
     expect((await refusal(open({ eventId: event.id, registrationMode: "unl", registrationDeadline: new Date("2099-12-01T12:00:00.000Z") })))[0]).toBe("registrationDeadline");
+  });
+});
+
+describe("ChangeEventRegistrationUseCase", () => {
+  const change = (command: Parameters<ChangeEventRegistrationUseCase["execute"]>[0]) => new ChangeEventRegistrationUseCase(events).execute(command);
+
+  it("changes the registration settings and nothing else", async () => {
+    const event = await addEvent("Taller", { registrationMode: "unl", registrationCapacity: 10, hora: "09:00" });
+
+    await change({ eventId: event.id, registrationMode: "open", registrationCapacity: null, registrationDeadline: null });
+
+    expect(await stored(event.id)).toMatchObject({ registrationMode: "open", registrationCapacity: null, registrationDeadline: null, title: "Taller", hora: "09:00", lugar: "Laboratorio 2" });
+  });
+
+  it("turns the registration off, clearing its seats and deadline", async () => {
+    const event = await addEvent("Taller", { registrationMode: "open", registrationCapacity: 10 });
+
+    await change({ eventId: event.id, registrationMode: "none", registrationCapacity: 10, registrationDeadline: null });
+
+    expect(await stored(event.id)).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+  });
+
+  it("refuses an event that does not exist", async () => {
+    await expect(change({ eventId: "missing", registrationMode: "none" })).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("refuses changing the registration of a past event, but lets it be turned off", async () => {
+    const past = storedEvent({ title: "Antiguo", date: "2020-05-10", isPublished: true, registrationMode: "unl" });
+    await events.create(past);
+
+    expect(await refusal(change({ eventId: past.props.id, registrationMode: "open" }))).toEqual(["registrationMode", PAST_EVENT_REGISTRATION_MESSAGE]);
+    await change({ eventId: past.props.id, registrationMode: "none" });
+    expect((await stored(past.props.id)).registrationMode).toBe("none");
   });
 });

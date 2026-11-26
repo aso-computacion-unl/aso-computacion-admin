@@ -215,6 +215,7 @@ export type { EventSeats } from "./event-registration/list-event-seats.use-case"
 export { ListRegistrationOverviewUseCase } from "./event-registration/list-registration-overview.use-case";
 export type { RegistrationOverview, RegistrationOverviewRow } from "./event-registration/list-registration-overview.use-case";
 export {
+  ChangeEventRegistrationUseCase,
   ListRegistrationCandidatesUseCase,
   OpenEventRegistrationUseCase,
 } from "./event-registration/event-registration-settings.use-cases";

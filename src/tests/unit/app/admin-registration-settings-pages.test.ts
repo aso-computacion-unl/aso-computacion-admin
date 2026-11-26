@@ -2,15 +2,23 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { candidatesMock } = vi.hoisted(() => ({ candidatesMock: vi.fn() }));
+const { candidatesMock, eventMock } = vi.hoisted(() => ({ candidatesMock: vi.fn(), eventMock: vi.fn() }));
 
 vi.mock("@/interface/admin/event-registrations/registration-candidates-admin-read", () => ({ getAdminRegistrationCandidates: candidatesMock }));
-vi.mock("@/interface/admin/event-registrations/actions", () => ({ openEventRegistration: vi.fn() }));
+vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: eventMock }));
+vi.mock("@/interface/admin/event-registrations/actions", () => ({ openEventRegistration: vi.fn(), updateEventRegistration: vi.fn() }));
 // The form has its own tests; here it shows what the page hands it.
 vi.mock("../../../../app/admin/registrations/_components/registration-form", () => ({
   RegistrationForm: ({ initialValues, registeredCount, submitLabel }: Record<string, unknown>) =>
     createElement("form", { "data-initial": JSON.stringify(initialValues), "data-registered": String(registeredCount ?? 0) }, submitLabel as string),
 }));
+vi.mock("next/navigation", () => ({
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
+}));
+
+import EditRegistrationPage from "../../../../app/admin/registrations/[id]/edit/page";
 import NewRegistrationPage from "../../../../app/admin/registrations/new/page";
 
 const CANDIDATES = [
@@ -19,9 +27,11 @@ const CANDIDATES = [
 ];
 
 const renderNew = async (evento?: string) => renderToStaticMarkup(await NewRegistrationPage({ searchParams: Promise.resolve({ evento }) }));
+const renderEdit = async () => renderToStaticMarkup(await EditRegistrationPage({ params: Promise.resolve({ id: "e1" }) }));
 
 beforeEach(() => {
   candidatesMock.mockReset().mockResolvedValue(CANDIDATES);
+  eventMock.mockReset();
 });
 
 describe("creating a registration: picking the event", () => {
@@ -75,5 +85,30 @@ describe("creating a registration: the settings of the picked event", () => {
 
     expect(html).toContain("Borrador");
     expect(html).toContain("Sin lugar");
+  });
+});
+
+describe("editing a registration", () => {
+  const event = { id: "e1", title: "Taller de Git", date: "2099-11-28", datePrecision: "day", lugar: "Laboratorio 2", isPublished: true, registrationMode: "open", registrationCapacity: 40, registrationDeadline: new Date("2099-11-27T23:00:00.000Z"), registeredCount: 7 };
+
+  it("shows the event read-only and its registration settings prefilled, with the registered people for the D14 question", async () => {
+    eventMock.mockResolvedValue(event);
+
+    const html = await renderEdit();
+
+    expect(eventMock).toHaveBeenCalledWith("e1");
+    expect(html).toMatch(/<h1[^>]*>Configurar inscripción<\/h1>/);
+    expect(html).toContain("Taller de Git");
+    expect(html).toContain('href="/admin/events/e1/edit"');
+    expect(html).toContain('href="/admin/registrations?evento=e1"');
+    expect(html).toContain('data-initial="{&quot;registrationMode&quot;:&quot;open&quot;,&quot;registrationCapacity&quot;:&quot;40&quot;,&quot;registrationDeadline&quot;:&quot;2099-11-27T18:00&quot;}"');
+    expect(html).toContain('data-registered="7"');
+    expect(html).toContain(">Guardar cambios</form>");
+  });
+
+  it("is a 404 for an unknown event", async () => {
+    eventMock.mockResolvedValue(null);
+
+    await expect(renderEdit()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 });

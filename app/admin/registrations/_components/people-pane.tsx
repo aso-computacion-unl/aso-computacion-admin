@@ -83,6 +83,9 @@ export function PeoplePane({ row, page }: { row: RegistrationOverviewRow; page: 
               </a>
             </Button>
           ) : null}
+          <Button asChild variant="line">
+            <Link href={`/admin/registrations/${event.id}/edit`}>Configurar inscripción</Link>
+          </Button>
           <Button asChild variant="quiet" size="sm">
             <Link href={`/admin/events/${event.id}/edit`}>Editar evento</Link>
           </Button>

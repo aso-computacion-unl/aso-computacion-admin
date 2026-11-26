@@ -28,6 +28,7 @@ export const ACTION_POLICY: Record<string, Record<string, { role: Role; audit: s
     deleteEventRegistration: { role: "ADMIN", audit: "event.registration_delete" },
     // Setting up a registration is editing the event: any signed-in user, like `updateEvent`.
     openEventRegistration: { role: "EDITOR", audit: "event.registration_open" },
+    updateEventRegistration: { role: "EDITOR", audit: "event.registration_update" },
   },
   "src/interface/admin/news/actions.ts": {
     createNewsItem: { role: "EDITOR", audit: "news.create" },

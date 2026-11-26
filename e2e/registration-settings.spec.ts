@@ -36,7 +36,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("R8: create a registration for an upcoming draft from Inscripciones and see it in the panel", async ({ page }) => {
+test("R8: create a registration for an upcoming draft from Inscripciones, see it in the panel, change it and turn it off", async ({ page }) => {
   const title = `E2E inscripcion borrador ${Date.now()}`;
   const id = await seedEvent(title, { date: "2099-11-28", isPublished: false });
 
@@ -73,6 +73,27 @@ test("R8: create a registration for an upcoming draft from Inscripciones and see
 
   const stored = await prisma.event.findUniqueOrThrow({ where: { id } });
   expect([stored.registrationMode, stored.registrationCapacity, stored.isPublished, stored.title]).toEqual(["open", 25, false, title]);
+
+  // Edit: same read-only event, the settings prefilled.
+  await page.getByRole("link", { name: "Configurar inscripción" }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/registrations/${id}/edit$`));
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("radio", { name: "Formulario abierto" })).toBeChecked();
+  await expect(page.getByLabel("Cupos")).toHaveValue("25");
+  await page.getByLabel("Cupos").fill("30");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+  expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationCapacity).toBe(30);
+
+  // Turn it off: nobody is registered, so nothing is asked.
+  await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
+  await expect(page.getByLabel("Cupos")).toHaveCount(0);
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
+  expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationMode).toBe("none");
+
+  await page.goto("/admin/registrations");
+  await expect(page.getByRole("link", { name: new RegExp(title) })).toHaveCount(0);
 });
 
 test("R8 / S4: a past event is not offered, and an event whose day passed while its form was open is refused on save", async ({ page }) => {

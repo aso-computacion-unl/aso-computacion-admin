@@ -8,6 +8,9 @@ const { requireSessionMock, revalidatePathMock, redirectMock, useCases } = vi.ho
   }),
   useCases: {
     openRegistration: { execute: vi.fn() },
+    changeRegistration: { execute: vi.fn() },
+    get: { execute: vi.fn() },
+    registeredCount: vi.fn(),
   },
 }));
 
@@ -23,7 +26,7 @@ vi.mock("@/interface/admin/events/events-container", () => ({ getEventUseCases: 
 import { NotFoundError } from "@/application";
 import { ValidationError } from "@/domain";
 import { PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_ALREADY_SET_MESSAGE } from "@/domain/event-registration";
-import { openEventRegistration } from "@/interface/admin/event-registrations/actions";
+import { openEventRegistration, updateEventRegistration } from "@/interface/admin/event-registrations/actions";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -39,6 +42,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireSessionMock.mockResolvedValue({ kind: "user", sessionId: "s1", userId: "u1", name: "Ana", role: "EDITOR" });
   useCases.openRegistration.execute.mockResolvedValue({ id: "e1", isPublished: false });
+  useCases.changeRegistration.execute.mockResolvedValue({ id: "e1", isPublished: false });
+  useCases.get.execute.mockResolvedValue({ id: "e1", registrationMode: "unl", registrationCapacity: 10 });
+  useCases.registeredCount.mockResolvedValue(0);
 });
 
 describe("openEventRegistration", () => {
@@ -71,5 +77,33 @@ describe("openEventRegistration", () => {
       fieldErrors: { registrationCapacity: "Indique un número entero de 1 a 5000." },
     });
     expect(useCases.openRegistration.execute).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateEventRegistration", () => {
+  it("changes the settings only and stays on the page with the saved result", async () => {
+    expect(await updateEventRegistration("e1", null, form(SETTINGS))).toEqual({ success: true });
+
+    expect(useCases.changeRegistration.execute).toHaveBeenCalledWith({ eventId: "e1", ...PARSED });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/registrations");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events/e1/edit");
+  });
+
+  it("D14: refuses a mode change of an event with registered people without the confirmation, and stores nothing", async () => {
+    useCases.registeredCount.mockResolvedValue(3);
+
+    const result = await updateEventRegistration("e1", null, form({ registrationMode: "none", registrationCapacity: "", registrationDeadline: "" }));
+
+    expect(result.error).toMatch(/^Este evento ya tiene 3 inscritos\. .*Confirme el cambio para guardarlo\.$/);
+    expect(useCases.changeRegistration.execute).not.toHaveBeenCalled();
+  });
+
+  it("D14: saves the same change once the form carries the confirmation", async () => {
+    useCases.registeredCount.mockResolvedValue(3);
+
+    const result = await updateEventRegistration("e1", null, form({ registrationMode: "none", registrationCapacity: "", registrationDeadline: "", confirmRegistrationChange: "on" }));
+
+    expect(result).toEqual({ success: true });
+    expect(useCases.changeRegistration.execute).toHaveBeenCalledWith({ eventId: "e1", registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
   });
 });

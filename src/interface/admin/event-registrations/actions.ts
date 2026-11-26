@@ -10,6 +10,7 @@ import { recordAudit } from "../../audit/record-audit";
 import { requireRole, requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
 import { getEventUseCases } from "../events/events-container";
+import { isRegistrationChangeConfirmed, unconfirmedRegistrationChange } from "../events/registration-change-guard";
 import { parseRegistrationFormData } from "../events/registration-form-fields";
 import { savedRegistrationPath } from "./saved-flag";
 
@@ -46,6 +47,27 @@ export async function openEventRegistration(eventId: string, _prevState: ActionR
   }
 
   redirect(savedRegistrationPath(id));
+}
+
+/** Changes or turns off the registration of an event; a change that affects registered people needs the confirmation (D14). */
+export async function updateEventRegistration(eventId: string, _prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  try {
+    const actor = await requireSession();
+    const id = String(eventId);
+    const settings = parseRegistrationFormData(formData);
+    const unconfirmed = await unconfirmedRegistrationChange(id, settings, isRegistrationChangeConfirmed(formData));
+
+    if (unconfirmed) {
+      return { error: unconfirmed };
+    }
+
+    const saved = await getEventUseCases().changeRegistration.execute({ eventId: id, ...settings });
+    await recordAudit(actor, { action: "event.registration_update", entityType: "event", entityId: id, summary: "Inscripción de un evento editada" });
+    refresh(id, saved.isPublished);
+    return { success: true };
+  } catch (error) {
+    return mapActionError(error);
+  }
 }
 
 export async function deleteEventRegistration(eventId: string, registrationId: string): Promise<ActionResult> {

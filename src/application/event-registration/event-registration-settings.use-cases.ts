@@ -80,3 +80,12 @@ export class OpenEventRegistrationUseCase {
     });
   }
 }
+
+/** Changes or turns off the registration of an event; the entity refuses what S4 refuses. */
+export class ChangeEventRegistrationUseCase {
+  constructor(private readonly events: EventRepository) {}
+
+  async execute(command: EventRegistrationCommand): Promise<EventResult> {
+    return saveSettings(this.events, command);
+  }
+}

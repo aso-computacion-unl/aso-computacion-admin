@@ -177,6 +177,14 @@ describe("the registrations screen: which event is selected", () => {
     }
   });
 
+  it("links the selected event to the screen that configures its registration", async () => {
+    const evento = await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    const html = await render(evento.id);
+
+    expect(html).toMatch(new RegExp(`<a [^>]*href="/admin/registrations/${evento.id}/edit"[^>]*>Configurar inscripción</a>`));
+  });
+
   it("confirms a registration just created only when the flag says so", async () => {
     const evento = await addTestEvent({ title: "Taller", date: "2099-12-01" });
 

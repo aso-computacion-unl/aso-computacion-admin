@@ -133,7 +133,7 @@ describe("events server actions", () => {
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
-  it("an announcement (no «Evento con inscripción») never sets a registration, even when the post carries its settings", async () => {
+    it("an announcement (no «Evento con inscripción») never sets a registration, even when the post carries its settings", async () => {
       useCases.create.execute.mockResolvedValue({ id: "new-id" });
 
       await expect(actions.createEvent(null, form({ title: "Taller", registrationMode: "open", registrationCapacity: "30", registrationDeadline: "2026-11-27T18:00" }))).rejects.toThrow("REDIRECT");
@@ -231,8 +231,7 @@ describe("events server actions", () => {
       expect(useCases.create.execute).not.toHaveBeenCalled();
       expect(redirectMock).not.toHaveBeenCalled();
     });
-
-    });
+  });
 
   describe("updateEvent", () => {
     it("updates by id with the parsed fields and revalidates the list and the edit page", async () => {

@@ -25,7 +25,11 @@ import { getEventUseCases } from "./events-container";
 const LIST_PATH = "/admin/events";
 const editPath = (eventId: string) => `${LIST_PATH}/${eventId}/edit`;
 
-/** Creates the event and audits it; an event with registration also records its registration, after the creation. */
+/**
+ * Creates the event and audits it. An event with registration also records its registration, after the creation
+ * entry. `parseCreateEventFormData` sets `registrationMode` only for «Evento con inscripción» (always unl or open),
+ * so its presence is what marks one.
+ */
 async function createAudited(actor: Actor, command: CreateEventCommand) {
   const created = await getEventUseCases().create.execute(command);
   await recordAudit(actor, { action: "event.create", entityType: "event", entityId: created.id, summary: "Evento creado" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { EventRegistrationMode } from "@/domain/event-registration";
@@ -55,6 +55,7 @@ export function RegistrationForm({ action, initialValues, submitLabel, registere
     },
   });
   const change = registrationChangeOfForm(registeredCount, stored, values);
+  const headingId = useId();
 
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     if (change.warning && confirmedChange.current !== change.key) {
@@ -74,18 +75,29 @@ export function RegistrationForm({ action, initialValues, submitLabel, registere
 
   return (
     <form ref={formRef} onSubmit={handleFormSubmit} noValidate>
-      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        <RegistrationSettingsFields
-          mode={values.registrationMode}
-          onModeChange={(registrationMode) => setValues((previous) => ({ ...previous, registrationMode }))}
-          capacity={bind("registrationCapacity")}
-          deadline={bind("registrationDeadline")}
-          errors={errors}
-        />
-      </div>
+      {/* The group of dirección 02: an 18px heading with its purpose on the same line; the mode is then «Quién se
+          inscribe», as under the event editor's own «Inscripción» heading. */}
+      <section aria-labelledby={headingId} className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 id={headingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded">
+            Inscripción
+          </h2>
+          <span className="text-[0.8125rem] text-mist">Cómo se anotan y cuántos entran</span>
+        </div>
+        <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
+          <RegistrationSettingsFields
+            legend="Quién se inscribe"
+            mode={values.registrationMode}
+            onModeChange={(registrationMode) => setValues((previous) => ({ ...previous, registrationMode }))}
+            capacity={bind("registrationCapacity")}
+            deadline={bind("registrationDeadline")}
+            errors={errors}
+          />
+        </div>
+      </section>
 
       {asking === change.key && change.warning ? <RegistrationChangeDialog warning={change.warning} onConfirm={confirmChange} onKeepEditing={() => setAsking(null)} /> : null}
-      <ActionBar status={<FormFeedback state={state} />}>
+      <ActionBar className="mt-6" status={<FormFeedback state={state} />}>
         <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
           {isPending ? "Guardando…" : submitLabel}
         </Button>

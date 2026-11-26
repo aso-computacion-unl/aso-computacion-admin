@@ -49,6 +49,13 @@ const site = () => dialog()!.querySelector("[data-slot='publish-site']")!.textCo
 const changes = () => [...dialog()!.querySelectorAll("[data-slot='publish-changes'] li")].map((item) => item.textContent);
 const switchNamed = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLInputElement>('[role="switch"]')].find((input) => input.closest("label")?.textContent?.startsWith(name))!;
 const counters = (host: HTMLElement) => host.textContent!.match(/\d+ \/ \d+/g) ?? [];
+/** Each group: its h2, the purpose beside it, and the labels of the fields it holds (dirección 02, S5). */
+const groups = (host: HTMLElement) =>
+  [...host.querySelectorAll("section[aria-labelledby]")].map((section) => ({
+    title: section.querySelector("h2")!.textContent,
+    purpose: section.querySelector("h2 + span")?.textContent ?? null,
+    labels: [...section.querySelectorAll("label")].map((label) => label.textContent),
+  }));
 
 describe("the board member editor", () => {
   it("has no helper paragraphs and no drafts note", async () => {
@@ -57,6 +64,14 @@ describe("the board member editor", () => {
     expect(host.querySelectorAll("small")).toHaveLength(0);
     expect(host.textContent).not.toContain("Hasta 60 caracteres");
     expect(host.textContent).not.toContain("Los borradores no salen");
+  });
+
+  it("groups its fields under «Contenido», with its purpose, and «Publicación» (S5)", async () => {
+    const found = groups(await mountMember());
+
+    expect(found.map(({ title, purpose }) => [title, purpose])).toEqual([["Contenido", "Cómo aparece en la directiva"], ["Publicación", null]]);
+    expect(found[0]!.labels).toEqual(["Nombre", "Cargo", "Descripción de la foto"]);
+    expect(found[1]!.labels.join()).toContain("Publicado");
   });
 
   it("still says why a member without a photo cannot be published", async () => {
@@ -142,6 +157,14 @@ describe("the board member editor", () => {
 });
 
 describe("the pillar editor", () => {
+  it("groups its fields under «Contenido», with its purpose, and «Publicación» (S5)", async () => {
+    const found = groups(await mountPillar());
+
+    expect(found.map(({ title, purpose }) => [title, purpose])).toEqual([["Contenido", "La tarjeta del pilar en la portada"], ["Publicación", null]]);
+    expect(found[0]!.labels).toEqual(["Palabra", "Título", "Texto", "Descripción de la imagen"]);
+    expect(found[1]!.labels.join()).toContain("Publicado");
+  });
+
   it("has no helper paragraphs and no drafts note", async () => {
     const host = await mountPillar();
 

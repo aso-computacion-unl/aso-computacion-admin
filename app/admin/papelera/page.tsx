@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 import { purgeTrashed, restoreTrashed } from "@/interface/admin/trash/actions";
 import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
@@ -52,18 +53,24 @@ export default async function AdminTrashPage() {
           La papelera está vacía.
         </EmptyState>
       ) : (
-        <div className="mt-6 grid gap-8">
+        // Kinds are 40 apart and their rows 6. From xl a row reads as columns: title | date | Restaurar | Eliminar
+        // definitivamente; the date is as wide as the longest one («Eliminado el 28 sept 2026, 15:00») and the buttons
+        // say the same in every row, so the columns line up across kinds too. A confirmation or an error takes a line of its own.
+        <div className="mt-6 grid gap-10">
           {groupTrash(items).map(({ kind, items: group }) => (
-            <section key={kind} aria-labelledby={`trash-${kind}`} className="grid gap-3">
+            <section key={kind} aria-labelledby={`trash-${kind}`} className="grid gap-4">
               <SectionTitle id={`trash-${kind}`}>
-                {TRASH_KIND_LABELS[kind]} <span className="font-mono text-[0.8125rem] font-semibold text-mist">{group.length}</span>
+                {TRASH_KIND_LABELS[kind]} <span className="ml-1 font-mono text-[0.8125rem] font-normal font-stretch-normal text-mist">{group.length}</span>
               </SectionTitle>
-              <ul className="grid gap-3">
+              <ul className={cn("grid gap-1.5 xl:gap-x-6", canPurge ? "xl:grid-cols-[minmax(0,1fr)_repeat(3,max-content)]" : "xl:grid-cols-[minmax(0,1fr)_repeat(2,max-content)]")}>
                 {group.map((item) => (
-                  <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded bg-card p-4">
-                    <div className="grid min-w-0 flex-1 basis-60 gap-1">
+                  <li
+                    key={item.id}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded bg-card p-4 xl:col-span-full xl:grid xl:grid-cols-subgrid xl:px-5 xl:py-3.5 xl:[&>[role=group]]:col-span-full xl:[&>small]:order-last xl:[&>small]:col-span-full"
+                  >
+                    <div className="grid min-w-0 flex-1 basis-60 gap-1 xl:contents">
                       <p className="font-bold wrap-anywhere">{item.title}</p>
-                      <p className="font-mono text-[0.8125rem] text-mist">Eliminado el {formatDeletedAt(item.deletedAt)}</p>
+                      <p className="font-mono text-[0.8125rem] text-mist xl:w-[32ch]">Eliminado el {formatDeletedAt(item.deletedAt)}</p>
                     </div>
                     <RestoreButton label={item.title} action={restoreTrashed.bind(null, kind, item.id)} />
                     {canPurge ? (

@@ -36,12 +36,11 @@ const TYPE_LABELS: Record<string, string> = {
   comunidad: "Comunidad",
 };
 
+/** A group of the line: its name as a section heading with what it holds on the same line. */
 function GroupTitle({ id, title, hint }: { id: string; title: string; hint: string }) {
   return (
-    <div className="tl-group-title">
-      <SectionTitle id={id} variant="label">
-        {title}
-      </SectionTitle>
+    <div className="tl-group-title flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+      <SectionTitle id={id}>{title}</SectionTitle>
       <p className="text-sm text-mist">{hint}</p>
     </div>
   );
@@ -57,7 +56,12 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
       label={event.title}
       published={event.isPublished}
       when={when}
-      lead={<Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>}
+      lead={
+        // The column is as wide as the longest date a stamp can show («20 ene 2027»), so the titles line up.
+        <span className="font-mono text-xs min-[84rem]:min-w-[calc(11ch+1.5rem)]">
+          <Stamp solid={when === "next"}>{formatEventDate(event.date, event.datePrecision)}</Stamp>
+        </span>
+      }
       toggle={<EventPublishedToggle eventId={event.id} title={event.title} isPublished={event.isPublished} />}
       editHref={`/admin/events/${event.id}/edit`}
       remove={<EventDeleteButton eventId={event.id} title={event.title} />}
@@ -234,11 +238,9 @@ export default async function AdminEventsPage({
         </EmptyState>
       ) : (
         <>
-          <div className="mt-5">
+          {/* View tabs, status filter and search share one row, each as wide as its options; the wrapper owns the top margin they bring along. */}
+          <div className="mt-6 flex flex-wrap items-center gap-4 [&>*]:mt-0!">
             <EventViewTabs path={LIST_PATH} current={view} counts={{ proximos: views.proximos.length, pasados: views.pasados.length }} filter={filter} search={search} />
-          </div>
-          {/* Status tabs and search share one row; the wrapper owns the top margin both bring along. */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [&>*]:mt-0!">
             <StatusFilter path={path} current={filter} counts={counts} search={search} />
             {tools ? <ListSearch path={path} filter={filter} search={search} label="eventos" /> : null}
           </div>

@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,9 +8,11 @@ vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvent: ev
 vi.mock("@/interface/admin/events/actions", () => ({ updateEvent: vi.fn() }));
 // The real form values carry a placeholder kind ("announcement") that is never the stored one (R2-001).
 vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({ eventKind: "announcement" }) }));
-// The form and the gallery have their own tests; here they only stand in for their sections.
+// The form and the gallery have their own tests; here they only stand in for their sections. The form puts the page's
+// `sideAfter` in its side column.
 vi.mock("../../../../app/admin/events/_components/event-form", () => ({
-  EventForm: ({ registrationHref }: { registrationHref?: string }) => createElement("form", { "data-registration-href": registrationHref }, "event form"),
+  EventForm: ({ registrationHref, sideAfter }: { registrationHref?: string; sideAfter?: ReactNode }) =>
+    createElement("form", { "data-registration-href": registrationHref }, "event form", createElement("div", { "data-slot": "publish-side" }, sideAfter)),
 }));
 vi.mock("../../../../app/admin/events/_components/photo-gallery", () => ({ PhotoGallery: () => createElement("section", null, "photo gallery") }));
 vi.mock("../../../../app/admin/events/_components/event-created-arrival", () => ({ EventCreatedArrival: () => createElement("div", { "data-testid": "created-arrival" }) }));
@@ -76,6 +78,21 @@ describe("the event edit page", () => {
     expect(html).toContain('id="datos"');
     // The jumps come before the form, so they are on the first screen.
     expect(html.indexOf('href="#fotos"')).toBeLessThan(html.indexOf("event form"));
+  });
+
+  it("owns the two columns (08): Fotos beside the form in the content column, never inside it; Inscripción in the side column", async () => {
+    eventMock.mockResolvedValue(event({ registrationMode: "unl" }));
+
+    const html = await render();
+    const form = /<form[^>]*>.*<\/form>/.exec(html)![0];
+    const columns = /<div id="datos"[^>]*>(.*)<\/div>/.exec(html)![1]!;
+
+    // The photos' own forms cannot nest in the event's.
+    expect(form).not.toContain("photo gallery");
+    expect(columns).toContain("photo gallery");
+    expect(columns.indexOf("event form")).toBeLessThan(columns.indexOf("photo gallery"));
+    expect(form).toMatch(/data-slot="publish-side"><section[^>]*id="inscripciones"/);
+    expect(panel(html)).toMatch(/<h2[^>]*>Inscripción<\/h2>/);
   });
 
   it("adds the registrations to the jumps only when the event takes them", async () => {

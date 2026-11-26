@@ -353,3 +353,21 @@ describe("the event editor in a new event", () => {
     expect(host.textContent).not.toContain("Las fotos se agregan");
   });
 });
+
+describe("the side column of the event editor (08)", () => {
+  it("puts the page's card (Inscripción) in the side column, under the save bar, and both switches in the state row", async () => {
+    const host = await mount(
+      createElement(ToastProvider, null, createElement(EventForm, { action: ok, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, slug: "taller" }, sideAfter: createElement("p", { id: "page-card" }, "Inscripción") })),
+    );
+    const side = publication(host);
+    const card = host.querySelector("#page-card")!;
+    const bar = side.querySelector('[data-slot="action-bar"]')!;
+    const state = host.querySelector('[data-slot="publish-state"]')!;
+
+    expect(side.contains(card)).toBe(true);
+    expect(bar.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(state.contains(switchNamed(host, "Publicado"))).toBe(true);
+    expect(state.contains(switchNamed(host, "Destacado"))).toBe(true);
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(2);
+  });
+});

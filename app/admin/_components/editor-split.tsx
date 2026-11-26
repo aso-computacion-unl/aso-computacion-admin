@@ -1,4 +1,4 @@
-import { useId, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useId, type FormEvent, type PropsWithChildren, type ReactNode, type RefObject } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,8 @@ interface EditorSplitProps {
   submit: ReactNode;
   /** The publish preview dialog, while it is open. */
   dialog?: ReactNode;
+  /** A page-owned card under the save bar (the event's Inscripción). It sits inside the form: links only, no fields. */
+  sideAfter?: ReactNode;
 }
 
 /**
@@ -67,8 +69,12 @@ interface EditorSplitProps {
  * right that stays in view, what decides the publication (preview, state, schedule and the one primary button). On a
  * phone every side wrapper dissolves (`contents`): the state row moves up under the page title, the rest is a card
  * after the content, and the save bar sticks along the whole form. One control per field, only its place changes.
+ *
+ * The side column never grows past the screen: a taller one (the event's, with Inscripción) scrolls by itself, and
+ * the save bar, sticky at its foot, stays in view. On a phone the `order`s keep state, content, the page's blocks
+ * (`EditorColumns`), the panel, `sideAfter`, then the save bar.
  */
-export function EditorSplit({ formRef, onSubmit, children, preview, state, schedule, note, status, submit, dialog }: EditorSplitProps) {
+export function EditorSplit({ formRef, onSubmit, children, preview, state, schedule, note, status, submit, dialog, sideAfter }: EditorSplitProps) {
   const headingId = useId();
   // On a phone the state row leaves the card: a rule with nothing after it would close the card.
   const afterRule = Boolean(schedule || note);
@@ -77,9 +83,9 @@ export function EditorSplit({ formRef, onSubmit, children, preview, state, sched
     <form ref={formRef} onSubmit={onSubmit} noValidate className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <Panel className="grid gap-10">{children}</Panel>
 
-      <div data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block">
+      <div data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block lg:max-h-[calc(100dvh-7.5rem)] lg:overflow-y-auto">
         <div className="contents @container lg:grid lg:gap-4 lg:rounded-t lg:bg-card lg:p-5">
-          <section aria-labelledby={headingId} className="@container grid gap-4 rounded bg-card p-4 md:p-5 lg:contents">
+          <section aria-labelledby={headingId} className="@container grid gap-4 rounded bg-card p-4 max-lg:order-2 md:p-5 lg:contents">
             <h2 id={headingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded lg:order-1">
               Publicación
             </h2>
@@ -88,15 +94,35 @@ export function EditorSplit({ formRef, onSubmit, children, preview, state, sched
             {schedule ? <div className="min-w-0 lg:order-3">{schedule}</div> : null}
             {note ? <p className="text-[0.8125rem] text-mist lg:order-3">{note}</p> : null}
           </section>
-          <div data-slot="publish-state" className="order-first grid rounded bg-card px-4 py-1 md:px-5 lg:order-2 lg:rounded-none lg:bg-transparent lg:p-0">
+          {/* Two switches share the row from sm up to lg, where the panel stacks them. */}
+          <div
+            data-slot="publish-state"
+            className="order-first grid rounded bg-card px-4 py-1 sm:auto-cols-fr sm:grid-flow-col sm:gap-x-4 md:px-5 lg:order-2 lg:grid-flow-row lg:rounded-none lg:bg-transparent lg:p-0"
+          >
             {state}
           </div>
         </div>
-        <ActionBar className="mx-0 mt-0 rounded md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none" status={status}>
+        <ActionBar className="mx-0 mt-0 rounded max-lg:order-4 md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none" status={status}>
           {submit}
         </ActionBar>
+        {sideAfter ? <div className="min-w-0 max-lg:order-3 lg:mt-4">{sideAfter}</div> : null}
       </div>
       {dialog}
     </form>
+  );
+}
+
+/**
+ * Page-owned columns for an edit page whose content column also holds blocks with forms of their own (the event's
+ * Fotos, the news cover): forms never nest, so they go here, beside the editor's form and not inside it. The form
+ * dissolves (`contents`) into this grid; the side column spans both rows so it sticks along the whole page, and on a
+ * phone these blocks follow the content (order 1), before the publish panel and the save bar.
+ */
+export function EditorColumns({ id, content, children }: PropsWithChildren<{ id?: string; content: ReactNode }>) {
+  return (
+    <div id={id} className="grid scroll-mt-18 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] [&>form]:contents lg:[&_[data-slot=publish-side]]:row-span-2">
+      {children}
+      <div className="grid min-w-0 gap-6 max-lg:order-1">{content}</div>
+    </div>
   );
 }

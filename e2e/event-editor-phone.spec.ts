@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 /*
  * The event editor on a phone: the content first, then the «Publicación» panel, and the save bar always in reach
  * above the tab bar, with nothing wider than the screen. The same form serves Eventos (new and edit) and Inscripciones (new).
+ * On the edit page the page owns the columns (08): Fotos follows the content, then «Publicación», then Inscripción.
  */
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
@@ -118,4 +119,26 @@ test("an event's edit page fits a phone, with the save bar in reach above the ta
   await page.goto(new URL(page.url()).pathname, { waitUntil: "networkidle" });
 
   await expectFitsAPhone(page, { submitLabel: /Guardar cambios/, segmented: ["Tipo", "Tipo de fecha"] });
+
+  // Content, Fotos, «Publicación», Inscripción: read in one go. Fotos stays outside the event's form (no nested forms).
+  const order = await page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+    const content = box("form > section");
+    const photos = box("#fotos");
+    const panel = box('[data-slot="publish-side"] section');
+    const registration = box("#inscripciones");
+
+    return {
+      photosAfterContent: photos.top >= content.bottom,
+      panelAfterPhotos: panel.top >= photos.bottom,
+      registrationAfterPanel: registration.top >= panel.bottom,
+      photosOutsideForm: document.querySelector("#fotos")!.closest("form") === null,
+    };
+  });
+  expect(order).toEqual({ photosAfterContent: true, panelAfterPhotos: true, registrationAfterPanel: true, photosOutsideForm: true });
+
+  // The save bar stays in reach down to the end of the page, past the photos.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expectSaveBarInReach(page, /Guardar cambios/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

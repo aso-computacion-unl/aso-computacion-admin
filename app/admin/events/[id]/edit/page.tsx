@@ -10,8 +10,10 @@ import { eventToFormValues } from "@/interface/admin/events/event-form-values";
 import { getAdminEvent } from "@/interface/admin/events/events-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
+import { EditorColumns } from "../../../_components/editor-split";
 import { FormLayout, Panel } from "../../../_components/form-layout";
 import { SectionJumps } from "../../../_components/section-jumps";
+import { SectionTitle } from "../../../_components/section-title";
 import { formatWhen, MODE_LABELS } from "../../../registrations/_components/registration-format";
 import { EventCreatedArrival } from "../../_components/event-created-arrival";
 import { EventForm } from "../../_components/event-form";
@@ -69,31 +71,46 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
           ...(takesRegistrations ? [{ href: "#inscripciones" as const, label: "Inscripciones" }] : []),
         ]}
       />
-      <section id="datos" aria-label="Datos del evento" className={anchor}>
-        <EventForm action={updateEvent.bind(null, id)} autosave submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} registrationHref={takesRegistrations ? manageRegistrationHref : undefined} />
-      </section>
-      <div id={PHOTOS_SECTION_ID} className={anchor}>
-        <PhotoGallery
-          eventId={id}
-          minWidth={EVENT_PHOTO_MIN_WIDTH}
-          photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
-        />
-      </div>
-      <Panel id="inscripciones" aria-label="Inscripción" className={`${anchor} grid gap-3`}>
-        {/* S2: the kind is fixed at creation, so it is shown, never edited; read from the stored mode, not the form values. */}
-        <p className="text-sm">Tipo de evento: {takesRegistrations ? "Evento con inscripción" : "Evento"}</p>
-        <p className="text-sm wrap-anywhere">{registrationSummary(event)}</p>
-        {takesRegistrations ? (
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="line">
-              <Link href={manageRegistrationHref}>Gestionar inscripción</Link>
-            </Button>
-            <Button asChild variant="quiet">
-              <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
-            </Button>
+      {/* The page owns the two columns (08): Fotos has forms of its own, which cannot nest in the event's, so it sits
+          beside the form in the content column; Inscripción (links only) goes under the save bar in the side one. */}
+      <EditorColumns
+        id="datos"
+        content={
+          <div id={PHOTOS_SECTION_ID} className={anchor}>
+            <PhotoGallery
+              eventId={id}
+              minWidth={EVENT_PHOTO_MIN_WIDTH}
+              photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
+            />
           </div>
-        ) : null}
-      </Panel>
+        }
+      >
+        <EventForm
+          action={updateEvent.bind(null, id)}
+          autosave
+          submitLabel="Guardar cambios"
+          initialValues={eventToFormValues(event)}
+          registrationHref={takesRegistrations ? manageRegistrationHref : undefined}
+          sideAfter={
+            <Panel id="inscripciones" aria-labelledby="inscripciones-heading" className={`${anchor} grid gap-3`}>
+              <SectionTitle id="inscripciones-heading">Inscripción</SectionTitle>
+              {/* S2: the kind is fixed at creation, so it is shown, never edited; read from the stored mode, not the form values. */}
+              <p className="text-sm">Tipo de evento: {takesRegistrations ? "Evento con inscripción" : "Evento"}</p>
+              <p className="text-sm wrap-anywhere">{registrationSummary(event)}</p>
+              {takesRegistrations ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="line">
+                    <Link href={manageRegistrationHref}>Gestionar inscripción</Link>
+                  </Button>
+                  <Button asChild variant="quiet">
+                    <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
+                  </Button>
+                </div>
+              ) : null}
+            </Panel>
+          }
+        />
+      </EditorColumns>
     </FormLayout>
   );
 }

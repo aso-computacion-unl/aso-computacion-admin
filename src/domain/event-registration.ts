@@ -1,5 +1,6 @@
-import { todayInEcuador } from "./calendar-date";
+import { formatEcuadorDateTime, todayInEcuador } from "./calendar-date";
 import { ValidationError } from "./domain-error";
+import { eventLastDay } from "./event-registration-retention";
 import { isPubliclyVisible } from "./publication-window";
 import { normalizeEmail } from "./user";
 
@@ -53,6 +54,40 @@ export function assertRegistrationSettings(
   }
 
   return { mode: value as EventRegistrationMode, capacity: capacity ?? null, deadline: deadline ?? null };
+}
+
+export const PAST_EVENT_REGISTRATION_MESSAGE = "registration cannot be opened or changed for an event that already happened";
+export const DEADLINE_AFTER_EVENT_MESSAGE = "registrationDeadline must be on or before the event's last day (Ecuador time)";
+
+function sameSettings(a: RegistrationSettings, b: RegistrationSettings): boolean {
+  return a.mode === b.mode && a.capacity === b.capacity && a.deadline?.getTime() === b.deadline?.getTime();
+}
+
+/**
+ * The date rules of a registration that is being opened or changed (`previous` is what was saved; on create, no
+ * registration): refused once the event's last day is before today in Ecuador, and its deadline may not fall after
+ * that day. Settings left as they were, or turned off, are never refused, so a past event keeps saving its other
+ * fields. Without a date nothing says when the event happens, so neither rule applies.
+ */
+export function assertRegistrationDates(
+  settings: RegistrationSettings,
+  event: { date: string | null; datePrecision: "day" | "month" },
+  previous: RegistrationSettings,
+  now: Date,
+): void {
+  if (settings.mode === "none" || event.date === null || sameSettings(settings, previous)) {
+    return;
+  }
+
+  const lastDay = eventLastDay(event.date, event.datePrecision);
+
+  if (lastDay < todayInEcuador(now)) {
+    throw new ValidationError("registrationMode", PAST_EVENT_REGISTRATION_MESSAGE);
+  }
+
+  if (settings.deadline !== null && formatEcuadorDateTime(settings.deadline).slice(0, 10) > lastDay) {
+    throw new ValidationError("registrationDeadline", DEADLINE_AFTER_EVENT_MESSAGE);
+  }
 }
 
 /** What an admin's save changes for the people who already registered: the mode they signed up through, or the seats left for them. */

@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BudgetedMailSender } from "@/application/mail/budgeted-mail-sender";
 import { REMINDER_MAX_CONSECUTIVE_FAILURES, SendRegistrationRemindersUseCase } from "@/application/event-registration/send-registration-reminders.use-case";
-import { Event, type CreateEventInput } from "@/domain/event";
+import { type CreateEventInput } from "@/domain/event";
 import { reminderEmail } from "@/interface/event-registration/registration-emails";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { InMemoryMailBudget, RecordingMailTransport } from "@/tests/fakes/in-memory-mail";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 // 06:00 in Ecuador, when the daily cron runs. Today is 2026-11-20 there: the window is 21 to 23.
 const NOW = new Date("2026-11-20T11:00:00.000Z");
@@ -28,7 +29,7 @@ const reminders = (limit = 400, transportOverride: RecordingMailTransport | null
 async function addEvent(date: string | null, overrides: Partial<CreateEventInput> = {}) {
   sequence += 1;
 
-  const event = Event.create({ title: `Evento ${sequence}`, date, isPublished: true, registrationMode: "open", hora: "09:00 - 11:00", lugar: "Laboratorio 2", ...overrides });
+  const event = storedEvent({ title: `Evento ${sequence}`, date, isPublished: true, registrationMode: "open", hora: "09:00 - 11:00", lugar: "Laboratorio 2", ...overrides });
 
   await events.create(event);
 

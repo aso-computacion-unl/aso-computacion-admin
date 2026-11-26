@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { PURGE_BATCH_SIZE, PurgeExpiredRegistrationsUseCase } from "@/application/event-registration/purge-expired-registrations.use-case";
-import { Event, type CreateEventInput } from "@/domain/event";
+import { type CreateEventInput } from "@/domain/event";
 import { prisma } from "@/infrastructure/prisma/client";
 import { EventPrismaRepository } from "@/infrastructure/repositories/event-prisma.repository";
 import { EventRegistrationRetentionPrismaStore } from "@/infrastructure/repositories/event-registration-retention-prisma.store";
 import { ForumCategoryPrismaRepository } from "@/infrastructure/repositories/forum-category-prisma.repository";
 import { ForumMemberPrismaRepository } from "@/infrastructure/repositories/forum-member-prisma.repository";
 import { makeForumCategory, makeForumMember } from "@/tests/fakes/in-memory-forum";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 // An event on 2026-01-10 expires its registrations at 2026-04-11T05:00:00Z.
 const EXPIRY = new Date("2026-04-11T05:00:00.000Z");
@@ -21,7 +22,7 @@ let sequence = 0;
 async function addEvent(overrides: Partial<CreateEventInput> = {}) {
   sequence += 1;
 
-  return (await events.create(Event.create({ title: `Evento ${sequence}`, date: "2026-01-10", isPublished: true, registrationMode: "open", ...overrides }))).props;
+  return (await events.create(storedEvent({ title: `Evento ${sequence}`, date: "2026-01-10", isPublished: true, registrationMode: "open", ...overrides }))).props;
 }
 
 async function addPeople(eventId: string, count: number) {

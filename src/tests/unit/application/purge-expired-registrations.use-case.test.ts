@@ -7,10 +7,11 @@ import {
   PurgeInterruptedError,
 } from "@/application/event-registration/purge-expired-registrations.use-case";
 import type { EventRegistrationRecord } from "@/application/ports/event-registration-repository.port";
-import { Event, type CreateEventInput } from "@/domain/event";
+import { type CreateEventInput } from "@/domain/event";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRegistrationRetentionStore } from "@/tests/fakes/in-memory-event-registration-retention.store";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 // Event on 2026-01-10: its registrations expire at 2026-04-11T05:00:00Z (90 days after the day ends in Ecuador).
 const EXPIRY = new Date("2026-04-11T05:00:00.000Z");
@@ -21,7 +22,7 @@ let store: InMemoryEventRegistrationRetentionStore;
 let sequence = 0;
 
 async function addEvent(overrides: Partial<CreateEventInput> = {}) {
-  const event = Event.create({ title: `Evento ${(sequence += 1)}`, date: "2026-01-10", isPublished: true, registrationMode: "open", ...overrides });
+  const event = storedEvent({ title: `Evento ${(sequence += 1)}`, date: "2026-01-10", isPublished: true, registrationMode: "open", ...overrides });
 
   await events.create(event);
 

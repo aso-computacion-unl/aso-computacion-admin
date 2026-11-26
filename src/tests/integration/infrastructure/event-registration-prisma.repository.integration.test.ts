@@ -8,6 +8,7 @@ import { REGISTRATION_CONFIRMATION_TTL_MS } from "@/domain/event-registration";
 import { prisma } from "@/infrastructure/prisma/client";
 import { EventPrismaRepository } from "@/infrastructure/repositories/event-prisma.repository";
 import { EventRegistrationPrismaRepository } from "@/infrastructure/repositories/event-registration-prisma.repository";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 const NOW = new Date("2026-11-20T15:00:00.000Z");
 
@@ -19,7 +20,7 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
   let sequence = 0;
 
   async function addEvent(overrides: Partial<CreateEventInput> = {}) {
-    const event = Event.create({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
+    const event = storedEvent({ title: "Taller de Git", date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
 
     return (await events.create(event)).props;
   }

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ListRegistrationOverviewUseCase } from "@/application/event-registration/list-registration-overview.use-case";
-import { Event, type CreateEventInput } from "@/domain/event";
+import { type CreateEventInput } from "@/domain/event";
 import { InMemoryEventRegistrationRepository } from "@/tests/fakes/in-memory-event-registration.repository";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
+import { storedEvent } from "@/tests/support/test-event-registration";
 
 const NOW = new Date("2026-11-20T15:00:00.000Z"); // 10:00 in Ecuador, 2026-11-20
 
@@ -11,7 +12,7 @@ let events: InMemoryEventRepository;
 let registrations: InMemoryEventRegistrationRepository;
 
 async function addEvent(title: string, overrides: Partial<CreateEventInput> = {}) {
-  const event = Event.create({ title, date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
+  const event = storedEvent({ title, date: "2026-11-28", isPublished: true, registrationMode: "open", ...overrides });
 
   await events.create(event);
 

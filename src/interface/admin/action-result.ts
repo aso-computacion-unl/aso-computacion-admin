@@ -12,7 +12,7 @@ import {
 import { reportError } from "@/infrastructure/observability/report-error";
 
 import { UnauthorizedError } from "../auth/require-session";
-import { fieldMessage } from "./field-messages";
+import { fieldMessage, RULE_MESSAGES } from "./field-messages";
 
 /**
  * Result of every admin server action. `fieldErrors` carries per-field
@@ -123,8 +123,8 @@ export function mapActionError(error: unknown, fieldMessages?: Record<string, st
     // Every rule the domain rejected in this save, each on its field; a field that fails twice keeps its first text.
     const fieldErrors: Record<string, string> = {};
 
-    for (const { field } of error.issues) {
-      if (!(field in fieldErrors)) fieldErrors[field] = fieldMessage(field, fieldMessages);
+    for (const { field, message } of error.issues) {
+      if (!(field in fieldErrors)) fieldErrors[field] = RULE_MESSAGES[message] ?? fieldMessage(field, fieldMessages);
     }
 
     return { fieldErrors };

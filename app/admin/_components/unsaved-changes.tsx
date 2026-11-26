@@ -50,7 +50,9 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   // A save that stored everything, or the original text typed back, leaves nothing to ask about.
   if (request && state === "clean") setRequest(null);
 
-  // Capture phase: it has to stop the click before `next/link` starts the route change in its own handler.
+  // Capture phase: it has to stop the click before `next/link` starts the route change in its own handler. So it also
+  // runs before a link's own `onClick`: a plain link that cancels its click to do something else still asks here. No
+  // such link exists; one that needs it should be a `GuardedLink`, which leaves its clicks to its own handler.
   const askForPlainLink = useEffectEvent((event: globalThis.MouseEvent) => {
     if (state !== "unsaved" || event.defaultPrevented) return;
 
@@ -93,14 +95,19 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
 
 /**
  * The address a link would load in this tab, for the router: `null` when the click does not leave the page (a jump to
- * a part of it) or leaves the app (another site, `mailto:`), which the browser handles as usual.
+ * a part of it, a bare `#`) or leaves the app (another site, `mailto:`, `tel:`), which the browser handles as usual. A
+ * same-site link to `/api` counts as leaving: the router loads it as a full page, and this page goes away with it,
+ * unless it is a `download`.
  */
 function inAppDestination(link: HTMLAnchorElement): string | null {
   const url = new URL(link.href, window.location.href);
   const here = window.location;
 
   if (url.origin !== here.origin) return null;
-  if (url.hash !== "" && url.pathname === here.pathname && url.search === here.search) return null;
+  // `URL.hash` is empty for a bare `#`, which still only jumps on this page.
+  const jump = url.hash !== "" || url.href.endsWith("#");
+
+  if (jump && url.pathname === here.pathname && url.search === here.search) return null;
 
   return `${url.pathname}${url.search}${url.hash}`;
 }
@@ -149,16 +156,16 @@ export function GuardedLink({ href, onClick, returnFocusTo, ...props }: GuardedL
 export function GuardedForm({ onSubmit, ...props }: ComponentProps<"form">) {
   const ask = useContext(AskToLeave);
   const unsaved = useHasUnsavedChanges();
+  /** True only while «Salir sin guardar» sends the form again, so that one submit goes through without asking. */
   const confirmed = useRef(false);
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    onSubmit?.(event);
-    if (confirmed.current) {
-      confirmed.current = false;
+    // The form's own `onSubmit` runs once, for the submit that goes through, never for the one that only asks.
+    if (confirmed.current || !ask || !unsaved) {
+      onSubmit?.(event);
 
       return;
     }
-    if (event.defaultPrevented || !ask || !unsaved) return;
 
     const form = event.currentTarget;
     const submitter = event.submitter;
@@ -167,8 +174,14 @@ export function GuardedForm({ onSubmit, ...props }: ComponentProps<"form">) {
     event.preventDefault();
     ask({
       leave: () => {
+        // `requestSubmit` sends the submit event synchronously, or not at all (the form left the page): either way the
+        // flag is down again when it returns, so a later submit asks as usual.
         confirmed.current = true;
-        form.requestSubmit(submitter);
+        try {
+          form.requestSubmit(submitter);
+        } finally {
+          confirmed.current = false;
+        }
       },
       returnTo: submitter ?? form,
     });
@@ -183,7 +196,13 @@ export function GuardedForm({ onSubmit, ...props }: ComponentProps<"form">) {
  */
 function focusBack(returnTo: HTMLElement | null) {
   const closed = returnTo?.closest<HTMLElement>("[hidden]");
-  const opener = closed?.id ? [...document.querySelectorAll<HTMLElement>("[aria-controls]")].find((element) => element.getAttribute("aria-controls") === closed.id) : undefined;
+  let opener: HTMLElement | undefined;
+
+  if (closed?.id) {
+    const controls = document.querySelectorAll<HTMLElement>("[aria-controls]");
+
+    opener = [...controls].find((element) => element.getAttribute("aria-controls") === closed.id);
+  }
 
   (opener ?? returnTo)?.focus();
 }

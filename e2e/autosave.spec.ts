@@ -153,3 +153,56 @@ test("a link inside a page's own content asks before it leaves unsaved changes, 
   await question.getByRole("button", { name: "Salir sin guardar" }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/registrations\\?evento=${id}$`));
 });
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("the top bar's logo asks before it leaves unsaved changes, and goes home only on 'Salir sin guardar'", async ({ page }) => {
+    await logInAsAdmin(page);
+    await page.goto("/admin/faqs/new");
+    await page.getByLabel("Pregunta", { exact: true }).fill(`¿Logo sin guardar ${STAMP}?`);
+
+    const logo = page.getByRole("link", { name: "ASO Computación, inicio de la administración" });
+    const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
+
+    await logo.click();
+    await expect(question).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
+
+    await page.keyboard.press("Escape");
+    await expect(question).toHaveCount(0);
+    await expect(logo).toBeFocused();
+    await expect(page.getByLabel("Pregunta", { exact: true })).toHaveValue(`¿Logo sin guardar ${STAMP}?`);
+
+    await logo.click();
+    await question.getByRole("button", { name: "Salir sin guardar" }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+  });
+});
+
+test("'Cerrar sesión' asks before it leaves unsaved changes, and signs out only on 'Salir sin guardar'", async ({ page }) => {
+  await logInAsAdmin(page);
+  await page.goto("/admin/faqs/new");
+  await page.getByLabel("Pregunta", { exact: true }).fill(`¿Salida sin guardar ${STAMP}?`);
+
+  const chip = page.locator('header button[aria-haspopup="true"]');
+  const signOut = page.getByRole("button", { name: "Cerrar sesión" });
+  const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
+
+  await chip.click();
+  await signOut.click();
+  await expect(question).toBeVisible();
+
+  await question.getByRole("button", { name: "Seguir editando" }).click();
+  await expect(question).toHaveCount(0);
+  await expect(chip).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
+  await expect(page.getByLabel("Pregunta", { exact: true })).toHaveValue(`¿Salida sin guardar ${STAMP}?`);
+
+  await chip.click();
+  await signOut.click();
+  await question.getByRole("button", { name: "Salir sin guardar" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login/);
+});

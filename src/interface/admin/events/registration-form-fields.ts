@@ -39,3 +39,12 @@ export const registrationFormFields = {
   registrationCapacity: capacity,
   registrationDeadline: windowEnd("registrationDeadline"),
 };
+
+const registrationFormSchema = z.object(registrationFormFields);
+
+/** Reads the registration form of the Inscripciones area: the three settings, each only when the form sent it. */
+export function parseRegistrationFormData(formData: FormData) {
+  const keys = Object.keys(registrationFormFields).filter((key) => formData.has(key));
+
+  return registrationFormSchema.parse(Object.fromEntries(keys.map((key) => [key, String(formData.get(key))])));
+}

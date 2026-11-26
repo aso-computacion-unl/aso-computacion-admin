@@ -11,12 +11,19 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 
+// The arrival has its own test (admin-registration-form.test.ts); here it only shows where the page puts it.
+vi.mock("../../../../app/admin/registrations/_components/registration-saved-arrival", async () => {
+  const { createElement } = await import("react");
+
+  return { RegistrationSavedArrival: ({ message, path }: { message: string; path: string }) => createElement("span", { "data-arrival": `${message} ${path}` }) };
+});
+
 import RegistrationsPage, { dynamic } from "../../../../app/admin/registrations/page";
 import { cookieJar } from "@/tests/support/action-policy";
 import { signInAs } from "@/tests/support/test-auth";
 import { addTestEvent, testEventRegistration } from "@/tests/support/test-event-registration";
 
-const render = async (evento?: string | string[]) => renderToStaticMarkup(await RegistrationsPage({ searchParams: Promise.resolve({ evento }) }));
+const render = async (evento?: string | string[], guardada?: string) => renderToStaticMarkup(await RegistrationsPage({ searchParams: Promise.resolve({ evento, guardada }) }));
 
 function register(eventId: string, count: number, name = "Persona Privada") {
   for (let index = 0; index < count; index += 1) {
@@ -43,14 +50,25 @@ describe("the registrations screen: the events", () => {
     await expect(render()).rejects.toThrow("REDIRECT /login");
   });
 
-  it("says there is nothing yet, and points to the events, when no event takes registrations", async () => {
+  it("says there is nothing yet, and points to creating a registration, when no event takes registrations", async () => {
     await addTestEvent({ registrationMode: "none" });
 
     const html = await render();
 
     expect(html).toContain("Ningún evento pide inscripción todavía.");
-    expect(html).toContain('href="/admin/events"');
+    expect(html).not.toContain("al editar un evento");
+    expect(html.match(/href="\/admin\/registrations\/new"/g)).toHaveLength(2);
     expect(html).not.toContain("<table");
+  });
+
+  it("offers «Crear inscripción» in its header", async () => {
+    await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    const html = await render();
+
+    const header = html.slice(html.indexOf('data-slot="page-header"'), html.indexOf("</header>"));
+
+    expect(header).toMatch(/<a [^>]*href="\/admin\/registrations\/new"[^>]*>(?:(?!<\/a>).)*Crear inscripción<\/a>/);
   });
 
   it("lists upcoming then past events, each a real link that selects it, with date, seats and state", async () => {
@@ -157,6 +175,28 @@ describe("the registrations screen: which event is selected", () => {
       expect(linkOf(html, abierto.id), String(evento)).toContain('aria-current="true"');
       expect(html).toContain("De Abierto 0");
     }
+  });
+
+  it("links the selected event to the screen that configures its registration", async () => {
+    const evento = await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    const html = await render(evento.id);
+
+    expect(html).toMatch(new RegExp(`<a [^>]*href="/admin/registrations/${evento.id}/edit"[^>]*>Configurar inscripción</a>`));
+  });
+
+  it("confirms a registration just created only when the flag says so", async () => {
+    const evento = await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    expect(await render(evento.id, "1")).toContain(`data-arrival="Inscripción creada. /admin/registrations?evento=${evento.id}"`);
+    expect(await render(evento.id)).not.toContain("data-arrival");
+  });
+
+  it("confirms a registration just turned off, whose event is no longer in the list", async () => {
+    await addTestEvent({ title: "Taller", date: "2099-12-01" });
+
+    expect(await render(undefined, "desactivada")).toContain('data-arrival="Inscripción desactivada. /admin/registrations"');
+    expect(await render(undefined, "otra")).not.toContain("data-arrival");
   });
 
   it("on a phone shows the list first, and the people with a way back once an event is chosen", async () => {

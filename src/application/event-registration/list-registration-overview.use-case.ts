@@ -1,6 +1,5 @@
 import { registrationState, type EventRegistrationMode, type RegistrationState } from "@/domain/event-registration";
-import { todayInEcuador } from "@/domain/calendar-date";
-import { eventLastDay } from "@/domain/event-registration-retention";
+import { isEventOver } from "@/domain/event-registration-retention";
 import { publicationState, type PublicationState } from "@/domain/publication-window";
 
 import type { EventRegistrationRepository } from "../ports/event-registration-repository.port";
@@ -44,11 +43,9 @@ export class ListRegistrationOverviewUseCase {
   ) {}
 
   async execute({ now = new Date() }: { now?: Date } = {}): Promise<RegistrationOverview> {
-    const today = todayInEcuador(now);
     const taking = (await this.events.list()).map((event) => event.props).filter((event) => event.registrationMode !== "none");
     const counts = await this.registrations.countByEvents(taking.map((event) => event.id));
-    // An event is over once its last possible day is behind us; without a date nothing says it happened.
-    const isOver = (event: (typeof taking)[number]) => event.date !== null && eventLastDay(event.date, event.datePrecision) < today;
+    const isOver = (event: (typeof taking)[number]) => isEventOver(event, now);
     const row = (event: (typeof taking)[number]): RegistrationOverviewRow => {
       const registered = counts.get(event.id) ?? 0;
 

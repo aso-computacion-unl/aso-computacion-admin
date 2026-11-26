@@ -69,7 +69,7 @@ export default async function AdminSessionsPage() {
                         <div className="grid min-w-0 flex-1 basis-60 gap-1 xl:contents">
                           <p className="font-bold wrap-anywhere">
                             {device}
-                            {session.isCurrent ? <span className="ml-2 font-mono text-[0.8125rem] font-semibold text-sky">esta sesión</span> : null}
+                            {session.isCurrent ? <span className="ml-2 font-mono text-[0.8125rem] font-semibold whitespace-nowrap text-sky">esta sesión</span> : null}
                             {session.kind === "break_glass" ? <span className="ml-2 rounded-xs bg-signal px-1.5 py-0.5 font-mono text-[0.8125rem] font-semibold text-destructive-foreground">emergencia</span> : null}
                           </p>
                           <dl className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.8125rem] text-mist xl:contents">

@@ -24,7 +24,7 @@ export function CommandPreview({ values, changed }: CommandPreviewProps) {
   return (
     <>
       <SiteSection number="01">Terminal</SiteSection>
-      <div className="grid max-w-2xl gap-1 rounded bg-muted p-4 font-mono text-sm">
+      <div className="grid max-w-2xl gap-1 rounded-control bg-muted p-4 font-mono text-sm">
         <p className="text-sky">
           ❯ <Changed on={changed.has("command")}>{command || "…"}</Changed>
         </p>

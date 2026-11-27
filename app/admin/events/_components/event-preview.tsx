@@ -124,7 +124,7 @@ export function EventCardPreview({ values, withRegistration }: { values: EventFo
     : null;
 
   return (
-    <div role="group" aria-label="Así se verá en la línea de tiempo" className="rounded border border-border bg-muted px-3.5 py-3">
+    <div role="group" aria-label="Así se verá en la línea de tiempo" className="rounded-control border border-border bg-muted px-3.5 py-3">
       <span className="font-mono text-[0.8125rem] tracking-[0.04em] text-sky uppercase">{when}</span>
       <b className="mt-1 block leading-[1.3] wrap-anywhere">{values.title || "Sin título"}</b>
       {facts ? <p className="mt-1 text-sm text-mist wrap-anywhere">{facts}</p> : null}

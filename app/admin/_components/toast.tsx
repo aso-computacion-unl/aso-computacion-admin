@@ -68,7 +68,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className="pointer-events-auto flex items-center gap-3 rounded border border-sky bg-card py-2 pr-1.5 pl-4 text-sm font-semibold shadow-lg"
+      className="pointer-events-auto flex items-center gap-3 rounded-card border border-sky bg-card py-2 pr-1.5 pl-4 text-sm font-semibold shadow-lg"
     >
       <Icon name="check" className="size-4 shrink-0 stroke-[2.25] text-sky" />
       <span className="min-w-0 flex-1 wrap-anywhere">{toast.message}</span>

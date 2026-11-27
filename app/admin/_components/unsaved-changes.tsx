@@ -250,7 +250,7 @@ function LeaveDialog({ returnTo, onKeepEditing, onLeave }: LeaveDialogProps) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-100 grid place-items-center bg-deep/60 p-4">
+    <div data-area="admin" className="fixed inset-0 z-100 grid place-items-center bg-deep/60 p-4">
       <div
         ref={root}
         role="alertdialog"
@@ -258,7 +258,7 @@ function LeaveDialog({ returnTo, onKeepEditing, onLeave }: LeaveDialogProps) {
         aria-labelledby={titleId}
         aria-describedby={detailId}
         onKeyDown={handleKeyDown}
-        className="grid w-full max-w-md gap-3 rounded border-2 border-foreground bg-card p-5 text-foreground shadow-[6px_6px_0_var(--color-signal)]"
+        className="grid w-full max-w-md gap-3 rounded-card border-2 border-foreground bg-card p-5 text-foreground shadow-[6px_6px_0_var(--color-signal)]"
       >
         <h2 id={titleId} className="text-base font-[650]">
           ¿Salir sin guardar?

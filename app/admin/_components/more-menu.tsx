@@ -78,7 +78,7 @@ export function MoreMenu({ items, current, tabClassName }: MoreMenuProps) {
         data-slot="more-menu"
         hidden={!open}
         style={style}
-        className="fixed z-50 grid w-56 gap-0.5 rounded bg-card p-2 shadow-[0_0_0_1.5px_var(--color-border),6px_6px_0_var(--color-signal)]"
+        className="fixed z-50 grid w-56 gap-0.5 rounded-card bg-card p-2 shadow-[0_0_0_1.5px_var(--color-border),6px_6px_0_var(--color-signal)]"
       >
         {items.map((item) => (
           <GuardedLink
@@ -88,7 +88,7 @@ export function MoreMenu({ items, current, tabClassName }: MoreMenuProps) {
             returnFocusTo={button}
             aria-current={item.href === current ? "page" : undefined}
             onClick={() => setOpen(false)}
-            className="flex min-h-12 items-center rounded-xs px-3 font-semibold hover:bg-foreground/6 aria-[current=page]:bg-action aria-[current=page]:text-on-action"
+            className="flex min-h-12 items-center rounded-control px-3 font-semibold hover:bg-foreground/6 aria-[current=page]:bg-action aria-[current=page]:text-on-action"
           >
             {item.label}
           </GuardedLink>

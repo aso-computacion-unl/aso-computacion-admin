@@ -19,8 +19,8 @@ export function MoreOptions({ invalid = false, summary = "Más opciones", classN
   const [opened, setOpened] = useState(false);
 
   return (
-    <details open={opened || invalid} onToggle={(event) => setOpened(event.currentTarget.open)} className="group min-w-0 rounded border border-border">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded px-4 text-sm font-[650] marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky [&::-webkit-details-marker]:hidden">
+    <details open={opened || invalid} onToggle={(event) => setOpened(event.currentTarget.open)} className="group min-w-0 rounded-control border border-border">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-control px-4 text-sm font-[650] marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky [&::-webkit-details-marker]:hidden">
         {summary}
         <Icon name="chev" className="size-4 transition-transform duration-150 group-open:rotate-180" />
       </summary>

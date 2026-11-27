@@ -21,7 +21,7 @@ type AreaTabsProps =
     };
 
 const TAB = cn(
-  "inline-flex min-h-11 items-center gap-1.5 rounded border border-input px-3.5 text-sm font-semibold whitespace-nowrap text-mist",
+  "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-input px-3.5 text-sm font-semibold whitespace-nowrap text-mist",
   "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
   "aria-[current=page]:border-action aria-[current=page]:bg-action aria-[current=page]:text-on-action",
 );

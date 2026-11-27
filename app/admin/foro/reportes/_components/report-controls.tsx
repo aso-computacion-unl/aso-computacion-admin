@@ -61,7 +61,7 @@ function SuspendButton({ memberId, name }: { memberId: string; name: string }) {
   }
 
   return (
-    <div role="group" aria-label={`Confirmar: suspender… ${name}`} className="grid basis-full gap-3 rounded bg-muted p-3 text-sm">
+    <div role="group" aria-label={`Confirmar: suspender… ${name}`} className="grid basis-full gap-3 rounded-control bg-muted p-3 text-sm">
       <p>
         «{name}» ya no podrá publicar y se cerrarán todas sus sesiones del foro. <span className="text-mist">Podrá reactivar la cuenta cuando quiera.</span>
       </p>

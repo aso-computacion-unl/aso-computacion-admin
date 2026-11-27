@@ -11,7 +11,7 @@ import { PageHeader } from "./page-header";
  */
 export function Panel({ className, children, ...props }: ComponentProps<"section">) {
   return (
-    <section className={cn("@container rounded bg-card p-4 md:p-5", className)} {...props}>
+    <section className={cn("@container rounded-card bg-card p-4 md:p-5", className)} {...props}>
       {children}
     </section>
   );

@@ -49,7 +49,7 @@ export function MediaDropzone({ title, rules, accept, multiple = false, disabled
       onDragLeave={drag(false)}
       onDrop={drag(false)}
       className={cn(
-        "relative grid cursor-pointer justify-items-center gap-1.5 rounded border-2 border-dashed border-foreground/45 bg-muted/55 px-4 py-5 text-center",
+        "relative grid cursor-pointer justify-items-center gap-1.5 rounded-control border-2 border-dashed border-foreground/45 bg-muted/55 px-4 py-5 text-center",
         "transition-colors duration-150 ease-out hover:border-action hover:bg-foreground/8 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-3 has-[input:focus-visible]:outline-sky",
         "data-[dragging=true]:border-solid data-[dragging=true]:border-action data-[dragging=true]:bg-action/15",
         invalid && "border-error/70",

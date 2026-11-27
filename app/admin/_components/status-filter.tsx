@@ -27,14 +27,14 @@ interface StatusFilterProps {
 export function StatusFilter({ path, current, counts, search = "" }: StatusFilterProps) {
   return (
     <nav aria-label="Filtrar por estado" className="mt-6">
-      <ul className="inline-flex max-w-full overflow-hidden rounded border border-input bg-muted">
+      <ul className="inline-flex max-w-full gap-[3px] overflow-hidden rounded-segmented bg-field p-[3px]">
         {STATUS_FILTERS.map((filter) => (
-          <li key={filter} className="border-input not-first:border-l">
+          <li key={filter}>
             <Link
               href={listHref(path, { filter, search })}
               aria-current={filter === current ? "true" : undefined}
               className={cn(
-                "inline-flex min-h-11 items-center gap-2 px-3 text-sm font-semibold whitespace-nowrap text-mist sm:px-4",
+                "inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold whitespace-nowrap text-mist sm:px-4",
                 "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
                 "focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-foreground",
                 "aria-[current=true]:bg-action aria-[current=true]:text-on-action",

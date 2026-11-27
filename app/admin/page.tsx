@@ -79,7 +79,7 @@ const rowLink = "font-bold hover:underline focus-visible:outline-2 focus-visible
 
 function PanoramaList({ id, title, children, empty, more }: { id: string; title: string; children: ReactNode[]; empty: string; more?: { href: string; label: string } }) {
   return (
-    <section aria-labelledby={`panorama-${id}`} className="grid content-start gap-3 bg-card p-5 ring-1 ring-paper-ring ring-inset">
+    <section aria-labelledby={`panorama-${id}`} className="grid content-start gap-3 rounded-card bg-card p-5 ring-1 ring-paper-ring ring-inset">
       <SectionTitle id={`panorama-${id}`}>{title}</SectionTitle>
       {children.length > 0 ? <ul>{children}</ul> : <p className="py-3 text-mist">{empty}</p>}
       {more ? (
@@ -145,7 +145,7 @@ function Panorama({ agenda, signUps }: { agenda: HomeAgenda; signUps: SignUps })
 function Waiting({ cards, readable }: { cards: readonly HomeCard[]; readable: boolean }) {
   if (cards.length === 0) {
     return (
-      <p className="flex items-center gap-3 rounded bg-card px-5 py-4 text-lg font-semibold ring-1 ring-paper-ring ring-inset">
+      <p className="flex items-center gap-3 rounded-card bg-card px-5 py-4 text-lg font-semibold ring-1 ring-paper-ring ring-inset">
         <Icon name={readable ? "check" : "alert"} className="size-5 shrink-0" />
         {readable ? "Todo al día" : "No pudimos leer lo pendiente. Intente de nuevo en un momento."}
       </p>
@@ -155,7 +155,7 @@ function Waiting({ cards, readable }: { cards: readonly HomeCard[]; readable: bo
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
       {cards.map((card) => (
-        <li key={card.id} data-slot="todo-card" className="grid content-start justify-items-start gap-5 border-t-[3px] border-foreground bg-card p-6 ring-1 ring-paper-ring ring-inset">
+        <li key={card.id} data-slot="todo-card" className="grid content-start justify-items-start gap-5 rounded-card border-t-[3px] border-foreground bg-card p-6 ring-1 ring-paper-ring ring-inset">
           <span aria-hidden="true" className="grid size-12 place-items-center bg-signal text-white">
             <Icon name={CARD_ICONS[card.id]} />
           </span>
@@ -180,7 +180,7 @@ function CreateLinks() {
         <li key={option.href}>
           <Link
             href={option.href}
-            className="flex min-h-14 items-center gap-3 rounded bg-background px-3 text-lg font-extrabold ring-1 ring-input ring-inset hover:ring-2 hover:ring-foreground focus-visible:outline-2 focus-visible:outline-sky"
+            className="flex min-h-14 items-center gap-3 rounded-control bg-background px-3 text-lg font-extrabold ring-1 ring-input ring-inset hover:ring-2 hover:ring-foreground focus-visible:outline-2 focus-visible:outline-sky"
           >
             <span aria-hidden="true" className="grid size-9 place-items-center rounded-xs bg-tint-navy text-on-tint-navy">
               <Icon name={option.icon} className="size-5" />
@@ -224,7 +224,7 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
           {agenda ? <Panorama agenda={agenda} signUps={signUps} /> : null}
         </div>
 
-        <aside aria-label="Crear y estado del sitio" className="grid gap-4 rounded bg-card p-5 lg:sticky lg:top-22">
+        <aside aria-label="Crear y estado del sitio" className="grid gap-4 rounded-card bg-card p-5 lg:sticky lg:top-22">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <SectionTitle>Crear</SectionTitle>
             <span className="text-[0.8125rem] text-mist">Lo que la directiva crea más seguido</span>

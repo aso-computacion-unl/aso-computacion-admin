@@ -47,7 +47,7 @@ export function RegistrationChangeDialog({ warning, onConfirm, onKeepEditing }: 
       aria-describedby={detailId}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      className="mt-6 grid gap-3 rounded border-2 border-foreground bg-card p-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+      className="mt-6 grid gap-3 rounded-card border-2 border-foreground bg-card p-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
     >
       <h2 id={titleId} className="text-base font-[650]">
         {warning.title}

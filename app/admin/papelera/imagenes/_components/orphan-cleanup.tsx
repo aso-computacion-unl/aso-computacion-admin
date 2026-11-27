@@ -75,7 +75,7 @@ export function OrphanCleanup({ items, pager }: { items: readonly OrphanItem[]; 
       <section aria-label="Imágenes sin uso" className="min-w-0">
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4">
           {shown.map((item) => (
-            <li key={item.publicId} className="grid content-start gap-3 rounded bg-card p-4">
+            <li key={item.publicId} className="grid content-start gap-3 rounded-card bg-card p-4">
               {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -113,7 +113,7 @@ export function OrphanCleanup({ items, pager }: { items: readonly OrphanItem[]; 
         </ul>
       </section>
 
-      <aside aria-labelledby="selection-title" className="grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+      <aside aria-labelledby="selection-title" className="grid gap-4 rounded-card bg-card p-4 md:p-5 lg:sticky lg:top-22">
         <SectionTitle id="selection-title">Selección</SectionTitle>
         <div className="grid gap-2">
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -136,7 +136,7 @@ export function OrphanCleanup({ items, pager }: { items: readonly OrphanItem[]; 
           </Button>
         ) : null}
         {confirming ? (
-          <div role="group" aria-label="Confirmar: eliminar imágenes" className="grid gap-3 rounded bg-muted p-3 text-sm">
+          <div role="group" aria-label="Confirmar: eliminar imágenes" className="grid gap-3 rounded-control bg-muted p-3 text-sm">
             <p>
               ¿Eliminar {pluralize(selected.size, "imagen", "imágenes")} para siempre? Los archivos se borran del almacén y esto no se puede deshacer. Antes de borrar cada una se
               vuelve a comprobar que nada la use.

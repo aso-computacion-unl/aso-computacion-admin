@@ -38,7 +38,7 @@ export function SocialPreview({ values, changed }: SocialPreviewProps) {
   return (
     <>
       <SiteSection number="01">Redes</SiteSection>
-      <div className="grid max-w-md gap-2 rounded border border-paper-ring p-5">
+      <div className="grid max-w-md gap-2 rounded-control border border-paper-ring p-5">
         <p className="font-display text-xl leading-tight wrap-anywhere text-foreground">
           {url ? (
             <a href={url} target="_blank" rel="noreferrer noopener" className="underline-offset-4 hover:underline">

@@ -19,12 +19,21 @@ interface SegmentedProps {
   "aria-invalid"?: true;
 }
 
-/** Radio group drawn as one row of cells: one tap to choose, arrow keys to move, like any radio group. */
+/**
+ * Radio group drawn as one row of cells: one tap to choose, arrow keys to move, like any radio group. Inside the admin
+ * (`data-area="admin"`) the group is a filled pill with 3px of inset around pill cells that keep their 44px.
+ */
 export function Segmented({ legend, name, value, options, onChange, className, columnsClassName = "grid-cols-3 sm:grid-cols-5", ...aria }: SegmentedProps) {
   return (
     <fieldset className={cn("min-w-0 border-0 p-0", className)} {...aria}>
       <legend className="mb-1.5 p-0 text-sm leading-[1.3] font-[650] text-foreground">{legend}</legend>
-      <div className={cn("grid overflow-hidden rounded border border-input bg-muted", columnsClassName)}>
+      <div
+        className={cn(
+          "grid overflow-hidden rounded border border-input bg-muted",
+          "in-data-[area=admin]:gap-[3px] in-data-[area=admin]:rounded-segmented in-data-[area=admin]:border-0 in-data-[area=admin]:bg-field in-data-[area=admin]:p-[3px]",
+          columnsClassName,
+        )}
+      >
         {options.map((option) => (
           <label key={option.value} className="relative grid min-h-11 cursor-pointer place-items-center">
             <input
@@ -37,7 +46,7 @@ export function Segmented({ legend, name, value, options, onChange, className, c
             />
             <span
               className={cn(
-                "grid size-full place-items-center px-1 text-sm font-semibold text-mist",
+                "grid size-full place-items-center px-1 text-sm font-semibold text-mist in-data-[area=admin]:rounded-full",
                 "transition-colors duration-150 ease-out",
                 "hover:bg-foreground/6 hover:text-foreground",
                 "peer-checked:bg-action peer-checked:text-on-action",

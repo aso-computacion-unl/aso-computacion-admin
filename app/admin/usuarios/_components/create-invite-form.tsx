@@ -63,7 +63,7 @@ export function CreateInviteForm({ action }: CreateInviteFormProps) {
         </div>
       </div>
       {link ? (
-        <div role="status" className="grid gap-3 rounded bg-muted p-4 text-sm">
+        <div role="status" className="grid gap-3 rounded-control bg-muted p-4 text-sm">
           <p className="flex items-center gap-2 font-semibold text-sky">
             <Icon name="check" className="size-4 stroke-[2.25]" />
             Invitación creada. Envíe este link a la persona invitada.

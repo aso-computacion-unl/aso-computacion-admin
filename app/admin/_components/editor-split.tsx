@@ -2,7 +2,6 @@ import { useId, type FormEvent, type PropsWithChildren, type ReactNode, type Ref
 
 import { cn } from "@/lib/utils";
 
-import { Panel } from "./form-layout";
 import { ActionBar } from "./form-parts";
 
 /**
@@ -34,7 +33,7 @@ export function EditorGroup({ title, purpose, children }: { title: string; purpo
  */
 export function CardPreview({ label, section, children }: { label: string; section: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={label} className="grid gap-1 rounded border border-border bg-muted px-3.5 py-3">
+    <div role="group" aria-label={label} className="grid gap-1 rounded-control border border-border bg-muted px-3.5 py-3">
       <span className="font-mono text-[0.8125rem] tracking-[0.04em] text-sky uppercase">{section}</span>
       {children}
     </div>
@@ -79,11 +78,14 @@ export function EditorSplit({ formRef, onSubmit, children, preview, state, sched
 
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <Panel className="grid gap-10">{children}</Panel>
+      {/* The content is not a card: its groups sit on the page, parted by air and a soft sky rule. */}
+      <section className="@container grid min-w-0 gap-10 [&>*+*]:border-t [&>*+*]:border-sky/16 [&>*+*]:pt-8">
+        {children}
+      </section>
 
       <div data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block lg:max-h-[calc(100dvh-7.5rem)] lg:overflow-y-auto">
-        <div className="contents @container lg:grid lg:gap-4 lg:rounded-t lg:bg-card lg:p-5">
-          <section aria-labelledby={headingId} className="@container grid gap-4 rounded bg-card p-4 max-lg:order-2 md:p-5 lg:contents">
+        <div className="contents @container lg:grid lg:gap-4 lg:rounded-t-card lg:bg-card lg:p-5">
+          <section aria-labelledby={headingId} className="@container grid gap-4 rounded-card bg-card p-4 max-lg:order-2 md:p-5 lg:contents">
             <h2 id={headingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded lg:order-1">
               Publicación
             </h2>
@@ -95,12 +97,12 @@ export function EditorSplit({ formRef, onSubmit, children, preview, state, sched
           {/* Two switches share the row from sm up to lg, where the panel stacks them. */}
           <div
             data-slot="publish-state"
-            className="order-first grid rounded bg-card px-4 py-1 sm:auto-cols-fr sm:grid-flow-col sm:gap-x-4 md:px-5 lg:order-2 lg:grid-flow-row lg:rounded-none lg:bg-transparent lg:p-0"
+            className="order-first grid rounded-card bg-card px-4 py-1 sm:auto-cols-fr sm:grid-flow-col sm:gap-x-4 md:px-5 lg:order-2 lg:grid-flow-row lg:rounded-none lg:bg-transparent lg:p-0"
           >
             {state}
           </div>
         </div>
-        <ActionBar className="mx-0 mt-0 rounded max-lg:order-4 md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none" status={status}>
+        <ActionBar className="mx-0 mt-0 rounded-card max-lg:order-4 md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none" status={status}>
           {submit}
         </ActionBar>
       </div>

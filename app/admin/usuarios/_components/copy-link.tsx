@@ -28,7 +28,7 @@ export function CopyLink({ link, label = "Link de invitación" }: { link: string
           value={link}
           aria-label={label}
           onFocus={(event) => event.currentTarget.select()}
-          className="min-h-11 min-w-0 flex-1 basis-72 rounded border border-border bg-card px-3 font-mono text-[0.8125rem]"
+          className="min-h-11 min-w-0 flex-1 basis-72 rounded-control border border-border bg-card px-3 font-mono text-[0.8125rem]"
         />
         <Button type="button" variant="line" onClick={copy} className="min-h-11">
           <Icon name={copied === "yes" ? "check" : "share"} className="size-4" />

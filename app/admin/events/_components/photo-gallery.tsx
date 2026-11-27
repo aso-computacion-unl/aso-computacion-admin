@@ -50,7 +50,7 @@ function PhotoItem({ eventId, photo, position, total }: PhotoItemProps) {
   const message = resultMessage(altAction.result);
 
   return (
-    <li className="grid w-44 shrink-0 snap-start content-start gap-2.5 rounded bg-muted p-2 pb-2.5">
+    <li className="grid w-44 shrink-0 snap-start content-start gap-2.5 rounded-control bg-muted p-2 pb-2.5">
       <div className="relative aspect-4/3 self-start overflow-hidden rounded-xs bg-navy">
         {/* Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

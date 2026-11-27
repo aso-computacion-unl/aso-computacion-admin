@@ -171,7 +171,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
 
   if (full && queue.length === 0) {
     return (
-      <p role="status" className="rounded border border-dashed border-mist/50 p-4 text-sm text-mist">
+      <p role="status" className="rounded-control border border-dashed border-mist/50 p-4 text-sm text-mist">
         La galería tiene el máximo de {MAX_ACTIVE_EVENT_PHOTOS} fotos. Quite una para subir otra.
       </p>
     );
@@ -203,7 +203,7 @@ export function PhotoUploadForm({ eventId, activeCount, minWidth }: PhotoUploadF
               const altMissing = showMissing && item.status !== "invalid" && item.status !== "uploading" && item.alt.trim() === "";
 
               return (
-                <li key={item.key} className={cn("grid gap-3 rounded @xs:grid-cols-[5.5rem_minmax(0,1fr)] bg-muted p-2.5", (item.status === "invalid" || item.status === "failed") && "ring-1 ring-error/60")}>
+                <li key={item.key} className={cn("grid gap-3 rounded-control @xs:grid-cols-[5.5rem_minmax(0,1fr)] bg-muted p-2.5", (item.status === "invalid" || item.status === "failed") && "ring-1 ring-error/60")}>
                   {/* Local object URL of a file the person just picked; nothing to optimise. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={item.previewUrl} alt="" decoding="async" width={88} height={66} className={cn("aspect-4/3 w-[5.5rem] rounded-xs @xs:w-full object-cover", item.status === "invalid" && "opacity-45 grayscale")} />

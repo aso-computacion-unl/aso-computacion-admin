@@ -25,7 +25,7 @@ export function PillarPreview({ values, image, changed }: PillarPreviewProps) {
   return (
     <>
       <SiteSection number="01">Pilares</SiteSection>
-      <article className="grid max-w-md gap-3 rounded border border-paper-ring p-5">
+      <article className="grid max-w-md gap-3 rounded-control border border-paper-ring p-5">
         {image ? (
           // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
           // eslint-disable-next-line @next/next/no-img-element

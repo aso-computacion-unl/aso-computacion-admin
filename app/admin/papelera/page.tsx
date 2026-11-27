@@ -66,7 +66,7 @@ export default async function AdminTrashPage() {
                 {group.map((item) => (
                   <li
                     key={item.id}
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded bg-card p-4 xl:col-span-full xl:grid xl:grid-cols-subgrid xl:px-5 xl:py-3.5 xl:[&>[role=group]]:col-span-full xl:[&>small]:order-last xl:[&>small]:col-span-full"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card bg-card p-4 xl:col-span-full xl:grid xl:grid-cols-subgrid xl:px-5 xl:py-3.5 xl:[&>[role=group]]:col-span-full xl:[&>small]:order-last xl:[&>small]:col-span-full"
                   >
                     <div className="grid min-w-0 flex-1 basis-60 gap-1 xl:contents">
                       <p className="font-bold wrap-anywhere">{item.title}</p>

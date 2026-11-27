@@ -49,7 +49,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
                     </SectionTitle>
                     <span className="font-mono text-[0.8125rem] text-mist">{pluralize(day.items.length, "entrada", "entradas")}</span>
                   </div>
-                  <ol className="divide-y divide-border overflow-hidden rounded bg-card">
+                  <ol className="divide-y divide-border overflow-hidden rounded-card bg-card">
                     {day.items.map((entry) => (
                       <li key={entry.id} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-4 px-4 py-2.5">
                         <time dateTime={entry.at.toISOString()} className="pt-px font-mono text-[0.8125rem] whitespace-nowrap text-mist tabular-nums">
@@ -100,7 +100,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
           ) : null}
         </div>
 
-        <aside aria-labelledby="filter-title" className="grid gap-4 rounded bg-card p-4 max-lg:order-first md:p-5 lg:sticky lg:top-22">
+        <aside aria-labelledby="filter-title" className="grid gap-4 rounded-card bg-card p-4 max-lg:order-first md:p-5 lg:sticky lg:top-22">
           <SectionTitle id="filter-title">Filtrar</SectionTitle>
             <form method="get" action="/admin/registro" className="grid gap-4" aria-label="Filtrar el registro">
               <div className="grid gap-1.5">

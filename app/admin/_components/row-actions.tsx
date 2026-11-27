@@ -189,7 +189,7 @@ export function DeleteButton({
   }
 
   return (
-    <div role="group" aria-label={`Confirmar: ${triggerLabel.toLowerCase()} ${label}`} className="grid basis-full gap-3 rounded bg-muted p-3 text-sm">
+    <div role="group" aria-label={`Confirmar: ${triggerLabel.toLowerCase()} ${label}`} className="grid basis-full gap-3 rounded-control bg-muted p-3 text-sm">
       <p>
         {warning} <span className="text-mist">{note}</span>
       </p>

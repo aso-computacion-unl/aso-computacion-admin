@@ -17,7 +17,7 @@ export function FaqPreview({ values, changed }: { values: FaqFormValues; changed
   return (
     <>
       <SiteSection number="01">Preguntas frecuentes</SiteSection>
-      <article className="grid gap-3 rounded border border-paper-ring p-5">
+      <article className="grid gap-3 rounded-control border border-paper-ring p-5">
         <h3 className="font-display text-2xl leading-tight wrap-anywhere text-foreground">
           <Changed on={changed.has("question")}>{values.question}</Changed>
         </h3>

@@ -14,7 +14,7 @@ function EventLink({ row, selected }: { row: RegistrationOverviewRow; selected: 
       href={`/admin/registrations?evento=${row.id}`}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "grid min-h-11 gap-1.5 rounded border border-transparent bg-card p-3 transition-colors duration-150 ease-out hover:bg-foreground/6",
+        "grid min-h-11 gap-1.5 rounded-control border border-transparent bg-card p-3 transition-colors duration-150 ease-out hover:bg-foreground/6",
         "aria-[current=true]:border-action aria-[current=true]:bg-tint-blue",
       )}
     >

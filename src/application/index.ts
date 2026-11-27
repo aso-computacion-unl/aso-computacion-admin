@@ -147,6 +147,7 @@ export { RestoreConflictError } from "./use-cases/use-case-error";
 export * from "./auth/admin-invite.use-cases";
 export * from "./auth/auth-errors";
 export * from "./auth/list-audit-log.use-case";
+export * from "./auth/audit-activity.use-case";
 export * from "./auth/resolve-google-login.use-case";
 export * from "./auth/session.use-cases";
 export * from "./auth/user.use-cases";

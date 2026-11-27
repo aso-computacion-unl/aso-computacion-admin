@@ -254,4 +254,34 @@ describe("AuditLogPrismaRepository (integration)", () => {
 
     expect(await audit.entityTypes()).toEqual(["event", "faq"]);
   });
+
+  describe("countByDay", () => {
+    const at = (iso: string, actorUserId: string | null) =>
+      audit.record({ actorUserId, actorKind: actorUserId ? "user" : "system", action: "a", entityType: "event", summary: "a" }, new Date(iso));
+    const range = { from: new Date("2026-11-20T05:00:00.000Z"), to: new Date("2026-11-27T05:00:00.000Z") };
+
+    it("counts entries per Ecuador day within [from, to), days without entries left out", async () => {
+      await at("2026-11-20T04:59:59.999Z", "ana"); // 19 Nov 23:59 in Ecuador: before `from`
+      await at("2026-11-20T05:00:00.000Z", "ana"); // 20 Nov 00:00
+      await at("2026-11-21T04:30:00.000Z", "ben"); // still 20 Nov in Ecuador, 21 Nov in UTC
+      await at("2026-11-26T15:00:00.000Z", null);
+      await at("2026-11-27T05:00:00.000Z", "ana"); // `to`: excluded
+
+      expect(await audit.countByDay(range)).toEqual([
+        { date: "2026-11-20", count: 2 },
+        { date: "2026-11-26", count: 1 },
+      ]);
+    });
+
+    it("filters by the acting user", async () => {
+      await at("2026-11-21T12:00:00.000Z", "ana");
+      await at("2026-11-21T13:00:00.000Z", "ben");
+      await at("2026-11-22T12:00:00.000Z", "ana");
+
+      expect(await audit.countByDay({ ...range, actorUserId: "ana" })).toEqual([
+        { date: "2026-11-21", count: 1 },
+        { date: "2026-11-22", count: 1 },
+      ]);
+    });
+  });
 });

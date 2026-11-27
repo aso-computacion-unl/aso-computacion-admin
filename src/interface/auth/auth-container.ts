@@ -1,4 +1,5 @@
 import {
+  AuditActivityUseCase,
   ChangeUserRoleUseCase,
   CreateAdminInviteUseCase,
   ListActiveSessionsUseCase,
@@ -45,6 +46,7 @@ function createAuthServices() {
     changeUserRole: new ChangeUserRoleUseCase(users),
     setUserActive: new SetUserActiveUseCase(users, sessions),
     listAuditLog: new ListAuditLogUseCase(audit),
+    auditActivity: new AuditActivityUseCase(audit),
   };
 }
 

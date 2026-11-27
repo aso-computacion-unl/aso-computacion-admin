@@ -172,15 +172,15 @@ test("impact stats and testimonials are gone: no admin page, no menu entry, no k
 test("the emergency login is flagged on every page, as the session of the emergency actor", async ({ page }) => {
   await logInAsAdmin(page);
 
-  // The red pill in the top bar carries the state on every page; the explanation is in the identity menu.
-  const identity = page.getByRole("button", { name: "Menú de cuenta: Acceso de emergencia" });
+  // The profile card at the rail's foot turns red and reads «Emergencia» on every page; it carries the explanation.
+  const card = page.getByRole("region", { name: "Sesión: acceso de emergencia" });
 
-  await expect(identity).toBeVisible();
-  await identity.click();
-  await expect(page.getByText(/acceso de emergencia con contraseña/i)).toBeVisible();
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Emergencia");
+  await expect(card).toHaveAccessibleDescription(/acceso de emergencia con contraseña/i);
 
   await page.goto("/admin/sesiones");
-  await expect(page.getByRole("button", { name: "Menú de cuenta: Acceso de emergencia" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Sesión: acceso de emergencia" })).toBeVisible();
   await expect(page.getByText("emergencia", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("esta sesión", { exact: true })).toBeVisible();
 

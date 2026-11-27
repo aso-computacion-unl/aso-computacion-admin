@@ -54,6 +54,8 @@
 	--color-success: #8fe3b8;
 	--color-success-tint: #0f4a33;
 	--color-deep: #03224a;
+	/* The profile card on the rail: one step up from deep, the same in both themes like the rail itself. */
+	--color-deep-lift: #083572;
 	--color-paper-ring: #2a4f82;
 	--color-dash: #6f8fba;
 	/* Dim layer behind modal sheets: a dark navy veil that works over both themes. */
@@ -252,4 +254,20 @@
 	font-family: var(--font-display);
 	font-stretch: 125%;
 	font-weight: 800;
+}
+
+/* The admin page grid (design/system.md «Admin page layout»): 4 columns <640, 8 to 1023, 12 from 1024; gap 16px, 24px from 1024. */
+@utility admin-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 1rem;
+
+	@media (width >= 40rem) {
+		grid-template-columns: repeat(8, minmax(0, 1fr));
+	}
+
+	@media (width >= 64rem) {
+		grid-template-columns: repeat(12, minmax(0, 1fr));
+		gap: 1.5rem;
+	}
 }

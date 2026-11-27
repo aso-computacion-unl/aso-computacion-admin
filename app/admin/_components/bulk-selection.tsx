@@ -155,7 +155,7 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
         <section
           ref={watchFocus}
           aria-label="Acciones en lote"
-          className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 mt-6 grid gap-3 rounded-card bg-card p-3 shadow-[0_-1px_0_var(--color-border)] md:px-4 lg:bottom-3"
+          className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-5 mt-6 grid gap-3 rounded-card bg-card p-3 shadow-[0_-1px_0_var(--color-border)] md:px-4 lg:bottom-3"
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">

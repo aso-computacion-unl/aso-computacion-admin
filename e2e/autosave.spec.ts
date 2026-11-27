@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
-import { publish } from "./publish";
+import { publish, PUBLISHED_TEXT } from "./publish";
 import { chooseRegistration } from "./registration";
 
 /*
@@ -75,6 +75,8 @@ test("a published item is not saved by itself: only 'Sí, publicar' stores the e
   await expect(other.getByLabel("Respuesta")).toHaveValue("Respuesta inicial");
 
   await publish(page);
+  // `publish` returns on the click: wait for the save to land before the other tab reads again.
+  await expect(page.getByText(PUBLISHED_TEXT).first()).toBeVisible();
   await other.reload();
   await expect(other.getByLabel("Respuesta")).toHaveValue("Respuesta sin publicar");
 });
@@ -185,21 +187,18 @@ test("'Cerrar sesión' asks before it leaves unsaved changes, and signs out only
   await page.goto("/admin/faqs/new");
   await page.getByLabel("Pregunta", { exact: true }).fill(`¿Salida sin guardar ${STAMP}?`);
 
-  const chip = page.locator('header button[aria-haspopup="true"]');
-  const signOut = page.getByRole("button", { name: "Cerrar sesión" });
+  const signOut = page.getByRole("region", { name: /^Sesión:/ }).getByRole("button", { name: "Cerrar sesión" });
   const question = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
 
-  await chip.click();
   await signOut.click();
   await expect(question).toBeVisible();
 
   await question.getByRole("button", { name: "Seguir editando" }).click();
   await expect(question).toHaveCount(0);
-  await expect(chip).toBeFocused();
+  await expect(signOut).toBeFocused();
   await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
   await expect(page.getByLabel("Pregunta", { exact: true })).toHaveValue(`¿Salida sin guardar ${STAMP}?`);
 
-  await chip.click();
   await signOut.click();
   await question.getByRole("button", { name: "Salir sin guardar" }).click();
   await expect(page).toHaveURL(/\/login$/);

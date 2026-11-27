@@ -130,3 +130,23 @@ export interface AuditLogReader {
   /** Entity types present in the log, for the filter. */
   entityTypes(): Promise<string[]>;
 }
+
+export interface AuditActivityCriteria {
+  /** Inclusive. */
+  from: Date;
+  /** Exclusive. */
+  to: Date;
+  /** Only this user's entries; every entry when absent. */
+  actorUserId?: string;
+}
+
+export interface AuditDayCount {
+  /** YYYY-MM-DD in Ecuador. */
+  date: string;
+  count: number;
+}
+
+export interface AuditActivityReader {
+  /** Entries per Ecuador calendar day; days without entries are left out. */
+  countByDay(criteria: AuditActivityCriteria): Promise<AuditDayCount[]>;
+}

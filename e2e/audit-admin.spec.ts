@@ -197,8 +197,7 @@ test.describe("login", () => {
 
   test("signing out ends the session: the admin sends the browser back to the login", async ({ page }) => {
     await logInAsAdmin(page);
-    await page.getByRole("button", { name: /Menú de cuenta/ }).click();
-    await page.getByRole("button", { name: "Cerrar sesión" }).click();
+    await page.getByRole("region", { name: /^Sesión:/ }).getByRole("button", { name: "Cerrar sesión" }).click();
     await expect(page).toHaveURL(/\/login/);
 
     await page.goto("/admin/events");
@@ -1319,8 +1318,7 @@ test.describe("theme and dashboard", () => {
     await logInAsAdmin(page);
     expect(await theme(), "and follows the person into the admin").toBe(toggled);
 
-    await page.getByRole("button", { name: /Menú de cuenta/ }).click();
-    await page.locator("[data-theme-toggle]").last().click();
+    await page.getByRole("region", { name: /^Sesión:/ }).locator("[data-theme-toggle]").click();
     expect(await theme()).toBe(initial);
     await page.goto("/admin/events");
     expect(await theme()).toBe(initial);
@@ -1334,9 +1332,10 @@ test.describe("theme and dashboard", () => {
     const { context, page } = await asAdmin(browser, baseURL);
     const draftsOnHome = async () => {
       await page.goto("/admin");
-      const card = page.locator('[data-slot="todo-card"]').filter({ hasText: /sin publicar/ });
+      // «Borradores» in «Tu trabajo»: its total sits beside the title, and is absent while there are none.
+      const total = page.getByRole("region", { name: "Borradores" }).locator("b");
 
-      return (await card.count()) === 0 ? 0 : Number((await card.locator("h3 span").innerText()).trim());
+      return (await total.count()) === 0 ? 0 : Number((await total.innerText()).trim());
     };
 
     const before = await draftsOnHome();
@@ -1347,8 +1346,8 @@ test.describe("theme and dashboard", () => {
     await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/, SLOW);
 
     expect(await draftsOnHome()).toBe(before + 1);
-    await page.getByRole("link", { name: "Continuar" }).click();
-    await expect(page).toHaveURL(/\/admin\/(events|news)\/[^/]+\/edit$/, SLOW);
+    await page.getByRole("region", { name: "Borradores" }).getByRole("link", { name: `Continuar: Borrador del panel ${STAMP}` }).click();
+    await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit$/, SLOW);
     await context.close();
   });
 });

@@ -39,78 +39,71 @@ async function screenshot(page: Page, testInfo: TestInfo, name: string) {
 }
 
 /**
- * The identity menu on a phone: the chip shrinks to the avatar, and the panel it opens has to stay on the
- * screen, above the bottom tab bar (z-40, fixed), without pushing the page sideways. Escape closes it and gives
- * the focus back to the chip, and every item in it can be tapped (nothing on top of it).
+ * The profile row on a phone: one full-width row at the top of the page (the rail's card is hidden), nothing
+ * about the account in the top bar. Its actions are thumb-sized, stay on the screen above the floating bottom
+ * bar, can be tapped (nothing on top of them) and do not push the page sideways. The emergency session has no
+ * account, so its row has no «Mis sesiones» and reads «Emergencia».
  */
-async function checkMenu(page: Page, testInfo: TestInfo, label: string, viewport: { width: number; height: number }) {
-  const chip = page.getByRole("banner").getByRole("button", { name: /^Menú de cuenta/ });
-
-  await expect(chip).toBeVisible();
-  await expect(chip).toHaveAttribute("aria-expanded", "false");
-  await chip.click({ trial: true });
-
-  const chipBox = await chip.boundingBox();
-  expect(chipBox, "the chip has a box").not.toBeNull();
-  expect(chipBox!.x).toBeGreaterThanOrEqual(0);
-  expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(viewport.width);
-  // A thumb-sized target (h-11 min-w-11).
-  expect(chipBox!.width).toBeGreaterThanOrEqual(44);
-  expect(chipBox!.height).toBeGreaterThanOrEqual(44);
-
-  await chip.click();
-  await expect(chip).toHaveAttribute("aria-expanded", "true");
-
-  const panel = page.locator(`[id="${await chip.getAttribute("aria-controls")}"]`);
-  await expect(panel).toBeVisible();
+async function checkProfileRow(page: Page, testInfo: TestInfo, label: "emergency" | "editor", viewport: { width: number; height: number }) {
+  const rows = page.getByRole("region", { name: /^Sesión:/ });
+  await expect(rows).toHaveCount(1);
+  const row = rows.first();
+  await expect(row).toBeVisible();
+  await expect(row).toHaveAccessibleName(label === "emergency" ? "Sesión: acceso de emergencia" : /^Sesión: .+, Editor$/);
+  if (label === "emergency") await expect(row).toContainText("Emergencia");
+  await expect(page.getByRole("banner").getByRole("button", { name: /Cerrar sesión|Menú de cuenta/ })).toHaveCount(0);
 
   const tabBar = page.locator("nav.fixed[aria-label='Áreas']");
   await expect(tabBar).toBeVisible();
   const tabBarTop = (await tabBar.boundingBox())!.y;
 
-  const items = [panel.getByRole("button", { name: /Modo (oscuro|claro)/ }), panel.getByRole("button", { name: "Cerrar sesión" })];
-  for (const target of [panel, ...items]) {
+  const sessions = row.getByRole("link", { name: "Mis sesiones" });
+  await expect(sessions).toHaveCount(label === "emergency" ? 0 : 1);
+  const items = [
+    ...(label === "emergency" ? [] : [sessions]),
+    row.getByRole("button", { name: /Modo (oscuro|claro)/ }),
+    row.getByRole("button", { name: "Cerrar sesión" }),
+  ];
+  for (const target of [row, ...items]) {
     await expect(target).toBeVisible();
     const box = await target.boundingBox();
-    expect(box, "the menu part has a box").not.toBeNull();
+    expect(box, "the row part has a box").not.toBeNull();
     expect(box!.x, `${label}: left edge on screen`).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width, `${label}: right edge on screen`).toBeLessThanOrEqual(viewport.width);
     expect(box!.y, `${label}: top edge on screen`).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height, `${label}: above the tab bar`).toBeLessThanOrEqual(tabBarTop);
   }
+  // A thumb-sized target (size-11).
+  for (const item of items) {
+    const box = (await item.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
 
-  // Opening the menu does not make the page scroll sideways.
+  // The row does not make the page scroll sideways.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-  await screenshot(page, testInfo, `identity-menu-${label}-${viewport.width}x${viewport.height}-open`);
+  await screenshot(page, testInfo, `profile-row-${label}-${viewport.width}x${viewport.height}`);
 
-  // Each item can be tapped: a trial click fails if anything (the tab bar, the page) covers it.
+  // Each action can be tapped: a trial click fails if anything (the tab bar, the page) covers it.
   for (const item of items) await item.click({ trial: true });
-
-  await page.keyboard.press("Escape");
-  await expect(chip).toHaveAttribute("aria-expanded", "false");
-  await expect(panel).toBeHidden();
-  await expect(chip).toBeFocused();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-
-  await screenshot(page, testInfo, `identity-menu-${label}-${viewport.width}x${viewport.height}-closed`);
 }
 
 for (const viewport of PHONES) {
-  test.describe(`the identity menu at ${viewport.width}x${viewport.height}`, () => {
+  test.describe(`the profile row at ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport, isMobile: false, hasTouch: true });
 
-    test("the emergency session's menu stays on screen, above the tab bar, and closes with Escape", async ({ page }, testInfo) => {
+    test("the emergency session's row stays on screen, above the tab bar, and every action can be tapped", async ({ page }, testInfo) => {
       await logInAsAdmin(page);
-      await checkMenu(page, testInfo, "emergency", viewport);
+      await checkProfileRow(page, testInfo, "emergency", viewport);
     });
 
-    test("a named editor's menu stays on screen, above the tab bar, and closes with Escape", async ({ page, context }, testInfo) => {
+    test("a named editor's row stays on screen, above the tab bar, and every action can be tapped", async ({ page, context }, testInfo) => {
       await context.clearCookies();
       await context.addCookies([{ name: "admin_session", value: EDITOR_SESSION, url: BASE_URL }]);
       await page.goto("/admin");
       await expect(page).toHaveURL(/\/admin$/);
-      await checkMenu(page, testInfo, "editor", viewport);
+      await checkProfileRow(page, testInfo, "editor", viewport);
     });
   });
 }

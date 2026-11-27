@@ -36,8 +36,8 @@ export function CreateInviteForm({ action }: CreateInviteFormProps) {
   }, [state]);
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
+    <form onSubmit={handleSubmit} noValidate className="grid gap-4">
+      <div className="grid gap-x-4 gap-y-4 @xl:grid-cols-2">
         <Field label="Correo" hint="El de la cuenta de Google con la que entrará." error={errors.email}>
           {(control) => <Input type="email" inputMode="email" autoComplete="off" {...control} {...bind("email")} required />}
         </Field>
@@ -53,8 +53,9 @@ export function CreateInviteForm({ action }: CreateInviteFormProps) {
           )}
         </Field>
       </div>
-      <div className="flex flex-wrap items-center gap-4">
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+      {/* The one primary of the panel fills it; a failure reads right under it. */}
+      <div className="grid gap-3 border-t border-border pt-4">
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 w-full">
           {isPending ? "Creando…" : "Crear invitación"}
         </Button>
         <div className="min-w-0 text-sm">

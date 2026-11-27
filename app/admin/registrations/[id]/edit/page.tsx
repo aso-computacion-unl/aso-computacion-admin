@@ -23,7 +23,8 @@ export default async function EditRegistrationPage({ params }: { params: Promise
   return (
     <FormLayout backHref={registrationsPanelPath(id)} backLabel="Volver a inscripciones" title="Configurar inscripción" status={event.title}>
       <RegistrationEventSummary event={event} />
-      <Panel aria-label="Inscripción">
+      {/* The form's own «Inscripción» heading names its group; the panel adds no second region of that name. */}
+      <Panel>
         <RegistrationForm
           action={updateEventRegistration.bind(null, id)}
           initialValues={{

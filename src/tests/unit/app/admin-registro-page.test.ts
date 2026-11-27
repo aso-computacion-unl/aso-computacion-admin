@@ -52,3 +52,22 @@ describe("the audit log rows", () => {
     expect(html).not.toContain("preview ·");
   });
 });
+
+describe("the audit log layout", () => {
+  it("titles each day as a heading with its total on the same line", async () => {
+    const html = await render([entry({})]);
+
+    expect(html).toMatch(/<h2[^>]*id="day-[^"]+"[^>]*>Hoy<\/h2><span[^>]*>1 entrada<\/span>/);
+  });
+
+  it("keeps the filter in its own side panel, after the entries, with Tipo, Quién and one submit", async () => {
+    const html = await render([entry({})]);
+    const panel = html.match(/<aside aria-labelledby="filter-title"[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+    expect(panel).toMatch(/<h2[^>]*>Filtrar<\/h2>/);
+    expect(panel).toContain('name="tipo"');
+    expect(panel).toContain('name="actor"');
+    expect(panel.match(/type="submit"/g)).toHaveLength(1);
+    expect(html.indexOf('aria-label="Entradas del registro"')).toBeLessThan(html.indexOf("<aside"));
+  });
+});

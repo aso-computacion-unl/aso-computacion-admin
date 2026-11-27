@@ -179,21 +179,29 @@ describe("the panorama under the pending cards", () => {
   });
 });
 
-describe("the '+ Crear' menu", () => {
-  it("is one primary control offering Evento, Novedad and Pregunta through the existing new routes", async () => {
-    const html = await render();
-    const menu = html.match(/<details[\s\S]*?<\/details>/)?.[0] ?? "";
+describe("the 'Crear' side panel", () => {
+  const panel = (html: string) => html.match(/<aside aria-label="Crear y estado del sitio"[\s\S]*?<\/aside>/)?.[0] ?? "";
 
-    expect(menu).toMatch(/<summary[^>]*>[\s\S]*Crear<\/summary>/);
-    expect(menu.match(/<a /g)).toHaveLength(3);
-    expect(menu).toMatch(/href="\/admin\/events\/new"[^>]*>[\s\S]*Evento<\/a>/);
-    expect(menu).toMatch(/href="\/admin\/news\/new"[^>]*>[\s\S]*Novedad<\/a>/);
-    expect(menu).toMatch(/href="\/admin\/faqs\/new"[^>]*>[\s\S]*Pregunta<\/a>/);
-    expect(html.match(/<summary/g)).toHaveLength(1);
+  it("offers Evento, Novedad and Pregunta through the existing new routes, always in sight, with no disclosure to open", async () => {
+    const html = await render();
+    const side = panel(html);
+
+    expect(side).toMatch(/<h2[^>]*>Crear<\/h2>/);
+    expect(side.match(/<a /g)).toHaveLength(3);
+    expect(side).toMatch(/href="\/admin\/events\/new"[^>]*>[\s\S]*Evento<\/a>/);
+    expect(side).toMatch(/href="\/admin\/news\/new"[^>]*>[\s\S]*Novedad<\/a>/);
+    expect(side).toMatch(/href="\/admin\/faqs\/new"[^>]*>[\s\S]*Pregunta<\/a>/);
+    expect(html).not.toContain("<summary");
   });
 
   it("is there for an editor too, and when nothing is pending", async () => {
-    expect(await render("EDITOR", "Ana")).toContain('href="/admin/news/new"');
+    expect(panel(await render("EDITOR", "Ana"))).toContain('href="/admin/news/new"');
+  });
+
+  it("holds the deploy line under the create links", async () => {
+    reads.deploy.mockResolvedValue({ ok: true, attemptedAt: new Date(Date.now() - 5 * 60_000), httpStatus: 200, errorKind: null });
+
+    expect(panel(await render())).toContain("Último despliegue: hace 5 min · OK");
   });
 });
 

@@ -80,9 +80,7 @@ const rowLink = "font-bold hover:underline focus-visible:outline-2 focus-visible
 function PanoramaList({ id, title, children, empty, more }: { id: string; title: string; children: ReactNode[]; empty: string; more?: { href: string; label: string } }) {
   return (
     <section aria-labelledby={`panorama-${id}`} className="grid content-start gap-3 bg-card p-5 ring-1 ring-paper-ring ring-inset">
-      <SectionTitle id={`panorama-${id}`} variant="label">
-        {title}
-      </SectionTitle>
+      <SectionTitle id={`panorama-${id}`}>{title}</SectionTitle>
       {children.length > 0 ? <ul>{children}</ul> : <p className="py-3 text-mist">{empty}</p>}
       {more ? (
         <Link href={more.href} className={`${rowLink} text-sm`}>
@@ -174,30 +172,24 @@ function Waiting({ cards, readable }: { cards: readonly HomeCard[]; readable: bo
   );
 }
 
-/** One primary "+ Crear" that opens the three things the board creates most; a native disclosure, so it needs no script. */
-function CreateMenu() {
+/** The three things the board creates most, always in sight in the side panel: plain links to the existing new routes. */
+function CreateLinks() {
   return (
-    <details className="group">
-      <summary className="inline-flex min-h-16 cursor-pointer list-none items-center gap-3 rounded bg-signal px-8 text-xl font-bold text-white hover:bg-signal-press focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-sky [&::-webkit-details-marker]:hidden">
-        <Icon name="plus" className="size-6" />
-        Crear
-      </summary>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-3 md:max-w-2xl">
-        {CREATE_OPTIONS.map((option) => (
-          <li key={option.href}>
-            <Link
-              href={option.href}
-              className="flex min-h-14 items-center gap-3 rounded bg-card px-3 text-lg font-extrabold ring-1 ring-input ring-inset hover:ring-2 hover:ring-foreground focus-visible:outline-2 focus-visible:outline-sky"
-            >
-              <span aria-hidden="true" className="grid size-9 place-items-center rounded-xs bg-tint-navy text-on-tint-navy">
-                <Icon name={option.icon} className="size-5" />
-              </span>
-              {option.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </details>
+    <ul className="grid gap-1.5">
+      {CREATE_OPTIONS.map((option) => (
+        <li key={option.href}>
+          <Link
+            href={option.href}
+            className="flex min-h-14 items-center gap-3 rounded bg-background px-3 text-lg font-extrabold ring-1 ring-input ring-inset hover:ring-2 hover:ring-foreground focus-visible:outline-2 focus-visible:outline-sky"
+          >
+            <span aria-hidden="true" className="grid size-9 place-items-center rounded-xs bg-tint-navy text-on-tint-navy">
+              <Icon name={option.icon} className="size-5" />
+            </span>
+            {option.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -221,23 +213,31 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
         </p>
       ) : null}
 
-      <section aria-labelledby="waiting-title" className="grid content-start gap-4">
-        <SectionTitle id="waiting-title">Lo que te espera</SectionTitle>
-        <Waiting cards={cards} readable={readable} />
-      </section>
+      {/* The frame fills: what waits and the panorama take the 1fr column; creating lives in a 22rem panel that stays in sight (below on a phone). */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid min-w-0 content-start gap-10">
+          <section aria-labelledby="waiting-title" className="grid content-start gap-4">
+            <SectionTitle id="waiting-title">Lo que te espera</SectionTitle>
+            <Waiting cards={cards} readable={readable} />
+          </section>
 
-      <div>
-        <CreateMenu />
+          {agenda ? <Panorama agenda={agenda} signUps={signUps} /> : null}
+        </div>
+
+        <aside aria-label="Crear y estado del sitio" className="grid gap-4 rounded bg-card p-5 lg:sticky lg:top-22">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <SectionTitle>Crear</SectionTitle>
+            <span className="text-[0.8125rem] text-mist">Lo que la directiva crea más seguido</span>
+          </div>
+          <CreateLinks />
+          {deploy ? (
+            <p role="status" className="border-t border-border pt-4 font-mono text-[0.8125rem] wrap-anywhere text-mist">
+              <span className={deploy.tone === "failed" ? "text-error" : undefined}>{deploy.text}</span>
+              {deploy.tone === "failed" && deploy.hint ? <span className="block">{deploy.hint}</span> : null}
+            </p>
+          ) : null}
+        </aside>
       </div>
-
-      {agenda ? <Panorama agenda={agenda} signUps={signUps} /> : null}
-
-      {deploy ? (
-        <p role="status" className="font-mono text-[0.8125rem] text-mist">
-          <span className={deploy.tone === "failed" ? "text-error" : undefined}>{deploy.text}</span>
-          {deploy.tone === "failed" && deploy.hint ? <span className="block">{deploy.hint}</span> : null}
-        </p>
-      ) : null}
     </div>
   );
 }

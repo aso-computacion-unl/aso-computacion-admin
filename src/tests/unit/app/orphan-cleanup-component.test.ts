@@ -7,7 +7,8 @@ vi.mock("@/interface/admin/media/actions", () => ({ deleteOrphanImages: vi.fn() 
 import { OrphanCleanup, type OrphanItem } from "../../../../app/admin/papelera/imagenes/_components/orphan-cleanup";
 
 const item = (publicId: string, deletable: boolean): OrphanItem => ({ publicId, url: `https://res.cloudinary.com/demo/image/upload/v1/${publicId}.jpg`, width: 800, height: 600, bytes: 2048, uploaded: "1 oct 2026", deletable });
-const render = (items: OrphanItem[]) => renderToStaticMarkup(createElement(OrphanCleanup, { items }));
+const PAGER = "<nav>Revisar la página siguiente</nav>";
+const render = (items: OrphanItem[]) => renderToStaticMarkup(createElement(OrphanCleanup, { items, pager: createElement("nav", null, "Revisar la página siguiente") }));
 
 describe("OrphanCleanup", () => {
   it("offers a checkbox for an old unused image and none for a recent one, which says why", () => {
@@ -31,7 +32,21 @@ describe("OrphanCleanup", () => {
     expect(render([item("aso/new", false)])).toMatch(/<input[^>]*disabled[^>]*>/);
   });
 
-  it("says so when the page has no unused images", () => {
-    expect(render([])).toContain("No hay imágenes sin uso en esta página.");
+  it("says so when the page has no unused images, and still offers the store's next page", () => {
+    const html = render([]);
+
+    expect(html).toContain("No hay imágenes sin uso en esta página.");
+    expect(html).toContain(PAGER);
+  });
+
+  it("keeps the selection and the store's pager together in the side panel, after the images", () => {
+    const html = render([item("aso/old", true)]);
+    const panel = html.match(/<aside aria-labelledby="selection-title"[\s\S]*<\/aside>/)?.[0] ?? "";
+
+    expect(panel).toMatch(/<h2[^>]*>Selección<\/h2>/);
+    expect(panel).toContain("Seleccionar todas las que se pueden eliminar");
+    expect(panel).toContain("Nada seleccionado");
+    expect(panel).toContain(PAGER);
+    expect(html.indexOf('aria-label="Seleccionar: aso/old"')).toBeLessThan(html.indexOf("<aside"));
   });
 });

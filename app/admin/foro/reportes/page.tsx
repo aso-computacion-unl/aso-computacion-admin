@@ -9,6 +9,7 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 import { cn } from "@/lib/utils";
 
 import { PageHeader } from "../../_components/page-header";
+import { SectionTitle } from "../../_components/section-title";
 import { Panel } from "../../_components/form-layout";
 import { EmptyState } from "../../_components/empty-state";
 import { Stamp } from "../../_components/timeline-parts";
@@ -25,7 +26,7 @@ const OUTCOME_LABELS = { RESOLVED: "Resuelto", DISMISSED: "Descartado", OPEN: "A
 
 const LINK = "inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-sky underline-offset-4 hover:underline";
 
-/** The one report in view: where it is, the quoted text, who wrote and who reported it, and what it says now. */
+/** The one report in view: where it is, the quoted text, who wrote and who reported it, and what it says now. The decision lives in the side panel. */
 function ReportCard({ report }: { report: ForumReportItemResult }) {
   const { target } = report;
 
@@ -53,8 +54,6 @@ function ReportCard({ report }: { report: ForumReportItemResult }) {
         <span className="font-bold">Motivo: </span>
         {report.reason}
       </p>
-
-      <ReportActions key={report.id} report={report} />
     </Panel>
   );
 }
@@ -128,30 +127,37 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
 
       {showingOpen ? (
         report ? (
-          <section className="mt-6 grid gap-4" aria-label="Reporte abierto">
-            <nav aria-label="Recorrer los reportes" className="flex flex-wrap items-center gap-3">
-              <span className="font-mono text-[0.8125rem] text-mist">
-                {position} de {open.total}
-              </span>
-              {position > 1 ? (
-                <Button asChild variant="line" size="sm">
-                  <Link href={reportPositionHref(position - 1)} rel="prev">
-                    <Icon name="left" />
-                    Anterior
-                  </Link>
-                </Button>
-              ) : null}
-              {position < open.total ? (
-                <Button asChild variant="line" size="sm">
-                  <Link href={reportPositionHref(position + 1)} rel="next">
-                    Siguiente
-                    <Icon name="right" />
-                  </Link>
-                </Button>
-              ) : null}
-            </nav>
-            <ReportCard report={report} />
-          </section>
+          // The report is read on the left and decided on the right, in a 22rem panel that stays in sight (below on a phone).
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <section className="grid min-w-0 gap-4" aria-label="Reporte abierto">
+              <nav aria-label="Recorrer los reportes" className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-[0.8125rem] text-mist">
+                  {position} de {open.total}
+                </span>
+                {position > 1 ? (
+                  <Button asChild variant="line" size="sm">
+                    <Link href={reportPositionHref(position - 1)} rel="prev">
+                      <Icon name="left" />
+                      Anterior
+                    </Link>
+                  </Button>
+                ) : null}
+                {position < open.total ? (
+                  <Button asChild variant="line" size="sm">
+                    <Link href={reportPositionHref(position + 1)} rel="next">
+                      Siguiente
+                      <Icon name="right" />
+                    </Link>
+                  </Button>
+                ) : null}
+              </nav>
+              <ReportCard report={report} />
+            </section>
+            <aside aria-labelledby="decide-title" className="grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+              <SectionTitle id="decide-title">Decidir</SectionTitle>
+              <ReportActions key={report.id} report={report} />
+            </aside>
+          </div>
         ) : (
           <EmptyState icon="check">No hay reportes abiertos</EmptyState>
         )

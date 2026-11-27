@@ -63,6 +63,17 @@ describe("RegistrationForm", () => {
     expect(sent(action).registrationMode).toBe("open");
   });
 
+  it("is one «Inscripción» group with its purpose, and asks «Quién se inscribe» (S5)", async () => {
+    const host = await mountForm(vi.fn(ok));
+    const group = host.querySelector("section[aria-labelledby]")!;
+
+    expect(document.getElementById(group.getAttribute("aria-labelledby")!)!.tagName).toBe("H2");
+    expect(group.querySelector("h2")!.textContent).toBe("Inscripción");
+    expect(group.querySelector("h2 + span")!.textContent).toBe("Cómo se anotan y cuántos entran");
+    expect(group.querySelector("legend")!.textContent).toBe("Quién se inscribe");
+    expect(group.contains(radio(host, "open"))).toBe(true);
+  });
+
   it("starts with the stored mode and seats", async () => {
     const host = await mountForm(vi.fn(ok));
 

@@ -120,7 +120,7 @@ test("an event's edit page fits a phone, with the save bar in reach above the ta
 
   await expectFitsAPhone(page, { submitLabel: /Guardar cambios/, segmented: ["Tipo", "Tipo de fecha"] });
 
-  // Content, Fotos, «Publicación», Inscripción: read in one go. Fotos stays outside the event's form (no nested forms).
+  // Content, Fotos, Inscripción, «Publicación»: read in one go. Fotos stays outside the event's form (no nested forms).
   const order = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
     const content = box("form > section");
@@ -130,12 +130,12 @@ test("an event's edit page fits a phone, with the save bar in reach above the ta
 
     return {
       photosAfterContent: photos.top >= content.bottom,
-      panelAfterPhotos: panel.top >= photos.bottom,
-      registrationAfterPanel: registration.top >= panel.bottom,
+      registrationAfterPhotos: registration.top >= photos.bottom,
+      panelAfterRegistration: panel.top >= registration.bottom,
       photosOutsideForm: document.querySelector("#fotos")!.closest("form") === null,
     };
   });
-  expect(order).toEqual({ photosAfterContent: true, panelAfterPhotos: true, registrationAfterPanel: true, photosOutsideForm: true });
+  expect(order).toEqual({ photosAfterContent: true, registrationAfterPhotos: true, panelAfterRegistration: true, photosOutsideForm: true });
 
   // The save bar stays in reach down to the end of the page, past the photos.
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

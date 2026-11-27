@@ -37,8 +37,6 @@ interface EventFormProps {
   registrationHref?: string;
   /** A new event whose kind is already chosen (Inscripciones creates only events with registration): no kind selector. */
   fixedKind?: "registration";
-  /** A page-owned card under the save bar, in the side column (the edit page's Inscripción). */
-  sideAfter?: ReactNode;
 }
 
 const TYPE_OPTIONS = [
@@ -125,7 +123,7 @@ function CommitInput({ className, ...props }: ComponentProps<"input">) {
  * everything the owner typed (React 19 resets uncontrolled fields after a
  * form action). `useControlledForm` does both, and checks every field before it submits.
  */
-export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registrationHref, fixedKind, sideAfter }: EventFormProps) {
+export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FORM_VALUES, autosave = false, registrationHref, fixedKind }: EventFormProps) {
   const { values, stored, setValues, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, fixedKind ? { ...initialValues, eventKind: fixedKind } : initialValues, {
     serialize: formValuesToFormData,
     autosave,
@@ -159,7 +157,7 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const scheduleInvalid = SCHEDULE_FIELDS.some((name) => errors[name]);
 
   // Two zones (EditorSplit): what the public reads on the left; preview, state, schedule and the one primary button
-  // in the panel on the right, with the page's `sideAfter` under it. Publicado/Destacado go under the title on a phone.
+  // in the panel on the right. Publicado/Destacado go under the title on a phone.
   return (
     <EditorSplit
       formRef={formRef}
@@ -199,7 +197,6 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
           />
         ) : null
       }
-      sideAfter={sideAfter}
     >
       <EditorGroup title="Contenido" purpose="Lo que el público lee">
         {isEditing || fixedKind ? null : (

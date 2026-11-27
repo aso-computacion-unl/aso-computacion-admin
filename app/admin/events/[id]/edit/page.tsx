@@ -72,17 +72,36 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
         ]}
       />
       {/* The page owns the two columns (08): Fotos has forms of its own, which cannot nest in the event's, so it sits
-          beside the form in the content column; Inscripción (links only) goes under the save bar in the side one. */}
+          beside the form in the content column, with Inscripción under it; only Publicación and its button stay in the
+          sticky side column, so it fits a 768px-tall screen. */}
       <EditorColumns
         id="datos"
         content={
-          <div id={PHOTOS_SECTION_ID} className={anchor}>
-            <PhotoGallery
-              eventId={id}
-              minWidth={EVENT_PHOTO_MIN_WIDTH}
-              photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
-            />
-          </div>
+          <>
+            <div id={PHOTOS_SECTION_ID} className={anchor}>
+              <PhotoGallery
+                eventId={id}
+                minWidth={EVENT_PHOTO_MIN_WIDTH}
+                photos={event.photos.map(({ id: photoId, url, alt, width, height }) => ({ id: photoId, url, alt, width, height }))}
+              />
+            </div>
+              <Panel id="inscripciones" aria-labelledby="inscripciones-heading" className={`${anchor} grid gap-3`}>
+                <SectionTitle id="inscripciones-heading">Inscripción</SectionTitle>
+                {/* S2: the kind is fixed at creation, so it is shown, never edited; read from the stored mode, not the form values. */}
+                <p className="text-sm">Tipo de evento: {takesRegistrations ? "Evento con inscripción" : "Evento"}</p>
+                <p className="text-sm wrap-anywhere">{registrationSummary(event)}</p>
+                {takesRegistrations ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="line">
+                      <Link href={manageRegistrationHref}>Gestionar inscripción</Link>
+                    </Button>
+                    <Button asChild variant="quiet">
+                      <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </Panel>
+          </>
         }
       >
         <EventForm
@@ -91,24 +110,6 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
           submitLabel="Guardar cambios"
           initialValues={eventToFormValues(event)}
           registrationHref={takesRegistrations ? manageRegistrationHref : undefined}
-          sideAfter={
-            <Panel id="inscripciones" aria-labelledby="inscripciones-heading" className={`${anchor} grid gap-3`}>
-              <SectionTitle id="inscripciones-heading">Inscripción</SectionTitle>
-              {/* S2: the kind is fixed at creation, so it is shown, never edited; read from the stored mode, not the form values. */}
-              <p className="text-sm">Tipo de evento: {takesRegistrations ? "Evento con inscripción" : "Evento"}</p>
-              <p className="text-sm wrap-anywhere">{registrationSummary(event)}</p>
-              {takesRegistrations ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="line">
-                    <Link href={manageRegistrationHref}>Gestionar inscripción</Link>
-                  </Button>
-                  <Button asChild variant="quiet">
-                    <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
-                  </Button>
-                </div>
-              ) : null}
-            </Panel>
-          }
         />
       </EditorColumns>
     </FormLayout>

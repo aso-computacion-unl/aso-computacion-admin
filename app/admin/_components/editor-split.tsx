@@ -60,8 +60,6 @@ interface EditorSplitProps {
   submit: ReactNode;
   /** The publish preview dialog, while it is open. */
   dialog?: ReactNode;
-  /** A page-owned card under the save bar (the event's Inscripción). It sits inside the form: links only, no fields. */
-  sideAfter?: ReactNode;
 }
 
 /**
@@ -70,11 +68,11 @@ interface EditorSplitProps {
  * phone every side wrapper dissolves (`contents`): the state row moves up under the page title, the rest is a card
  * after the content, and the save bar sticks along the whole form. One control per field, only its place changes.
  *
- * The side column never grows past the screen: a taller one (the event's, with Inscripción) scrolls by itself, and
+ * The side column never grows past the screen: a taller one (an open schedule on a short screen) scrolls by itself, and
  * the save bar, sticky at its foot, stays in view. On a phone the `order`s keep state, content, the page's blocks
- * (`EditorColumns`), the panel, `sideAfter`, then the save bar.
+ * (`EditorColumns`), the panel, then the save bar.
  */
-export function EditorSplit({ formRef, onSubmit, children, preview, state, schedule, note, status, submit, dialog, sideAfter }: EditorSplitProps) {
+export function EditorSplit({ formRef, onSubmit, children, preview, state, schedule, note, status, submit, dialog }: EditorSplitProps) {
   const headingId = useId();
   // On a phone the state row leaves the card: a rule with nothing after it would close the card.
   const afterRule = Boolean(schedule || note);
@@ -105,7 +103,6 @@ export function EditorSplit({ formRef, onSubmit, children, preview, state, sched
         <ActionBar className="mx-0 mt-0 rounded max-lg:order-4 md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none" status={status}>
           {submit}
         </ActionBar>
-        {sideAfter ? <div className="min-w-0 max-lg:order-3 lg:mt-4">{sideAfter}</div> : null}
       </div>
       {dialog}
     </form>

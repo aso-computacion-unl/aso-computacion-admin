@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,10 +9,10 @@ vi.mock("@/interface/admin/events/actions", () => ({ updateEvent: vi.fn() }));
 // The real form values carry a placeholder kind ("announcement") that is never the stored one (R2-001).
 vi.mock("@/interface/admin/events/event-form-values", () => ({ eventToFormValues: () => ({ eventKind: "announcement" }) }));
 // The form and the gallery have their own tests; here they only stand in for their sections. The form puts the page's
-// `sideAfter` in its side column.
+// nothing of the page in its side column.
 vi.mock("../../../../app/admin/events/_components/event-form", () => ({
-  EventForm: ({ registrationHref, sideAfter }: { registrationHref?: string; sideAfter?: ReactNode }) =>
-    createElement("form", { "data-registration-href": registrationHref }, "event form", createElement("div", { "data-slot": "publish-side" }, sideAfter)),
+  EventForm: ({ registrationHref }: { registrationHref?: string }) =>
+    createElement("form", { "data-registration-href": registrationHref }, "event form", createElement("div", { "data-slot": "publish-side" })),
 }));
 vi.mock("../../../../app/admin/events/_components/photo-gallery", () => ({ PhotoGallery: () => createElement("section", null, "photo gallery") }));
 vi.mock("../../../../app/admin/events/_components/event-created-arrival", () => ({ EventCreatedArrival: () => createElement("div", { "data-testid": "created-arrival" }) }));
@@ -91,7 +91,9 @@ describe("the event edit page", () => {
     expect(form).not.toContain("photo gallery");
     expect(columns).toContain("photo gallery");
     expect(columns.indexOf("event form")).toBeLessThan(columns.indexOf("photo gallery"));
-    expect(form).toMatch(/data-slot="publish-side"><section[^>]*id="inscripciones"/);
+    // Inscripción is in the content column under Fotos, outside the form, so the sticky side column fits a short screen.
+    expect(form).not.toContain('id="inscripciones"');
+    expect(columns.indexOf("photo gallery")).toBeLessThan(columns.indexOf('id="inscripciones"'));
     expect(panel(html)).toMatch(/<h2[^>]*>Inscripción<\/h2>/);
   });
 

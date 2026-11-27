@@ -28,8 +28,8 @@ async function saveSettings(events: EventRepository, { eventId, registrationMode
 }
 
 /**
- * Changes or turns off the registration of an event that has one, as stored; an event takes one only when it is
- * created with it. The entity refuses what S4 refuses.
+ * Changes the registration of an event that has one, as stored: an event takes one only when it is created with it,
+ * and never loses it (event-kinds S2, S6). The entity refuses what S4 refuses.
  */
 export class ChangeEventRegistrationUseCase {
   constructor(private readonly events: EventRepository) {}

@@ -70,7 +70,7 @@ describe("mapActionError", () => {
 
     expect(mapActionError(error)).toEqual({
       fieldErrors: {
-        registrationMode: "El evento ya pasó: su inscripción no se puede abrir ni cambiar, solo desactivar.",
+        registrationMode: "El evento ya pasó: su inscripción ya no se puede cambiar.",
         registrationDeadline: "El cierre de la inscripción no puede ser posterior al día del evento.",
       },
     });

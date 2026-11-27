@@ -166,6 +166,8 @@ describe("the Próximos / Pasados tabs", () => {
       event(1, { title: "Fiesta", date: "2999-01-01" }),
       event(2, { title: "Taller UNL", date: "2999-01-02", registrationMode: "unl" }),
       event(3, { title: "Charla abierta", date: "2999-01-03", registrationMode: "open" }),
+      // Only a way to sign up earns the tag: anything else the row could carry is not one.
+      event(4, { title: "Sin modo", date: "2999-01-04", registrationMode: "" }),
     ]);
     const html = await render();
     const row = (title: string) => html.slice(html.indexOf(`>${title}</a>`), html.indexOf("</li>", html.indexOf(`>${title}</a>`)));
@@ -173,6 +175,7 @@ describe("the Próximos / Pasados tabs", () => {
     expect(row("Fiesta")).not.toContain("Con inscripción");
     expect(row("Taller UNL")).toContain("Con inscripción");
     expect(row("Charla abierta")).toContain("Con inscripción");
+    expect(row("Sin modo")).not.toContain("Con inscripción");
   });
 
   it("says when a tab is empty and points to the other one", async () => {

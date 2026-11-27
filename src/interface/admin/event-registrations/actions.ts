@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { getEventRegistrationServices } from "@/interface/public/event-registration-container";
@@ -12,7 +11,6 @@ import { mapActionError, type ActionResult } from "../action-result";
 import { getEventUseCases } from "../events/events-container";
 import { isRegistrationChangeConfirmed, unconfirmedRegistrationChange } from "../events/registration-change-guard";
 import { parseRegistrationFormData } from "../events/registration-form-fields";
-import { turnedOffRegistrationPath } from "./saved-flag";
 
 // Registrations are personal data: looking is editor-level (the page), deleting is ADMIN only. The guard is the
 // first statement; the audit entry names the event only, never the person, and is written after the delete.
@@ -51,14 +49,10 @@ export async function updateEventRegistration(eventId: string, _prevState: Actio
     await recordAudit(actor, { action: "event.registration_update", entityType: "event", entityId: id, summary: "Inscripción de un evento editada" });
     refresh(id, saved.isPublished);
 
-    if (saved.registrationMode !== "none") {
-      return { success: true };
-    }
+    return { success: true };
   } catch (error) {
     return mapActionError(error);
   }
-
-  redirect(turnedOffRegistrationPath);
 }
 
 export async function deleteEventRegistration(eventId: string, registrationId: string): Promise<ActionResult> {

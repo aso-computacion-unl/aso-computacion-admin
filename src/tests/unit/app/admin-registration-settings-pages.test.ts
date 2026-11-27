@@ -14,12 +14,8 @@ vi.mock("../../../../app/admin/events/_components/event-form", () => ({
 }));
 // The form has its own tests; here it shows what the page hands it.
 vi.mock("../../../../app/admin/registrations/_components/registration-form", () => ({
-  RegistrationForm: ({ initialValues, storedValues, registeredCount, submitLabel }: Record<string, unknown>) =>
-    createElement(
-      "form",
-      { "data-initial": JSON.stringify(initialValues), "data-stored": JSON.stringify(storedValues ?? null), "data-registered": String(registeredCount ?? 0) },
-      submitLabel as string,
-    ),
+  RegistrationForm: ({ initialValues, registeredCount, submitLabel }: Record<string, unknown>) =>
+    createElement("form", { "data-initial": JSON.stringify(initialValues), "data-registered": String(registeredCount ?? 0) }, submitLabel as string),
 }));
 vi.mock("next/navigation", () => ({
   notFound: () => {

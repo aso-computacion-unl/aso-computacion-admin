@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ValidationError } from "@/domain";
 import { Event, type CreateEventInput } from "@/domain/event";
+import { EVENT_KIND_FIXED_MESSAGE } from "@/domain/event-registration";
 
 function build(overrides: Partial<CreateEventInput> = {}): Event {
   return Event.create({ title: "Hackatón 24h", ...overrides });
@@ -208,6 +209,34 @@ describe("Event.update", () => {
   });
 });
 
+describe("the event kind is fixed after creation (event-kinds S2, S6)", () => {
+  const kindRefusal = expect.objectContaining({ issues: [{ field: "registrationMode", message: EVENT_KIND_FIXED_MESSAGE }] });
+
+  it("refuses giving an announcement a registration", () => {
+    expect(() => build({ date: "2099-11-28" }).update({ registrationMode: "unl" })).toThrow(kindRefusal);
+    expect(() => build({ date: "2099-11-28" }).update({ registrationMode: "open", registrationCapacity: 10 })).toThrow(kindRefusal);
+  });
+
+  it("refuses turning a registration off: it can only close", () => {
+    expect(() => build({ date: "2099-11-28", registrationMode: "unl" }).update({ registrationMode: "none" })).toThrow(kindRefusal);
+    expect(() => build({ date: "2099-11-28", registrationMode: "open" }).update({ registrationMode: "none" })).toThrow(kindRefusal);
+  });
+
+  it("lets an event with registration switch between Cuenta UNL and Formulario abierto", () => {
+    const unl = build({ date: "2099-11-28", registrationMode: "unl" });
+
+    expect(unl.update({ registrationMode: "open" }).props.registrationMode).toBe("open");
+    expect(unl.update({ registrationMode: "open" }).update({ registrationMode: "unl" }).props.registrationMode).toBe("unl");
+  });
+
+  it("keeps saving and publishing an announcement's ordinary edits", () => {
+    const announcement = build({ date: "2099-11-28" });
+    const saved = announcement.update({ title: "Fiesta de fin de año", lugar: "Patio" }).update({ isPublished: true });
+
+    expect(saved.props).toMatchObject({ title: "Fiesta de fin de año", lugar: "Patio", isPublished: true, registrationMode: "none" });
+  });
+});
+
 describe("registration dates", () => {
   // 10:00 in Ecuador, 2026-11-20: the 19th has passed, the 20th is today.
   const NOW = new Date("2026-11-20T15:00:00.000Z");
@@ -230,7 +259,6 @@ describe("registration dates", () => {
 
   it("refuses opening registration for an event that already happened", () => {
     expect(() => build({ date: "2026-11-19", registrationMode: "open" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
-    expect(() => build({ date: "2026-11-19" }).update({ registrationMode: "unl" })).toThrow(expect.objectContaining({ field: "registrationMode" }));
   });
 
   it("refuses changing the capacity or the deadline of a past event's registration", () => {
@@ -247,8 +275,10 @@ describe("registration dates", () => {
     expect(updated.props).toMatchObject({ title: "Taller pasado", registrationMode: "open", registrationCapacity: 10 });
   });
 
-  it("lets a past event turn its registration off", () => {
-    expect(pastWithRegistration().update({ registrationMode: "none" }).props).toMatchObject({ registrationMode: "none", registrationCapacity: null });
+  it("never turns a past event's registration off: its kind is fixed", () => {
+    expect(() => pastWithRegistration().update({ registrationMode: "none" })).toThrow(
+      expect.objectContaining({ issues: [{ field: "registrationMode", message: EVENT_KIND_FIXED_MESSAGE }] }),
+    );
   });
 
   it("refuses a deadline after the event's day, in Ecuador time, and allows one on the day", () => {
@@ -300,9 +330,8 @@ describe("registration dates", () => {
       expect(() => withDeadline().update({ date: "2026-11-25", title: "Otro título" })).toThrow(expect.objectContaining({ field: "registrationDeadline" }));
     });
 
-    it("keeps a later date, and a date moved while registration is switched off", () => {
+    it("keeps a later date", () => {
       expect(withDeadline().update({ date: "2026-12-05" }).props.date).toBe("2026-12-05");
-      expect(withDeadline().update({ date: "2026-11-25", registrationMode: "none" }).props).toMatchObject({ date: "2026-11-25", registrationMode: "none" });
     });
   });
 });

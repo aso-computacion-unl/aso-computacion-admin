@@ -1,8 +1,5 @@
-import { useId, useState } from "react";
-
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
-import { SwitchField } from "@/components/ui/switch";
 import type { EventRegistrationMode } from "@/domain/event-registration";
 
 import { Field, FieldError } from "../../_components/form-parts";
@@ -47,31 +44,5 @@ export function RegistrationSettingsFields({ id, mode, onModeChange, capacity, d
         {(control) => <Input {...control} {...deadline} type="datetime-local" />}
       </Field>
     </div>
-  );
-}
-
-/** One switch: off is mode `none`; on shows the settings. */
-export function RegistrationFields({ mode, onModeChange, ...settings }: RegistrationFieldsProps) {
-  const panelId = useId();
-  const on = mode !== "none";
-  // Turning the switch back on returns to the way the event signed people up before.
-  const [lastMode, setLastMode] = useState<EventRegistrationMode>(on ? mode : "unl");
-
-  function chooseMode(value: EventRegistrationMode) {
-    setLastMode(value);
-    onModeChange(value);
-  }
-
-  return (
-    <>
-      <SwitchField
-        label="Tiene inscripción"
-        checked={on}
-        aria-controls={on ? panelId : undefined}
-        onChange={() => onModeChange(on ? "none" : lastMode)}
-        className="@xl:col-span-2"
-      />
-      {on ? <RegistrationSettingsFields id={panelId} mode={mode} onModeChange={chooseMode} {...settings} /> : null}
-    </>
   );
 }

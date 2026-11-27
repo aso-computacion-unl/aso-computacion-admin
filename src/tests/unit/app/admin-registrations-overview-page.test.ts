@@ -192,10 +192,10 @@ describe("the registrations screen: which event is selected", () => {
     expect(await render(evento.id)).not.toContain("data-arrival");
   });
 
-  it("confirms a registration just turned off, whose event is no longer in the list", async () => {
+  it("confirms nothing for a flag it does not know: a registration is never turned off (event-kinds S6)", async () => {
     await addTestEvent({ title: "Taller", date: "2099-12-01" });
 
-    expect(await render(undefined, "desactivada")).toContain('data-arrival="Inscripción desactivada. /admin/registrations"');
+    expect(await render(undefined, "desactivada")).not.toContain("data-arrival");
     expect(await render(undefined, "otra")).not.toContain("data-arrival");
   });
 

@@ -23,7 +23,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("R8 / S4: create a new draft event with registration from Inscripciones, see it in the panel, change it and turn it off", async ({ page }) => {
+test("R8 / S4: create a new draft event with registration from Inscripciones, see it in the panel and change it", async ({ page }) => {
   const title = `E2E inscripcion borrador ${Date.now()}`;
 
   await logInAsAdmin(page);
@@ -67,20 +67,23 @@ test("R8 / S4: create a new draft event with registration from Inscripciones, se
   await expect(page.locator('[data-slot="form-feedback"]').getByText("Cambios guardados.")).toBeVisible();
   expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationCapacity).toBe(30);
 
-  // Turn it off: nobody is registered, so nothing is asked; the panel, which the event leaves, confirms it.
-  await page.locator("label").filter({ has: page.getByRole("switch", { name: "Tiene inscripción" }) }).click();
-  await expect(page.getByLabel("Cupos")).toHaveCount(0);
-  await page.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(page).toHaveURL(/\/admin\/registrations$/);
-  await expect(page.getByText("Inscripción desactivada.")).toBeVisible();
-  expect((await prisma.event.findUniqueOrThrow({ where: { id } })).registrationMode).toBe("none");
-  await expect(page.getByRole("link", { name: new RegExp(title) })).toHaveCount(0);
+  // The kind is fixed (event-kinds S2, S6): no switch turns the registration off, and the event page shows the kind.
+  await expect(page.getByRole("switch", { name: "Tiene inscripción" })).toHaveCount(0);
+  await page.goto(`/admin/events/${id}/edit`);
+  await expect(page.getByRole("region", { name: "Inscripción" })).toContainText("Tipo de evento: Evento con inscripción");
+});
 
-  // An event without registration never takes one: its edit screen leads back to the panel, and its event page offers none (S1).
+test("event-kinds S2: an announcement never takes a registration, and its page shows the kind", async ({ page }) => {
+  const id = `e2e-anuncio-${Date.now()}`;
+  await prisma.event.create({ data: { id, slug: id, title: `E2E anuncio ${Date.now()}`, isPublished: false, registrationMode: "none", updatedAt: new Date() } });
+
+  await logInAsAdmin(page);
   await page.goto(`/admin/registrations/${id}/edit`);
   await expect(page).toHaveURL(/\/admin\/registrations$/);
   await page.goto(`/admin/events/${id}/edit`);
-  await expect(page.getByRole("region", { name: "Inscripción" })).toContainText("Sin inscripción");
+  const region = page.getByRole("region", { name: "Inscripción" });
+  await expect(region).toContainText("Tipo de evento: Evento");
+  await expect(region).toContainText("Sin inscripción");
   await expect(page.getByRole("link", { name: "Crear inscripción" })).toHaveCount(0);
 });
 

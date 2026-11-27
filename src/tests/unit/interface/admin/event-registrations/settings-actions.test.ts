@@ -53,16 +53,6 @@ describe("updateEventRegistration", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/events/e1/edit");
   });
 
-  it("turning the registration off leaves this screen for the panel, which the event leaves, with its own notice", async () => {
-    useCases.changeRegistration.execute.mockResolvedValueOnce({ id: "e1", isPublished: true, registrationMode: "none" });
-
-    await expect(updateEventRegistration("e1", null, form({ registrationMode: "none", registrationCapacity: "", registrationDeadline: "" }))).rejects.toThrow(
-      "REDIRECT /admin/registrations?guardada=desactivada",
-    );
-    expect(requestSiteRebuildMock).toHaveBeenCalledTimes(1);
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/registrations");
-  });
-
   it("rebuilds the landing for a published event, not for a draft", async () => {
     await updateEventRegistration("e1", null, form(SETTINGS));
     expect(requestSiteRebuildMock).not.toHaveBeenCalled();
@@ -75,7 +65,7 @@ describe("updateEventRegistration", () => {
   it("D14: refuses a mode change of an event with registered people without the confirmation, and stores nothing", async () => {
     useCases.registeredCount.mockResolvedValue(3);
 
-    const result = await updateEventRegistration("e1", null, form({ registrationMode: "none", registrationCapacity: "", registrationDeadline: "" }));
+    const result = await updateEventRegistration("e1", null, form(SETTINGS));
 
     expect(result.error).toMatch(/^Este evento ya tiene 3 inscritos\. .*Confirme el cambio para guardarlo\.$/);
     expect(useCases.changeRegistration.execute).not.toHaveBeenCalled();
@@ -84,11 +74,8 @@ describe("updateEventRegistration", () => {
   it("D14: saves the same change once the form carries the confirmation", async () => {
     useCases.registeredCount.mockResolvedValue(3);
 
-    useCases.changeRegistration.execute.mockResolvedValueOnce({ id: "e1", isPublished: false, registrationMode: "none" });
-
-    await expect(updateEventRegistration("e1", null, form({ registrationMode: "none", registrationCapacity: "", registrationDeadline: "", confirmRegistrationChange: "on" }))).rejects.toThrow(
-      "REDIRECT /admin/registrations?guardada=desactivada",
-    );
-    expect(useCases.changeRegistration.execute).toHaveBeenCalledWith({ eventId: "e1", registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    expect(await updateEventRegistration("e1", null, form({ ...SETTINGS, confirmRegistrationChange: "on" }))).toEqual({ success: true });
+    expect(useCases.changeRegistration.execute).toHaveBeenCalledWith({ eventId: "e1", ...PARSED });
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });

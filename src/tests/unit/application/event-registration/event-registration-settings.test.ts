@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { NotFoundError } from "@/application";
 import { ChangeEventRegistrationUseCase } from "@/application/event-registration/event-registration-settings.use-cases";
 import { type CreateEventInput } from "@/domain/event";
-import { PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_NOT_SET_MESSAGE } from "@/domain/event-registration";
+import { EVENT_KIND_FIXED_MESSAGE, PAST_EVENT_REGISTRATION_MESSAGE, REGISTRATION_NOT_SET_MESSAGE } from "@/domain/event-registration";
 import { ValidationError } from "@/domain";
 import { InMemoryEventRepository } from "@/tests/fakes/in-memory-event.repository";
 import { storedEvent } from "@/tests/support/test-event-registration";
@@ -47,12 +47,11 @@ describe("ChangeEventRegistrationUseCase", () => {
     expect(await stored(event.id)).toMatchObject({ registrationMode: "open", registrationCapacity: null, registrationDeadline: null, title: "Taller", hora: "09:00", lugar: "Laboratorio 2" });
   });
 
-  it("turns the registration off, clearing its seats and deadline", async () => {
+  it("never turns the registration off (event-kinds S6): `none` is refused and the event keeps its settings", async () => {
     const event = await addEvent("Taller", { registrationMode: "open", registrationCapacity: 10 });
 
-    await change({ eventId: event.id, registrationMode: "none", registrationCapacity: 10, registrationDeadline: null });
-
-    expect(await stored(event.id)).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    expect(await refusal(change({ eventId: event.id, registrationMode: "none", registrationCapacity: 10, registrationDeadline: null }))).toEqual(["registrationMode", EVENT_KIND_FIXED_MESSAGE]);
+    expect(await stored(event.id)).toMatchObject({ registrationMode: "open", registrationCapacity: 10 });
   });
 
   it("refuses an event that does not exist", async () => {
@@ -66,12 +65,12 @@ describe("ChangeEventRegistrationUseCase", () => {
     expect(await stored(event.id)).toMatchObject({ registrationMode: "none", registrationCapacity: null });
   });
 
-  it("refuses changing the registration of a past event, but lets it be turned off", async () => {
+  it("refuses changing the registration of a past event, and never turns it off", async () => {
     const past = storedEvent({ title: "Antiguo", date: "2020-05-10", isPublished: true, registrationMode: "unl" });
     await events.create(past);
 
     expect(await refusal(change({ eventId: past.props.id, registrationMode: "open" }))).toEqual(["registrationMode", PAST_EVENT_REGISTRATION_MESSAGE]);
-    await change({ eventId: past.props.id, registrationMode: "none" });
-    expect((await stored(past.props.id)).registrationMode).toBe("none");
+    expect(await refusal(change({ eventId: past.props.id, registrationMode: "none" }))).toEqual(["registrationMode", EVENT_KIND_FIXED_MESSAGE]);
+    expect((await stored(past.props.id)).registrationMode).toBe("unl");
   });
 });

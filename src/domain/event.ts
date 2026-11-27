@@ -1,5 +1,5 @@
 import { collectValidation, ValidationError } from "./domain-error";
-import { assertRegistrationDates, assertRegistrationSettings, type EventRegistrationMode, type SavedRegistration } from "./event-registration";
+import { assertEventKindKept, assertRegistrationDates, assertRegistrationSettings, type EventRegistrationMode, type SavedRegistration } from "./event-registration";
 import { assertPublicationWindow } from "./publication-window";
 import { titleAndSlug } from "./slug";
 import { httpsUrl, optionalText, requiredText } from "./text";
@@ -242,6 +242,7 @@ export class Event {
   update(updates: UpdateEventInput): Event {
     const current = this.props;
     const definedUpdates = Object.fromEntries(Object.entries(updates).filter(([, value]) => value !== undefined));
+    assertEventKindKept(current.registrationMode, updates.registrationMode ?? undefined);
 
     return new Event(
       build(

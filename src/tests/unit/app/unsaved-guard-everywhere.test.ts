@@ -223,13 +223,19 @@ describe("the phone top bar's logo", () => {
   });
 });
 
-describe("the identity menu", () => {
+/** A button of the session card: the rail's (desktop) or the row at the top of the page (phone). */
+const cardButton = (host: HTMLElement, card: "aside" | "main", text: string) =>
+  [...host.querySelectorAll<HTMLButtonElement>(`${card} section button`)].find((button) => button.textContent?.includes(text))!;
+
+describe.each([
+  ["rail", "aside"],
+  ["phone row", "main"],
+] as const)("the profile card (%s)", (_name, card) => {
   it("asks before 'Cerrar sesión' signs out while a form holds unsaved changes, and signs out on 'Salir sin guardar'", async () => {
     const host = await mountAdmin();
 
     await makeDirty(host);
-    await click(chip(host));
-    await click(menuButton(host, "Cerrar sesión"));
+    await click(cardButton(host, card, "Cerrar sesión"));
 
     expect(dialogs()).toHaveLength(1);
     expect(logout).not.toHaveBeenCalled();
@@ -240,24 +246,24 @@ describe("the identity menu", () => {
     expect(title(host).value).toBe("Hola mundo");
   });
 
-  it("stays signed in with 'Seguir editando' and, the menu being closed, gives the focus back to its button", async () => {
+  it("stays signed in with 'Seguir editando' and gives the focus back to 'Cerrar sesión'", async () => {
     const host = await mountAdmin();
+    const signOut = cardButton(host, card, "Cerrar sesión");
 
     await makeDirty(host);
-    await click(chip(host));
-    await click(menuButton(host, "Cerrar sesión"));
+    await act(async () => signOut.focus());
+    await click(signOut);
     await click(dialogButton("Seguir editando"));
 
     expect(dialog()).toBeNull();
     expect(logout).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(chip(host));
+    expect(document.activeElement).toBe(signOut);
   });
 
   it("signs out without asking while nothing has changed", async () => {
     const host = await mountAdmin();
 
-    await click(chip(host));
-    await click(menuButton(host, "Cerrar sesión"));
+    await click(cardButton(host, card, "Cerrar sesión"));
 
     expect(dialog()).toBeNull();
     expect(logout).toHaveBeenCalledTimes(1);
@@ -268,13 +274,24 @@ describe("the identity menu", () => {
     const before = document.documentElement.dataset.theme;
 
     await makeDirty(host);
-    await click(chip(host));
-    await click(menuButton(host, "Modo"));
+    await click(cardButton(host, card, "Modo"));
 
     expect(dialog()).toBeNull();
     expect(document.documentElement.dataset.theme).not.toBe(before);
   });
 
+  it("asks before «Mis sesiones» leaves unsaved changes", async () => {
+    const host = await mountAdmin();
+
+    await makeDirty(host);
+    await click(host.querySelector<HTMLAnchorElement>(`${card} section a[aria-label="Mis sesiones"]`)!);
+
+    expect(visits).toEqual([]);
+    expect(dialogs()).toHaveLength(1);
+  });
+});
+
+describe("the identity menu outside the admin", () => {
   it("signs out as before outside the admin, even with unsaved changes on the page", async () => {
     const submitted = vi.fn();
     const signOut = createElement(

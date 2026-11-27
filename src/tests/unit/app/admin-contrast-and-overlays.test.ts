@@ -156,26 +156,29 @@ describe("typography", () => {
 describe("the phone's tab bar", () => {
   const bar = () => renderToStaticMarkup(createElement(TabBar, { role: "EDITOR" }));
 
-  it("is one row of four tabs, each an icon above its label, and a modal sheet is no longer part of it", () => {
+  it("is one row of five tabs (Inicio and the four areas), each an icon in a pill above its label, and a modal sheet is no longer part of it", () => {
     const html = bar();
 
-    expect(html.match(/<a /g)?.length).toBe(4);
-    expect(html.match(/<svg /g)?.length).toBe(4);
-    expect(html).toContain("grid-cols-4");
+    expect(html.match(/<a /g)?.length).toBe(5);
+    expect(html.match(/<svg /g)?.length).toBe(5);
+    expect(html).toContain("grid-cols-5");
     expect(html).not.toContain("<dialog");
     expect(html).not.toContain("backdrop:");
   });
 
-  it("is the rail's navy, with the safe area under it, and hides from the desktop breakpoint up", () => {
+  it("is the rail's navy, floats 12px above the safe area with the card radius, and hides from the desktop breakpoint up", () => {
     const html = bar();
 
     expect(html).toContain("bg-deep");
-    expect(html).toContain("pb-[env(safe-area-inset-bottom)]");
+    expect(html).toContain("rounded-card");
+    expect(html).toContain("inset-x-3");
+    expect(html).toContain("bottom-[calc(0.75rem+env(safe-area-inset-bottom))]");
     expect(html).toContain("lg:hidden");
   });
 
-  it("marks no tab as current on the home, and the area of the page elsewhere", () => {
-    expect(bar()).not.toContain("aria-current");
+  it("marks Inicio as current on the home, and the area of the page elsewhere", () => {
+    expect(bar().match(/aria-current="page"/g)?.length).toBe(1);
+    expect(bar()).toMatch(/<a [^>]*href="\/admin"[^>]*aria-current="page"|<a [^>]*aria-current="page"[^>]*href="\/admin"/);
 
     nav.pathname = "/admin/events/abc/registrations";
 

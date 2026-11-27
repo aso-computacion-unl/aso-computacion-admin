@@ -37,9 +37,11 @@ export interface AreaNavItem extends NavItem {
    * event (under /admin/events) light Inscripciones and not Landing.
    */
   matches: readonly string[];
+  /** What the phone's five-column bar shows when the label does not fit (the full label stays the link's name). */
+  short?: string;
 }
 
-/** The four areas of the rail and the phone's tab bar. All are open to editors; each page still enforces its own role. */
+/** The four areas of the rail and the phone's tab bar, after Inicio (`HOME_NAV`). All are open to editors; each page still enforces its own role. */
 export const AREA_NAV: readonly AreaNavItem[] = [
   {
     href: "/admin/events",
@@ -47,7 +49,7 @@ export const AREA_NAV: readonly AreaNavItem[] = [
     icon: "site",
     matches: ["/admin/events", "/admin/news", "/admin/faqs", "/admin/board", "/admin/pillars", "/admin/commands", "/admin/sponsors", "/admin/socials"],
   },
-  { href: "/admin/registrations", label: "Inscripciones", icon: "list", matches: ["/admin/registrations", "/admin/events/*/registrations"] },
+  { href: "/admin/registrations", label: "Inscripciones", short: "Inscrip.", icon: "list", matches: ["/admin/registrations", "/admin/events/*/registrations"] },
   { href: "/admin/foro/reportes", label: "Foro", icon: "msg", matches: ["/admin/foro"] },
   {
     href: "/admin/ajustes",

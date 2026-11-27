@@ -43,6 +43,15 @@ const renderForum = async () => renderToStaticMarkup(await ForumLayout({ childre
 
 /** The top bar is the one `<header>` of the page. */
 const topBar = (html: string) => html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
+/** The rail is the `<aside>` of the page; the phone's tab bar is the fixed `<nav>` after it. */
+const rail = (html: string) => html.match(/<aside[\s\S]*?<\/aside>/)?.[0] ?? "";
+const tabBar = (html: string) => html.match(/<nav[^>]*class="[^"]*fixed[^"]*"[\s\S]*?<\/nav>/)?.[0] ?? "";
+const railNav = (html: string) => rail(html).match(/<nav[\s\S]*?<\/nav>/)?.[0] ?? "";
+/** The session card: the rail's (desktop) or the row at the top of `main` (phone). */
+const railCard = (html: string) => rail(html).match(/<section[\s\S]*?<\/section>/)?.[0] ?? "";
+const phoneRow = (html: string) => html.match(/<main[\s\S]*?(<section[\s\S]*?<\/section>)/)?.[1] ?? "";
+const linksOf = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((match) => [match[1], match[2]?.replace(/<[^>]+>/g, "")]);
+const emergencyActor = () => actor({ kind: "break_glass", userId: null, name: "Acceso de emergencia" });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -50,69 +59,87 @@ beforeEach(() => {
   cookiesMock.mockResolvedValue(cookieJar({}));
 });
 
-describe("the identity chip in the admin top bar", () => {
-  it("names an administrator and their role", async () => {
-    const bar = topBar(await renderAdmin(actor()));
+describe("the profile card", () => {
+  it("names an administrator, with the short role on the rail and the full one on the phone's row", async () => {
+    const html = await renderAdmin(actor());
 
-    expect(bar).toContain("Admin ASO");
-    expect(bar).toContain("Ana Pérez");
-    expect(bar).toContain("Administrador");
-    expect(bar).toContain(">AP<");
+    expect(railCard(html)).toContain('aria-label="Sesión: Ana Pérez, Administrador"');
+    expect(railCard(html)).toContain(">AP<");
+    expect(railCard(html)).toContain(">Admin<");
+    expect(phoneRow(html)).toContain("Ana Pérez");
+    expect(phoneRow(html)).toContain(">Administrador<");
   });
 
   it("names an editor and their role", async () => {
-    const bar = topBar(await renderAdmin(actor({ role: "EDITOR", name: "Luis Mora" })));
+    const html = await renderAdmin(actor({ role: "EDITOR", name: "Luis Mora" }));
 
-    expect(bar).toContain("Luis Mora");
-    expect(bar).toContain("Editor");
-    expect(bar).not.toContain("Administrador");
+    expect(railCard(html)).toContain("Luis Mora");
+    expect(railCard(html)).toContain(">Editor<");
+    expect(html).not.toContain("Administrador");
   });
 
-  it("shows the emergency session as a red pill instead of a name and a role", async () => {
-    const bar = topBar(await renderAdmin(actor({ kind: "break_glass", userId: null, name: "Acceso de emergencia" })));
+  it("offers «Mis sesiones», the theme and «Cerrar sesión» on the rail and on the phone's row", async () => {
+    const html = await renderAdmin(actor());
 
-    expect(bar).toContain("Acceso de emergencia");
-    expect(bar).toMatch(/class="[^"]*bg-destructive[^"]*"[^>]*>Acceso de emergencia</);
-    expect(bar).not.toContain("Administrador");
-    expect(bar).toContain(BREAK_GLASS_NOTICE);
+    for (const card of [railCard(html), phoneRow(html)]) {
+      expect(card).toMatch(/<a [^>]*href="\/admin\/sesiones"[^>]*aria-label="Mis sesiones"|<a [^>]*aria-label="Mis sesiones"[^>]*href="\/admin\/sesiones"/);
+      expect(card).toContain("Modo claro");
+      expect(card).toMatch(/<button [^>]*type="submit"[\s\S]*Cerrar sesión/);
+      expect(card).not.toContain("bg-tint-red");
+    }
   });
 
-  it("keeps the theme toggle and the sign-out inside the identity menu", async () => {
-    const bar = topBar(await renderAdmin(actor()));
+  it("turns the whole card tint-red in the emergency session, with «Emergencia» on signal, a danger sign-out and the notice", async () => {
+    const html = await renderAdmin(emergencyActor());
 
-    expect(bar).toMatch(/aria-haspopup="true"[^>]*aria-expanded="false"/);
-    expect(bar).toContain("Modo claro");
-    expect(bar).toContain("Cerrar sesión");
+    for (const card of [railCard(html), phoneRow(html)]) {
+      expect(card.match(/<section[^>]*>/)?.[0]).toContain("bg-tint-red");
+      expect(card).toContain('aria-label="Sesión: acceso de emergencia"');
+      expect(card).toMatch(/class="[^"]*bg-signal[^"]*"[^>]*>Emergencia</);
+      expect(card).toMatch(/<button [^>]*class="[^"]*bg-destructive[^"]*"[\s\S]*Cerrar sesión/);
+      expect(card).toContain(BREAK_GLASS_NOTICE);
+      expect(card).not.toContain("Mis sesiones");
+      expect(card).not.toContain("Administrador");
+    }
   });
 
-  it("no longer repeats the emergency banner or the identity in the sidebar or the page", async () => {
-    const html = await renderAdmin(actor({ kind: "break_glass", userId: null, name: "Acceso de emergencia" }));
-    const outsideBar = html.replace(topBar(html), "");
+  it("puts nothing about the session in the top bar", async () => {
+    const bar = topBar(await renderAdmin(emergencyActor()));
 
-    expect(outsideBar).not.toContain('role="note"');
-    expect(outsideBar).not.toContain("Acceso de emergencia");
-    expect(outsideBar).not.toContain("Cerrar sesión");
-    expect(outsideBar).not.toContain("Modo claro");
-    expect(outsideBar).toContain('aria-label="Áreas"');
-    expect(outsideBar).toContain("contenido");
+    expect(bar).not.toContain("Acceso de emergencia");
+    expect(bar).not.toContain("Cerrar sesión");
+    expect(bar).not.toContain("Modo claro");
+    expect(bar).not.toContain("aria-haspopup");
+  });
+
+  it("shows the phone's row only below the desktop breakpoint", async () => {
+    const html = await renderAdmin(actor());
+
+    expect(html).toMatch(/<main[^>]*>\s*<div class="[^"]*\blg:hidden\b[^"]*"><section/);
   });
 });
 
-/** The rail is the `<aside>` of the page; the phone's tab bar is the `<nav>` after it. */
-const rail = (html: string) => html.match(/<aside[\s\S]*?<\/aside>/)?.[0] ?? "";
-const tabBar = (html: string) => html.match(/<nav[^>]*class="[^"]*fixed[^"]*"[\s\S]*?<\/nav>/)?.[0] ?? "";
-const linksOf = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((match) => [match[1], match[2]?.replace(/<[^>]+>/g, "")]);
+describe("the full-width main", () => {
+  it("has no max-width and pads 16 · 24 · 32 · 40 · 48 px by breakpoint", async () => {
+    const main = (await renderAdmin(actor())).match(/<main[^>]*>/)?.[0] ?? "";
+
+    expect(main).not.toMatch(/max-w-|mx-auto/);
+
+    for (const padding of ["px-4", "sm:px-6", "lg:px-8", "min-[90rem]:px-10", "min-[120rem]:px-12"]) expect(main).toContain(padding);
+  });
+});
 
 describe("the navigation rail and the phone's tab bar", () => {
   const AREAS = [
+    ["/admin", "Inicio"],
     ["/admin/events", "Landing"],
     ["/admin/registrations", "Inscripciones"],
     ["/admin/foro/reportes", "Foro"],
     ["/admin/ajustes", "Ajustes"],
   ];
 
-  it.each(["ADMIN", "EDITOR"] as const)("offers %s the logo (Inicio) and the four areas in the rail", async (role) => {
-    const links = linksOf(rail(await renderAdmin(actor({ role }))));
+  it.each(["ADMIN", "EDITOR"] as const)("offers %s the logo, Inicio and the four areas in the rail", async (role) => {
+    const links = linksOf(railNav(await renderAdmin(actor({ role }))));
 
     expect(links[0]?.[0]).toBe("/admin");
     expect(links.slice(1)).toEqual(AREAS);
@@ -125,28 +152,41 @@ describe("the navigation rail and the phone's tab bar", () => {
     expect(logo).toMatch(/<img alt=""[^>]*src="data:image\/svg\+xml[^"]*fill:%23ffffff/);
   });
 
-  it("offers the same four areas on the phone's tab bar, with no «Más» sheet and no group labels", async () => {
-    const html = await renderAdmin(actor({ role: "EDITOR" }));
+  it("floats the 88px rail 12px from the edges with the card radius, and fills the current area's pill", async () => {
+    const html = await renderAdmin(actor());
 
-    expect(linksOf(tabBar(html))).toEqual(AREAS);
+    expect(html.match(/<aside[^>]*>/)?.[0]).toMatch(/\bpy-3\b[^"]*\bpl-3\b/);
+    expect(rail(html)).toMatch(/class="[^"]*\bw-22\b[^"]*\brounded-card\b[^"]*\bbg-deep\b/);
+    expect(railNav(html)).toMatch(/<a [^>]*href="\/admin"[^>]*aria-current="page"[^>]*>Inicio|<a [^>]*aria-current="page"[^>]*href="\/admin"/);
+    expect(railNav(html)).toContain("group-aria-[current=page]:bg-white");
+    expect(railNav(html)).toContain("h-8 w-14");
+  });
+
+  it("offers the same five items on the phone's tab bar, Inscripciones shortened but named in full, with no «Más» sheet", async () => {
+    const html = await renderAdmin(actor({ role: "EDITOR" }));
+    const bar = tabBar(html);
+
+    expect(linksOf(bar).map(([href]) => href)).toEqual(AREAS.map(([href]) => href));
+    expect(bar).toContain('<span aria-hidden="true">Inscrip.</span><span class="sr-only">Inscripciones</span>');
     expect(html).not.toContain("<dialog");
     expect(html).not.toContain("Más");
 
     for (const label of ["landing/", "herramientas/", "cuenta/"]) expect(html).not.toContain(label);
   });
 
-  it("hides the rail below the desktop breakpoint and the tab bar above it", async () => {
+  it("hides the rail below the desktop breakpoint, and the tab bar and the top bar above it", async () => {
     const html = await renderAdmin(actor());
 
     expect(html.match(/<aside[^>]*>/)?.[0]).toMatch(/\bhidden\b[^"]*\blg:/);
     expect(tabBar(html)).toContain("lg:hidden");
+    expect(topBar(html).match(/<header[^>]*>/)?.[0]).toContain("lg:hidden");
   });
 
-  it("keeps the brand in the top bar for the phone, where there is no rail", async () => {
+  it("gives the phone's top bar the logo (Inicio) and the name of the page's area", async () => {
     const bar = topBar(await renderAdmin(actor()));
 
-    expect(bar).toContain("Admin ASO");
-    expect(bar).toMatch(/<a [^>]*class="[^"]*lg:hidden[^"]*"/);
+    expect(bar).toMatch(/<a [^>]*href="\/admin"[^>]*aria-label="ASO Computación, inicio de la administración"|<a [^>]*aria-label="ASO Computación, inicio de la administración"[^>]*href="\/admin"/);
+    expect(bar).toContain(">Inicio<");
   });
 });
 
@@ -171,16 +211,5 @@ describe("the identity chip in the forum top bar", () => {
     expect(bar).not.toContain("aria-haspopup");
     expect(bar).not.toContain("Cerrar sesión");
     expect(bar).not.toContain("Estudiante UNL");
-  });
-});
-
-describe("one brand in both top bars", () => {
-  it("sets the product name in the same class in the admin and in the forum", async () => {
-    const productName = (html: string) => topBar(html).match(/<span class="([^"]*font-brand[^"]*)">(Admin ASO|Foro)</);
-    const admin = productName(await renderAdmin(actor()));
-    const forum = productName(await renderForum());
-
-    expect(admin?.[1]).toBeDefined();
-    expect(admin?.[1]).toBe(forum?.[1]);
   });
 });

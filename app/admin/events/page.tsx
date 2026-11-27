@@ -70,6 +70,7 @@ function EventCommit({ event, when }: { event: EventListItemResult; when?: "next
       {event.commitMessage ? <p className="font-mono text-[0.8125rem] leading-snug wrap-anywhere text-foreground/72">$ {event.commitMessage}</p> : null}
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.8125rem] text-mist">
         {typeLabel ? <span>{typeLabel}</span> : null}
+        {event.registrationMode === "none" ? null : <span className="text-foreground/80">Con inscripción</span>}
         <span className="inline-flex items-center gap-1.5">
           <Icon name="image" className="size-4" />
           {pluralize(event.photoCount, "foto", "fotos")}

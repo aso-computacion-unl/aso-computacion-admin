@@ -7,6 +7,7 @@ import { ListEventsUseCase } from "@/application/use-cases/list-events.use-case"
 import { SetEventPublishedUseCase } from "@/application/use-cases/set-event-published.use-case";
 import { UpdateEventUseCase } from "@/application/use-cases/update-event.use-case";
 import { NotFoundError } from "@/application/use-cases/use-case-error";
+import { ValidationError } from "@/domain/domain-error";
 import { Event } from "@/domain/event";
 import { EventPhoto } from "@/domain/event-photo";
 import { InMemoryEventPhotoRepository } from "@/tests/fakes/in-memory-event-photo.repository";
@@ -45,11 +46,25 @@ describe("event use cases", () => {
     });
   });
 
-  describe("registration settings (S3: set only from Inscripciones)", () => {
+  describe("registration settings (event-kinds S1-S3: chosen when the event is created)", () => {
     const DEADLINE = new Date("2099-11-27T23:00:00.000Z");
 
-    it("a new event starts without registration", async () => {
+    it("a new event without registration settings is an announcement", async () => {
       expect(await new CreateEventUseCase(events).execute({ title: "Taller" })).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    });
+
+    it("a new event with registration is created with its settings", async () => {
+      const created = await new CreateEventUseCase(events).execute({ title: "Taller", date: "2099-11-28", registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+
+      expect(created).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+      expect((await events.getById(created.id))?.props).toMatchObject({ registrationMode: "open", registrationCapacity: 30, registrationDeadline: DEADLINE });
+    });
+
+    it("a registration the entity refuses creates nothing", async () => {
+      const create = new CreateEventUseCase(events).execute({ title: "Taller", date: "2099-11-20", registrationMode: "unl", registrationDeadline: DEADLINE });
+
+      await expect(create).rejects.toBeInstanceOf(ValidationError);
+      expect(await events.list()).toEqual([]);
     });
 
     it("are kept by every event save and by publishing", async () => {

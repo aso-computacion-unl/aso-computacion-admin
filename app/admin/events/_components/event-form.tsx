@@ -17,6 +17,7 @@ import {
   type EventFormValues,
 } from "@/interface/admin/events/event-form-values";
 
+import { RegistrationSettingsFields } from "../../registrations/_components/registration-fields";
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
@@ -41,6 +42,11 @@ const TYPE_OPTIONS = [
   { value: "evento", label: "Evento" },
   { value: "comunidad", label: "Comunidad" },
   { value: "", label: "Sin tipo" },
+] as const;
+
+const KIND_OPTIONS = [
+  { value: "announcement", label: "Evento" },
+  { value: "registration", label: "Evento con inscripción" },
 ] as const;
 
 const PRECISION_OPTIONS = [
@@ -105,15 +111,27 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
     });
   }
 
-  // S3/S4: a date before the registration's cierre is refused on `registrationDeadline`, which this form does not have
-  // (the cierre is set in Inscripciones), so the refusal is shown on the date that caused it.
-  const deadlineError = errors.registrationDeadline;
+  // A new «Evento con inscripción» has the cierre here. Otherwise a date before the registration's cierre is refused on
+  // `registrationDeadline`, which this form does not have (it is set in Inscripciones), so it shows on the date.
+  const withRegistration = !isEditing && values.eventKind === "registration";
+  const deadlineError = withRegistration ? undefined : errors.registrationDeadline;
   const dateError = errors.date ?? (deadlineError ? `${deadlineError} Elija otra fecha o mueva el cierre en Inscripciones.` : undefined);
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
   return (
     <form ref={formRef} onSubmit={handleFormSubmit} noValidate>
       <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
+        {isEditing ? null : (
+          <Segmented
+            legend="Tipo de evento"
+            name="eventKind"
+            value={values.eventKind}
+            options={KIND_OPTIONS}
+            columnsClassName="grid-cols-1 sm:grid-cols-2"
+            onChange={(eventKind) => setValues((previous) => ({ ...previous, eventKind: eventKind === "registration" ? "registration" : "announcement" }))}
+            className="@xl:col-span-2"
+          />
+        )}
         <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className="@xl:col-span-2">
           {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
         </Field>
@@ -172,6 +190,15 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
         <Field label="Descripción" count={{ length: values.description.length, max: 600 }} error={errors.description} className="@xl:col-span-2">
           {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
         </Field>
+        {withRegistration ? (
+          <RegistrationSettingsFields
+            mode={values.registrationMode}
+            onModeChange={(mode) => setValues((previous) => ({ ...previous, registrationMode: mode === "open" ? "open" : "unl" }))}
+            capacity={bind("registrationCapacity")}
+            deadline={bind("registrationDeadline")}
+            errors={errors}
+          />
+        ) : null}
         {isEditing ? null : <p className="text-sm text-mist @xl:col-span-2">Las fotos se agregan después de crear el evento.</p>}
         <SwitchField label="Publicado" {...toggle("isPublished")} className="@xl:col-span-2" />
         <div className="grid min-w-0 @xl:col-span-2">

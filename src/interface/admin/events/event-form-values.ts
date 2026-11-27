@@ -7,9 +7,17 @@ import { windowEndToFormValue } from "../publication-window-fields";
  * Editable text state of the event form. The form keeps these values in
  * React state and submits them by hand: React 19 empties uncontrolled fields
  * after a `<form action>` settles, which would wipe everything the owner
- * typed when a save fails. The registration settings are not here: only Inscripciones sets them (S3).
+ * typed when a save fails. The kind and its registration settings are only sent when a new event is created as
+ * «Evento con inscripción»: an event save never changes them.
  */
 export interface EventFormValues {
+  /** The kind a new event is created as (event-kinds S2). */
+  eventKind: "announcement" | "registration";
+  registrationMode: "unl" | "open";
+  /** Whole seats as typed, or blank for no limit. */
+  registrationCapacity: string;
+  /** `YYYY-MM-DDTHH:mm` in Ecuador time, or blank: it closes when the event's day is over. */
+  registrationDeadline: string;
   title: string;
   slug: string;
   description: string;
@@ -34,6 +42,10 @@ export interface EventFormValues {
 }
 
 export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
+  eventKind: "announcement",
+  registrationMode: "unl",
+  registrationCapacity: "",
+  registrationDeadline: "",
   title: "",
   slug: "",
   description: "",
@@ -53,8 +65,16 @@ export const EMPTY_EVENT_FORM_VALUES: EventFormValues = {
   unpublishAt: "",
 };
 
+/** The registration keys a save sends only for «Evento con inscripción». */
+const REGISTRATION_KEYS = new Set(["eventKind", "registrationMode", "registrationCapacity", "registrationDeadline"]);
+
 export function eventToFormValues(event: Omit<EventResult, "id" | "createdAt" | "updatedAt">): EventFormValues {
   return {
+    // An existing event's kind is fixed: its form never sends one.
+    eventKind: "announcement",
+    registrationMode: "unl",
+    registrationCapacity: "",
+    registrationDeadline: "",
     title: event.title,
     slug: event.slug,
     description: event.description ?? "",
@@ -79,6 +99,10 @@ export function formValuesToFormData(values: EventFormValues): FormData {
   const formData = new FormData();
 
   for (const [key, value] of Object.entries(values)) {
+    if (REGISTRATION_KEYS.has(key) && values.eventKind !== "registration") {
+      continue;
+    }
+
     if (typeof value === "boolean") {
       if (value) formData.set(key, "on");
     } else {

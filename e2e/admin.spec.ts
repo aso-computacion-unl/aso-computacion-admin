@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { openMoreOptions, openSchedule } from "./more-options";
+import { openSchedule } from "./more-options";
 import { PUBLISHED_TEXT, publish } from "./publish";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";

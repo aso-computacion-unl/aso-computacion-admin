@@ -63,8 +63,11 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
         </EmptyState>
       ) : (
         <>
-          <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
-          {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="novedades" /> : null}
+          {/* Status filter and search share one row, as in Eventos; the wrapper owns the top margin they bring along. */}
+          <div className="mt-6 flex flex-wrap items-center gap-4 [&>*]:mt-0!">
+            <StatusFilter path={LIST_PATH} current={filter} counts={counts} search={search} />
+            {tools ? <ListSearch path={LIST_PATH} filter={filter} search={search} label="novedades" /> : null}
+          </div>
           {news.length === 0 ? <FilterEmpty path={LIST_PATH} filter={filter} noun="novedades" search={search} /> : null}
           {news.length > 0 ? (
             <BulkSelection kind="news" enabled={tools} items={news.map((item) => ({ id: item.id, label: item.title }))}>
@@ -76,7 +79,12 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
                     label={item.title}
                     published={item.isPublished}
                     lane="trunk"
-                    lead={<Stamp>{formatEventDate(item.publishedAt)}</Stamp>}
+                    lead={
+                      // As wide as the longest date a stamp can show («20 ene 2027»), as in Eventos, so the titles line up.
+                      <span className="font-mono text-xs min-[84rem]:min-w-[calc(11ch+1.5rem)]">
+                        <Stamp>{formatEventDate(item.publishedAt)}</Stamp>
+                      </span>
+                    }
                     media={
                       item.cover ? (
                         // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.

@@ -2,6 +2,7 @@
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { EditorColumns } from "../../../../app/admin/_components/editor-split";
 import { ToastProvider } from "../../../../app/admin/_components/toast";
 import { EMPTY_NEWS_FORM_VALUES, NewsForm, type NewsFormValues } from "../../../../app/admin/news/_components/news-form";
 import type { ActionResult } from "@/interface/admin/action-result";
@@ -345,5 +346,25 @@ describe("publishing a news item", () => {
 
     expect(dialog()).toBeNull();
     expect(host.textContent).toContain("El identificador no puede repetirse.");
+  });
+});
+
+describe("the news edit page's cover (page-owned columns)", () => {
+  it("puts the cover's own form beside the news form, in the content column: never nested, never in the publish panel", async () => {
+    const cover = createElement("section", { id: "cover" }, createElement("form", { "aria-label": "Portada" }));
+    const host = await mount(
+      createElement(
+        ToastProvider,
+        null,
+        createElement(EditorColumns, { content: cover }, createElement(NewsForm, { action: ok, submitLabel: "Guardar cambios", isEditing: true, initialValues: STORED })),
+      ),
+    );
+    const block = host.querySelector("#cover")!;
+
+    expect(host.querySelectorAll("form form")).toHaveLength(0);
+    expect(primary(host).form!.contains(block)).toBe(false);
+    expect(publication(host).contains(block)).toBe(false);
+    // On a phone it follows the content (order 1), before the publish panel and the save bar.
+    expect(block.parentElement!.className).toContain("max-lg:order-1");
   });
 });

@@ -353,3 +353,18 @@ describe("the event editor in a new event", () => {
     expect(host.textContent).not.toContain("Las fotos se agregan");
   });
 });
+
+describe("the side column of the event editor (08)", () => {
+  it("holds Publicación and the save bar, with both switches in the state row", async () => {
+    const host = await mount(
+      createElement(ToastProvider, null, createElement(EventForm, { action: ok, submitLabel: "Guardar cambios", initialValues: { ...EMPTY_EVENT_FORM_VALUES, slug: "taller" } })),
+    );
+    const side = publication(host);
+    const state = host.querySelector('[data-slot="publish-state"]')!;
+
+    expect(side.querySelector('[data-slot="action-bar"]')).not.toBeNull();
+    expect(state.contains(switchNamed(host, "Publicado"))).toBe(true);
+    expect(state.contains(switchNamed(host, "Destacado"))).toBe(true);
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(2);
+  });
+});

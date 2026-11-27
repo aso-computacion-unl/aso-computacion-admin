@@ -23,7 +23,8 @@ export function ListSearch({ path, filter, search, label }: ListSearchProps) {
   const inputId = `search-${action.split("/").pop()}`;
 
   return (
-    <form role="search" method="get" action={action} className="mt-5 flex flex-wrap items-center gap-2">
+    // In a toolbar row it sits at the end (ml-auto) and, once the row wraps on a phone, fills its own line (grow).
+    <form role="search" method="get" action={action} className="mt-6 ml-auto flex grow flex-wrap items-center gap-1.5 sm:grow-0">
       {[...new URLSearchParams(fixed)].map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}

@@ -444,6 +444,6 @@ test("S4 (S3): moving the event's date before its registration's cierre is refus
   const date = page.getByLabel("Fecha", { exact: true });
   await expect(date).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByText("El cierre de la inscripción no puede ser posterior al día del evento. Elija otra fecha o mueva el cierre en Inscripciones.")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Datos del evento" }).getByRole("link", { name: "Gestionar inscripción" })).toHaveAttribute("href", `/admin/registrations/${event.id}/edit`);
+  await expect(page.getByRole("region", { name: "Cuándo y dónde" }).getByRole("link", { name: "Gestionar inscripción" })).toHaveAttribute("href", `/admin/registrations/${event.id}/edit`);
   expect((await eventRow(event)).date).toEqual(new Date("2099-11-28"));
 });

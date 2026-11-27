@@ -50,16 +50,18 @@ describe("the events list", () => {
     expect(html).toContain('aria-label="Seleccionar: Evento 0"');
   });
 
-  it("puts the search on the same row as the status tabs", async () => {
+  it("puts the view tabs, the status tabs and the search on one row", async () => {
     const html = await render();
+    const views = html.indexOf('<nav aria-label="Vista de eventos"');
     const tabs = html.indexOf('<nav aria-label="Filtrar por estado"');
     const search = html.indexOf('<form role="search"');
-    const between = html.slice(tabs, search);
+    const between = html.slice(views, search);
 
-    expect(tabs).toBeGreaterThan(-1);
+    expect(views).toBeGreaterThan(-1);
+    expect(tabs).toBeGreaterThan(views);
     expect(search).toBeGreaterThan(tabs);
-    // One flex wrapper opens before the tabs and holds both: nothing closes between the tabs and the search form.
-    expect(html.slice(html.lastIndexOf("<div", tabs), tabs)).toMatch(/^<div class="[^"]*\bflex\b[^"]*">$/);
+    // One flex wrapper opens right before the view tabs and holds all three: nothing closes between them.
+    expect(html.slice(html.lastIndexOf("<div", views), views)).toMatch(/^<div class="[^"]*\bflex\b[^"]*">$/);
     expect(between.match(/<\/div>/g) ?? []).toHaveLength(0);
   });
 

@@ -28,7 +28,8 @@ const TAB = cn(
 
 /**
  * The tab strip at the top of the pages of an area: Contenido (the types of the landing, with "+ Crear" for the
- * current one) and Ajustes. The strip scrolls sideways inside its own box on a phone, so it never widens the page.
+ * current one) and Ajustes. The strip scrolls sideways inside its own box on a phone, so it never widens the page
+ * (`relative`: the lock's screen-reader text is absolutely placed, and would otherwise widen the page past the strip).
  * Its links ask before they leave unsaved changes behind (`GuardedLink`).
  */
 export function AreaTabs(props: AreaTabsProps) {
@@ -39,7 +40,7 @@ export function AreaTabs(props: AreaTabsProps) {
 
   return (
     <div data-slot="area-tabs" className="mb-6 flex items-center gap-3">
-      <div data-slot="tab-strip" className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div data-slot="tab-strip" className="relative -mx-1 min-w-0 flex-1 overflow-x-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <nav aria-label={contenido ? "Tipo de contenido" : "Ajustes"}>
           <ul className="flex w-max gap-2">
             {tabs.map((tab) => (

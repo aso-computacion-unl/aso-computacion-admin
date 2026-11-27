@@ -23,19 +23,21 @@ interface StatusFilterProps {
   search?: string;
 }
 
+/** A segmented control as wide as its three options, so it shares one row with the search. */
 export function StatusFilter({ path, current, counts, search = "" }: StatusFilterProps) {
   return (
-    <nav aria-label="Filtrar por estado" className="mt-5">
-      <ul className="flex flex-wrap gap-2">
+    <nav aria-label="Filtrar por estado" className="mt-6">
+      <ul className="inline-flex max-w-full overflow-hidden rounded border border-input bg-muted">
         {STATUS_FILTERS.map((filter) => (
-          <li key={filter}>
+          <li key={filter} className="border-input not-first:border-l">
             <Link
               href={listHref(path, { filter, search })}
               aria-current={filter === current ? "true" : undefined}
               className={cn(
-                "inline-flex min-h-11 items-center gap-2 rounded border border-input px-3.5 text-sm font-semibold text-mist",
+                "inline-flex min-h-11 items-center gap-2 px-3 text-sm font-semibold whitespace-nowrap text-mist sm:px-4",
                 "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
-                "aria-[current=true]:border-action aria-[current=true]:bg-action aria-[current=true]:text-on-action",
+                "focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-foreground",
+                "aria-[current=true]:bg-action aria-[current=true]:text-on-action",
               )}
             >
               {LABELS[filter]}

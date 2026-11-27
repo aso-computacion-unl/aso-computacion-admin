@@ -54,7 +54,9 @@ test.beforeEach(async ({ context }) => {
   await context.addCookies([{ name: "admin_session", value: EDITOR_SESSION, url: BASE_URL }]);
 });
 
-const members = (page: Page) => page.getByRole("list", { name: "Miembros del foro" });
+const members = (page: Page) => page.getByRole("table", { name: "Miembros del foro" });
+/** The body rows of the table: each has its member's name as the row header. */
+const rows = (page: Page) => members(page).getByRole("row").filter({ has: page.getByRole("rowheader") });
 
 test("an editor sees each member with name, email, status and dates, and can reach the list from the report queue", async ({ page }) => {
   await page.goto("/admin/foro/reportes");
@@ -63,18 +65,20 @@ test("an editor sees each member with name, email, status and dates, and can rea
   await expect(page.getByRole("heading", { level: 1, name: "Miembros del foro" })).toBeVisible();
 
   await page.goto(`${LIST}?q=fmiem`);
-  const marta = members(page).getByRole("listitem").filter({ hasText: MEMBERS.marta.name });
+  await expect(members(page).getByRole("columnheader")).toHaveText(["Miembro", "Se unió", "Último ingreso", "Estado", "Acción"]);
+  const marta = rows(page).filter({ hasText: MEMBERS.marta.name });
 
-  await expect(marta).toContainText(`${MEMBERS.marta.id}@unl.edu.ec`);
-  await expect(marta).toContainText("Activo");
-  await expect(marta).toContainText("Se unió el 1 oct 2026");
-  await expect(marta).toContainText("Último ingreso: 20 oct 2026");
+  await expect(marta.getByRole("rowheader")).toContainText(`${MEMBERS.marta.id}@unl.edu.ec`);
+  await expect(marta.getByRole("cell").nth(0)).toHaveText(/1 oct 2026$/);
+  await expect(marta.getByRole("cell").nth(1)).toHaveText(/20 oct 2026$/);
+  await expect(marta.getByRole("cell").nth(2)).toHaveText("Activo");
   await expect(marta.getByRole("button", { name: /Reactivar/ })).toHaveCount(0);
 
-  const nelson = members(page).getByRole("listitem").filter({ hasText: MEMBERS.nelson.name });
+  const nelson = rows(page).filter({ hasText: MEMBERS.nelson.name });
 
-  await expect(nelson).toContainText("Suspendido");
-  await expect(nelson).toContainText("Sin ingresos registrados");
+  await expect(nelson.getByRole("cell").nth(1)).toHaveText("Sin ingresos registrados");
+  await expect(nelson.getByRole("cell").nth(2)).toContainText("Suspendido");
+  await expect(nelson.getByRole("cell").nth(2)).toContainText("el 10 oct 2026");
   await expect(nelson.getByRole("button", { name: `Reactivar la cuenta: ${MEMBERS.nelson.name}` })).toBeVisible();
   // The Google id is never on the page.
   await expect(page.locator("body")).not.toContainText("sub-fmiem");
@@ -86,12 +90,12 @@ test("searching finds a member by name or by email, says when nobody matches and
   await page.getByRole("button", { name: "Buscar" }).click();
 
   await expect(page).toHaveURL(/\?q=marta\+activa$/);
-  await expect(members(page).getByRole("listitem")).toHaveCount(1);
+  await expect(rows(page)).toHaveCount(1);
   await expect(page.getByText(MEMBERS.marta.name)).toBeVisible();
   await expect(page.getByText("1 resultado para «marta activa».")).toBeVisible();
 
   await page.goto(`${LIST}?q=FMIEM-OLGA@`);
-  await expect(members(page).getByRole("listitem")).toHaveCount(1);
+  await expect(rows(page)).toHaveCount(1);
   await expect(page.getByText(MEMBERS.olga.name)).toBeVisible();
 
   await page.goto(`${LIST}?q=nadie-se-llama-asi-e2e`);
@@ -102,19 +106,34 @@ test("searching finds a member by name or by email, says when nobody matches and
 
 test("the Suspendidos filter lists only suspended accounts and keeps the search", async ({ page }) => {
   await page.goto(`${LIST}?q=fmiem`);
-  await expect(members(page).getByRole("listitem")).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(3);
 
   await page.getByRole("link", { name: "Suspendidos" }).click();
   await expect(page).toHaveURL(/\?estado=suspendidos&q=fmiem$/);
   await expect(page.getByRole("link", { name: "Suspendidos" })).toHaveAttribute("aria-current", "true");
-  await expect(members(page).getByRole("listitem")).toHaveCount(2);
+  await expect(rows(page)).toHaveCount(2);
   await expect(page.getByText(MEMBERS.marta.name)).toHaveCount(0);
 
   await page.getByRole("link", { name: "Todos" }).click();
-  await expect(members(page).getByRole("listitem")).toHaveCount(3);
+  await expect(rows(page)).toHaveCount(3);
 
   await page.goto(`${LIST}?estado=suspendidos&q=marta`);
   await expect(page.getByText("No hay miembros suspendidos que coincidan con «marta».")).toBeVisible();
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("the rows stack, keep their dates and button, and the page never scrolls sideways", async ({ page }) => {
+    await page.goto(`${LIST}?q=fmiem`);
+    await expect(rows(page)).toHaveCount(3);
+    await expect(rows(page).filter({ hasText: MEMBERS.marta.name })).toContainText("Se unió el 1 oct 2026");
+    await expect(page.getByRole("button", { name: `Reactivar la cuenta: ${MEMBERS.olga.name}` })).toBeVisible();
+
+    const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+
+    expect(width.scroll, "the members list scrolls sideways").toBeLessThanOrEqual(width.client);
+  });
 });
 
 test("an editor reactivates a suspended account: the change is stored, audited and the row leaves the filter", async ({ page }) => {
@@ -136,7 +155,7 @@ test("an editor reactivates a suspended account: the change is stored, audited a
   expect(entries[0]?.summary).not.toContain("@");
 
   await page.goto(`${LIST}?q=fmiem-nelson`);
-  await expect(members(page).getByRole("listitem")).toContainText("Activo");
+  await expect(rows(page)).toContainText("Activo");
 });
 
 test("reactivating an account somebody else already reactivated says nothing changed and audits nothing", async ({ page }) => {

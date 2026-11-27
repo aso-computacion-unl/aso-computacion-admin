@@ -8,7 +8,7 @@ import { MEMBERS_PATH, memberListHref, type MemberListParams } from "@/interface
 /** The search of the members list: a plain GET to the list, so a search is a URL anyone can share and it works without scripts. */
 export function MembersSearch({ filter, search }: Pick<MemberListParams, "filter" | "search">) {
   return (
-    <form role="search" method="get" action={MEMBERS_PATH} className="mt-5 flex flex-wrap items-center gap-2">
+    <form role="search" method="get" action={MEMBERS_PATH} className="flex flex-wrap items-center gap-2 max-lg:order-last max-lg:basis-full">
       {filter === "all" ? null : <input type="hidden" name="estado" value="suspendidos" />}
       <label htmlFor="search-miembros" className="sr-only">
         Buscar por nombre o correo

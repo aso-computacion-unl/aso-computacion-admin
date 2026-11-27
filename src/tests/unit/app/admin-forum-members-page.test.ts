@@ -23,6 +23,22 @@ const render = async (searchParams: Record<string, string | string[]> = {}) => r
 const addMember = (id: string, overrides: Parameters<typeof makeForumMember>[0] = {}) =>
   testForum.members.members.set(id, makeForumMember({ id, email: `${id}@unl.edu.ec`, googleSub: `sub-${id}`, displayName: id.toUpperCase(), ...overrides }));
 
+/** The text of a piece of markup, tags dropped and spaces collapsed. */
+const text = (markup: string) => markup.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+
+/** The members table of the page: its labelled markup, or "" when the page has none. */
+const membersTable = (markup: string) => /<table aria-label="Miembros del foro"[\s\S]*?<\/table>/.exec(markup)?.[0] ?? "";
+
+const columnHeaders = (table: string) => [...table.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)].map((match) => text(match[1] ?? ""));
+
+/** A body row's header (name and email) and its cells, in column order, found by the member's name. */
+const rowOf = (table: string, name: string) =>
+  table
+    .split("<tr")
+    .filter((row) => row.includes('<th scope="row"'))
+    .map((row) => [...row.matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/g)].map((match) => text(match[1] ?? "")))
+    .find(([who]) => who?.includes(name));
+
 beforeEach(async () => {
   vi.stubEnv("ADMIN_SECRET", "test-secret-test-secret-test-secret-1234");
   cookieJar(cookiesMock, await signInAs("EDITOR"));
@@ -38,17 +54,24 @@ describe("the forum members page", () => {
     addMember("beto", { displayName: "Beto Ruiz", createdAt: new Date("2026-10-02T15:00:00.000Z") });
 
     const html = await render();
+    const table = membersTable(html);
 
     expect(html).toContain("Miembros del foro");
-    expect(html).toContain("Ana Pérez");
-    expect(html).toContain("ana@unl.edu.ec");
-    expect(html).toContain("Activo");
-    expect(html).toMatch(/Se unió el [^<]*oct[^<]*2026/);
-    expect(html).toMatch(/Último ingreso: [^<]*20[^<]*oct[^<]*2026/);
-    expect(html).toContain("Beto Ruiz");
-    expect(html).toContain("Sin ingresos registrados");
+    expect(columnHeaders(table)).toEqual(["Miembro", "Se unió", "Último ingreso", "Estado", "Acción"]);
+    expect(table.match(/<th scope="row"/g)).toHaveLength(2);
+
+    const [anaWho, anaJoined, anaLast, anaState, anaAction] = rowOf(table, "Ana Pérez") ?? [];
+
+    expect(anaWho).toContain("Ana Pérez");
+    expect(anaWho).toContain("ana@unl.edu.ec");
+    expect(anaJoined).toMatch(/^Se unió el [^·]*oct[^·]*2026$/);
+    expect(anaLast).toMatch(/^Último ingreso: [^·]*20[^·]*oct[^·]*2026$/);
+    expect(anaState).toBe("Activo");
+    expect(anaAction).toBe("");
+    expect(rowOf(table, "Beto Ruiz")?.[2]).toBe("Sin ingresos registrados");
     expect(html).not.toContain("sub-ana");
     expect(html).toContain("2 miembros");
+    expect(html).toContain("Todas las cuentas");
   });
 
   it("escapes a display name written as markup", async () => {
@@ -65,10 +88,12 @@ describe("the forum members page", () => {
     addMember("cris", { displayName: "Cristina", status: "SUSPENDED", suspendedAt: new Date("2026-10-10T15:00:00.000Z") });
 
     const html = await render();
+    const [, , , state, action] = rowOf(membersTable(html), "Cristina") ?? [];
 
     expect(html.match(/>Reactivar la cuenta</g)).toHaveLength(1);
-    expect(html).toContain("Suspendido");
-    expect(html).toMatch(/Suspendido el [^<]*oct[^<]*2026/);
+    expect(state).toMatch(/^Suspendido\s*Suspendido el [^·]*oct[^·]*2026$/);
+    expect(action).toBe("Reactivar la cuenta");
+    expect(rowOf(membersTable(html), "ANA")?.[4]).toBe("");
     expect(html).toContain('aria-label="Reactivar la cuenta: Cristina"');
     expect(html).not.toContain("Suspender…");
   });
@@ -83,6 +108,7 @@ describe("the forum members page", () => {
     expect(html).not.toContain("ana@unl.edu.ec");
     expect(html).toMatch(/aria-current="true"[^>]*>Suspendidos/);
     expect(html).toContain('href="/admin/foro/miembros"');
+    expect(html).toContain("Cuentas suspendidas");
   });
 
   it("searches by name or email, keeps the filter in the form and offers the way back", async () => {

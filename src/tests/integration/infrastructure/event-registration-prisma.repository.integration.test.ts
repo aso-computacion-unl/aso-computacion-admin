@@ -50,9 +50,10 @@ describe("EventRegistrationPrismaRepository (integration)", () => {
     expect((await events.findLiveBySlug("taller-de-git"))?.props).toEqual(event);
     expect(event).toMatchObject({ registrationMode: "unl", registrationCapacity: 25, registrationDeadline: deadline });
 
-    await events.update(Event.reconstitute(event).update({ registrationMode: "none" }));
+    // The kind is fixed at creation (a registration is never removed), so the round trip switches the mode within the kind.
+    await events.update(Event.reconstitute(event).update({ registrationMode: "open", registrationCapacity: null, registrationDeadline: null }));
 
-    expect((await events.findLiveBySlug("taller-de-git"))?.props).toMatchObject({ registrationMode: "none", registrationCapacity: null, registrationDeadline: null });
+    expect((await events.findLiveBySlug("taller-de-git"))?.props).toMatchObject({ registrationMode: "open", registrationCapacity: null, registrationDeadline: null });
     expect(await events.findLiveBySlug("otro")).toBeNull();
   });
 

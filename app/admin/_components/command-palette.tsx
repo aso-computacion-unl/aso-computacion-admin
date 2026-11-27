@@ -134,7 +134,7 @@ function dialogIsOpen(): boolean {
 
 const OPEN_EVENT = "admin:command-palette";
 
-/** Opens the palette from anywhere on the page (the palette listens for it wherever it is mounted). */
+/** Opens the palette from anywhere in the admin (the layout mounts it once and it listens for this). */
 export function openCommandPalette() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
@@ -170,7 +170,7 @@ export function CreateTiles({ tileClassName, iconClassName }: { tileClassName: s
  * move, Enter goes and Escape closes, giving the focus back to what opened it. It also owns the single-key
  * shortcuts E, N and P, which go to the create pages when nobody is typing. Renders nothing until opened.
  */
-export function CommandPalette({ role, openReports }: { role: Role; openReports?: number | null }) {
+export function CommandPalette({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
   const router = useRouter();
@@ -217,7 +217,6 @@ export function CommandPalette({ role, openReports }: { role: Role; openReports?
   return (
     <PaletteDialog
       actions={paletteActions(role)}
-      openReports={openReports ?? null}
       opener={opener}
       onClose={(restoreFocus) => {
         setOpen(false);
@@ -229,13 +228,12 @@ export function CommandPalette({ role, openReports }: { role: Role; openReports?
 
 interface PaletteDialogProps {
   actions: readonly PaletteAction[];
-  openReports: number | null;
   opener: RefObject<HTMLElement | null>;
   /** `restoreFocus` is false when an action was chosen: the page is about to change (or the leave question takes the focus). */
   onClose: (restoreFocus: boolean) => void;
 }
 
-function PaletteDialog({ actions, openReports, opener, onClose }: PaletteDialogProps) {
+function PaletteDialog({ actions, opener, onClose }: PaletteDialogProps) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -316,47 +314,37 @@ function PaletteDialog({ actions, openReports, opener, onClose }: PaletteDialogP
         </label>
 
         <div ref={list} id={listId} role="listbox" aria-label="Acciones" className="grid max-h-[min(24rem,60vh)] gap-0.5 overflow-y-auto">
-          {shown.map((action, index) => {
-            const count = action.id === "review-forum" && openReports !== null && openReports > 0 ? openReports : null;
-
-            return (
-              <GuardedLink
-                key={action.id}
-                id={optionId(index)}
-                href={action.href}
-                role="option"
-                aria-selected={index === current}
-                tabIndex={-1}
-                returnFocusTo={opener}
-                aria-keyshortcuts={action.shortcut}
-                onMouseMove={() => {
-                  if (index !== current) setActive(index);
-                }}
-                onClick={() => onClose(false)}
-                className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-[0.9375rem] font-semibold",
-                  index === current ? "bg-action text-on-action" : "text-foreground",
-                )}
-              >
-                <span aria-hidden="true" className={cn("grid size-8 shrink-0 place-items-center rounded-control", index === current ? "bg-on-action/10" : "bg-tint-navy text-on-tint-navy")}>
-                  <Icon name={action.icon} className="size-4.5" />
-                </span>
-                <span className="min-w-0 flex-1 truncate">{action.label}</span>
-                {count !== null ? (
-                  <span className="min-w-6 rounded-full bg-signal px-1.5 text-center text-[0.8125rem] leading-6 font-bold text-white">
-                    {count}
-                    <span className="sr-only"> reportes abiertos</span>
-                  </span>
-                ) : null}
-                <span className={cn("font-mono text-xs", index === current ? "text-on-action/70" : "text-mist")}>{action.group}</span>
-                {action.shortcut ? (
-                  <kbd aria-hidden="true" className={cn("rounded-[6px] px-1.5 py-0.5 font-mono text-xs", index === current ? "bg-on-action/10" : "bg-foreground/10")}>
-                    {action.shortcut}
-                  </kbd>
-                ) : null}
-              </GuardedLink>
-            );
-          })}
+          {shown.map((action, index) => (
+            <GuardedLink
+              key={action.id}
+              id={optionId(index)}
+              href={action.href}
+              role="option"
+              aria-selected={index === current}
+              tabIndex={-1}
+              returnFocusTo={opener}
+              aria-keyshortcuts={action.shortcut}
+              onMouseMove={() => {
+                if (index !== current) setActive(index);
+              }}
+              onClick={() => onClose(false)}
+              className={cn(
+                "flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-[0.9375rem] font-semibold",
+                index === current ? "bg-action text-on-action" : "text-foreground",
+              )}
+            >
+              <span aria-hidden="true" className={cn("grid size-8 shrink-0 place-items-center rounded-control", index === current ? "bg-on-action/10" : "bg-tint-navy text-on-tint-navy")}>
+                <Icon name={action.icon} className="size-4.5" />
+              </span>
+              <span className="min-w-0 flex-1 truncate">{action.label}</span>
+              <span className={cn("font-mono text-xs", index === current ? "text-on-action/70" : "text-mist")}>{action.group}</span>
+              {action.shortcut ? (
+                <kbd aria-hidden="true" className={cn("rounded-[6px] px-1.5 py-0.5 font-mono text-xs", index === current ? "bg-on-action/10" : "bg-foreground/10")}>
+                  {action.shortcut}
+                </kbd>
+              ) : null}
+            </GuardedLink>
+          ))}
         </div>
         {shown.length === 0 ? (
           <p role="status" className="px-3 py-4 text-mist">

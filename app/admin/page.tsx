@@ -18,7 +18,6 @@ import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
 import { requirePageSession } from "@/interface/auth/require-page-session";
 
 import { ActivityMap } from "./_components/activity-map";
-import { CommandPalette } from "./_components/command-palette";
 import { Drafts, RecentActivity, StatusStrip, Tier, TIER_GRID, UpcomingRegistrations, type ActivityEntry } from "./_components/dashboard-parts";
 import { PageHeader } from "./_components/page-header";
 import { QuickActions, type LastChange } from "./_components/quick-actions";
@@ -146,8 +145,6 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
           account={isAdmin ? { sessions: sessions?.sessions.length ?? null, suspended: suspended?.total ?? null, trash: trash?.length ?? null } : null}
         />
       </Tier>
-
-      <CommandPalette role={actor.role} openReports={openReports} />
     </div>
   );
 }

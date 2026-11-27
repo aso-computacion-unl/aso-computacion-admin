@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useId, type ComponentProps, type FormEvent, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
 import { fieldClasses } from "@/components/ui/field-styles";
 import { Input } from "@/components/ui/input";
 import { Segmented } from "@/components/ui/segmented";
@@ -21,18 +20,14 @@ import { RegistrationSettingsFields } from "../../registrations/_components/regi
 import { EditorSplit } from "../../_components/editor-split";
 import { Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
+import { ScheduleFields } from "../../_components/schedule-fields";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { EVENT_PUBLISH_FIELDS, EventCardPreview, EventPreview } from "./event-preview";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
-interface EventFormProps {
-  action: EventFormAction;
-  submitLabel: string;
-  initialValues?: EventFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface EventFormProps extends PublishFormProps<EventFormValues, EventFormAction> {
   /** Where the event's registration is changed (Inscripciones), when it has one: a refused date points there. */
   registrationHref?: string;
   /** A new event whose kind is already chosen (Inscripciones creates only events with registration): no kind selector. */
@@ -171,20 +166,13 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
       }
       schedule={
         <MoreOptions summary="Programar publicación y retiro" invalid={scheduleInvalid}>
-          <Field label="Publicar el" help="Hora de Ecuador. Vacío: sale de inmediato." error={errors.publishAt}>
-            {(control) => <Input {...control} {...bind("publishAt")} type="datetime-local" />}
-          </Field>
-          <Field label="Retirar el" help="Hora de Ecuador. Vacío: no se retira." error={errors.unpublishAt}>
-            {(control) => <Input {...control} {...bind("unpublishAt")} type="datetime-local" />}
-          </Field>
+          <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} />
         </MoreOptions>
       }
       note={isEditing ? null : "Las fotos se agregan después de crear el evento."}
       status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
       submit={
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12 lg:w-full" />
       }
       dialog={
         publish.open ? (

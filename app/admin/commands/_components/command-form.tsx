@@ -1,15 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActionResult } from "@/interface/admin/action-result";
 import { COMMAND_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
 import { Field, FormFeedback } from "../../_components/form-parts";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { COMMAND_PUBLISH_FIELDS, CommandCardPreview, CommandPreview } from "./command-preview";
 
@@ -22,12 +20,7 @@ export interface CommandFormValues {
 
 export const EMPTY_COMMAND_FORM_VALUES: CommandFormValues = { command: "", description: "", output: "", isPublished: false };
 
-interface CommandFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: CommandFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface CommandFormProps extends PublishFormProps<CommandFormValues> {
   /** A note at the foot of the publish panel (a new command: where it lands in the list). */
   note?: string;
 }
@@ -47,9 +40,7 @@ export function CommandForm({ action, submitLabel, initialValues = EMPTY_COMMAND
       note={note}
       status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
       submit={
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12 lg:w-full" />
       }
       dialog={
         publish.open ? (

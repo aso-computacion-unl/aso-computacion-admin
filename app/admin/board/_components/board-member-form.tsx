@@ -2,15 +2,13 @@
 
 import { useId } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
-import type { ActionResult } from "@/interface/admin/action-result";
 import { cn } from "@/lib/utils";
 
 import { EditorGroup, SPAN } from "../../_components/editor-split";
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { BOARD_MEMBER_PUBLISH_FIELDS, BoardMemberPreview } from "./board-member-preview";
 
@@ -24,12 +22,7 @@ export interface BoardMemberFormValues {
 
 export const EMPTY_BOARD_MEMBER_FORM_VALUES: BoardMemberFormValues = { name: "", role: "", photoAlt: "", isPublished: false };
 
-interface BoardMemberFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: BoardMemberFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface BoardMemberFormProps extends PublishFormProps<BoardMemberFormValues> {
   hasPhoto?: boolean;
   /** The stored photo's address, so the preview before publishing shows it. */
   photoUrl?: string | null;
@@ -75,9 +68,7 @@ export function BoardMemberForm({ action, submitLabel, initialValues = EMPTY_BOA
         </EditorGroup>
       </div>
       <ActionBar className="mt-6" status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12" />
       </ActionBar>
       {publish.open ? (
         <PublishPreview

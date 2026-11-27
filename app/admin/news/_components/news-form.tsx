@@ -1,16 +1,14 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActionResult } from "@/interface/admin/action-result";
 import { NEWS_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
 import { Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { ScheduleFields } from "../../_components/schedule-fields";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { NEWS_PUBLISH_FIELDS, NewsCardPreview, NewsPreview } from "./news-preview";
@@ -43,12 +41,7 @@ export const EMPTY_NEWS_FORM_VALUES: NewsFormValues = {
   unpublishAt: "",
 };
 
-interface NewsFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: NewsFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface NewsFormProps extends PublishFormProps<NewsFormValues> {
   isEditing?: boolean;
   /** The stored cover, once the news item has one: its description is asked for here, and the preview shows it. */
   cover?: { url: string; width: number; height: number } | null;
@@ -84,9 +77,7 @@ export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_
       note={isEditing ? null : "La foto de portada se agrega después de crear la noticia."}
       status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
       submit={
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12 lg:w-full" />
       }
       dialog={
         publish.open ? (

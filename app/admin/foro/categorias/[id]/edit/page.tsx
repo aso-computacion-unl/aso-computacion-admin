@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { getAdminForumCategory } from "@/interface/admin/forum/forum-admin-read";
-import { pluralize } from "@/interface/admin/publication-summary";
 
-import { FormLayout, Panel } from "../../../../_components/form-layout";
-import { CATEGORIES_PATH, CategoryForm } from "../../_components/category-form";
+import { PageFrame } from "../../../../_components/form-layout";
+import { CategoryForm, CategoryHeader } from "../../_components/category-form";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +18,14 @@ export default async function EditForumCategoryPage({ params }: EditForumCategor
   if (!category) notFound();
 
   return (
-    <FormLayout
-      backHref={CATEGORIES_PATH}
-      backLabel="Volver a categorías"
-      title={category.name}
-      status={pluralize(category.threadCount, "hilo", "hilos")}
-    >
-      <Panel>
-        <CategoryForm mode="edit" id={id} initialValues={{ name: category.name, description: category.description ?? "", slug: category.slug }} />
-      </Panel>
-    </FormLayout>
+    <PageFrame>
+      <CategoryHeader title={category.name} />
+      <CategoryForm
+        mode="edit"
+        id={id}
+        initialValues={{ name: category.name, description: category.description ?? "", slug: category.slug }}
+        threadCount={category.threadCount}
+      />
+    </PageFrame>
   );
 }

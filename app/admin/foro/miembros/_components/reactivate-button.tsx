@@ -25,7 +25,7 @@ export function ReactivateButton({ memberId, name }: { memberId: string; name: s
   };
 
   return (
-    <div className="grid justify-items-start gap-2">
+    <div className="grid justify-items-start gap-2 lg:justify-items-end">
       <Button variant="line" size="sm" busy={pending} aria-disabled={pending || undefined} aria-label={`Reactivar la cuenta: ${name}`} onClick={() => !pending && run(reactivate)}>
         Reactivar la cuenta
       </Button>

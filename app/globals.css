@@ -161,6 +161,16 @@
 		-webkit-text-size-adjust: 100%;
 	}
 
+	/* A form's sticky ActionBar (form-parts.tsx) sits above the phone tab bar, together about 10.5rem; on a wide screen it
+	   sits alone at the bottom. Keep the field the keyboard or a scroll lands on above both instead of behind them. */
+	html:has([data-slot="action-bar"]) {
+		scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom));
+
+		@media (width >= 64rem) {
+			scroll-padding-bottom: 6.5rem;
+		}
+	}
+
 	@media (prefers-reduced-motion: no-preference) {
 		html {
 			scroll-behavior: smooth;

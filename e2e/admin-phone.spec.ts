@@ -62,6 +62,24 @@ async function logInAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+test("a field reached with the keyboard is not hidden behind the save bar and the tab bar on a phone", async ({ page }) => {
+  await logInAsAdmin(page);
+  await page.goto("/admin/foro/categorias/new", { waitUntil: "networkidle" });
+  await page.getByLabel("Descripción (opcional)").focus();
+  await page.keyboard.press("Tab");
+
+  const field = page.getByLabel("Dirección (opcional)");
+  await expect(field).toBeFocused();
+  const bar = page.locator('[data-slot="action-bar"]');
+  // The page scrolls smoothly, so the gap is read until the scroll settles.
+  await expect
+    .poll(async () => {
+      const [fieldBox, barBox] = await Promise.all([field.boundingBox(), bar.boundingBox()]);
+      return fieldBox && barBox ? barBox.y - (fieldBox.y + fieldBox.height) : Number.NEGATIVE_INFINITY;
+    })
+    .toBeGreaterThanOrEqual(0);
+});
+
 test("no admin screen scrolls sideways on a phone", async ({ page }) => {
   test.setTimeout(120_000);
   await logInAsAdmin(page);

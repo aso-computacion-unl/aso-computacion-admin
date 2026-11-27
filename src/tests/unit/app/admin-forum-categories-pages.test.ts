@@ -54,7 +54,8 @@ describe("the forum categories list page", () => {
     expect(html).toContain("no pueden abrir hilos");
     expect(html).toContain('href="/admin/foro/categorias/new"');
     expect(html).toContain("Crear la primera categoría");
-    expect(html).not.toContain('data-slot="list-row"');
+    expect(html).not.toContain('data-slot="category-row"');
+    expect(html).not.toContain("En el orden del foro");
   });
 
   it("lists the categories in forum order with their slug, description, thread count and an edit link each", async () => {
@@ -74,6 +75,21 @@ describe("the forum categories list page", () => {
     expect(html).toContain("Eliminar: Programación");
     expect(html).toContain('href="/admin/foro/categorias/new"');
     expect(html).toContain("Agregar categoría");
+  });
+
+  it("groups the rows under a heading, in one ordered list numbered from 01 with a heading per category", async () => {
+    seed();
+
+    const html = await renderList();
+
+    expect(html).toMatch(/<section aria-labelledby="categories-group"/);
+    expect(html).toMatch(/<h2[^>]*id="categories-group"[^>]*>En el orden del foro<\/h2>/);
+    expect(html).toContain("La 01 se muestra primero");
+    expect(html).toMatch(/<ol aria-label="Categorías del foro, en el orden en que se muestran"/);
+    expect(html.match(/data-slot="category-row"/g)).toHaveLength(2);
+    expect(html.indexOf(">01<")).toBeLessThan(html.indexOf(">02<"));
+    expect(html).toMatch(/<h3[^>]*><a [^>]*href="\/admin\/foro\/categorias\/c1\/edit"[^>]*>Programación<\/a><\/h3>/);
+    expect(html).toContain('aria-label="Editar: Materias"');
   });
 
   it("sends an editor to the restricted notice and a visitor to the login", async () => {

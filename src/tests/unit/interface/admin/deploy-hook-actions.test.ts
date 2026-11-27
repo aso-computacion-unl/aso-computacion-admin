@@ -77,6 +77,7 @@ const MODULES: Array<{ name: string; file: string; exported: object; calls: Reco
     exported: events,
     calls: {
       createEvent: () => events.createEvent(null, eventForm()),
+      createEventWithRegistration: () => events.createEventWithRegistration(null, form({ title: "Hackatón 24h", registrationMode: "open" })),
       updateEvent: () => events.updateEvent("e", null, eventForm()),
       setEventPublished: () => events.setEventPublished("e", true),
       trashEvent: () => events.trashEvent("e"),
@@ -195,7 +196,7 @@ describe("deploy hook after admin mutations", () => {
   });
 
   it("covers every content module (events, photos, faqs, commands, news, pillars, socials, board, settings)", () => {
-    expect(ALL_CALLS.length).toBe(44);
+    expect(ALL_CALLS.length).toBe(45);
   });
 
   it.each(ALL_CALLS)("%s asks for a rebuild exactly once, after the write", async (_name, call) => {

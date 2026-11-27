@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 import { openMoreOptions } from "./more-options";
 import { publish } from "./publish";
-import { createRegistration } from "./registration";
+import { chooseRegistration } from "./registration";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 // Signed cookie value of an editor session that scripts/run-e2e.mjs planted in the database.
@@ -25,12 +25,13 @@ async function actAsEditor(context: BrowserContext) {
   await context.addCookies([{ name: "admin_session", value: EDITOR_SESSION, url: BASE_URL }]);
 }
 
-/** Creates a published event, then its open registration form with two seats in Inscripciones; returns its id and public slug. */
+/** Creates a published «Evento con inscripción» with the open form and two seats; returns its id and public slug. */
 async function createRegistrableEvent(page: Page, title: string) {
   // Wait for the form to hydrate: a switch clicked before that is reset when React takes the form over.
   await page.goto("/admin/events/new", { waitUntil: "networkidle" });
   await page.getByLabel("Título").fill(title);
   await page.getByLabel("Fecha", { exact: true }).fill("2099-11-28");
+  await chooseRegistration(page, { mode: "open", capacity: 2 });
   await openMoreOptions(page);
   await page.getByLabel("Hora").fill("09:00 - 11:00");
   await page.getByLabel("Lugar").fill("Laboratorio 2");
@@ -42,8 +43,6 @@ async function createRegistrableEvent(page: Page, title: string) {
 
   const id = /\/admin\/events\/([^/]+)\/edit(?:[?#].*)?$/.exec(page.url())![1]!;
   const slug = title.toLowerCase().replaceAll(" ", "-");
-
-  await createRegistration(page, id, { mode: "open", capacity: 2 });
 
   return { id, slug };
 }

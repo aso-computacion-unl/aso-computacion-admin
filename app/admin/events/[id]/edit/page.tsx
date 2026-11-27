@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { EVENT_PHOTO_MIN_WIDTH } from "@/application";
 import { Button } from "@/components/ui/button";
 import type { EventRegistrationMode } from "@/domain/event-registration";
-import { isEventOver } from "@/domain/event-registration-retention";
 import { updateEvent } from "@/interface/admin/events/actions";
 import { CREATED_FLAG, PHOTOS_SECTION_ID } from "@/interface/admin/events/created-flag";
 import { eventToFormValues } from "@/interface/admin/events/event-form-values";
@@ -90,13 +89,7 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
               <Link href={`/admin/events/${id}/registrations`}>Ver inscripciones</Link>
             </Button>
           </div>
-        ) : isEventOver(event, new Date()) ? null : (
-          <div>
-            <Button asChild variant="line">
-              <Link href={`/admin/registrations/new?evento=${encodeURIComponent(id)}`}>Crear inscripción</Link>
-            </Button>
-          </div>
-        )}
+        ) : null}
       </Panel>
     </FormLayout>
   );

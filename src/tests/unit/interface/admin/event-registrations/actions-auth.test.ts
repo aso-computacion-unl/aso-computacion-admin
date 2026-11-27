@@ -4,7 +4,6 @@ const { cookiesMock, getServicesMock, getEventUseCasesMock, revalidatePathMock, 
   const remove = { execute: vi.fn(async () => undefined) };
   const saved = () => ({ execute: vi.fn(async () => ({ id: "event-1", isPublished: false })) });
   const eventUseCases = {
-    openRegistration: saved(),
     changeRegistration: saved(),
     get: { execute: vi.fn(async () => ({ id: "event-1", registrationMode: "unl", registrationCapacity: null })) },
     registeredCount: vi.fn(async () => 0),
@@ -39,7 +38,6 @@ const SUITE = {
   actions,
   actionCalls: {
     deleteEventRegistration: () => actions.deleteEventRegistration("event-1", "registration-1"),
-    openEventRegistration: () => actions.openEventRegistration("event-1", null, registrationForm()),
     updateEventRegistration: () => actions.updateEventRegistration("event-1", null, registrationForm()),
   },
   cookiesMock,
@@ -78,16 +76,13 @@ describe("event registration server actions require a session; deleting takes an
     expect(testAuth.audit.entries).toEqual([]);
   });
 
-  it("audits opening and changing a registration on the event, like an event edit", async () => {
+  it("audits changing a registration on the event, like an event edit", async () => {
     cookieJar(cookiesMock, await signInAs("EDITOR"));
 
-    await expect(actions.openEventRegistration("event-1", null, registrationForm())).rejects.toThrow("REDIRECT");
     await actions.updateEventRegistration("event-1", null, registrationForm());
 
-    // Newest first, as the log lists them.
     expect(testAuth.audit.entries.map((entry) => [entry.action, entry.entityType, entry.entityId, entry.summary])).toEqual([
       ["event.registration_update", "event", "event-1", "Inscripción de un evento editada"],
-      ["event.registration_open", "event", "event-1", "Inscripción creada en un evento"],
     ]);
   });
 });

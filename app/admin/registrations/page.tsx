@@ -69,7 +69,7 @@ export default async function RegistrationsPage({ searchParams }: RegistrationsP
             </Button>
           }
         >
-          Ningún evento pide inscripción todavía. Cree una eligiendo un evento próximo.
+          Ningún evento pide inscripción todavía. Cree un evento con su inscripción.
         </EmptyState>
       ) : (
         <div className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:items-start">

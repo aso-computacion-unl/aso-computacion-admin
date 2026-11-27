@@ -112,13 +112,15 @@ describe("the event edit page", () => {
     expect(panel(await render())).toMatch(/Inscripción: Cuenta UNL · sin límite de cupos(?!.*cierra)/);
   });
 
-  it("offers «Crear inscripción» in Inscripciones for an upcoming event without registration", async () => {
+  it("offers no registration link for an upcoming announcement: it never takes one (event-kinds S1)", async () => {
     eventMock.mockResolvedValue(event());
 
-    const block = panel(await render());
+    const html = await render();
+    const block = panel(html);
 
     expect(block).toContain("Sin inscripción");
-    expect(links(block)).toEqual(["Crear inscripción → /admin/registrations/new?evento=e1"]);
+    expect(links(block)).toEqual([]);
+    expect(html).not.toContain("Crear inscripción");
   });
 
   it("offers no registration link for a past event without one", async () => {

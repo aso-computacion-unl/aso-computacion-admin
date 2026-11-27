@@ -3,12 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { CreateEventCommand } from "@/application/use-cases/create-event.use-case";
+import type { Actor } from "@/domain/user";
 import { requestSiteRebuild } from "@/infrastructure/deploy/deploy-hook";
 import { assertValidImageSignature, imageUploadSchema } from "@/interface/validation/image-upload.schema";
 
 import { recordAudit } from "../../audit/record-audit";
 import { requireSession } from "../../auth/require-session";
 import { mapActionError, type ActionResult } from "../action-result";
+import { REGISTRATIONS_PATH, savedRegistrationPath } from "../event-registrations/saved-flag";
 import { shouldRebuildSite } from "../site-rebuild-policy";
 import { TRASH_PATH } from "../trash/paths";
 import { createdEventPath } from "./created-flag";
@@ -22,14 +25,29 @@ import { getEventUseCases } from "./events-container";
 const LIST_PATH = "/admin/events";
 const editPath = (eventId: string) => `${LIST_PATH}/${eventId}/edit`;
 
+/**
+ * Creates the event and audits it. An event with registration also records its registration, after the creation
+ * entry. `parseCreateEventFormData` sets `registrationMode` only for «Evento con inscripción» (always unl or open),
+ * so its presence is what marks one.
+ */
+async function createAudited(actor: Actor, command: CreateEventCommand) {
+  const created = await getEventUseCases().create.execute(command);
+  await recordAudit(actor, { action: "event.create", entityType: "event", entityId: created.id, summary: "Evento creado" });
+
+  if (command.registrationMode !== undefined) {
+    await recordAudit(actor, { action: "event.registration_open", entityType: "event", entityId: created.id, summary: "Inscripción creada en un evento" });
+  }
+
+  return created;
+}
+
 export async function createEvent(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   let id: string;
   let isPublished: boolean;
 
   try {
     const actor = await requireSession();
-    ({ id, isPublished } = await getEventUseCases().create.execute(parseCreateEventFormData(formData)));
-    await recordAudit(actor, { action: "event.create", entityType: "event", entityId: id, summary: "Evento creado" });
+    ({ id, isPublished } = await createAudited(actor, parseCreateEventFormData(formData)));
   } catch (error) {
     return mapActionError(error);
   }
@@ -42,6 +60,30 @@ export async function createEvent(_prevState: ActionResult | null, formData: For
   revalidatePath(LIST_PATH);
   // Photos need an existing event, so creating continues on its edit page, aimed at the Photos section.
   redirect(createdEventPath(editPath(id)));
+}
+
+/**
+ * «Crear inscripción» in Inscripciones (event-kinds S3, S4): always a new event with registration, whatever kind the
+ * post names. It lands on the registrations panel with that event selected and the saved notice.
+ */
+export async function createEventWithRegistration(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  let id: string;
+  let isPublished: boolean;
+
+  try {
+    const actor = await requireSession();
+    ({ id, isPublished } = await createAudited(actor, parseCreateEventFormData(formData, true)));
+  } catch (error) {
+    return mapActionError(error);
+  }
+
+  if (shouldRebuildSite(false, isPublished)) {
+    requestSiteRebuild();
+  }
+
+  revalidatePath(LIST_PATH);
+  revalidatePath(REGISTRATIONS_PATH);
+  redirect(savedRegistrationPath(id));
 }
 
 export async function updateEvent(

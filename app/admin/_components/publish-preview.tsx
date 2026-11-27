@@ -144,7 +144,7 @@ export function PublishPreview<V extends { [K in keyof V]: string | boolean }>({
   }
 
   return createPortal(
-    <div ref={root} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={handleKeyDown} className="fixed inset-0 z-50 flex flex-col bg-muted outline-none">
+    <div ref={root} data-area="admin" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={handleKeyDown} className="fixed inset-0 z-50 flex flex-col bg-muted outline-none">
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b-[3px] border-foreground bg-card px-4 py-3 md:px-8">
         <h2 id={titleId} className="font-display text-2xl leading-none md:text-3xl">
           Así queda
@@ -156,11 +156,11 @@ export function PublishPreview<V extends { [K in keyof V]: string | boolean }>({
           <p role="status" className="sr-only">
             {shown === "after" ? "Mostrando Después: así queda el sitio." : "Mostrando Antes: así está el sitio ahora."}
           </p>
-          <div data-slot="publish-site" className="overflow-hidden rounded bg-card shadow-[0_0_0_1.5px_var(--color-paper-ring)]">
+          <div data-slot="publish-site" className="overflow-hidden rounded-card bg-card shadow-[0_0_0_1.5px_var(--color-paper-ring)]">
             <div className="bg-deep px-4 py-2.5 font-mono text-xs text-white">Sitio público</div>
             <div className="p-4 md:p-8">
               {shown === "before" && before === null ? (
-                <p className="rounded border-2 border-dashed border-dash p-8 text-center text-mist">Todavía no está en el sitio. Al publicar, aparecerá así: pase a «Después».</p>
+                <p className="rounded-control border-2 border-dashed border-dash p-8 text-center text-mist">Todavía no está en el sitio. Al publicar, aparecerá así: pase a «Después».</p>
               ) : (
                 render(shown === "before" ? before! : after, changed, before)
               )}

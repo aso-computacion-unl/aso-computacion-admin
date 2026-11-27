@@ -155,7 +155,7 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
         <section
           ref={watchFocus}
           aria-label="Acciones en lote"
-          className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 mt-6 grid gap-3 rounded bg-card p-3 shadow-[0_-1px_0_var(--color-border)] md:px-4 lg:bottom-3"
+          className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-5 mt-6 grid gap-3 rounded-card bg-card p-3 shadow-[0_-1px_0_var(--color-border)] md:px-4 lg:bottom-3"
         >
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -187,7 +187,7 @@ export function BulkSelection({ kind, items, enabled = true, children }: BulkSel
           </div>
 
           {confirming !== null ? (
-            <div role="group" aria-label={`Confirmar: ${OPERATIONS[confirming].label.toLowerCase()}`} className="grid gap-3 rounded bg-muted p-3 text-sm">
+            <div role="group" aria-label={`Confirmar: ${OPERATIONS[confirming].label.toLowerCase()}`} className="grid gap-3 rounded-control bg-muted p-3 text-sm">
               <p>{OPERATIONS[confirming].confirm(selected.size)}</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant={confirming === "trash" ? "danger" : "primary"} size="sm" busy={pending} aria-disabled={pending || undefined} onClick={() => !pending && run(confirming)}>

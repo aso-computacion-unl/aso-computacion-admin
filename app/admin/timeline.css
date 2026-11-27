@@ -147,7 +147,7 @@
 		grid-column: 2;
 		position: relative;
 		z-index: 1;
-		border-radius: 4px;
+		border-radius: var(--radius-card);
 		background: var(--color-navy-lift);
 	}
 }

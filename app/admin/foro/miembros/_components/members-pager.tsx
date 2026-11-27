@@ -7,7 +7,7 @@ import { pluralize } from "@/interface/admin/publication-summary";
 import { cn } from "@/lib/utils";
 
 const STEP_CLASSES = cn(
-  "inline-flex min-h-11 items-center rounded border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out",
+  "inline-flex min-h-11 items-center rounded-full border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out",
   "hover:bg-foreground/6 hover:text-foreground aria-disabled:border-dashed aria-disabled:text-mist/60 aria-disabled:hover:bg-transparent",
 );
 

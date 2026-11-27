@@ -24,9 +24,9 @@ export function SettingsPreview({ values, changed, clamp = false }: { values: Se
   const about = values.about.trim();
 
   return (
-    <div className="overflow-hidden rounded">
+    <div className="overflow-hidden rounded-control">
       <div className="flex items-center gap-2 bg-navy-deep px-3 pt-2">
-        <p className="max-w-full truncate rounded-t bg-navy px-3 py-1.5 text-xs">
+        <p className="max-w-full truncate rounded-t-control bg-navy px-3 py-1.5 text-xs">
           ASO Computación
           {tagline ? (
             <>

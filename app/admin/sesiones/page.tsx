@@ -64,7 +64,7 @@ export default async function AdminSessionsPage() {
                     return (
                       <li
                         key={session.id}
-                        className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded bg-card p-4 xl:col-span-full xl:grid xl:grid-cols-subgrid xl:px-5 xl:py-3.5 xl:[&>[role=group]]:col-span-full"
+                        className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card bg-card p-4 xl:col-span-full xl:grid xl:grid-cols-subgrid xl:px-5 xl:py-3.5 xl:[&>[role=group]]:col-span-full"
                       >
                         <div className="grid min-w-0 flex-1 basis-60 gap-1 xl:contents">
                           <p className="font-bold wrap-anywhere">

@@ -29,8 +29,8 @@ describe("ListSearch", () => {
     expect(html).toContain('name="q"');
   });
 
-  it("fills the field with the card colour in the light theme, so it does not look disabled on the page", () => {
-    expect(search()).toContain("[:root[data-theme=light]_&amp;]:bg-card");
+  it("takes the admin's filled field in both themes, without a light-theme card override", () => {
+    expect(search()).not.toContain("[:root[data-theme=light]_&amp;]:bg-card");
   });
 
   it("keeps the button next to the field when it shares a row with the status tabs", () => {

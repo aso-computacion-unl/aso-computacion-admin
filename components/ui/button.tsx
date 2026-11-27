@@ -18,6 +18,8 @@ const buttonVariants = cva(
     "data-[busy=true]:pointer-events-none data-[busy=true]:opacity-80 data-[busy=true]:disabled:opacity-80",
     "data-[busy=true]:before:size-4 data-[busy=true]:before:animate-spin data-[busy=true]:before:rounded-full data-[busy=true]:before:border-2 data-[busy=true]:before:border-current data-[busy=true]:before:border-r-transparent data-[busy=true]:before:content-['']",
     "[&_svg]:size-5 [&_svg]:shrink-0",
+    // Inside the admin (`data-area="admin"` on its layout) buttons are pills; public pages keep 4px.
+    "in-data-[area=admin]:rounded-full",
   ],
   {
     variants: {

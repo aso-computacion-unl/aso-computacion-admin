@@ -21,7 +21,7 @@ export function MembersSearch({ filter, search }: Pick<MemberListParams, "filter
         maxLength={SEARCH_MAX_LENGTH}
         placeholder="Buscar por nombre o correo"
         autoComplete="off"
-        className="min-h-11 min-w-0 flex-1 basis-40 sm:w-72 sm:flex-none [:root[data-theme=light]_&]:bg-card"
+        className="min-h-11 min-w-0 flex-1 basis-40 sm:w-72 sm:flex-none"
       />
       <Button type="submit" variant="line" className="shrink-0">
         Buscar

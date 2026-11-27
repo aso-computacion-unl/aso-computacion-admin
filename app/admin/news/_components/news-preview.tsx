@@ -58,7 +58,7 @@ export function NewsPreview({ values, cover, changed }: NewsPreviewProps) {
   return (
     <>
       <SiteSection number="01">Novedades</SiteSection>
-      <article className="grid gap-3 rounded border border-paper-ring p-5">
+      <article className="grid gap-3 rounded-control border border-paper-ring p-5">
         {cover ? (
           // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
           // eslint-disable-next-line @next/next/no-img-element

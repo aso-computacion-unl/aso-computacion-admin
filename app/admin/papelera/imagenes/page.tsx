@@ -12,7 +12,7 @@ import { OrphanCleanup } from "./_components/orphan-cleanup";
 export const dynamic = "force-dynamic";
 
 const STEP_CLASSES =
-  "inline-flex min-h-11 items-center justify-center rounded border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground";
+  "inline-flex min-h-11 items-center justify-center rounded-full border border-input px-3.5 text-sm font-semibold text-mist transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground";
 
 export default async function AdminImageCleanupPage({ searchParams }: { searchParams: Promise<{ despues?: string | string[] }> }) {
   const cursor = parseMediaCursor((await searchParams).despues);

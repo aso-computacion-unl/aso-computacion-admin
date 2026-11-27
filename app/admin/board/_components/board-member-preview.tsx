@@ -24,7 +24,7 @@ export function BoardMemberPreview({ values, photo, changed }: BoardMemberPrevie
   return (
     <>
       <SiteSection number="01">Directiva</SiteSection>
-      <figure className="grid w-fit max-w-60 gap-3 rounded border border-paper-ring p-4">
+      <figure className="grid w-fit max-w-60 gap-3 rounded-control border border-paper-ring p-4">
         {photo ? (
           // Remote Cloudinary asset, requested at thumbnail size; a plain <img> is enough in the admin.
           // eslint-disable-next-line @next/next/no-img-element

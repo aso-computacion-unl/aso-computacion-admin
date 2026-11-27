@@ -33,7 +33,7 @@ function MemberRow({ member }: { member: ForumMemberListItemResult }) {
   const suspended = member.status === "SUSPENDED";
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 rounded bg-card p-4">
+    <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 rounded-card bg-card p-4">
       <div className="grid min-w-0 gap-1">
         <p className="flex flex-wrap items-center gap-2">
           <span className="font-bold wrap-anywhere">{member.displayName}</span>
@@ -97,7 +97,7 @@ export default async function AdminForumMembersPage({ searchParams }: { searchPa
                   href={memberListHref({ filter: option.filter, search, page: 1 })}
                   aria-current={option.filter === filter ? "true" : undefined}
                   className={cn(
-                    "inline-flex min-h-11 items-center gap-2 rounded border border-input px-3.5 text-sm font-semibold text-mist",
+                    "inline-flex min-h-11 items-center gap-2 rounded-full border border-input px-3.5 text-sm font-semibold text-mist",
                     "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
                     "aria-[current=true]:border-action aria-[current=true]:bg-action aria-[current=true]:text-on-action",
                   )}

@@ -61,7 +61,7 @@ function ReportCard({ report }: { report: ForumReportItemResult }) {
 /** A closed report as one compact row: what it was about, how it ended and when. */
 function ClosedRow({ report }: { report: ForumReportItemResult }) {
   return (
-    <li className="grid gap-1 rounded bg-card p-4">
+    <li className="grid gap-1 rounded-card bg-card p-4">
       <p className="flex flex-wrap items-center gap-2">
         <Stamp>{OUTCOME_LABELS[report.status]}</Stamp>
         <span className="font-bold wrap-anywhere">{report.target.threadTitle}</span>
@@ -103,7 +103,7 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
                   href={reportQueueHref(queue, 1)}
                   aria-current={queue === status ? "true" : undefined}
                   className={cn(
-                    "inline-flex min-h-11 items-center gap-2 rounded border border-input px-3.5 text-sm font-semibold text-mist",
+                    "inline-flex min-h-11 items-center gap-2 rounded-full border border-input px-3.5 text-sm font-semibold text-mist",
                     "transition-colors duration-150 ease-out hover:bg-foreground/6 hover:text-foreground",
                     "aria-[current=true]:border-action aria-[current=true]:bg-action aria-[current=true]:text-on-action",
                   )}
@@ -153,7 +153,7 @@ export default async function AdminForumReportsPage({ searchParams }: { searchPa
               </nav>
               <ReportCard report={report} />
             </section>
-            <aside aria-labelledby="decide-title" className="grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+            <aside aria-labelledby="decide-title" className="grid gap-4 rounded-card bg-card p-4 md:p-5 lg:sticky lg:top-22">
               <SectionTitle id="decide-title">Decidir</SectionTitle>
               <ReportActions key={report.id} report={report} />
             </aside>

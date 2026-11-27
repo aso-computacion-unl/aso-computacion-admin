@@ -165,7 +165,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
       </Panel>
 
       <aside aria-labelledby={sideHeadingId} data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block">
-        <div className="grid min-w-0 gap-4 rounded bg-card p-4 md:p-5 lg:rounded-b-none">
+        <div className="grid min-w-0 gap-4 rounded-card bg-card p-4 md:p-5 lg:rounded-b-none">
           <h2 id={sideHeadingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded">
             Dónde se ve
           </h2>
@@ -179,7 +179,7 @@ export function SettingsForm({ action, initialValues = EMPTY_SETTINGS_FORM_VALUE
           <p className="text-[0.8125rem] leading-[1.4] text-mist">Estos textos están siempre en el sitio. «Publicar» muestra los cambios marcados y pide confirmación.</p>
         </div>
         <ActionBar
-          className="mx-0 mt-0 rounded md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none"
+          className="mx-0 mt-0 rounded-card md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none"
           status={<FormFeedback state={state.result} />}
         >
           <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:flex-1">

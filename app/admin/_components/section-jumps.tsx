@@ -56,7 +56,7 @@ export function SectionJumps({ label, items }: SectionJumpsProps) {
           href={item.href}
           aria-current={current === item.href ? "location" : undefined}
           onClick={() => setCurrent(item.href)}
-          className="inline-flex min-h-11 items-center rounded bg-card px-4 text-sm font-semibold transition-colors duration-150 ease-out hover:bg-foreground/8 aria-[current=location]:bg-foreground/14 focus-visible:outline-2 focus-visible:outline-sky"
+          className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-sm font-semibold transition-colors duration-150 ease-out hover:bg-foreground/8 aria-[current=location]:bg-foreground/14 focus-visible:outline-2 focus-visible:outline-sky"
         >
           {item.label}
         </a>

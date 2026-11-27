@@ -51,7 +51,7 @@ export default async function AdminUsersPage() {
               <GroupHeading id="pending-title" title="Invitaciones pendientes" count={invites.length} />
               <ul className="grid gap-1.5" aria-label="Invitaciones pendientes">
                 {invites.map((invite) => (
-                  <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded bg-card p-4">
+                  <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card bg-card p-4">
                     <div className="grid min-w-0 flex-1 basis-60 gap-1">
                       <p className="font-mono text-[0.8125rem] font-semibold wrap-anywhere">{invite.email}</p>
                       <p className="font-mono text-[0.8125rem] text-mist">
@@ -74,7 +74,7 @@ export default async function AdminUsersPage() {
             ) : null}
             <ul className="grid gap-1.5" aria-label="Usuarios">
               {users.map((user) => (
-                <li key={user.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded bg-card p-4">
+                <li key={user.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card bg-card p-4">
                   <div className="grid min-w-0 flex-1 basis-60 gap-1">
                     <p className="font-bold wrap-anywhere">
                       {user.name}
@@ -93,7 +93,7 @@ export default async function AdminUsersPage() {
           </section>
         </div>
 
-        <aside aria-labelledby="invite-title" className="@container grid gap-4 rounded bg-card p-4 md:p-5 lg:sticky lg:top-22">
+        <aside aria-labelledby="invite-title" className="@container grid gap-4 rounded-card bg-card p-4 md:p-5 lg:sticky lg:top-22">
           <SectionTitle id="invite-title">Invitar a una persona</SectionTitle>
           <CreateInviteForm action={createAdminInvite} />
         </aside>

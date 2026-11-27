@@ -77,6 +77,17 @@
 	/* Field outlines need 3:1 against the field (WCAG 1.4.11). */
 	--color-input: color-mix(in srgb, var(--color-mist) 50%, transparent);
 	--color-ring: var(--color-sky);
+	/* The admin's filled field and segmented group: a step between deep and lift, with no outline at rest. */
+	--color-field: color-mix(in srgb, var(--color-navy-deep) 70%, var(--color-navy-lift));
+
+	/*
+	 * The admin's rounded corners (public pages keep `rounded`, 4px). control: fields, disclosures and previews;
+	 * segmented: half the 50px group (44px cells and a 3px inset), a pill on one row that does not clip its cells
+	 * when it wraps; card: panels.
+	 */
+	--radius-control: 0.75rem;
+	--radius-segmented: 1.5625rem;
+	--radius-card: 1.25rem;
 
 	/* Brand: the wordmark only. Display: titles, Mona Sans expanded (see the utility below). Body: text.
 	   Mono: dates, branch names, short hashes. */
@@ -128,6 +139,8 @@
 	--color-on-action: #ffffff;
 	--color-border: color-mix(in srgb, var(--color-sky) 35%, transparent);
 	--color-input: color-mix(in srgb, var(--color-mist) 70%, transparent);
+	/* Darker than the page and the cards here (a lighter step would vanish into them); ink on it is 11:1 or more. */
+	--color-field: color-mix(in srgb, var(--color-navy-deep) 90%, var(--color-mist));
 	color-scheme: light;
 }
 

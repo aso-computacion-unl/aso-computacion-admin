@@ -31,7 +31,7 @@ export function SponsorPreview({ values, logo, changed }: SponsorPreviewProps) {
   return (
     <>
       <SiteSection number="01">Aliados</SiteSection>
-      <figure className="grid w-fit max-w-60 gap-3 rounded border border-paper-ring p-4">
+      <figure className="grid w-fit max-w-60 gap-3 rounded-control border border-paper-ring p-4">
         {image && url ? (
           <a href={url} target="_blank" rel="noreferrer noopener" className="w-fit">
             {image}

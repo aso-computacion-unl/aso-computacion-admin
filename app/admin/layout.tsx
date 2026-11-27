@@ -34,11 +34,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   // One "leave without saving?" dialog for the whole admin: the rail, the tab bar, the top bar's logo, the sign-out and the links of every page ask through it.
   return (
     <UnsavedChangesProvider>
-      <div className="min-h-screen lg:grid lg:grid-cols-[6.75rem_minmax(0,1fr)]">
+      {/* `data-area` turns on the admin's rounded, filled controls in the shared components (`in-data-[area=admin]:`). */}
+      <div data-area="admin" className="min-h-screen lg:grid lg:grid-cols-[6.75rem_minmax(0,1fr)]">
         <AdminThemeDefault />
         <a
           href="#main"
-          className="fixed top-[-4rem] left-3 z-100 rounded bg-action px-4 py-2.5 font-bold text-on-action focus:top-3"
+          className="fixed top-[-4rem] left-3 z-100 rounded-full bg-action px-4 py-2.5 font-bold text-on-action focus:top-3"
         >
           Saltar al contenido
         </a>

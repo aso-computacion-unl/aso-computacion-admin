@@ -39,17 +39,18 @@ test("a wrong password shows the error and keeps the login screen", async ({ pag
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("the home greets, says what waits and offers '+ Crear' with the three things to create", async ({ page }) => {
+test("the home greets, orders what waits in three tiers and offers the quick actions to create", async ({ page }) => {
   await logInAsAdmin(page);
 
-  await expect(page.getByRole("heading", { level: 1, name: "Hola" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Lo que te espera" })).toBeVisible();
-  // The old module grid is gone: the four areas are the way around.
+  await expect(page.getByRole("heading", { level: 1, name: /^Hola/ })).toBeVisible();
+  for (const tier of ["Necesita atención", "Tu trabajo", "Estado"]) await expect(page.getByRole("heading", { name: tier, exact: true })).toBeVisible();
+  // The old module grid is gone: the areas are the way around.
   await expect(page.getByText("Contenido del sitio")).toHaveCount(0);
 
-  await expect(page.getByRole("link", { name: "Evento", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Novedad", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Pregunta", exact: true }).click();
+  const quick = page.getByRole("region", { name: "Acciones rápidas" });
+  await expect(quick.getByRole("link", { name: "Nuevo evento" })).toBeVisible();
+  await expect(quick.getByRole("link", { name: "Nueva novedad" })).toBeVisible();
+  await quick.getByRole("link", { name: "Nueva pregunta" }).click();
   await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
 });
 

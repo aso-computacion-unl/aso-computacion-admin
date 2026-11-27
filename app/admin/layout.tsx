@@ -7,6 +7,7 @@ import { requirePageSession } from "@/interface/auth/require-page-session";
 import { AdminThemeDefault } from "../_components/theme-toggle";
 
 import { PhoneTopBar, Rail, TabBar } from "./_components/admin-nav";
+import { CommandPalette } from "./_components/command-palette";
 import { ProfileCard } from "./_components/profile-card";
 import { ToastProvider } from "./_components/toast";
 import { UnsavedChangesProvider } from "./_components/unsaved-changes";
@@ -81,6 +82,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <TabBar role={actor.role} />
+        {/* Ctrl K and the E/N/P shortcuts work on every admin page; inside the provider, so its links still ask before leaving unsaved changes. */}
+        <CommandPalette role={actor.role} />
       </div>
     </UnsavedChangesProvider>
   );

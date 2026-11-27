@@ -1,14 +1,35 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const reads = vi.hoisted(() => ({ session: vi.fn(), deploy: vi.fn(), events: vi.fn(), news: vi.fn(), reports: vi.fn(), overview: vi.fn() }));
+const reads = vi.hoisted(() => ({
+  session: vi.fn(),
+  deploy: vi.fn(),
+  events: vi.fn(),
+  eventCounts: vi.fn(),
+  news: vi.fn(),
+  newsCounts: vi.fn(),
+  faqCounts: vi.fn(),
+  reports: vi.fn(),
+  members: vi.fn(),
+  overview: vi.fn(),
+  audit: vi.fn(),
+  sessions: vi.fn(),
+  trash: vi.fn(),
+  activity: vi.fn(),
+}));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/interface/auth/require-page-session", () => ({ requirePageSession: reads.session }));
 vi.mock("@/interface/admin/deploy-status-admin-read", () => ({ getLastDeployStatus: reads.deploy }));
-vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvents: reads.events }));
-vi.mock("@/interface/admin/news/news-admin-read", () => ({ getAdminNewsItems: reads.news }));
-vi.mock("@/interface/admin/forum/forum-moderation-read", () => ({ getAdminForumReports: reads.reports }));
+vi.mock("@/interface/admin/events/events-admin-read", () => ({ getAdminEvents: reads.events, getAdminEventCounts: reads.eventCounts }));
+vi.mock("@/interface/admin/news/news-admin-read", () => ({ getAdminNewsItems: reads.news, getAdminNewsCounts: reads.newsCounts }));
+vi.mock("@/interface/admin/faqs/faqs-admin-read", () => ({ getAdminFaqsCounts: reads.faqCounts }));
+vi.mock("@/interface/admin/forum/forum-moderation-read", () => ({ getAdminForumReports: reads.reports, getAdminForumMembers: reads.members }));
 vi.mock("@/interface/admin/event-registrations/registrations-overview-admin-read", () => ({ getAdminRegistrationOverview: reads.overview }));
+vi.mock("@/interface/admin/audit/audit-activity-read", () => ({ getAdminActivityByDay: reads.activity }));
+vi.mock("@/interface/admin/audit/audit-admin-read", () => ({ getAuditLogPage: reads.audit }));
+vi.mock("@/interface/admin/sessions/sessions-admin-read", () => ({ getActiveSessions: reads.sessions }));
+vi.mock("@/interface/admin/trash/trash-admin-read", () => ({ getAdminTrash: reads.trash }));
 
 import AdminHomePage from "../../../../app/admin/page";
 
@@ -21,16 +42,54 @@ const render = async (role: Role = "ADMIN", name = "Alejandro Vera", searchParam
 };
 
 const draftEvent = { id: "e1", title: "Charla", date: null, datePrecision: "day", isPublished: false, publishAt: null, registrationMode: "none", updatedAt: new Date("2026-10-01T00:00:00Z") };
-const openRow = { id: "e7", title: "Hackathon", registered: 48, state: "open" };
-const cardButtons = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g)].map((match) => [match[1], match[2]]);
+const scheduledNews = { id: "n1", title: "Convocatoria", isPublished: false, publishAt: new Date("2099-01-01T00:00:00Z"), updatedAt: new Date("2026-09-01T00:00:00Z") };
+const row = (overrides: Record<string, unknown> = {}) => ({
+  id: "e7",
+  slug: "hackathon",
+  title: "Hackathon",
+  date: "2099-03-10",
+  datePrecision: "day",
+  mode: "unl",
+  capacity: 80,
+  registered: 64,
+  deadline: null,
+  state: "open",
+  publication: "live",
+  ...overrides,
+});
+const auditEntry = (id: string, summary: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  at: new Date(Date.now() - 12 * 60_000),
+  actorKind: "user",
+  actorUserId: "u1",
+  action: "event.publish",
+  entityType: "event",
+  entityId: "e1",
+  summary,
+  ...overrides,
+});
+
+/** The markup of one labelled section, from its opening tag to the end of the page (enough to find what it holds first). */
+const section = (html: string, id: string) => html.slice(html.indexOf(`aria-labelledby="${id}"`));
+const between = (html: string, from: string, to: string) => html.slice(html.indexOf(from), html.indexOf(to));
+const links = (html: string) => [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((match) => match[1]);
 
 beforeEach(() => {
   reads.session.mockReset();
   reads.deploy.mockReset().mockResolvedValue(undefined);
   reads.events.mockReset().mockResolvedValue([]);
+  reads.eventCounts.mockReset().mockResolvedValue({ published: 19, draft: 1 });
   reads.news.mockReset().mockResolvedValue([]);
+  reads.newsCounts.mockReset().mockResolvedValue({ published: 12, draft: 0 });
+  reads.faqCounts.mockReset().mockResolvedValue({ published: 9, draft: 0 });
   reads.reports.mockReset().mockResolvedValue({ total: 0 });
+  reads.members.mockReset().mockResolvedValue({ total: 2 });
   reads.overview.mockReset().mockResolvedValue({ upcoming: [], past: [] });
+  reads.audit.mockReset().mockResolvedValue({ items: [], users: [] });
+  reads.sessions.mockReset().mockResolvedValue({ sessions: [{}, {}, {}, {}] });
+  reads.trash.mockReset().mockResolvedValue([{}, {}, {}]);
+  // Like the real read: the team for an administrator, their own changes for an editor.
+  reads.activity.mockReset().mockImplementation(async () => ({ days: [], total: 0, scope: (await reads.session()).role === "ADMIN" ? "team" : "own" }));
 });
 
 describe("the admin home greeting", () => {
@@ -39,6 +98,7 @@ describe("the admin home greeting", () => {
 
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(html).toMatch(/<h1[^>]*>Hola, Alejandro<\/h1>/);
+    expect(html).toContain(" · Loja");
   });
 
   it("greets without a name for the emergency access, which has no person", async () => {
@@ -49,54 +109,25 @@ describe("the admin home greeting", () => {
   });
 
   it("keeps the notice for an editor sent back from an admin-only page", async () => {
-    expect(await render("EDITOR", "Ana", { acceso: "restringido" })).toContain('role="status"');
+    expect(await render("EDITOR", "Ana", { acceso: "restringido" })).toContain("Esa sección es solo para administradores.");
   });
 });
 
-describe("lo que te espera", () => {
-  it("shows a card per thing waiting, each with one button", async () => {
-    reads.reports.mockResolvedValue({ total: 3 });
-    reads.overview.mockResolvedValue({ upcoming: [openRow], past: [] });
-    reads.events.mockResolvedValue([draftEvent]);
+describe("the git status line", () => {
+  it("sums up what needs someone: open reports, events without seats and scheduled drafts", async () => {
+    reads.reports.mockResolvedValue({ total: 9 });
+    reads.overview.mockResolvedValue({ upcoming: [row({ state: "full", registered: 80 })], past: [] });
+    reads.news.mockResolvedValue([scheduledNews]);
     const html = await render();
 
-    expect(html).toContain("Lo que te espera");
-    expect(html).toMatch(/<h3[^>]*><span[^>]*>3<\/span>reportes en el foro<\/h3>/);
-    expect(html).toMatch(/<h3[^>]*><span[^>]*>48<\/span>inscritos en Hackathon<\/h3>/);
-    expect(html).toMatch(/<h3[^>]*><span[^>]*>1<\/span>borrador sin publicar<\/h3>/);
-    expect(cardButtons(html)).toEqual(
-      expect.arrayContaining([
-        ["/admin/foro/reportes", "Revisar"],
-        ["/admin/registrations?evento=e7", "Ver inscritos"],
-        ["/admin/events/e1/edit", "Continuar"],
-      ]),
-    );
-    expect(html.match(/<li data-slot="todo-card"/g)).toHaveLength(3);
+    expect(html).toContain("$ git status</span> → ");
+    expect(html).toMatch(/<b[^>]*>9 reportes<\/b> del foro por revisar/);
+    expect(html).toMatch(/<b[^>]*>1 evento<\/b> sin cupos/);
+    expect(html).toMatch(/<b[^>]*>1<\/b> programado/);
   });
 
-  it("hides the cards with nothing pending", async () => {
-    reads.reports.mockResolvedValue({ total: 2 });
-    const html = await render();
-
-    expect(html.match(/<li data-slot="todo-card"/g)).toHaveLength(1);
-    expect(html).toContain("reportes en el foro");
-    expect(html).not.toContain("Ver inscritos");
-    expect(html).not.toContain("sin publicar");
-    expect(html).not.toContain("Todo al día");
-  });
-
-  it("ignores events whose registration is full or closed, and the ones nobody signed up for", async () => {
-    reads.overview.mockResolvedValue({ upcoming: [{ ...openRow, state: "full" }, { ...openRow, id: "e8", registered: 0 }], past: [] });
-
-    expect(await render()).toContain("Todo al día");
-  });
-
-  it("says 'Todo al día' in one calm line when nothing is pending", async () => {
-    const html = await render();
-
-    expect(html).toContain("Todo al día");
-    expect(html).not.toContain("todo-card");
-    expect(html).not.toContain("Revisar");
+  it("says everything is up to date when nothing waits", async () => {
+    expect(await render()).toContain("→ todo al día.");
   });
 
   it("does not claim everything is up to date when the reads failed", async () => {
@@ -106,115 +137,177 @@ describe("lo que te espera", () => {
     reads.overview.mockRejectedValue(new Error("down"));
     const html = await render();
 
-    expect(html).not.toContain("Todo al día");
-    expect(html).toContain("No pudimos leer lo pendiente");
-  });
-
-  it("shows an editor the same cards and links only to pages an editor can open", async () => {
-    reads.reports.mockResolvedValue({ total: 3 });
-    reads.overview.mockResolvedValue({ upcoming: [openRow], past: [] });
-    reads.events.mockResolvedValue([draftEvent]);
-    const html = await render("EDITOR", "Ana");
-    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
-
-    expect(html.match(/<li data-slot="todo-card"/g)).toHaveLength(3);
-    expect(hrefs.filter((href) => /settings|usuarios|sesiones|registro|papelera/.test(href ?? ""))).toEqual([]);
-  });
-
-  it("drops the old module grid", async () => {
-    const html = await render();
-
-    expect(html).not.toContain("Contenido del sitio");
-    expect(html).not.toContain("Por atender");
+    expect(html).not.toContain("todo al día");
+    expect(html).toContain("no pudimos leer todo lo pendiente");
+    expect(html).toContain("No pudimos leer las inscripciones");
+    expect(html).toContain("No pudimos leer los borradores");
   });
 });
 
-describe("the panorama under the pending cards", () => {
-  const upcomingEvent = (id: string, title: string, date: string, registrationMode = "none") => ({ ...draftEvent, id, title, date, isPublished: true, registrationMode });
-  const panorama = (html: string) => html.match(/<section aria-labelledby="panorama-[\s\S]*$/)?.[0] ?? "";
-
-  it("lists the upcoming events soonest first, with the sign-ups against the capacity, even when nothing is pending", async () => {
-    reads.events.mockResolvedValue([upcomingEvent("e2", "Hackathon", "2099-03-10", "internal"), upcomingEvent("e3", "Charla IA", "2099-02-01")]);
-    reads.overview.mockResolvedValue({ upcoming: [{ ...openRow, id: "e2", registered: 0, capacity: 40 }], past: [] });
+describe("the three tiers", () => {
+  it("go from what needs attention, to the person's work, to the status", async () => {
     const html = await render();
-    const section = panorama(html);
+    const order = ["Necesita atención", "Acciones rápidas", "Inscripciones próximas", "Tu trabajo", "Borradores", "Actividad reciente", "Estado", "Sitio público"].map((text) => html.indexOf(text));
 
-    expect(html).toContain("Todo al día");
-    expect(section).toContain("Próximos eventos");
-    expect(section.indexOf("Charla IA")).toBeLessThan(section.indexOf("Hackathon"));
-    expect(section).toContain("1 feb 2099");
-    expect(section).toContain("0 / 40 inscritos");
-    expect(cardButtons(section)).toEqual(expect.arrayContaining([["/admin/registrations?evento=e2", "0 / 40 inscritos"]]));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("counts sign-ups without a limit as a plain number", async () => {
-    reads.events.mockResolvedValue([upcomingEvent("e2", "Hackathon", "2099-03-10", "internal")]);
-    reads.overview.mockResolvedValue({ upcoming: [{ ...openRow, id: "e2", registered: 1, capacity: null }], past: [] });
+  it("drops the old pending cards and the side panel", async () => {
+    const html = await render();
 
-    expect(panorama(await render())).toContain("1 inscrito<");
+    expect(html).not.toContain("Lo que te espera");
+    expect(html).not.toContain("todo-card");
+    expect(html).not.toContain("Crear y estado del sitio");
   });
 
+  it("shows the 16-week activity map with a text alternative", async () => {
+    const html = await render();
+
+    expect(html).toMatch(/role="img" aria-label="Actividad del equipo en las últimas 16 semanas: sin cambios\."/);
+    expect(html).toContain("0 cambios del equipo · 16 semanas");
+  });
+
+  it("draws the team's days from the change log", async () => {
+    reads.activity.mockResolvedValue({ days: [{ date: "2026-11-24", count: 3 }, { date: "2026-11-25", count: 11 }], total: 14, scope: "team" });
+
+    const html = await render();
+
+    expect(html).toContain("14 cambios del equipo · 16 semanas");
+  });
+
+  it("labels an editor's map as their own changes", async () => {
+    reads.activity.mockResolvedValue({ days: [{ date: "2026-11-25", count: 4 }], total: 4, scope: "own" });
+
+    const html = await render("EDITOR");
+
+    expect(html).toContain("Tus cambios: 4 · 16 semanas");
+    expect(html).not.toContain("cambios del equipo");
+  });
+
+  it("shows no map when the change log could not be read, rather than sixteen empty weeks", async () => {
+    reads.activity.mockRejectedValue(new Error("down"));
+
+    const html = await render();
+
+    expect(html).not.toContain("16 semanas");
+    expect(html).toContain("Hola, Alejandro");
+  });
+});
+
+describe("acciones rápidas", () => {
+  const card = async () => between(await render(), 'aria-labelledby="quick-actions-title"', 'aria-labelledby="home-registrations"');
+
+  it("opens the palette from the command line, as Ctrl K does", async () => {
+    const html = await card();
+
+    expect(html).toMatch(/<button type="button" aria-haspopup="dialog" aria-keyshortcuts="Control\+K Meta\+K"[^>]*>[\s\S]*\$ aso[\s\S]*buscar o crear…/);
+  });
+
+  it("offers the three creates with their single-key shortcuts", async () => {
+    const html = await card();
+
+    const tile = (href: string) => html.match(new RegExp(`<a [^>]*href="${href}"[^>]*>[\\s\\S]*?</a>`))?.[0] ?? "";
+
+    expect(tile("/admin/events/new")).toMatch(/aria-keyshortcuts="E"[\s\S]*Nuevo evento/);
+    expect(tile("/admin/news/new")).toMatch(/aria-keyshortcuts="N"[\s\S]*Nueva novedad/);
+    expect(tile("/admin/faqs/new")).toMatch(/aria-keyshortcuts="P"[\s\S]*Nueva pregunta/);
+  });
+
+  it("counts the open reports on «Revisar el foro», the one red of the card", async () => {
+    reads.reports.mockResolvedValue({ total: 9 });
+    const html = await card();
+
+    expect(html).toContain('aria-label="Revisar 9 reportes del foro"');
+    expect(html.match(/bg-signal/g)).toHaveLength(1);
+    expect(html).not.toMatch(/gradient/);
+  });
+
+  it("shows no count when the forum queue is empty", async () => {
+    const html = await card();
+
+    expect(html).toContain("Revisar el foro");
+    expect(html).not.toContain("bg-signal");
+  });
+
+  it("continues the last edited draft and ends with the last change as a git log line", async () => {
+    reads.events.mockResolvedValue([draftEvent, { ...draftEvent, id: "e2", title: "Hackathon 2027", updatedAt: new Date("2026-11-01T00:00:00Z") }]);
+    reads.audit.mockResolvedValue({ items: [auditEntry("a3f9c1e2-0000", "Publicó «Taller de Git»")], users: [{ id: "u1", name: "María Torres" }] });
+    const html = await card();
+
+    expect(html).toMatch(/href="\/admin\/events\/e2\/edit"[\s\S]*Continuar borrador[\s\S]*Hackathon 2027/);
+    expect(html).toMatch(/a3f9c1e2<\/span> Publicó «Taller de Git» · hace 12 min/);
+  });
+});
+
+describe("inscripciones próximas", () => {
+  it("lists each upcoming event with seats, state and the total signed up", async () => {
+    reads.overview.mockResolvedValue({ upcoming: [row(), row({ id: "e8", title: "Install Party", capacity: 25, registered: 25, state: "full" }), row({ id: "e9", title: "Torneo", capacity: null, registered: 41, mode: "open" })], past: [] });
+    const html = section(await render(), "home-registrations");
+
+    expect(html).toMatch(/<b[^>]*>130<\/b> inscritos en 3 eventos/);
+    expect(html).toContain('href="/admin/registrations?evento=e7"');
+    expect(html).toContain("64 / 80");
+    expect(html).toContain("Sin cupos");
+    expect(html).toContain("41 inscritos");
+    expect(html).toContain("Formulario abierto");
+    expect(html).toContain('href="/admin/registrations"');
+  });
+
+  it("says plainly when no upcoming event takes registrations", async () => {
+    expect(section(await render(), "home-registrations")).toContain("No hay eventos próximos con inscripción.");
+  });
+});
+
+describe("tu trabajo", () => {
   it("lists the drafts by name, marking the scheduled ones", async () => {
-    reads.events.mockResolvedValue([draftEvent, { ...draftEvent, id: "e9", title: "Taller Git", publishAt: new Date("2099-01-01T00:00:00Z") }]);
-    const section = panorama(await render());
+    reads.events.mockResolvedValue([draftEvent]);
+    reads.news.mockResolvedValue([scheduledNews]);
+    const html = between(await render(), 'aria-labelledby="home-drafts"', 'aria-labelledby="home-activity"');
 
-    expect(section).toContain("Borradores");
-    expect(cardButtons(section)).toEqual(expect.arrayContaining([["/admin/events/e1/edit", "Charla"], ["/admin/events/e9/edit", "Taller Git"]]));
-    expect(section).toContain("Programado");
+    expect(html).toMatch(/<b[^>]*>2<\/b> · 1 programado/);
+    expect(html).toContain('href="/admin/events/e1/edit"');
+    expect(html).toContain('aria-label="Continuar: Charla"');
+    expect(html).toContain("Programado");
   });
 
-  it("says plainly when there is nothing coming up and no draft", async () => {
-    const section = panorama(await render());
+  it("shows the administrator the newest changes of the log", async () => {
+    reads.audit.mockResolvedValue({
+      items: [auditEntry("a1", "Publicó «Taller de Git»"), auditEntry("a2", "Inició sesión", { actorKind: "break_glass", actorUserId: null, entityType: "session" })],
+      users: [{ id: "u1", name: "María Torres" }],
+    });
+    const html = section(await render(), "home-activity");
 
-    expect(section).toContain("No hay eventos próximos");
-    expect(section).toContain("No hay borradores");
+    expect(html).toMatch(/<b>María Torres<\/b> · Publicó «Taller de Git»/);
+    expect(html).toMatch(/<b class="text-on-tint-red">Acceso de emergencia<\/b> · Inició sesión/);
+    expect(html).toContain("hace 12 min · Evento");
+    expect(html).toContain('href="/admin/registro"');
   });
 
-  it("shows no panorama when the content could not be read, rather than an empty one", async () => {
-    reads.events.mockRejectedValue(new Error("down"));
-    const html = await render();
+  it("gives an editor the drafts across the whole row, without the change log", async () => {
+    const html = await render("EDITOR", "Ana");
 
-    expect(html).not.toContain("Próximos eventos");
-    expect(html).not.toContain("No hay borradores");
-  });
-});
-
-describe("the 'Crear' side panel", () => {
-  const panel = (html: string) => html.match(/<aside aria-label="Crear y estado del sitio"[\s\S]*?<\/aside>/)?.[0] ?? "";
-
-  it("offers Evento, Novedad and Pregunta through the existing new routes, always in sight, with no disclosure to open", async () => {
-    const html = await render();
-    const side = panel(html);
-
-    expect(side).toMatch(/<h2[^>]*>Crear<\/h2>/);
-    expect(side.match(/<a /g)).toHaveLength(3);
-    expect(side).toMatch(/href="\/admin\/events\/new"[^>]*>[\s\S]*Evento<\/a>/);
-    expect(side).toMatch(/href="\/admin\/news\/new"[^>]*>[\s\S]*Novedad<\/a>/);
-    expect(side).toMatch(/href="\/admin\/faqs\/new"[^>]*>[\s\S]*Pregunta<\/a>/);
-    expect(html).not.toContain("<summary");
-  });
-
-  it("is there for an editor too, and when nothing is pending", async () => {
-    expect(panel(await render("EDITOR", "Ana"))).toContain('href="/admin/news/new"');
-  });
-
-  it("holds the deploy line under the create links", async () => {
-    reads.deploy.mockResolvedValue({ ok: true, attemptedAt: new Date(Date.now() - 5 * 60_000), httpStatus: 200, errorKind: null });
-
-    expect(panel(await render())).toContain("Último despliegue: hace 5 min · OK");
+    expect(html).not.toContain("Actividad reciente");
+    expect(html).toMatch(/aria-labelledby="home-drafts" class="[^"]*lg:col-span-12/);
+    expect(reads.audit).not.toHaveBeenCalled();
   });
 });
 
-describe("the deploy line", () => {
-  it("is one quiet line with the last attempt", async () => {
+describe("estado", () => {
+  it("shows the deploy, what is published and the care of the accounts", async () => {
     reads.deploy.mockResolvedValue({ ok: true, attemptedAt: new Date(Date.now() - 5 * 60_000), httpStatus: 200, errorKind: null });
-    const html = await render();
+    const html = section(await render(), "status-site");
 
+    expect(html).toContain("Al día");
     expect(html).toContain("Último despliegue: hace 5 min · OK");
     expect(html).not.toContain("puede tardar unos minutos");
+    expect(html).toMatch(/href="\/admin\/events"[^>]*><b[^>]*>19<\/b>eventos/);
+    expect(html).toMatch(/href="\/admin\/sesiones"[^>]*><b[^>]*>4<\/b>sesiones activas/);
+    expect(html).toMatch(/href="\/admin\/foro\/miembros\?estado=suspendidos"[^>]*><b[^>]*>2<\/b>cuentas suspendidas/);
+    expect(html).toMatch(/href="\/admin\/papelera"[^>]*><b[^>]*>3<\/b>en la papelera/);
   });
 
-  it("names the failure and what it means", async () => {
+  it("names a failed deploy and what it means", async () => {
     reads.deploy.mockResolvedValue({ ok: false, attemptedAt: new Date(Date.now() - 60_000), httpStatus: 500, errorKind: null });
     const html = await render();
 
@@ -222,7 +315,23 @@ describe("the deploy line", () => {
     expect(html).toContain("El cambio quedó guardado");
   });
 
-  it("is absent when the status could not be read", async () => {
-    expect(await render()).not.toContain("despliegue");
+  it("says so when the deploy status could not be read", async () => {
+    const html = await render();
+
+    expect(html).toContain("No pudimos leer el último despliegue.");
+    expect(html).not.toContain("Al día");
+  });
+
+  it("leaves the care of the accounts out for an editor, who links only to pages an editor can open", async () => {
+    reads.reports.mockResolvedValue({ total: 3 });
+    reads.events.mockResolvedValue([draftEvent]);
+    const html = await render("EDITOR", "Ana");
+
+    expect(html).not.toContain("Cuidado de la cuenta");
+    expect(html).toContain("Tus cambios: 0 · 16 semanas");
+    expect(links(html).filter((href) => /settings|usuarios|sesiones|registro|papelera/.test(href ?? ""))).toEqual([]);
+    expect(reads.sessions).not.toHaveBeenCalled();
+    expect(reads.trash).not.toHaveBeenCalled();
+    expect(reads.members).not.toHaveBeenCalled();
   });
 });

@@ -10,7 +10,9 @@ const RAW_STYLES = [
 ];
 
 const SCREENS = [
-  "page.tsx",
+  // The home's headings live in its parts: the tiers and cards, and the quick actions card.
+  "_components/dashboard-parts.tsx",
+  "_components/quick-actions.tsx",
   "_components/single-image-panel.tsx",
   "events/page.tsx",
   "events/_components/photo-gallery.tsx",

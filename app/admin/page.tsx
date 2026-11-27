@@ -1,32 +1,30 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Icon, type IconName } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { RESTRICTED_NOTICE } from "@/interface/admin/role-labels";
-import { requirePageSession } from "@/interface/auth/require-page-session";
+import { getActiveSessions } from "@/interface/admin/sessions/sessions-admin-read";
+import { getAdminActivityByDay } from "@/interface/admin/audit/audit-activity-read";
+import { getAuditLogPage } from "@/interface/admin/audit/audit-admin-read";
+import { actorLabel, entityTypeLabel } from "@/interface/admin/audit/audit-labels";
+import { shortId } from "@/interface/admin/day-groups";
 import { getLastDeployStatus } from "@/interface/admin/deploy-status-admin-read";
-import { describeDeployStatus } from "@/interface/admin/deploy-status-label";
+import { describeDeployStatus, formatElapsed } from "@/interface/admin/deploy-status-label";
 import { getAdminRegistrationOverview } from "@/interface/admin/event-registrations/registrations-overview-admin-read";
-import { getAdminEvents } from "@/interface/admin/events/events-admin-read";
-import { getAdminForumReports } from "@/interface/admin/forum/forum-moderation-read";
-import { buildHomeAgenda, type HomeAgenda } from "@/interface/admin/home-agenda";
-import { buildHomeCards, nextOpenRegistration, type HomeCard } from "@/interface/admin/home-cards";
-import { getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
+import { getAdminEventCounts, getAdminEvents } from "@/interface/admin/events/events-admin-read";
+import { getAdminFaqsCounts } from "@/interface/admin/faqs/faqs-admin-read";
+import { getAdminForumMembers, getAdminForumReports } from "@/interface/admin/forum/forum-moderation-read";
+import { buildHomeAgenda } from "@/interface/admin/home-agenda";
+import { getAdminNewsCounts, getAdminNewsItems } from "@/interface/admin/news/news-admin-read";
+import { RESTRICTED_NOTICE } from "@/interface/admin/role-labels";
+import { getAdminTrash } from "@/interface/admin/trash/trash-admin-read";
+import { requirePageSession } from "@/interface/auth/require-page-session";
 
+import { ActivityMap } from "./_components/activity-map";
+import { CommandPalette } from "./_components/command-palette";
+import { Drafts, RecentActivity, StatusStrip, Tier, TIER_GRID, UpcomingRegistrations, type ActivityEntry } from "./_components/dashboard-parts";
 import { PageHeader } from "./_components/page-header";
-import { SectionTitle } from "./_components/section-title";
+import { QuickActions, type LastChange } from "./_components/quick-actions";
 
 // Counts are read on every request.
 export const dynamic = "force-dynamic";
-
-const CARD_ICONS: Record<HomeCard["id"], IconName> = { foro: "msg", inscripciones: "list", contenido: "edit" };
-
-const CREATE_OPTIONS: readonly { href: string; label: string; icon: IconName }[] = [
-  { href: "/admin/events/new", label: "Evento", icon: "events" },
-  { href: "/admin/news/new", label: "Novedad", icon: "news" },
-  { href: "/admin/faqs/new", label: "Pregunta", icon: "faq" },
-];
 
 /** A read that fails yields `undefined` instead of taking the whole home down. */
 async function attempt<T>(read: () => Promise<T>): Promise<T | undefined> {
@@ -37,175 +35,87 @@ async function attempt<T>(read: () => Promise<T>): Promise<T | undefined> {
   }
 }
 
-/** Sign-ups of an event that takes registrations, keyed by event id. */
-type SignUps = Map<string, { registered: number; capacity: number | null }>;
+const ACTIVITY_SHOWN = 6;
+const TODAY = new Intl.DateTimeFormat("es-EC", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "America/Guayaquil" });
 
-interface HomeReads {
-  cards: HomeCard[];
-  readable: boolean;
-  /** Null when the events or news could not be read: the page then shows no panorama rather than an empty one. */
-  agenda: HomeAgenda | null;
-  signUps: SignUps;
-}
+const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
-/** The cards come from reads the admin already makes; `readable` is false when any of them failed, so the page never claims "Todo al día" blind. */
-async function readHome(now: Date): Promise<HomeReads> {
-  const [events, news, reports, overview] = await Promise.all([
-    attempt(getAdminEvents),
-    attempt(getAdminNewsItems),
-    attempt(() => getAdminForumReports({ status: "open", page: 1 })),
-    attempt(getAdminRegistrationOverview),
-  ]);
-  const agenda = buildHomeAgenda({ events: events ?? [], news: news ?? [], openReports: reports?.total ?? null, now });
+/** The `$ git status` line under the greeting: only what needs someone, never "todo al día" when a read failed. */
+function statusLine({ openReports, full, scheduled, readable }: { openReports: number; full: number; scheduled: number; readable: boolean }): ReactNode {
+  const parts: ReactNode[] = [];
 
-  return {
-    cards: buildHomeCards({
-      openReports: agenda.openReports,
-      registration: nextOpenRegistration(overview?.upcoming ?? []),
-      draftsTotal: agenda.draftsTotal,
-      firstDraftHref: agenda.drafts[0]?.href ?? null,
-    }),
-    readable: [events, news, reports, overview].every((read) => read !== undefined),
-    agenda: events !== undefined && news !== undefined ? agenda : null,
-    signUps: new Map((overview?.upcoming ?? []).map((row) => [row.id, { registered: row.registered, capacity: row.capacity }])),
-  };
-}
+  if (openReports > 0) parts.push(<><b className="text-foreground">{openReports} {plural(openReports, "reporte", "reportes")}</b> del foro por revisar</>);
+  if (full > 0) parts.push(<><b className="text-foreground">{full} {plural(full, "evento", "eventos")}</b> sin cupos</>);
+  if (scheduled > 0) parts.push(<><b className="text-foreground">{scheduled}</b> {plural(scheduled, "programado", "programados")}</>);
 
-const signUpLabel = ({ registered, capacity }: { registered: number; capacity: number | null }) =>
-  `${capacity === null ? registered : `${registered} / ${capacity}`} ${registered === 1 && capacity === null ? "inscrito" : "inscritos"}`;
-
-const rowClass = "flex min-h-14 items-center justify-between gap-4 border-b border-paper-ring px-1 py-3 last:border-b-0";
-const rowLink = "font-bold hover:underline focus-visible:outline-2 focus-visible:outline-sky";
-
-function PanoramaList({ id, title, children, empty, more }: { id: string; title: string; children: ReactNode[]; empty: string; more?: { href: string; label: string } }) {
-  return (
-    <section aria-labelledby={`panorama-${id}`} className="grid content-start gap-3 rounded-card bg-card p-5 ring-1 ring-paper-ring ring-inset">
-      <SectionTitle id={`panorama-${id}`}>{title}</SectionTitle>
-      {children.length > 0 ? <ul>{children}</ul> : <p className="py-3 text-mist">{empty}</p>}
-      {more ? (
-        <Link href={more.href} className={`${rowLink} text-sm`}>
-          {more.label}
-        </Link>
-      ) : null}
-    </section>
-  );
-}
-
-/** What is coming and what is half done, always visible, so the home tells the state of the site even when nothing waits. */
-function Panorama({ agenda, signUps }: { agenda: HomeAgenda; signUps: SignUps }) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <PanoramaList
-        id="upcoming"
-        title="Próximos eventos"
-        empty="No hay eventos próximos."
-        more={agenda.upcomingTotal > agenda.upcoming.length ? { href: "/admin/events", label: `Ver los ${agenda.upcomingTotal} eventos` } : undefined}
-      >
-        {agenda.upcoming.map((event) => {
-          const seats = signUps.get(event.id);
-
-          return (
-            <li key={event.id} className={rowClass}>
-              <span className="grid gap-0.5">
-                <span className="font-mono text-[0.8125rem] text-mist">{event.when}</span>
-                <Link href={event.href} className={rowLink}>
-                  {event.title}
-                </Link>
-              </span>
-              {seats ? (
-                <Link href={`/admin/registrations?evento=${event.id}`} className={`${rowLink} shrink-0 rounded-xs bg-tint-navy px-2 py-1 text-sm text-on-tint-navy`}>
-                  {signUpLabel(seats)}
-                </Link>
-              ) : null}
-            </li>
-          );
-        })}
-      </PanoramaList>
-      <PanoramaList
-        id="drafts"
-        title="Borradores"
-        empty="No hay borradores."
-      >
-        {agenda.drafts.map((draft) => (
-          <li key={`${draft.kind}-${draft.id}`} className={rowClass}>
-            <span className="grid gap-0.5">
-              <span className="font-mono text-[0.8125rem] text-mist">{draft.kind}</span>
-              <Link href={draft.href} className={rowLink}>
-                {draft.title}
-              </Link>
-            </span>
-            {draft.scheduled ? <span className="shrink-0 text-sm font-semibold text-mist">Programado</span> : null}
-          </li>
-        ))}
-      </PanoramaList>
-    </div>
-  );
-}
-
-function Waiting({ cards, readable }: { cards: readonly HomeCard[]; readable: boolean }) {
-  if (cards.length === 0) {
-    return (
-      <p className="flex items-center gap-3 rounded-card bg-card px-5 py-4 text-lg font-semibold ring-1 ring-paper-ring ring-inset">
-        <Icon name={readable ? "check" : "alert"} className="size-5 shrink-0" />
-        {readable ? "Todo al día" : "No pudimos leer lo pendiente. Intente de nuevo en un momento."}
-      </p>
-    );
-  }
+  const rest = parts.length > 0 ? parts.flatMap((part, index) => (index === 0 ? [<span key={index}>{part}</span>] : [" · ", <span key={index}>{part}</span>])) : readable ? "todo al día" : "no pudimos leer todo lo pendiente";
 
   return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
-      {cards.map((card) => (
-        <li key={card.id} data-slot="todo-card" className="grid content-start justify-items-start gap-5 rounded-card border-t-[3px] border-foreground bg-card p-6 ring-1 ring-paper-ring ring-inset">
-          <span aria-hidden="true" className="grid size-12 place-items-center bg-signal text-white">
-            <Icon name={CARD_ICONS[card.id]} />
-          </span>
-          <h3 className="text-xl leading-tight font-extrabold">
-            <span className="mb-1 block text-6xl leading-none font-black -tracking-[0.04em]">{card.count}</span>
-            {card.label}
-          </h3>
-          <Button asChild variant="line" className="min-h-12 px-6 text-base">
-            <Link href={card.href}>{card.action}</Link>
-          </Button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** The three things the board creates most, always in sight in the side panel: plain links to the existing new routes. */
-function CreateLinks() {
-  return (
-    <ul className="grid gap-1.5">
-      {CREATE_OPTIONS.map((option) => (
-        <li key={option.href}>
-          <Link
-            href={option.href}
-            className="flex min-h-14 items-center gap-3 rounded-control bg-background px-3 text-lg font-extrabold ring-1 ring-input ring-inset hover:ring-2 hover:ring-foreground focus-visible:outline-2 focus-visible:outline-sky"
-          >
-            <span aria-hidden="true" className="grid size-9 place-items-center rounded-xs bg-tint-navy text-on-tint-navy">
-              <Icon name={option.icon} className="size-5" />
-            </span>
-            {option.label}
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      <span className="font-mono text-sky">$ git status</span> → {rest}.
+    </>
   );
 }
 
 export default async function AdminHomePage({ searchParams }: { searchParams: Promise<{ acceso?: string | string[] }> }) {
   // Before the reads below, which swallow their own failures: a lost session must redirect, not show dashes.
   const actor = await requirePageSession();
+  const isAdmin = actor.role === "ADMIN";
   const restricted = (await searchParams).acceso === "restringido";
   const now = new Date();
-  const [{ cards, readable, agenda, signUps }, deployStatus] = await Promise.all([readHome(now), getLastDeployStatus()]);
+
+  const [events, news, reports, overview, eventCounts, newsCounts, faqCounts, deployStatus, activityByDay, audit, sessions, trash, suspended] = await Promise.all([
+    attempt(getAdminEvents),
+    attempt(getAdminNewsItems),
+    attempt(() => getAdminForumReports({ status: "open", page: 1 })),
+    attempt(getAdminRegistrationOverview),
+    attempt(getAdminEventCounts),
+    attempt(getAdminNewsCounts),
+    attempt(getAdminFaqsCounts),
+    getLastDeployStatus(),
+    attempt(getAdminActivityByDay),
+    // The change log and the care of the accounts are the administrator's: an editor's home never asks for them.
+    isAdmin ? attempt(() => getAuditLogPage({ pagina: "1" })) : undefined,
+    isAdmin ? attempt(getActiveSessions) : undefined,
+    isAdmin ? attempt(getAdminTrash) : undefined,
+    isAdmin ? attempt(() => getAdminForumMembers({ filter: "suspended", search: "", page: 1 })) : undefined,
+  ]);
+
+  const openReports = reports?.total ?? null;
+  const agenda = events !== undefined && news !== undefined ? buildHomeAgenda({ events, news, openReports, now }) : null;
+  const upcoming = overview?.upcoming ?? null;
+  const scheduled = [...(events ?? []), ...(news ?? [])].filter((item) => !item.isPublished && item.publishAt !== null && item.publishAt.getTime() > now.getTime()).length;
   const deploy = deployStatus === undefined ? undefined : describeDeployStatus(deployStatus, now);
+  const names = new Map((audit?.users ?? []).map((user) => [user.id, user.name]));
+  const newest = audit?.items[0];
+  const lastChange: LastChange | null = newest ? { hash: shortId(newest.id), summary: newest.summary, elapsed: formatElapsed(newest.at, now) } : null;
+  const activity: ActivityEntry[] | null = audit
+    ? audit.items.slice(0, ACTIVITY_SHOWN).map((entry) => ({
+        id: entry.id,
+        when: formatElapsed(entry.at, now),
+        what: entityTypeLabel(entry.entityType),
+        who: actorLabel(entry, names),
+        emergency: entry.actorKind === "break_glass",
+        summary: entry.summary,
+      }))
+    : null;
   // The emergency access has no person to greet.
   const firstName = actor.kind === "break_glass" ? undefined : actor.name.trim().split(/\s+/)[0];
 
   return (
     <div className="grid gap-8">
-      <PageHeader title={firstName ? `Hola, ${firstName}` : "Hola"} />
+      <PageHeader
+        title={firstName ? `Hola, ${firstName}` : "Hola"}
+        status={`${TODAY.format(now)} · Loja`}
+        description={statusLine({
+          openReports: openReports ?? 0,
+          full: (upcoming ?? []).filter((row) => row.state === "full").length,
+          scheduled,
+          readable: reports !== undefined && overview !== undefined && agenda !== null,
+        })}
+        // An unreadable log shows no map rather than sixteen empty weeks.
+        action={activityByDay ? <ActivityMap days={activityByDay.days} own={activityByDay.scope === "own"} /> : null}
+      />
 
       {restricted ? (
         <p role="status" className="border-l-2 border-dashed border-signal pl-4 text-mist">
@@ -213,31 +123,31 @@ export default async function AdminHomePage({ searchParams }: { searchParams: Pr
         </p>
       ) : null}
 
-      {/* The frame fills: what waits and the panorama take the 1fr column; creating lives in a 22rem panel that stays in sight (below on a phone). */}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="grid min-w-0 content-start gap-10">
-          <section aria-labelledby="waiting-title" className="grid content-start gap-4">
-            <SectionTitle id="waiting-title">Lo que te espera</SectionTitle>
-            <Waiting cards={cards} readable={readable} />
-          </section>
-
-          {agenda ? <Panorama agenda={agenda} signUps={signUps} /> : null}
-        </div>
-
-        <aside aria-label="Crear y estado del sitio" className="grid gap-4 rounded-card bg-card p-5 lg:sticky lg:top-22">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <SectionTitle>Crear</SectionTitle>
-            <span className="text-[0.8125rem] text-mist">Lo que la directiva crea más seguido</span>
+      <Tier id="tier-attention" title="Necesita atención">
+        <div className={TIER_GRID}>
+          <div className="min-w-0 lg:col-span-5 min-[1600px]:col-span-4">
+            <QuickActions openReports={openReports} lastDraft={agenda?.drafts[0] ?? null} lastChange={lastChange} />
           </div>
-          <CreateLinks />
-          {deploy ? (
-            <p role="status" className="border-t border-border pt-4 font-mono text-[0.8125rem] wrap-anywhere text-mist">
-              <span className={deploy.tone === "failed" ? "text-error" : undefined}>{deploy.text}</span>
-              {deploy.tone === "failed" && deploy.hint ? <span className="block">{deploy.hint}</span> : null}
-            </p>
-          ) : null}
-        </aside>
-      </div>
+          <UpcomingRegistrations rows={upcoming} className="lg:col-span-7 min-[1600px]:col-span-8" />
+        </div>
+      </Tier>
+
+      <Tier id="tier-work" title="Tu trabajo">
+        <div className={TIER_GRID}>
+          <Drafts drafts={agenda?.drafts ?? null} total={agenda?.draftsTotal ?? 0} scheduled={scheduled} className={isAdmin ? "lg:col-span-6" : "lg:col-span-12"} />
+          {isAdmin ? <RecentActivity entries={activity} className="lg:col-span-6" /> : null}
+        </div>
+      </Tier>
+
+      <Tier id="tier-status" title="Estado">
+        <StatusStrip
+          deploy={deploy}
+          published={{ events: eventCounts?.published ?? null, news: newsCounts?.published ?? null, faqs: faqCounts?.published ?? null }}
+          account={isAdmin ? { sessions: sessions?.sessions.length ?? null, suspended: suspended?.total ?? null, trash: trash?.length ?? null } : null}
+        />
+      </Tier>
+
+      <CommandPalette role={actor.role} openReports={openReports} />
     </div>
   );
 }

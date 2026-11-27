@@ -91,13 +91,15 @@ export function StickyAside({ children }: { children: ReactNode }) {
 
 interface FormLayoutProps extends FormHeaderProps {
   aside?: ReactNode;
+  /** The form lays out its own side column (the event editor's publish panel): the frame fills, like a page with an aside. */
+  wide?: boolean;
   children: ReactNode;
 }
 
 /** The frame of every create/edit page: the head, then the form column and its optional side column. */
-export function FormLayout({ aside, children, ...header }: FormLayoutProps) {
+export function FormLayout({ aside, wide = false, children, ...header }: FormLayoutProps) {
   return (
-    <PageFrame narrow={!aside}>
+    <PageFrame narrow={!aside && !wide}>
       <FormHeader {...header} />
       <FormColumns aside={aside}>{children}</FormColumns>
     </PageFrame>

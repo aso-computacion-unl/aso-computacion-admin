@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { openMoreOptions } from "./more-options";
+import { openMoreOptions, openSchedule } from "./more-options";
 import { PUBLISHED_TEXT, publish } from "./publish";
 
 const PASSWORD = process.env.ADMIN_PASSWORD ?? "";
@@ -331,14 +331,14 @@ test("scheduled events: a future window reads Programado and stays out of the pu
 
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(scheduled);
-  await openMoreOptions(page);
+  await openSchedule(page);
   await page.getByLabel("Publicar el").fill("2999-01-01T08:00");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.
   await page.locator("label").filter({ has: page.getByRole("switch", { name: /Publicado/ }) }).click();
   await expect(page.getByRole("switch", { name: /Publicado/ })).toBeChecked();
   await publish(page);
   await expect(page).toHaveURL(/\/admin\/events\/[^/]+\/edit(?:[?#].*)?$/);
-  await openMoreOptions(page);
+  await openSchedule(page);
   await expect(page.getByLabel("Publicar el")).toHaveValue("2999-01-01T08:00");
 
   // Published but not open yet: not public, and the list says why. Undated, it is in the Pasados tab.
@@ -350,7 +350,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
 
   // Clearing the start opens it at once.
   await row.getByRole("link", { name: `Editar: ${scheduled}` }).click();
-  await openMoreOptions(page);
+  await openSchedule(page);
   await page.getByLabel("Publicar el").fill("");
   await publish(page);
   await expect(page.locator('[data-slot="form-feedback"]').getByText(PUBLISHED_TEXT)).toBeVisible();
@@ -361,7 +361,7 @@ test("scheduled events: a future window reads Programado and stays out of the pu
   // A window that already closed: published, yet retired.
   await page.goto("/admin/events/new");
   await page.getByLabel("Título").fill(expired);
-  await openMoreOptions(page);
+  await openSchedule(page);
   await page.getByLabel("Publicar el").fill("2019-01-01T08:00");
   await page.getByLabel("Retirar el").fill("2020-01-01T08:00");
   // Click the visible switch: forcing a click on the hidden input can land on the sticky action bar.

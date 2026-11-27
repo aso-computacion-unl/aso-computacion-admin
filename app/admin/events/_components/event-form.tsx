@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps, FormEvent } from "react";
+import { useId, type ComponentProps, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { fieldClasses } from "@/components/ui/field-styles";
@@ -18,11 +18,12 @@ import {
 } from "@/interface/admin/events/event-form-values";
 
 import { RegistrationSettingsFields } from "../../registrations/_components/registration-fields";
+import { Panel } from "../../_components/form-layout";
 import { ActionBar, Field, FieldError, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
-import { EVENT_PUBLISH_FIELDS, EventPreview } from "./event-preview";
+import { EVENT_PUBLISH_FIELDS, EventCardPreview, EventPreview } from "./event-preview";
 
 type EventFormAction = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 
@@ -57,7 +58,39 @@ const PRECISION_OPTIONS = [
 ] as const;
 
 /** The fields under "Más opciones": an error in one of them opens it. */
-const MORE_OPTIONS_FIELDS = ["commitMessage", "hora", "lugar", "para", "linkUrl", "linkLabel", "highlights", "featured", "publishAt", "unpublishAt", "slug"] as const;
+const MORE_OPTIONS_FIELDS = ["commitMessage", "para", "linkUrl", "linkLabel", "highlights", "slug"] as const;
+
+/** The fields under «Programar publicación y retiro» in the publish panel: an error in one of them opens it. */
+const SCHEDULE_FIELDS = ["publishAt", "unpublishAt"] as const;
+
+/**
+ * A segmented control that hugs its options once its group is wide enough (the 12-column grid), and keeps the
+ * even cells of `narrow` on a phone, where hugging cells would overflow.
+ */
+function hug(narrow: string) {
+  return cn(narrow, "@2xl:inline-grid @2xl:grid-flow-col @2xl:grid-cols-none @2xl:auto-cols-max @2xl:[&>label>span]:px-4");
+}
+
+/** Spans of the 12-column grid by kind of data: a time 3, a place 6, the rest the full row. */
+const SPAN = { time: "@2xl:col-span-3", text: "@2xl:col-span-6", row: "@2xl:col-span-12" } as const;
+
+/** One group of the editor: an 18px heading with its purpose on the same line, then its fields on the 12-column grid. */
+function EditorGroup({ title, purpose, inset = false, children }: { title: string; purpose?: string; inset?: boolean; children: ReactNode }) {
+  const id = useId();
+
+  return (
+    <section aria-labelledby={id} className="min-w-0">
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 id={id} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded">
+          {title}
+        </h2>
+        {purpose ? <span className="text-[0.8125rem] text-mist">{purpose}</span> : null}
+      </div>
+      {/* A conditional group (the registration) carries a 2px sky rule on its left. */}
+      <div className={cn("grid gap-4 @2xl:grid-cols-12", inset && "border-l-2 border-sky pl-4")}>{children}</div>
+    </section>
+  );
+}
 
 /** A month-only date travels as the first of its month (YYYY-MM-01); the month input shows YYYY-MM. */
 const MONTH_INPUT_PATTERN = /^\d{4}-\d{2}$/;
@@ -121,100 +154,114 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
   const dateError = errors.date ?? (deadlineError ? `${deadlineError} Elija otra fecha o mueva el cierre en Inscripciones.` : undefined);
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
 
+  const scheduleInvalid = SCHEDULE_FIELDS.some((name) => errors[name]);
+  const publishHeadingId = useId();
+
+  // Two zones: what the public reads on the left, what decides the publication (preview, state, schedule and the one
+  // primary button) in a 22rem panel on the right that stays in view. On a phone the panel follows the content and
+  // the side wrapper dissolves (`contents`), so the save bar sticks along the whole form, not only along the panel.
   return (
-    <form ref={formRef} onSubmit={handleFormSubmit} noValidate>
-      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        {isEditing || fixedKind ? null : (
-          <Segmented
-            legend="Tipo de evento"
-            name="eventKind"
-            value={values.eventKind}
-            options={KIND_OPTIONS}
-            columnsClassName="grid-cols-1 sm:grid-cols-2"
-            onChange={(eventKind) => setValues((previous) => ({ ...previous, eventKind: eventKind === "registration" ? "registration" : "announcement" }))}
-            className="@xl:col-span-2"
-          />
-        )}
-        <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className="@xl:col-span-2">
-          {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
-        </Field>
-        <div className="grid min-w-0 content-start gap-1.5">
-          <Segmented
-            legend="Tipo de fecha"
-            name="datePrecision"
-            value={values.datePrecision}
-            options={PRECISION_OPTIONS}
-            columnsClassName="grid-cols-2"
-            onChange={setDatePrecision}
-            aria-describedby={errors.datePrecision ? "datePrecision-error" : undefined}
-            aria-invalid={errors.datePrecision ? true : undefined}
-          />
-          {errors.datePrecision ? <FieldError id="datePrecision-error" announce={false}>{errors.datePrecision}</FieldError> : null}
-        </div>
-        <div className="grid min-w-0 content-start gap-1.5">
-          <Field label={values.datePrecision === "month" ? "Mes" : "Fecha"} error={dateError}>
-            {(control) =>
-              values.datePrecision === "month" ? (
-                <Input
-                  {...control}
-                  name="date"
-                  type="month"
-                  value={values.date.length === 10 ? values.date.slice(0, 7) : values.date}
-                  onChange={(event) =>
-                    setValues((previous) => ({
-                      ...previous,
-                      date: MONTH_INPUT_PATTERN.test(event.target.value) ? `${event.target.value}-01` : event.target.value,
-                    }))
-                  }
-                />
-              ) : (
-                <Input {...control} {...bind("date")} type="date" />
-              )
-            }
+    <form ref={formRef} onSubmit={handleFormSubmit} noValidate className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <Panel className="grid gap-10">
+        <EditorGroup title="Contenido" purpose="Lo que el público lee">
+          {isEditing || fixedKind ? null : (
+            <Segmented
+              legend="Tipo de evento"
+              name="eventKind"
+              value={values.eventKind}
+              options={KIND_OPTIONS}
+              columnsClassName={hug("grid-cols-1 sm:grid-cols-2")}
+              onChange={(eventKind) => setValues((previous) => ({ ...previous, eventKind: eventKind === "registration" ? "registration" : "announcement" }))}
+              className={SPAN.row}
+            />
+          )}
+          <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className={SPAN.row}>
+            {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-xl font-[650]" />}
           </Field>
-          {deadlineError && registrationHref ? (
-            <Link href={registrationHref} className="justify-self-start text-sm font-semibold underline underline-offset-4">
-              Gestionar inscripción
-            </Link>
-          ) : null}
-        </div>
-        <div className="grid min-w-0 content-start gap-1.5 @xl:col-span-2">
-          <Segmented
-            legend="Tipo"
-            name="type"
-            value={values.type}
-            options={TYPE_OPTIONS}
-            onChange={(type) => setValues((previous) => ({ ...previous, type }))}
-            aria-describedby={errors.type ? "type-error" : undefined}
-            aria-invalid={errors.type ? true : undefined}
-          />
-          {errors.type ? <FieldError id="type-error" announce={false}>{errors.type}</FieldError> : null}
-        </div>
-        <Field label="Descripción" count={{ length: values.description.length, max: 600 }} error={errors.description} className="@xl:col-span-2">
-          {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
-        </Field>
+          <div className={cn("grid min-w-0 content-start gap-1.5", SPAN.row)}>
+            <Segmented
+              legend="Tipo"
+              name="type"
+              value={values.type}
+              options={TYPE_OPTIONS}
+              columnsClassName={hug("grid-cols-3 sm:grid-cols-5")}
+              onChange={(type) => setValues((previous) => ({ ...previous, type }))}
+              aria-describedby={errors.type ? "type-error" : undefined}
+              aria-invalid={errors.type ? true : undefined}
+            />
+            {errors.type ? <FieldError id="type-error" announce={false}>{errors.type}</FieldError> : null}
+          </div>
+          <Field label="Descripción" count={{ length: values.description.length, max: 600 }} error={errors.description} className={SPAN.row}>
+            {(control) => <Textarea {...control} {...bind("description")} rows={4} maxLength={600} />}
+          </Field>
+        </EditorGroup>
+
+        <EditorGroup title="Cuándo y dónde">
+          <div className={cn("grid min-w-0 content-start gap-1.5", SPAN.time)}>
+            <Field label={values.datePrecision === "month" ? "Mes" : "Fecha"} error={dateError}>
+              {(control) =>
+                values.datePrecision === "month" ? (
+                  <Input
+                    {...control}
+                    name="date"
+                    type="month"
+                    value={values.date.length === 10 ? values.date.slice(0, 7) : values.date}
+                    onChange={(event) =>
+                      setValues((previous) => ({
+                        ...previous,
+                        date: MONTH_INPUT_PATTERN.test(event.target.value) ? `${event.target.value}-01` : event.target.value,
+                      }))
+                    }
+                  />
+                ) : (
+                  <Input {...control} {...bind("date")} type="date" />
+                )
+              }
+            </Field>
+            {deadlineError && registrationHref ? (
+              <Link href={registrationHref} className="justify-self-start text-sm font-semibold underline underline-offset-4">
+                Gestionar inscripción
+              </Link>
+            ) : null}
+          </div>
+          <Field label="Hora" count={{ length: values.hora.length, max: 80 }} error={errors.hora} className={SPAN.time}>
+            {(control) => <Input {...control} {...bind("hora")} maxLength={80} />}
+          </Field>
+          <Field label="Lugar" count={{ length: values.lugar.length, max: 80 }} error={errors.lugar} className={SPAN.text}>
+            {(control) => <Input {...control} {...bind("lugar")} maxLength={80} />}
+          </Field>
+          <div className={cn("grid min-w-0 content-start gap-1.5", SPAN.row)}>
+            <Segmented
+              legend="Tipo de fecha"
+              name="datePrecision"
+              value={values.datePrecision}
+              options={PRECISION_OPTIONS}
+              columnsClassName={hug("grid-cols-2")}
+              onChange={setDatePrecision}
+              aria-describedby={errors.datePrecision ? "datePrecision-error" : undefined}
+              aria-invalid={errors.datePrecision ? true : undefined}
+            />
+            {errors.datePrecision ? <FieldError id="datePrecision-error" announce={false}>{errors.datePrecision}</FieldError> : null}
+          </div>
+        </EditorGroup>
+
         {withRegistration ? (
-          <RegistrationSettingsFields
-            mode={values.registrationMode}
-            onModeChange={(mode) => setValues((previous) => ({ ...previous, registrationMode: mode === "open" ? "open" : "unl" }))}
-            capacity={bind("registrationCapacity")}
-            deadline={bind("registrationDeadline")}
-            errors={errors}
-          />
+          <EditorGroup title="Inscripción" purpose="Cómo se anotan y cuántos entran" inset>
+            <div className={cn("min-w-0", SPAN.row)}>
+              <RegistrationSettingsFields
+                legend="Quién se inscribe"
+                mode={values.registrationMode}
+                onModeChange={(mode) => setValues((previous) => ({ ...previous, registrationMode: mode === "open" ? "open" : "unl" }))}
+                capacity={bind("registrationCapacity")}
+                deadline={bind("registrationDeadline")}
+                errors={errors}
+              />
+            </div>
+          </EditorGroup>
         ) : null}
-        {isEditing ? null : <p className="text-sm text-mist @xl:col-span-2">Las fotos se agregan después de crear el evento.</p>}
-        <SwitchField label="Publicado" {...toggle("isPublished")} className="@xl:col-span-2" />
-        <div className="grid min-w-0 @xl:col-span-2">
+
+        <div className="grid min-w-0 gap-1.5">
           <MoreOptions invalid={moreOptionsInvalid}>
-            <Field label="Mensaje de commit" count={{ length: values.commitMessage.length, max: 80 }} error={errors.commitMessage} className="@xl:col-span-2">
-              {(control) => <CommitInput {...control} {...bind("commitMessage")} maxLength={80} />}
-            </Field>
-            <Field label="Hora" count={{ length: values.hora.length, max: 80 }} error={errors.hora}>
-              {(control) => <Input {...control} {...bind("hora")} maxLength={80} />}
-            </Field>
-            <Field label="Lugar" count={{ length: values.lugar.length, max: 80 }} error={errors.lugar}>
-              {(control) => <Input {...control} {...bind("lugar")} maxLength={80} />}
-            </Field>
             <Field label="Para quién" count={{ length: values.para.length, max: 80 }} error={errors.para} className="@xl:col-span-2">
               {(control) => <Input {...control} {...bind("para")} maxLength={80} />}
             </Field>
@@ -227,12 +274,8 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
             <Field label="Puntos destacados" help="Uno por línea, hasta 8 de 80 caracteres." error={errors.highlights} className="@xl:col-span-2">
               {(control) => <Textarea {...control} {...bind("highlights")} rows={4} />}
             </Field>
-            <SwitchField label="Destacado" {...toggle("featured")} className="@xl:col-span-2" />
-            <Field label="Publicar el" help="Hora de Ecuador. Vacío: sale de inmediato." error={errors.publishAt}>
-              {(control) => <Input {...control} {...bind("publishAt")} type="datetime-local" />}
-            </Field>
-            <Field label="Retirar el" help="Hora de Ecuador. Vacío: no se retira." error={errors.unpublishAt}>
-              {(control) => <Input {...control} {...bind("unpublishAt")} type="datetime-local" />}
+            <Field label="Mensaje de commit" count={{ length: values.commitMessage.length, max: 80 }} error={errors.commitMessage} className="@xl:col-span-2">
+              {(control) => <CommitInput {...control} {...bind("commitMessage")} maxLength={80} />}
             </Field>
             <Field
               label="Identificador (slug)"
@@ -243,14 +286,49 @@ export function EventForm({ action, submitLabel, initialValues = EMPTY_EVENT_FOR
               {(control) => <Input {...control} {...bind("slug")} maxLength={80} />}
             </Field>
           </MoreOptions>
+          <p className="text-[0.8125rem] text-mist">Para quién, enlace, puntos destacados, mensaje de commit e identificador.</p>
         </div>
-      </div>
+      </Panel>
 
-      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
-      </ActionBar>
+      {/* The side column: one card on lg+ (Publicación, then the state, then the schedule). On a phone every wrapper
+          dissolves (`contents`): the state row moves up under the title (S1), the rest is a card after the content,
+          and the save bar sticks along the whole form. One control per field, only its place changes. */}
+      <div data-slot="publish-side" className="contents lg:sticky lg:top-22 lg:block">
+        <div className="contents @container lg:grid lg:gap-4 lg:rounded-t lg:bg-card lg:p-5">
+          <section aria-labelledby={publishHeadingId} className="@container grid gap-4 rounded bg-card p-4 md:p-5 lg:contents">
+            <h2 id={publishHeadingId} className="text-lg leading-[1.3] font-bold font-stretch-semi-expanded lg:order-1">
+              Publicación
+            </h2>
+            <div className="min-w-0 lg:order-1">
+              <EventCardPreview values={values} withRegistration={withRegistration} />
+            </div>
+            <hr className="border-0 border-t border-border lg:order-1" />
+            <div className="min-w-0 lg:order-3">
+              <MoreOptions summary="Programar publicación y retiro" invalid={scheduleInvalid}>
+                <Field label="Publicar el" help="Hora de Ecuador. Vacío: sale de inmediato." error={errors.publishAt}>
+                  {(control) => <Input {...control} {...bind("publishAt")} type="datetime-local" />}
+                </Field>
+                <Field label="Retirar el" help="Hora de Ecuador. Vacío: no se retira." error={errors.unpublishAt}>
+                  {(control) => <Input {...control} {...bind("unpublishAt")} type="datetime-local" />}
+                </Field>
+              </MoreOptions>
+            </div>
+            {isEditing ? null : <p className="text-[0.8125rem] text-mist lg:order-3">Las fotos se agregan después de crear el evento.</p>}
+          </section>
+          <div data-slot="publish-state" className="order-first grid rounded bg-card px-4 py-1 sm:grid-cols-2 sm:gap-x-4 md:px-5 lg:order-2 lg:grid-cols-1 lg:rounded-none lg:bg-transparent lg:p-0">
+            <SwitchField label="Publicado" {...toggle("isPublished")} />
+            <SwitchField label="Destacado" {...toggle("featured")} />
+          </div>
+        </div>
+        <ActionBar
+          className="mx-0 mt-0 rounded md:mx-0 lg:mb-0 lg:grid-cols-1 lg:gap-3 lg:rounded-t-none"
+          status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
+        >
+          <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
+            {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
+          </Button>
+        </ActionBar>
+      </div>
       {publish.open ? (
         <PublishPreview
           before={stored.isPublished ? stored : null}

@@ -58,6 +58,7 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
       backLabel="Volver a eventos"
       title={event.title}
       status={recordStatus(event.isPublished, "m", event.slug)}
+      wide
     >
       {justCreated ? <EventCreatedArrival /> : null}
       <SectionJumps
@@ -68,9 +69,9 @@ export default async function EditEventPage({ params, searchParams }: EditEventP
           ...(takesRegistrations ? [{ href: "#inscripciones" as const, label: "Inscripciones" }] : []),
         ]}
       />
-      <Panel id="datos" aria-label="Datos del evento" className={anchor}>
+      <section id="datos" aria-label="Datos del evento" className={anchor}>
         <EventForm action={updateEvent.bind(null, id)} autosave submitLabel="Guardar cambios" initialValues={eventToFormValues(event)} registrationHref={takesRegistrations ? manageRegistrationHref : undefined} />
-      </Panel>
+      </section>
       <div id={PHOTOS_SECTION_ID} className={anchor}>
         <PhotoGallery
           eventId={id}

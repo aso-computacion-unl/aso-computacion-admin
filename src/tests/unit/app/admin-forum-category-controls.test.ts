@@ -57,7 +57,7 @@ describe("the category form", () => {
 
   it("edits: starts from the category, saves for its id and says the changes were saved without leaving", async () => {
     updateMock.mockResolvedValue({ success: true });
-    const host = await mount(inToasts(createElement(CategoryForm, { mode: "edit", id: "c1", initialValues: { name: "Programación", description: "Código", slug: "programacion" } })));
+    const host = await mount(inToasts(createElement(CategoryForm, { mode: "edit", id: "c1", initialValues: { name: "Programación", description: "Código", slug: "programacion" }, threadCount: 2 })));
 
     expect(field(host, "name").value).toBe("Programación");
     expect(field(host, "slug").value).toBe("programacion");
@@ -71,6 +71,36 @@ describe("the category form", () => {
     expect((updateMock.mock.calls[0]![2] as FormData).get("name")).toBe("Código");
     expect(host.textContent).toContain("Cambios guardados.");
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("edits: the «En el foro» card lists the threads and the stored address, and holds the submit button", async () => {
+    const host = await mount(inToasts(createElement(CategoryForm, { mode: "edit", id: "c1", initialValues: { name: "Programación", description: "", slug: "programacion" }, threadCount: 1 })));
+    const card = [...host.querySelectorAll<HTMLElement>("section[aria-labelledby]")].find((section) => document.getElementById(section.getAttribute("aria-labelledby")!)?.textContent === "En el foro")!;
+    const fact = (term: string) => [...card.querySelectorAll("dt")].find((dt) => dt.textContent === term)?.nextElementSibling?.textContent;
+
+    expect(card).toBeDefined();
+    expect(fact("Hilos en la categoría")).toBe("1hilo");
+    expect(fact("Dirección actual")).toBe("/foro?categoria=programacion");
+
+    // The address shown is the stored one, not what is being typed.
+    await typeInto(field(host, "slug"), "otra");
+    expect(fact("Dirección actual")).toBe("/foro?categoria=programacion");
+    expect(host.querySelector('[data-slot="category-side"]')!.contains(button(host, "Guardar cambios"))).toBe(true);
+  });
+
+  it("counts the description's characters once it nears its limit", async () => {
+    const host = await mount(inToasts(createElement(CategoryForm, { mode: "create" })));
+
+    expect(host.textContent).not.toContain("/ 200");
+    await typeInto(field(host, "description"), "x".repeat(170));
+    expect(host.textContent).toContain("170 / 200");
+  });
+
+  it("creates: no «En el foro» facts yet, only the button in the side card", async () => {
+    const host = await mount(inToasts(createElement(CategoryForm, { mode: "create" })));
+
+    expect(host.textContent).not.toContain("En el foro");
+    expect(host.querySelector('[data-slot="category-side"]')!.contains(button(host, "Crear categoría"))).toBe(true);
   });
 });
 

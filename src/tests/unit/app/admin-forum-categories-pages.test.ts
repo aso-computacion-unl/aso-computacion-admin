@@ -116,6 +116,19 @@ describe("the new forum category page", () => {
     expect(html).toContain('data-slot="action-bar"');
   });
 
+  it("puts the fields in one group at one width, with the address prefix, and the card holds only the button", async () => {
+    const html = await renderNew();
+
+    expect(html).toMatch(/<p[^>]*>Categoría del foro<\/p><h1[^>]*>Nueva categoría<\/h1>/);
+    expect(html).toMatch(/<h2[^>]*>Cómo aparece en el foro<\/h2>/);
+    expect(html.match(/@xl:col-span-12/g)).toHaveLength(3);
+    expect(html).toContain("/foro?categoria=");
+    expect(html).toContain('data-slot="category-side"');
+    expect(html).not.toContain("En el foro<");
+    expect(html).not.toContain("Hilos en la categoría");
+    expect(html.indexOf('data-slot="category-side"')).toBeLessThan(html.indexOf("Crear categoría"));
+  });
+
   it("does not show an editor the form: it sends them away before rendering it", async () => {
     cookieJar(cookiesMock, await signInAs("EDITOR"));
 
@@ -139,8 +152,30 @@ describe("the edit forum category page", () => {
     expect(html).toContain('value="Programación"');
     expect(html).toContain('value="programacion"');
     expect(html).toContain("Código y errores");
-    expect(html).toContain("2 hilos");
+    expect(html).toMatch(/<dd[^>]*>2<span[^>]*>hilos<\/span><\/dd>/);
     expect(html).toContain("Guardar cambios");
+  });
+
+  it("names the category under the eyebrow without repeating its thread count in the header", async () => {
+    seed();
+
+    const html = await renderEdit("c1");
+    const header = html.slice(html.indexOf('data-slot="page-header"'), html.indexOf("</header>"));
+
+    expect(header).toMatch(/<p[^>]*>Categoría del foro<\/p><h1[^>]*>Programación<\/h1>/);
+    expect(header).not.toContain("hilos");
+  });
+
+  it("shows the «En el foro» card: threads first, then the current address, then the save button", async () => {
+    seed();
+
+    const html = await renderEdit("c1");
+    const card = html.slice(html.indexOf('data-slot="category-side"'));
+
+    expect(card).toMatch(/<section aria-labelledby="([^"]+)"[^>]*><h2[^>]*id="\1"[^>]*>En el foro<\/h2>/);
+    expect(card.indexOf("Hilos en la categoría")).toBeLessThan(card.indexOf("Dirección actual"));
+    expect(card).toMatch(/<dt[^>]*>Dirección actual<\/dt><dd[^>]*>\/foro\?categoria=(<!-- -->)?programacion<\/dd>/);
+    expect(card.indexOf("Dirección actual")).toBeLessThan(card.indexOf("Guardar cambios"));
   });
 
   it("is the admin's not-found page for an id that does not exist", async () => {

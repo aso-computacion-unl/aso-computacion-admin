@@ -7,12 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { NEWS_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
-import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
+import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
+import { Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { ScheduleFields } from "../../_components/schedule-fields";
 import { useControlledForm } from "../../_components/use-controlled-form";
-import { NEWS_PUBLISH_FIELDS, NewsPreview } from "./news-preview";
+import { NEWS_PUBLISH_FIELDS, NewsCardPreview, NewsPreview } from "./news-preview";
 
 export interface NewsFormValues {
   title: string;
@@ -56,7 +57,10 @@ interface NewsFormProps {
 const MARKDOWN_HELP = "Separe los párrafos con una línea en blanco. **negrita**, *cursiva*, [texto](https://enlace) y listas con «- » al inicio de cada línea.";
 
 /** The fields under "Más opciones": an error in one of them opens it. */
-const MORE_OPTIONS_FIELDS = ["publishedAt", "slug", "publishAt", "unpublishAt"] as const;
+const MORE_OPTIONS_FIELDS = ["publishedAt", "slug"] as const;
+
+/** The fields under «Programar publicación y retiro» in the publish panel: an error in one of them opens it. */
+const SCHEDULE_FIELDS = ["publishAt", "unpublishAt"] as const;
 
 export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_VALUES, autosave = false, isEditing = false, cover = null }: NewsFormProps) {
   const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { fieldMessages: NEWS_FIELD_MESSAGES, autosave });
@@ -64,51 +68,69 @@ export function NewsForm({ action, submitLabel, initialValues = EMPTY_NEWS_FORM_
   const publishing = values.isPublished;
   const publish = usePublishFlow({ state, review, submit });
   const moreOptionsInvalid = MORE_OPTIONS_FIELDS.some((name) => errors[name]);
+  const scheduleInvalid = SCHEDULE_FIELDS.some((name) => errors[name]);
 
   return (
-    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
-      <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title}>
-        {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
-      </Field>
-      <Field label="Resumen" count={{ length: values.summary.length, max: 280 }} error={errors.summary}>
-        {(control) => <Textarea {...control} {...bind("summary")} rows={3} required maxLength={280} />}
-      </Field>
-      <Field label="Texto" help={MARKDOWN_HELP} count={{ length: values.body.length, max: 10000 }} error={errors.body}>
-        {(control) => <Textarea {...control} {...bind("body")} rows={12} required maxLength={10000} />}
-      </Field>
-      {cover ? (
-        <Field label="Descripción de la foto de portada" count={{ length: values.coverAlt.length, max: 200 }} error={errors.coverAlt}>
-          {(control) => <Input {...control} {...bind("coverAlt")} required maxLength={200} />}
-        </Field>
-      ) : null}
-      <MoreOptions invalid={moreOptionsInvalid}>
-        <Field label="Fecha de publicación" help={isEditing ? "La fecha que se muestra en el sitio." : "Vacío: la de hoy."} error={errors.publishedAt}>
-          {(control) => <Input {...control} {...bind("publishedAt")} type="date" />}
-        </Field>
-        <Field
-          label="Identificador (slug)"
-          help={isEditing ? "Cambiarlo cambia el enlace público de la noticia." : "Vacío: se genera desde el título."}
-          error={errors.slug}
-        >
-          {(control) => <Input {...control} {...bind("slug")} maxLength={80} />}
-        </Field>
-        <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} />
-      </MoreOptions>
-      <SwitchField label="Publicada" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
+    <EditorSplit
+      formRef={formRef}
+      onSubmit={publishing ? publish.ask : handleSubmit}
+      preview={<NewsCardPreview values={values} />}
+      state={<SwitchField label="Publicada" {...toggle("isPublished")} />}
+      schedule={
+        <MoreOptions summary="Programar publicación y retiro" invalid={scheduleInvalid}>
+          <ScheduleFields publishAt={bind("publishAt")} unpublishAt={bind("unpublishAt")} errors={errors} />
+        </MoreOptions>
+      }
+      note={isEditing ? null : "La foto de portada se agrega después de crear la noticia."}
+      status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
+      submit={
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
           {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
         </Button>
-      </ActionBar>
-      {publish.open ? (
-        <PublishPreview
-          before={stored.isPublished ? stored : null}
-          after={values}
-          fields={NEWS_PUBLISH_FIELDS}
-          render={(shown, changed) => <NewsPreview values={shown} cover={cover} changed={changed} />}
-          {...publish.dialog}
-        />
-      ) : null}
-    </form>
+      }
+      dialog={
+        publish.open ? (
+          <PublishPreview
+            before={stored.isPublished ? stored : null}
+            after={values}
+            fields={NEWS_PUBLISH_FIELDS}
+            render={(shown, changed) => <NewsPreview values={shown} cover={cover} changed={changed} />}
+            {...publish.dialog}
+          />
+        ) : null
+      }
+    >
+      <EditorGroup title="Contenido" purpose="Lo que el público lee">
+        <Field label="Título" count={{ length: values.title.length, max: 120 }} error={errors.title} className={SPAN.row}>
+          {(control) => <Input {...control} {...bind("title")} required maxLength={120} className="text-lg" />}
+        </Field>
+        <Field label="Resumen" count={{ length: values.summary.length, max: 280 }} error={errors.summary} className={SPAN.row}>
+          {(control) => <Textarea {...control} {...bind("summary")} rows={3} required maxLength={280} />}
+        </Field>
+        <Field label="Texto" help={MARKDOWN_HELP} count={{ length: values.body.length, max: 10000 }} error={errors.body} className={SPAN.row}>
+          {(control) => <Textarea {...control} {...bind("body")} rows={12} required maxLength={10000} />}
+        </Field>
+        {cover ? (
+          <Field label="Descripción de la foto de portada" count={{ length: values.coverAlt.length, max: 200 }} error={errors.coverAlt} className={SPAN.row}>
+            {(control) => <Input {...control} {...bind("coverAlt")} required maxLength={200} />}
+          </Field>
+        ) : null}
+      </EditorGroup>
+      <div className="grid min-w-0 gap-1.5">
+        <MoreOptions invalid={moreOptionsInvalid}>
+          <Field label="Fecha de publicación" help={isEditing ? "La fecha que se muestra en el sitio." : "Vacío: la de hoy."} error={errors.publishedAt}>
+            {(control) => <Input {...control} {...bind("publishedAt")} type="date" />}
+          </Field>
+          <Field
+            label="Identificador (slug)"
+            help={isEditing ? "Cambiarlo cambia el enlace público de la noticia." : "Vacío: se genera desde el título."}
+            error={errors.slug}
+          >
+            {(control) => <Input {...control} {...bind("slug")} maxLength={80} />}
+          </Field>
+        </MoreOptions>
+        <p className="text-[0.8125rem] text-mist">Fecha de publicación e identificador.</p>
+      </div>
+    </EditorSplit>
   );
 }

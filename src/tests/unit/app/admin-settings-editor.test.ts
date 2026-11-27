@@ -50,12 +50,22 @@ describe("the site texts editor", () => {
     expect(host.textContent).not.toContain("Hasta 120 caracteres");
   });
 
-  it("has no permanent preview column", async () => {
+  it("shows «Dónde se ve» beside the fields only while editing, with the texts as typed, Publicar and Cancelar under it", async () => {
     const host = await mountForm();
+    const side = () => host.querySelector<HTMLElement>("aside");
 
-    expect(host.querySelector('[aria-label="Vista previa"], [data-slot="form-aside"]')).toBeNull();
+    expect(side()).toBeNull();
     await edit(host);
-    expect(host.querySelector('[aria-label="Vista previa"], [data-slot="form-aside"]')).toBeNull();
+
+    expect(document.getElementById(side()!.getAttribute("aria-labelledby")!)?.textContent).toBe("Dónde se ve");
+    await typeInto(field(host, "Lema"), "Aprender haciendo");
+    expect(side()!.querySelector('[aria-label="Así se verán en el sitio"]')!.textContent).toContain("ASO Computación · Aprender haciendo");
+    expect(side()!.querySelectorAll("mark")).toHaveLength(0);
+    expect(side()!.querySelector('[data-slot="action-bar"] button[type="submit"]')!.textContent).toBe("Publicar");
+    expect(side()!.contains(button(host, "Cancelar"))).toBe(true);
+
+    await click(button(host, "Cancelar"));
+    expect(side()).toBeNull();
   });
 
   it("says \"Publicar\" where it said \"Guardar cambios\", and keeps \"Cancelar\"", async () => {

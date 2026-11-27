@@ -1,3 +1,4 @@
+import { CardPreview } from "../../_components/editor-split";
 import { Changed, SiteSection } from "../../_components/publish-preview";
 import type { PublishField } from "../../_components/publish-diff";
 import type { FaqFormValues } from "./faq-form";
@@ -30,5 +31,18 @@ export function FaqPreview({ values, changed }: { values: FaqFormValues; changed
         ) : null}
       </article>
     </>
+  );
+}
+
+/** The compact card of the publish panel, while it is typed. Not named after its section: «Pregunta» is a field's label. */
+export function FaqCardPreview({ values }: { values: FaqFormValues }) {
+  const command = values.command.trim();
+
+  return (
+    <CardPreview label="Así se verá en el sitio" section="Preguntas frecuentes">
+      <b className="leading-[1.3] wrap-anywhere">{values.question || "Sin pregunta"}</b>
+      {values.answer.trim() ? <p className="line-clamp-3 text-sm whitespace-pre-line text-mist wrap-anywhere">{values.answer}</p> : null}
+      {command ? <p className="font-mono text-[0.8125rem] text-sky wrap-anywhere">❯ git help {command}</p> : null}
+    </CardPreview>
   );
 }

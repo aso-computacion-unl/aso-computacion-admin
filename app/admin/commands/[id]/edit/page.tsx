@@ -4,7 +4,7 @@ import { updateCommand } from "@/interface/admin/commands/actions";
 import { getAdminCommand } from "@/interface/admin/commands/commands-admin-read";
 
 import { recordStatus } from "../../../_components/page-header";
-import { FormLayout, Panel } from "../../../_components/form-layout";
+import { FormLayout } from "../../../_components/form-layout";
 import { CommandForm } from "../../_components/command-form";
 
 export const dynamic = "force-dynamic";
@@ -25,20 +25,19 @@ export default async function EditCommandPage({ params }: EditCommandPageProps) 
       backLabel="Volver a comandos"
       title={command.command}
       status={recordStatus(command.isPublished, "m")}
+      wide
     >
-      <Panel>
-        <CommandForm
-          action={updateCommand.bind(null, id)}
-          autosave
-          submitLabel="Guardar cambios"
-          initialValues={{
-            command: command.command,
-            description: command.description,
-            output: command.output,
-            isPublished: command.isPublished,
-          }}
-        />
-      </Panel>
+      <CommandForm
+        action={updateCommand.bind(null, id)}
+        autosave
+        submitLabel="Guardar cambios"
+        initialValues={{
+          command: command.command,
+          description: command.description,
+          output: command.output,
+          isPublished: command.isPublished,
+        }}
+      />
     </FormLayout>
   );
 }

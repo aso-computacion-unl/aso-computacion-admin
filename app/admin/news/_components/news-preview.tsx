@@ -4,6 +4,7 @@ import { formatEventDate } from "@/interface/admin/events/event-timeline";
 import { parseMarkdownSubset, type InlineNode } from "@/interface/admin/markdown-subset";
 import { thumbnailUrl } from "@/lib/cloudinary-thumbnail";
 
+import { CardPreview } from "../../_components/editor-split";
 import { Changed, SiteSection } from "../../_components/publish-preview";
 import type { PublishField } from "../../_components/publish-diff";
 import type { NewsFormValues } from "./news-form";
@@ -95,5 +96,17 @@ export function NewsPreview({ values, cover, changed }: NewsPreviewProps) {
         </Changed>
       </article>
     </>
+  );
+}
+
+/** The compact card of the publish panel: the item as Novedades lists it, while it is typed. A blank date is today's. */
+export function NewsCardPreview({ values }: { values: NewsFormValues }) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(values.publishedAt) ? formatEventDate(values.publishedAt) : "Hoy";
+
+  return (
+    <CardPreview label="Así se verá en Novedades" section={`Novedades · ${date}`}>
+      <b className="leading-[1.3] wrap-anywhere">{values.title || "Sin título"}</b>
+      {values.summary.trim() ? <p className="line-clamp-3 text-sm text-mist wrap-anywhere">{values.summary}</p> : null}
+    </CardPreview>
   );
 }

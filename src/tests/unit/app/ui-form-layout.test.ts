@@ -99,12 +99,14 @@ describe("every create page ends in the same save bar", () => {
   });
 });
 
-describe("news and the site texts have no permanent preview column", () => {
-  it("lays the news form out in one column: the preview opens from Publicar", () => {
+describe("the news editor has a publish panel; the site texts' read view has none", () => {
+  it("lays the news form out in two zones: it fills the frame and has the publish panel", () => {
     const news = renderToStaticMarkup(createElement(NewNewsPage));
+    const frame = news.match(/<div[^>]*data-slot="page-frame"[^>]*>/)?.[0] ?? "";
 
-    expect(news).toContain('data-layout="single"');
-    expect(news).not.toContain("lg:top-22");
+    expect(frame).toContain('data-width="fill"');
+    expect(news).toContain('data-slot="publish-side"');
+    expect(news).toContain("lg:top-22");
   });
 
   it("does the same for the site settings", async () => {

@@ -8,11 +8,12 @@ import { SOCIAL_PLATFORMS } from "@/domain/social-link";
 import type { ActionResult } from "@/interface/admin/action-result";
 import { socialPlatformLabel } from "@/interface/admin/socials/platform-labels";
 
-import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
+import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
+import { Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
 import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
-import { SOCIAL_PUBLISH_FIELDS, SocialPreview } from "./social-preview";
+import { SOCIAL_PUBLISH_FIELDS, SocialCardPreview, SocialPreview } from "./social-preview";
 
 export interface SocialFormValues {
   platform: string;
@@ -41,9 +42,11 @@ interface SocialFormProps {
   initialValues?: SocialFormValues;
   /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
   autosave?: boolean;
+  /** A note at the foot of the publish panel (a new link: where it lands in the list). */
+  note?: string;
 }
 
-export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_FORM_VALUES, autosave = false }: SocialFormProps) {
+export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_FORM_VALUES, autosave = false, note }: SocialFormProps) {
   const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { autosave });
   // A published link asks first, with the preview; a draft saves as it always did.
   const publishing = values.isPublished;
@@ -60,9 +63,32 @@ export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_F
   }
 
   return (
-    <form ref={formRef} onSubmit={publishing ? publish.ask : handleSubmit} noValidate className="grid gap-5">
-      <div className="grid gap-x-4 gap-y-5 @xl:grid-cols-2">
-        <Field label="Red" error={errors.platform}>
+    <EditorSplit
+      formRef={formRef}
+      onSubmit={publishing ? publish.ask : handleSubmit}
+      preview={<SocialCardPreview values={values} />}
+      state={<SwitchField label="Publicada" {...toggle("isPublished")} />}
+      note={note}
+      status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
+      submit={
+        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
+          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
+        </Button>
+      }
+      dialog={
+        publish.open ? (
+          <PublishPreview
+            before={stored.isPublished ? stored : null}
+            after={values}
+            fields={SOCIAL_PUBLISH_FIELDS}
+            render={(shown, changed) => <SocialPreview values={shown} changed={changed} />}
+            {...publish.dialog}
+          />
+        ) : null
+      }
+    >
+      <EditorGroup title="Contenido" purpose="Cómo aparece en Redes">
+        <Field label="Red" error={errors.platform} className={SPAN.text}>
           {(control) => (
             <Select {...control} {...platform} onChange={choosePlatform} required>
               {SOCIAL_PLATFORMS.map((id) => (
@@ -73,39 +99,27 @@ export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_F
             </Select>
           )}
         </Field>
-        <Field label="Nombre" count={{ length: values.label.length, max: 40 }} error={errors.label}>
+        <Field label="Nombre" count={{ length: values.label.length, max: 40 }} error={errors.label} className={SPAN.text}>
           {(control) => <Input {...control} {...label} required maxLength={40} />}
         </Field>
-        <Field label="Usuario" help="Por ejemplo «@aso_computacion»." count={{ length: values.handle.length, max: 60 }} error={errors.handle}>
+        <Field label="Usuario" help="Por ejemplo «@aso_computacion»." count={{ length: values.handle.length, max: 60 }} error={errors.handle} className={SPAN.text}>
           {(control) => <Input {...control} {...bind("handle")} required maxLength={60} />}
         </Field>
-        <Field label="Enlace" help="Empieza con https://." error={errors.url}>
+        <Field label="Enlace" help="Empieza con https://." error={errors.url} className={SPAN.text}>
           {(control) => <Input type="url" inputMode="url" {...control} {...bind("url")} required />}
         </Field>
+      </EditorGroup>
+      <div className="grid min-w-0 gap-1.5">
+        <MoreOptions invalid={Boolean(errors.note || errors.blurb)}>
+          <Field label="Nota (opcional)" help="Etiqueta corta junto a la red." count={{ length: values.note.length, max: 40 }} error={errors.note}>
+            {(control) => <Input {...control} {...bind("note")} maxLength={40} />}
+          </Field>
+          <Field label="Descripción corta (opcional)" count={{ length: values.blurb.length, max: 80 }} error={errors.blurb}>
+            {(control) => <Input {...control} {...bind("blurb")} maxLength={80} />}
+          </Field>
+        </MoreOptions>
+        <p className="text-[0.8125rem] text-mist">Nota y descripción corta.</p>
       </div>
-      <MoreOptions invalid={Boolean(errors.note || errors.blurb)}>
-        <Field label="Nota (opcional)" help="Etiqueta corta junto a la red." count={{ length: values.note.length, max: 40 }} error={errors.note}>
-          {(control) => <Input {...control} {...bind("note")} maxLength={40} />}
-        </Field>
-        <Field label="Descripción corta (opcional)" count={{ length: values.blurb.length, max: 80 }} error={errors.blurb}>
-          {(control) => <Input {...control} {...bind("blurb")} maxLength={80} />}
-        </Field>
-      </MoreOptions>
-      <SwitchField label="Publicada" {...toggle("isPublished")} />
-      <ActionBar status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
-      </ActionBar>
-      {publish.open ? (
-        <PublishPreview
-          before={stored.isPublished ? stored : null}
-          after={values}
-          fields={SOCIAL_PUBLISH_FIELDS}
-          render={(shown, changed) => <SocialPreview values={shown} changed={changed} />}
-          {...publish.dialog}
-        />
-      ) : null}
-    </form>
+    </EditorSplit>
   );
 }

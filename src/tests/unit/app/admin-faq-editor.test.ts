@@ -83,6 +83,47 @@ describe("the FAQ editor", () => {
   });
 });
 
+describe("the FAQ editor's publish panel", () => {
+  const publication = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="publish-side"]')!;
+  const publicada = (host: HTMLElement) => host.querySelector<HTMLInputElement>('[role="switch"]')!;
+
+  it("holds the preview, Publicada and the one primary button; the content stays in a «Contenido» group", async () => {
+    const host = await mountForm();
+    const group = [...host.querySelectorAll("section")].find((section) => section.querySelector("h2")?.textContent === "Contenido")!;
+
+    expect(publication(host).querySelector("h2")?.textContent).toBe("Publicación");
+    expect(publication(host).contains(publicada(host))).toBe(true);
+    expect(publicada(host).closest("label")?.textContent).toBe("Publicada");
+    expect(publication(host).contains(host.querySelector('button[type="submit"]'))).toBe(true);
+    expect(group.contains(field(host, "Pregunta"))).toBe(true);
+    expect(group.contains(field(host, "Respuesta"))).toBe(true);
+    expect(publication(host).querySelector("details")).toBeNull();
+  });
+
+  it("moves Publicada up under the title on a phone, as the one switch of the form (S1)", async () => {
+    const host = await mountForm();
+    const state = host.querySelector<HTMLElement>('[data-slot="publish-state"]')!;
+
+    expect(host.querySelectorAll('[role="switch"]')).toHaveLength(1);
+    expect(state.contains(publicada(host))).toBe(true);
+    expect(state.className).toContain("order-first");
+  });
+
+  it("previews the question as the site lists it while it is typed, with its «git help» line", async () => {
+    const host = await mountForm();
+    const card = () => host.querySelector('[aria-label="Así se verá en el sitio"]')!.textContent;
+
+    expect(card()).toBe("Preguntas frecuentesSin pregunta");
+
+    await typeInto(field(host, "Pregunta"), "¿Cómo entro?");
+    await typeInto(field(host, "Respuesta"), "Con su cuenta.");
+    await click(moreOptions(host).querySelector("summary")!);
+    await typeInto(field(host, "Comando (opcional)"), "entrar");
+
+    expect(card()).toBe("Preguntas frecuentes¿Cómo entro?Con su cuenta.❯ git help entrar");
+  });
+});
+
 describe("the labels of the FAQ editor", () => {
   it("name one control each, so the \"?\" help toggle does not answer to \"Comando (opcional)\"", async () => {
     const host = await mountForm();

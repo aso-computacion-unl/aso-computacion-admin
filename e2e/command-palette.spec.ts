@@ -13,6 +13,14 @@ async function logInAsAdmin(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+/** Presses a shortcut until the page goes: right after a load the palette's key listener may not be attached yet (hydration). */
+async function pressShortcut(page: Page, key: string, url: RegExp) {
+  await expect(async () => {
+    await page.keyboard.press(key);
+    await expect(page).toHaveURL(url, { timeout: 1000 });
+  }).toPass();
+}
+
 // The layout mounts the palette, so it works away from the home too.
 test("Ctrl K opens the palette on any admin page; typing filters, arrows and Enter go, Escape gives the focus back", async ({ page }) => {
   await logInAsAdmin(page);
@@ -22,8 +30,10 @@ test("Ctrl K opens the palette on any admin page; typing filters, arrows and Ent
   const opener = page.getByRole("region", { name: /^Sesión:/ }).getByRole("button", { name: "Cerrar sesión" });
 
   await opener.focus();
-  await page.keyboard.press("Control+k");
-  await expect(dialog).toBeVisible();
+  await expect(async () => {
+    await page.keyboard.press("Control+k");
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
   await expect(dialog.getByRole("combobox")).toBeFocused();
 
   await page.keyboard.press("Escape");
@@ -51,16 +61,13 @@ test("E, N and P go to the create pages, but stay plain letters while typing in 
   await logInAsAdmin(page);
 
   await page.goto("/admin/events");
-  await page.keyboard.press("e");
-  await expect(page).toHaveURL(/\/admin\/events\/new$/);
+  await pressShortcut(page, "e", /\/admin\/events\/new$/);
 
   await page.goto("/admin/events");
-  await page.keyboard.press("n");
-  await expect(page).toHaveURL(/\/admin\/news\/new$/);
+  await pressShortcut(page, "n", /\/admin\/news\/new$/);
 
   await page.goto("/admin/events");
-  await page.keyboard.press("p");
-  await expect(page).toHaveURL(/\/admin\/faqs\/new$/);
+  await pressShortcut(page, "p", /\/admin\/faqs\/new$/);
 
   // In a field the key is text: the page stays and the field gets the letter.
   const field = page.getByLabel("Pregunta", { exact: true });

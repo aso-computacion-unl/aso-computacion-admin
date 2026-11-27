@@ -1,17 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SwitchField } from "@/components/ui/switch";
 import { SOCIAL_PLATFORMS } from "@/domain/social-link";
-import type { ActionResult } from "@/interface/admin/action-result";
 import { socialPlatformLabel } from "@/interface/admin/socials/platform-labels";
 
 import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
 import { Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { SOCIAL_PUBLISH_FIELDS, SocialCardPreview, SocialPreview } from "./social-preview";
 
@@ -36,12 +34,7 @@ export const EMPTY_SOCIAL_FORM_VALUES: SocialFormValues = {
   isPublished: false,
 };
 
-interface SocialFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: SocialFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface SocialFormProps extends PublishFormProps<SocialFormValues> {
   /** A note at the foot of the publish panel (a new link: where it lands in the list). */
   note?: string;
 }
@@ -71,9 +64,7 @@ export function SocialForm({ action, submitLabel, initialValues = EMPTY_SOCIAL_F
       note={note}
       status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
       submit={
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12 lg:w-full" />
       }
       dialog={
         publish.open ? (

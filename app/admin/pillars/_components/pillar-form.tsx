@@ -1,15 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActionResult } from "@/interface/admin/action-result";
 import { PILLAR_FIELD_MESSAGES } from "@/interface/admin/field-messages";
 
 import { EditorGroup, SPAN } from "../../_components/editor-split";
 import { ActionBar, Field, FormFeedback } from "../../_components/form-parts";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { PILLAR_PUBLISH_FIELDS, PillarPreview } from "./pillar-preview";
 
@@ -24,12 +22,7 @@ export interface PillarFormValues {
 
 export const EMPTY_PILLAR_FORM_VALUES: PillarFormValues = { word: "", title: "", text: "", imageAlt: "", isPublished: false };
 
-interface PillarFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: PillarFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
+interface PillarFormProps extends PublishFormProps<PillarFormValues> {
   hasImage?: boolean;
   /** The stored image's address, so the preview before publishing shows it. */
   imageUrl?: string | null;
@@ -67,9 +60,7 @@ export function PillarForm({ action, submitLabel, initialValues = EMPTY_PILLAR_F
         </EditorGroup>
       </div>
       <ActionBar className="mt-6" status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}>
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12" />
       </ActionBar>
       {publish.open ? (
         <PublishPreview

@@ -1,15 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwitchField } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActionResult } from "@/interface/admin/action-result";
 
 import { EditorGroup, EditorSplit, SPAN } from "../../_components/editor-split";
 import { Field, FormFeedback } from "../../_components/form-parts";
 import { MoreOptions } from "../../_components/more-options";
-import { PUBLISHED_MESSAGE, PublishPreview, usePublishFlow } from "../../_components/publish-preview";
+import { PUBLISHED_MESSAGE, PublishPreview, PublishSubmitButton, usePublishFlow, type PublishFormProps } from "../../_components/publish-preview";
 import { useControlledForm } from "../../_components/use-controlled-form";
 import { FAQ_PUBLISH_FIELDS, FaqCardPreview, FaqPreview } from "./faq-preview";
 
@@ -22,13 +20,7 @@ export interface FaqFormValues {
 
 export const EMPTY_FAQ_FORM_VALUES: FaqFormValues = { question: "", answer: "", command: "", isPublished: false };
 
-interface FaqFormProps {
-  action: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  submitLabel: string;
-  initialValues?: FaqFormValues;
-  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
-  autosave?: boolean;
-}
+type FaqFormProps = PublishFormProps<FaqFormValues>;
 
 export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VALUES, autosave = false }: FaqFormProps) {
   const { values, stored, bind, toggle, handleSubmit, review, submit, state, isPending, errors, formRef, autosaveStatus } = useControlledForm(action, initialValues, { autosave });
@@ -45,9 +37,7 @@ export function FaqForm({ action, submitLabel, initialValues = EMPTY_FAQ_FORM_VA
       state={<SwitchField label="Publicada" {...toggle("isPublished")} />}
       status={<FormFeedback state={state} autosave={autosaveStatus} savedMessage={stored.isPublished ? PUBLISHED_MESSAGE : undefined} />}
       submit={
-        <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className="min-h-12 lg:w-full">
-          {isPending ? "Guardando…" : publishing ? "Publicar" : submitLabel}
-        </Button>
+        <PublishSubmitButton isPending={isPending} publishing={publishing} label={submitLabel} className="min-h-12 lg:w-full" />
       }
       dialog={
         publish.open ? (

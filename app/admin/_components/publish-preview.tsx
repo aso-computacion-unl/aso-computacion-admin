@@ -11,6 +11,24 @@ import { changeText, diffFields, type PublishField } from "./publish-diff";
 
 export const PUBLISHED_MESSAGE = "Publicado. El sitio se actualiza en un minuto.";
 
+/** The props every publishable editor form takes (the event form types its own action). */
+export interface PublishFormProps<Values, Action = (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>> {
+  action: Action;
+  submitLabel: string;
+  initialValues?: Values;
+  /** An edit page of a draft: it saves by itself once the typing stops (never on a create page). */
+  autosave?: boolean;
+}
+
+/** A publishable form's submit: «Guardando…» while saving, «Publicar» for a published item (it opens the preview), else the form's own label. */
+export function PublishSubmitButton({ isPending, publishing, label, className }: { isPending: boolean; publishing: boolean; label: string; className?: string }) {
+  return (
+    <Button type="submit" busy={isPending} aria-disabled={isPending || undefined} className={className}>
+      {isPending ? "Guardando…" : publishing ? "Publicar" : label}
+    </Button>
+  );
+}
+
 type Flow = { step: "closed" } | { step: "asking"; opener: HTMLElement | null } | { step: "sending"; opener: HTMLElement | null; from: ActionResult | null };
 
 interface PublishFlowForm {
